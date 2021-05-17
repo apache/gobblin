@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.typesafe.config.Config;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -29,13 +27,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.commit.CommitSequenceStore;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryIssueRepository;
 import org.apache.gobblin.source.Source;
 
 
@@ -46,7 +46,8 @@ public class DummyJobContext extends JobContext {
   public DummyJobContext(Properties jobProps, Logger logger, Map<String, JobState.DatasetState> datasetStateMap)
       throws Exception {
     super(jobProps, logger, SharedResourcesBrokerFactory
-        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance()));
+        .createDefaultTopLevelBroker(ConfigFactory.empty(), GobblinScopeTypes.GLOBAL.defaultScopeInstance()),
+          new InMemoryIssueRepository());
     this.datasetStateMap = datasetStateMap;
   }
 

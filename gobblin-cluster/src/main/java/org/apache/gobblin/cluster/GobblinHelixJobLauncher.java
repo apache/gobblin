@@ -177,7 +177,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         this.jobContext.getJobState(),
         this.eventBus,
         this.stateStores.getTaskStateStore(),
-        this.outputTaskStateDir);
+        this.outputTaskStateDir,
+        this.getIssueRepository());
 
     this.helixMetrics = helixMetrics;
     startCancellationExecutor();

@@ -22,6 +22,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -29,9 +33,11 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 
-import org.apache.gobblin.rest.TaskExecutionInfo;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.rest.TaskExecutionInfo;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 
 
 /**
@@ -115,5 +121,27 @@ public class TaskStateTest {
     Assert.assertEquals(taskExecutionInfo.getDuration().longValue(), 1000L);
     Assert.assertEquals(taskExecutionInfo.getState().name(), WorkUnitState.WorkingState.COMMITTED.name());
     Assert.assertEquals(taskExecutionInfo.getTaskProperties().get("foo"), "bar");
+  }
+
+  @Test
+  public void testIssueSerialization() {
+    TaskState state = new TaskState(new WorkUnitState());
+
+    ArrayList<Issue> issues = new ArrayList<>();
+    issues.add(Issue.builder().summary("test issue 1").code("test").build());
+
+    HashMap<String, String> testProperties = new HashMap<String, String>() {{
+      put("testKey", "test value %'\"");
+    }};
+    issues.add(
+        Issue.builder().summary("test issue 2").code("test2").time(ZonedDateTime.now()).severity(IssueSeverity.ERROR)
+            .properties(testProperties).build());
+
+    state.setTaskIssues(issues);
+
+    List<Issue> deserializedIssues = state.getTaskIssues();
+
+    Assert.assertEquals(deserializedIssues, issues);
+    Assert.assertNotSame(deserializedIssues, issues);
   }
 }

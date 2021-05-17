@@ -66,6 +66,7 @@ dependencies {
   compile externalDependency.curatorRecipes
   compile externalDependency.findBugsAnnotations
   compile externalDependency.gson
+  compile externalDependency.gsonJavatimeSerialisers
   compile externalDependency.guava
   compile externalDependency.guice
   compile externalDependency.httpclient
@@ -74,6 +75,7 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
+  compile externalDependency.log4j
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.mockito

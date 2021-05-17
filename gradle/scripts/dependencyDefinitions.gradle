@@ -50,6 +50,7 @@ ext.externalDependency = [
     "guava": "com.google.guava:guava:15.0",
     "groovy": "org.codehaus.groovy:groovy:2.4.8",
     "gson": "com.google.code.gson:gson:2.6.2",
+    "gsonJavatimeSerialisers": "com.fatboyindustrial.gson-javatime-serialisers:gson-javatime-serialisers:1.1.1",
     "findBugsAnnotations": "com.google.code.findbugs:jsr305:" + findBugsVersion,
     "hadoopCommon": "org.apache.hadoop:hadoop-common:" + hadoopVersion,
     "hadoopClientCore": "org.apache.hadoop:hadoop-mapreduce-client-core:" + hadoopVersion,
