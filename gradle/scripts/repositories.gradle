@@ -18,6 +18,9 @@
 repositories {
   mavenCentral()
   maven {
+    url "http://nexus.pentaho.org/content/groups/omni"
+  }
+  maven {
     url "https://plugins.gradle.org/m2/"
   }
   maven {
@@ -30,7 +33,7 @@ repositories {
     url "https://repository.apache.org/content/repositories/snapshots"
   }
   maven {
-    url "https://linkedin.jfrog.com/artifactory/"
+    url "https://linkedin.jfrog.io/artifactory/"
   }
   jcenter()
 }
