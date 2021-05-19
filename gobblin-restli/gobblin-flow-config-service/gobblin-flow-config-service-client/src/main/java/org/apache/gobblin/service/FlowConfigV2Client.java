@@ -19,6 +19,8 @@ package org.apache.gobblin.service;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -214,14 +216,24 @@ public class FlowConfigV2Client implements Closeable {
       String propertyFilter) throws RemoteInvocationException {
     LOG.debug("getAllFlowConfigs called");
 
-    FindRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.findByFilterFlows()
-        .flowGroupParam(flowGroup).flowNameParam(flowName).templateUriParam(templateUri).userToProxyParam(userToProxy)
-        .sourceIdentifierParam(sourceIdentifier).destinationIdentifierParam(destinationIdentifier).scheduleParam(schedule)
-        .isRunImmediatelyParam(isRunImmediately).owningGroupParam(owningGroup).propertyFilterParam(propertyFilter).build();
+    // the following parameters may contain white space
+    try {
+      String decodedSchedule = URLDecoder.decode(schedule, StandardCharsets.UTF_8.toString());
+      String decodedPropertyFilter = URLDecoder.decode(propertyFilter, StandardCharsets.UTF_8.toString());
 
-    Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+        FindRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.findByFilterFlows()
+                .flowGroupParam(flowGroup).flowNameParam(flowName).templateUriParam(templateUri)
+                .userToProxyParam(userToProxy).sourceIdentifierParam(sourceIdentifier)
+                .destinationIdentifierParam(destinationIdentifier).scheduleParam(decodedSchedule)
+                .isRunImmediatelyParam(isRunImmediately).owningGroupParam(owningGroup)
+                .propertyFilterParam(decodedPropertyFilter).build();
 
-    return response.getEntity().getElements();
+            Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+
+            return response.getEntity().getElements();
+    } catch (Exception e) {
+      throw new RuntimeException("Encountered error decoding schedule or property filter or sending getRequest", e);
+    }
   }
 
   /**
