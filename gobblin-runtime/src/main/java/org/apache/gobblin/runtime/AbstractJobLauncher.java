@@ -598,7 +598,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               }
             });
 
-            if (jobState.getState() == JobState.RunningState.FAILED) {
+            if (jobState.getState() == JobState.RunningState.FAILED || jobState.getState() == JobState.RunningState.CANCELLED) {
               notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED, new JobListenerAction() {
                 @Override
                 public void apply(JobListener jobListener, JobContext jobContext)
