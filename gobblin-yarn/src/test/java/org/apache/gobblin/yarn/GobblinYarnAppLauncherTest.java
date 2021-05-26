@@ -124,7 +124,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   private final Closer closer = Closer.create();
 
-  public static void setEnv(String key, String value) {
+  private static void setEnv(String key, String value) {
     try {
       Map<String, String> env = System.getenv();
       Class<?> cl = env.getClass();

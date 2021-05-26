@@ -49,6 +49,10 @@ public class KafkaIngestionHealthCheckTest {
   }
 
   @Subscribe
+  @Test(enabled = false)
+  // When a class has "@Test" annotation, TestNG will run all public methods as tests.
+  // This specific method is public because eventBus is calling it. To prevent running it as a test, we mark it
+  // as "disabled" test.
   public void handleContainerHealthCheckFailureEvent(ContainerHealthCheckFailureEvent event) {
     this.countDownLatch.countDown();
   }
