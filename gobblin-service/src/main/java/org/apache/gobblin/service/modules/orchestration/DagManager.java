@@ -59,6 +59,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -431,6 +432,8 @@ public class DagManager extends AbstractIdleService {
     private final Map<String, Integer> perUserQuota;
     private final AtomicLong orchestrationDelay = new AtomicLong(0);
     private static Map<String, FlowState> flowGauges = Maps.newHashMap();
+    private ContextAwareMeter allSuccessfulMeter;
+    private ContextAwareMeter allFailedMeter;
 
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
@@ -460,6 +463,10 @@ public class DagManager extends AbstractIdleService {
         this.jobStatusPolledTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.JOB_STATUS_POLLED_TIMER));
         ContextAwareGauge<Long> orchestrationDelayMetric = metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY,
             () -> orchestrationDelay.get());
+        this.allSuccessfulMeter = metricContext.contextAwareMeter(
+            MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.SUCCESSFUL_FLOW_METER));
+        this.allFailedMeter = metricContext.contextAwareMeter(
+            MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.FAILED_FLOW_METER));
         this.metricContext.register(orchestrationDelayMetric);
       } else {
         this.metricContext = null;
@@ -1133,6 +1140,12 @@ public class DagManager extends AbstractIdleService {
 
       return counters;
     }
+
+    private ContextAwareMeter getGroupMeterForDag(String dagId, String meterName) {
+      String flowGroup = DagManagerUtils.getFlowId(this.dags.get(dagId)).getFlowGroup();
+      return metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, meterName));
+    }
+
     /**
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */
@@ -1140,7 +1153,6 @@ public class DagManager extends AbstractIdleService {
       List<String> dagIdstoClean = new ArrayList<>();
       //Clean up failed dags
       for (String dagId : this.failedDagIdsFinishRunning) {
-        addFailedDag(dagId);
         //Skip monitoring of any other jobs of the failed dag.
         LinkedList<DagNode<JobExecutionPlan>> dagNodeList = this.dagToJobs.get(dagId);
         while (!dagNodeList.isEmpty()) {
@@ -1148,7 +1160,7 @@ public class DagManager extends AbstractIdleService {
           deleteJobState(dagId, dagNode);
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
-        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+        onFlowFailure(dagId);
         // send an event before cleaning up dag
         DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), TimingEvent.FlowTimings.FLOW_FAILED);
         dagIdstoClean.add(dagId);
@@ -1159,12 +1171,12 @@ public class DagManager extends AbstractIdleService {
         if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
           String status = TimingEvent.FlowTimings.FLOW_SUCCEEDED;
           if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
-            addFailedDag(dagId);
+            onFlowFailure(dagId);
             status = TimingEvent.FlowTimings.FLOW_FAILED;
             this.failedDagIdsFinishAllPossible.remove(dagId);
             flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
           } else {
-            flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
+            onFlowSuccess(dagId);
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
           // send an event before cleaning up dag
@@ -1176,6 +1188,19 @@ public class DagManager extends AbstractIdleService {
       for (String dagId: dagIdstoClean) {
         cleanUpDag(dagId);
       }
+    }
+
+    private void onFlowSuccess(String dagId) {
+      flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
+      this.allSuccessfulMeter.mark();
+      getGroupMeterForDag(dagId, ServiceMetricNames.SUCCESSFUL_FLOW_METER).mark();
+    }
+
+    private void onFlowFailure(String dagId) {
+      addFailedDag(dagId);
+      flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+      this.allFailedMeter.mark();
+      getGroupMeterForDag(dagId, ServiceMetricNames.FAILED_FLOW_METER).mark();
     }
 
     /**

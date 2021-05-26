@@ -40,6 +40,8 @@ public class ServiceMetricNames {
   public static final String CREATE_FLOW_METER = "CreateFlow";
   public static final String DELETE_FLOW_METER = "DeleteFlow";
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
+  public static final String SUCCESSFUL_FLOW_METER = "SuccessfulFlows";
+  public static final String FAILED_FLOW_METER = "FailedFlows";
 
   public static final String RUNNING_FLOWS_COUNTER = "RunningFlows";
   public static final String SERVICE_USERS = "ServiceUsers";
