@@ -16,6 +16,14 @@
  */
 package org.apache.gobblin.writer;
 
+import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.codahale.metrics.Meter;
 import com.github.rholder.retry.Attempt;
 import com.github.rholder.retry.RetryException;
@@ -26,10 +34,7 @@ import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.exception.NonTransientException;
@@ -38,8 +43,6 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.FinalState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.
@@ -136,7 +139,9 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
   private void callWithRetry(Callable<Void> callable) throws IOException {
     try {
       this.retryer.wrap(callable).call();
-    } catch (ExecutionException | RetryException e) {
+    } catch (RetryException e) {
+      throw new IOException(e.getLastFailedAttempt().getExceptionCause());
+    } catch (ExecutionException e) {
       throw new IOException(e);
     }
   }
