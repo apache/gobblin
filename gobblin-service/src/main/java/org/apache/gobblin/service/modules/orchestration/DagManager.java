@@ -1191,16 +1191,20 @@ public class DagManager extends AbstractIdleService {
     }
 
     private void onFlowSuccess(String dagId) {
-      flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
-      this.allSuccessfulMeter.mark();
-      getGroupMeterForDag(dagId, ServiceMetricNames.SUCCESSFUL_FLOW_METER).mark();
+      if (this.metricContext != null) {
+        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
+        this.allSuccessfulMeter.mark();
+        getGroupMeterForDag(dagId, ServiceMetricNames.SUCCESSFUL_FLOW_METER).mark();
+      }
     }
 
     private void onFlowFailure(String dagId) {
       addFailedDag(dagId);
-      flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
-      this.allFailedMeter.mark();
-      getGroupMeterForDag(dagId, ServiceMetricNames.FAILED_FLOW_METER).mark();
+      if (this.metricContext != null) {
+        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+        this.allFailedMeter.mark();
+        getGroupMeterForDag(dagId, ServiceMetricNames.FAILED_FLOW_METER).mark();
+      }
     }
 
     /**
