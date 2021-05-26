@@ -208,6 +208,7 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10/compaction_2")));
   }
 
+  @Test
   public void testAvroRecompactionWithLimitation() throws Exception {
     FileSystem fs = getFileSystem();
     String basePath = "/tmp/testRecompactionWithLimitation";
@@ -264,7 +265,7 @@ public class AvroCompactionTaskTest {
     return file;
   }
 
-  public Schema getSchema() {
+  private Schema getSchema() {
     final String KEY_SCHEMA =
         "{ \"type\" : \"record\",  \"name\" : \"etl\",\"namespace\" : \"reducerTest\",  \"fields\" : [ { \"name\" : "
             + "\"key\", \"type\" : {\"type\" : \"record\", \"name\" : \"key_name\", \"namespace\" : \"key_namespace\",  "
@@ -275,7 +276,7 @@ public class AvroCompactionTaskTest {
     return keySchema.getField("key").schema();
   }
 
-  public GenericRecord createRandomRecord () {
+  private GenericRecord createRandomRecord () {
     GenericRecordBuilder keyRecordBuilder = new GenericRecordBuilder(getSchema());
     keyRecordBuilder.set("partitionKey", new Long(1));
     keyRecordBuilder.set("environment", "test");
@@ -284,7 +285,7 @@ public class AvroCompactionTaskTest {
     return record;
   }
 
-  public GenericRecord createEvolvedSchemaRecord() {
+  private GenericRecord createEvolvedSchemaRecord() {
     Schema evolvedSchema =
         SchemaBuilder.record("evolved").fields()
             .requiredLong("partitionKey").requiredString("environment").requiredString("subKey").optionalString("oppo").endRecord();
@@ -296,7 +297,7 @@ public class AvroCompactionTaskTest {
     return keyRecordBuilder.build();
   }
 
-  public void createAvroFileWithRepeatingRecords(File file, GenericRecord r, int count, Optional<Schema> schema) throws IOException {
+  private void createAvroFileWithRepeatingRecords(File file, GenericRecord r, int count, Optional<Schema> schema) throws IOException {
       DataFileWriter<GenericRecord> writer = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>());
       writer.create(schema.isPresent() ? schema.get() : getSchema(), new FileOutputStream(file));
       for (int i = 0; i < count; ++i) {

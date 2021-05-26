@@ -154,7 +154,7 @@ public class HiveOrcSerDeManagerTest {
     manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
   }
 
-  public void examineSchema(HiveRegistrationUnit registrationUnit) {
+  private void examineSchema(HiveRegistrationUnit registrationUnit) {
     List<String> columns = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS).split(","));
     Assert.assertTrue(columns.get(0).equals("name"));
     Assert.assertTrue(columns.get(1).equals("timestamp"));
