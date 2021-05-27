@@ -210,7 +210,7 @@ public abstract class AbstractPathFinder implements PathFinder {
             try {
               flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
             } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
-              this.flowSpec.getCompilationErrors().add(e.toString());
+              this.flowSpec.getCompilationErrors().add("Error compiling edge " + flowEdge.toString() + ": " + e.toString());
               continue;
             }
 

@@ -33,7 +33,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -528,7 +528,7 @@ public class MultiHopFlowCompilerTest {
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     //Ensure no path to destination.
-    Assert.assertTrue(jobDag.isEmpty());
+    Assert.assertEquals(jobDag, null);
   }
 
   @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")

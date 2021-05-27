@@ -38,6 +38,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
@@ -201,13 +202,19 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       for (FlowSpec datasetFlowSpec : flowSpecs) {
         for (DataNode destNode : destNodes) {
           long authStartTime = System.nanoTime();
-          boolean authorized = this.dataMovementAuthorizer.isMovementAuthorized(flowSpec, sourceNode, destNode);
-          Instrumented.updateTimer(dataAuthorizationTimer, System.nanoTime() - authStartTime, TimeUnit.NANOSECONDS);
-          if (!authorized) {
-            String message = String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
-                flowSpec.getUri().toString(), source, destination);
-            log.error(message);
-            datasetFlowSpec.getCompilationErrors().add(message);
+          try {
+            boolean authorized = this.dataMovementAuthorizer.isMovementAuthorized(flowSpec, sourceNode, destNode);
+            Instrumented.updateTimer(dataAuthorizationTimer, System.nanoTime() - authStartTime, TimeUnit.NANOSECONDS);
+            if (!authorized) {
+              String message = String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
+                  flowSpec.getUri().toString(), source, destination);
+              log.error(message);
+              datasetFlowSpec.getCompilationErrors().add(message);
+              return null;
+            }
+          } catch (Exception e) {
+            Instrumented.markMeter(flowCompilationFailedMeter);
+            datasetFlowSpec.getCompilationErrors().add(Throwables.getStackTraceAsString(e));
             return null;
           }
         }
@@ -222,14 +229,16 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
       if (jobExecutionPlanDag.isEmpty()) {
         Instrumented.markMeter(flowCompilationFailedMeter);
-        log.info(String.format("No path found from source: %s and destination: %s", source, destination));
-        return jobExecutionPlanDag;
+        String message = String.format("No path found from source: %s and destination: %s", source, destination);
+        log.info(message);
+        flowSpec.getCompilationErrors().add(message);
+        return null;
       }
     } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
       Instrumented.markMeter(flowCompilationFailedMeter);
-      log.error(String
-              .format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination),
-          e);
+      String message = String.format("Exception encountered while compiling flow for source: %s and destination: %s, %s", source, destination, Throwables.getStackTraceAsString(e));
+      log.error(message, e);
+      flowSpec.getCompilationErrors().add(message);
       return null;
     } finally {
       this.rwLock.readLock().unlock();

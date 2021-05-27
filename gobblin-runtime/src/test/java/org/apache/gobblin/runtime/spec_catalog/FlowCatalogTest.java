@@ -208,15 +208,12 @@ public class FlowCatalogTest {
     FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
 
     // Assume that spec is rejected
-    when(this.mockListener.onAddSpec(any())).thenThrow(new RuntimeException("Could not compile flow"));
+    when(this.mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(null));
     Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
 
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
-
-    // Add compilation errors to spec so that it will print it back to user
-    Assert.assertEquals(badSpec.getCompilationErrors().size(), 1);
   }
 
   public static URI computeFlowSpecURI() {
