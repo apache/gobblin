@@ -424,11 +424,13 @@ public class TokenUtils {
     Path[] ps = new Path[remoteNamenodesList.size()];
     for (int i = 0; i < ps.length; i++) {
       ps[i] = new Path(remoteNamenodesList.get(i).trim());
-      FileSystem otherNameNodeFS = ps[i].getFileSystem(conf);
+    }
 
-      if (StringUtils.isEmpty(renewer)) {
-        TokenCache.obtainTokensForNamenodes(cred, ps, conf);
-      } else {
+    if (StringUtils.isEmpty(renewer)) {
+      TokenCache.obtainTokensForNamenodes(cred, ps, conf);
+    } else {
+      for(Path p: ps) {
+        FileSystem otherNameNodeFS = p.getFileSystem(conf);
         final Token<?>[] tokens = otherNameNodeFS.addDelegationTokens(renewer, cred);
         if (tokens != null) {
           for (Token<?> token : tokens) {
