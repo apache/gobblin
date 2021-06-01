@@ -282,7 +282,8 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
    * @return the minimum workunit size.
    */
   private Double getMinWorkUnitSize(WorkUnit workUnit) {
-    int minContainersForTopic = workUnit.getPropAsInt(MIN_CONTAINERS_FOR_TOPIC, -1);
+    int minContainersForTopic = Math.min(workUnit.getPropAsInt(MIN_CONTAINERS_FOR_TOPIC, -1),
+        workUnit.getPropAsInt(KafkaSource.NUM_TOPIC_PARTITIONS));
     if (minContainersForTopic == -1) {
       //No minimum configured? Return lower bound for workunit size to be 0.
       return 0.0;
