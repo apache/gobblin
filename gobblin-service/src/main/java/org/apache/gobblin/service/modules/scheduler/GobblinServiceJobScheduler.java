@@ -263,7 +263,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /**
    *
    * @param addedSpec spec to be added
-   * @return add spec response
+   * @return add spec response, which contains <code>null</code> if there is an error
    */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {

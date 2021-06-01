@@ -368,8 +368,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+    // If we cannot get the response from the scheduler, assume that the flow failed compilation
     AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
+        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
     return isCompileSuccessful(addSpecResponse.getValue());
   }
 

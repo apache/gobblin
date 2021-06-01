@@ -216,6 +216,27 @@ public class FlowCatalogTest {
     Assert.assertEquals(specs.size(), 0);
   }
 
+  @Test (dependsOnMethods = "testRejectBadFlow")
+  public void testRejectMissingListener() {
+    flowCatalog.removeListener(this.mockListener);
+    Collection<Spec> specs = flowCatalog.getSpecs();
+    logger.info("[Before Create] Number of specs: " + specs.size());
+    int i=0;
+    for (Spec spec : specs) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+    }
+    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+
+    // Create and add Spec
+
+    Map<String, AddSpecResponse> response = this.flowCatalog.put(flowSpec);
+
+    // Spec should be rejected from being stored
+    specs = flowCatalog.getSpecs();
+    Assert.assertEquals(specs.size(), 0);
+  }
+
   public static URI computeFlowSpecURI() {
     // Make sure this is relative
     URI uri = PathUtils.relativizePath(new Path(SPEC_GROUP_DIR), new Path(SPEC_STORE_PARENT_DIR)).toUri();
