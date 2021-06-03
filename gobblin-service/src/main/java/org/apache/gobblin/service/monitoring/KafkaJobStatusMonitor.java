@@ -50,6 +50,7 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.retention.DatasetCleanerTask;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -64,8 +65,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
-  public static final String STATE_STORE_TABLE_SUFFIX = "gst";
-  public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
   public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
       JOB_STATUS_MONITOR_PREFIX,  "getAndSetJobStatus");
 
@@ -218,7 +217,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {
-    return Joiner.on(STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, STATE_STORE_TABLE_SUFFIX);
+    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX);
   }
 
   public static String jobStatusTableName(long flowExecutionId, String jobGroup, String jobName) {
@@ -226,11 +225,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   public static String jobStatusStoreName(String flowGroup, String flowName) {
-    return Joiner.on(STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
+    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
   }
 
   public static long getExecutionIdFromTableName(String tableName) {
-    return Long.parseLong(Splitter.on(STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
+    return Long.parseLong(Splitter.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
   public abstract org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message);

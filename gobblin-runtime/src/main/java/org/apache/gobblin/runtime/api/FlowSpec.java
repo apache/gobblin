@@ -47,6 +47,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -466,6 +467,11 @@ public class FlowSpec implements Configurable, Spec {
           .setFlowGroup(flowProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
           .setFlowName(flowProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)))
           .setProperties(flowPropsAsStringMap);
+    }
+
+    public static int maxFlowSpecUri() {
+      return URI_SCHEME.length() + ":".length() // URI separator
+        + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_NAME + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_GROUP;
     }
   }
 }

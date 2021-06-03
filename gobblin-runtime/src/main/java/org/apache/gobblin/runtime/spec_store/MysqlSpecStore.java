@@ -52,6 +52,7 @@ import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY;
@@ -74,13 +75,6 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
   public static final String DEFAULT_TAG_VALUE = "";
   private static final String NEW_COLUMN = "spec_json";
 
-  private static final String CREATE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, flow_group VARCHAR(128), flow_name VARCHAR(128), "
-          + "template_uri VARCHAR(128), user_to_proxy VARCHAR(128), source_identifier VARCHAR(128), "
-          + "destination_identifier VARCHAR(128), schedule VARCHAR(128), tag VARCHAR(128) NOT NULL, "
-          + "modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-          + "isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), "
-          + "spec LONGBLOB, " + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, flow_group, flow_name, template_uri, "
       + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, owning_group, spec, " + NEW_COLUMN + ") "
@@ -108,11 +102,21 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     this.specSerDe = specSerDe;
 
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName))) {
+        PreparedStatement statement = connection.prepareStatement(getCreateJobStateTableTemplate())) {
       statement.executeUpdate();
     } catch (SQLException e) {
       throw new IOException(e);
     }
+  }
+
+  protected String getCreateJobStateTableTemplate() {
+    return "CREATE TABLE IF NOT EXISTS " + this.tableName + " (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUri()
+        + ") NOT NULL, flow_group VARCHAR(" + ServiceConfigKeys.MAX_FLOW_GROUP + "), flow_name VARCHAR("
+        + ServiceConfigKeys.MAX_FLOW_GROUP + "), " + "template_uri VARCHAR(128), user_to_proxy VARCHAR(128), "
+        + "source_identifier VARCHAR(128), " + "destination_identifier VARCHAR(128), schedule VARCHAR(128), "
+        + "tag VARCHAR(128) NOT NULL, modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE "
+        + "CURRENT_TIMESTAMP, isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), spec LONGBLOB, "
+        + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   }
 
   @Override
