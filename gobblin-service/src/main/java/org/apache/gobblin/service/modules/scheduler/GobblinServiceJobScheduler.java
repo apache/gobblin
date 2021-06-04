@@ -375,11 +375,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     try {
-      onDeleteSpec(updatedSpec.getUri(), updatedSpec.getVersion());
-    } catch (Exception e) {
-      _log.error("Failed to update Spec: " + updatedSpec, e);
-    }
-    try {
       onAddSpec(updatedSpec);
     } catch (Exception e) {
       _log.error("Failed to update Spec: " + updatedSpec, e);
