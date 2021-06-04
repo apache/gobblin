@@ -28,11 +28,13 @@ import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -46,6 +48,8 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
 
 
 public class GobblinServiceJobSchedulerTest {
@@ -65,6 +69,10 @@ public class GobblinServiceJobSchedulerTest {
     Properties properties = new Properties();
     properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
+    SpecCatalogListener mockListener = Mockito.mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    flowCatalog.addListener(mockListener);
     ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
 
     serviceLauncher.addService(flowCatalog);
@@ -73,8 +81,8 @@ public class GobblinServiceJobSchedulerTest {
     FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"));
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"));
 
-    flowCatalog.put(flowSpec0, false);
-    flowCatalog.put(flowSpec1, false);
+    flowCatalog.put(flowSpec0, true);
+    flowCatalog.put(flowSpec1, true);
 
     Assert.assertEquals(flowCatalog.getSpecs().size(), 2);
 
@@ -143,6 +151,12 @@ public class GobblinServiceJobSchedulerTest {
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
     ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
 
+    // Assume that the catalog can store corrupted flows
+    SpecCatalogListener mockListener = Mockito.mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    flowCatalog.addListener(mockListener);
+
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
@@ -151,11 +165,10 @@ public class GobblinServiceJobSchedulerTest {
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"));
     FlowSpec flowSpec2 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec2"));
 
-    // Assume that the catalog can store corrupted flows
-    flowCatalog.put(flowSpec0, false);
     // Ensure that these flows are scheduled
-    flowCatalog.put(flowSpec1, false);
-    flowCatalog.put(flowSpec2, false);
+    flowCatalog.put(flowSpec0, true);
+    flowCatalog.put(flowSpec1, true);
+    flowCatalog.put(flowSpec2, true);
 
     Assert.assertEquals(flowCatalog.getSpecs().size(), 3);
 

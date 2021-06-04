@@ -28,6 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -55,6 +58,10 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
+
+
 public class GitConfigMonitorTest {
   private static final Logger logger = LoggerFactory.getLogger(GitConfigMonitorTest.class);
   private Repository remoteRepo;
@@ -73,6 +80,7 @@ public class GitConfigMonitorTest {
 
   private RefSpec masterRefSpec = new RefSpec("master");
   private FlowCatalog flowCatalog;
+  private SpecCatalogListener mockListener;
   private Config config;
   private GitConfigMonitor gitConfigMonitor;
 
@@ -101,6 +109,12 @@ public class GitConfigMonitorTest {
         .build();
 
     this.flowCatalog = new FlowCatalog(config);
+
+    this.mockListener = mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+
+    this.flowCatalog.addListener(mockListener);
     this.flowCatalog.startAsync().awaitRunning();
     this.gitConfigMonitor = new GitConfigMonitor(this.config, this.flowCatalog);
     this.gitConfigMonitor.setActive(true);

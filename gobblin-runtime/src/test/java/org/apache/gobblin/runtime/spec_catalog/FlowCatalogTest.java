@@ -208,15 +208,33 @@ public class FlowCatalogTest {
     FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
 
     // Assume that spec is rejected
-    when(this.mockListener.onAddSpec(any())).thenThrow(new RuntimeException("Could not compile flow"));
+    when(this.mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(null));
     Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
 
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+  }
 
-    // Add compilation errors to spec so that it will print it back to user
-    Assert.assertEquals(badSpec.getCompilationErrors().size(), 1);
+  @Test (dependsOnMethods = "testRejectBadFlow")
+  public void testRejectMissingListener() {
+    flowCatalog.removeListener(this.mockListener);
+    Collection<Spec> specs = flowCatalog.getSpecs();
+    logger.info("[Before Create] Number of specs: " + specs.size());
+    int i=0;
+    for (Spec spec : specs) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+    }
+    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+
+    // Create and add Spec
+
+    Map<String, AddSpecResponse> response = this.flowCatalog.put(flowSpec);
+
+    // Spec should be rejected from being stored
+    specs = flowCatalog.getSpecs();
+    Assert.assertEquals(specs.size(), 0);
   }
 
   public static URI computeFlowSpecURI() {

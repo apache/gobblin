@@ -33,7 +33,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -528,7 +527,7 @@ public class MultiHopFlowCompilerTest {
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     //Ensure no path to destination.
-    Assert.assertTrue(jobDag.isEmpty());
+    Assert.assertEquals(jobDag, null);
   }
 
   @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")
@@ -647,9 +646,9 @@ public class MultiHopFlowCompilerTest {
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    Assert.assertTrue(dag.isEmpty());
-    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
-    Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains(AzkabanProjectConfig.USER_TO_PROXY));
+    Assert.assertEquals(dag, null);
+    Assert.assertEquals(spec.getCompilationErrors().size(), 2);
+    spec.getCompilationErrors().stream().anyMatch(s -> s.contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")

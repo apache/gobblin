@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -264,7 +263,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /**
    *
    * @param addedSpec spec to be added
-   * @return add spec response
+   * @return add spec response, which contains <code>null</code> if there is an error
    */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
@@ -289,10 +288,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // always try to compile the flow to verify if it is compilable
     Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
+    // If dag is null then a compilation error has occurred
     if (dag != null && !dag.isEmpty()) {
       response = dag.toString();
-    } else if (!flowSpec.getCompilationErrors().isEmpty()) {
-      response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
     }
 
     boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
