@@ -1102,7 +1102,8 @@ public class DagManager extends AbstractIdleService {
     }
 
     private boolean hasRunningJobs(String dagId) {
-      return !this.dagToJobs.get(dagId).isEmpty();
+      List<DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
+      return dagNodes != null && !dagNodes.isEmpty();
     }
 
     private ContextAwareCounter getRunningJobsCounter(DagNode<JobExecutionPlan> dagNode) {
