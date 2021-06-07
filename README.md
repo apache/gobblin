@@ -1,5 +1,5 @@
 # Apache Gobblin 
-[![Build Status](https://api.travis-ci.org/apache/gobblin.svg?branch=master)](https://travis-ci.org/apache/gobblin)
+[![Build Status](https://github.com/apache/gobblin/actions/workflows/build_and_test.yaml/badge.svg?branch=master)](https://travis-ci.org/apache/gobblin)
 [![Documentation Status](https://readthedocs.org/projects/gobblin/badge/?version=latest)](https://gobblin.readthedocs.org/en/latest/?badge=latest)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.gobblin/gobblin-api/badge.svg)](https://search.maven.org/search?q=g:org.apache.gobblin)
 [![Stack Overflow](http://img.shields.io/:stack%20overflow-gobblin-brightgreen.svg)](http://stackoverflow.com/questions/tagged/gobblin)
