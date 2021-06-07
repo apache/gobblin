@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.util;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Path;
@@ -31,28 +30,30 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.*;
-import com.typesafe.config.*;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigList;
+import com.typesafe.config.ConfigObject;
 import com.typesafe.config.ConfigValue;
+import com.typesafe.config.ConfigValueType;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.password.PasswordManager;
@@ -615,7 +616,8 @@ public class ConfigUtils {
    * @return ConfigObject ( config in tree ) of the {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
    */
   public static ConfigObject getAllSystemConfig(Config config) {
-    return (config.hasPath(GOBBLIN_SYNC_SYSTEMS_KEY) ? config.getObject(GOBBLIN_SYNC_SYSTEMS_KEY) : getInstance().root() );
+    return (config.hasPath(GOBBLIN_SYNC_SYSTEMS_KEY) ? config.getObject(GOBBLIN_SYNC_SYSTEMS_KEY)
+        : getInstance().root());
   }
 
   /**
@@ -627,11 +629,12 @@ public class ConfigUtils {
     ConfigObject allSysConfig = getAllSystemConfig(config);
     Map<String, ConfigObject> secureSystems = new HashMap<>();
 
-    if (allSysConfig == null) return secureSystems;
+    if (allSysConfig == null) {
+      return secureSystems;
+    }
 
     for (String systemName : allSysConfig.keySet()) {
       ConfigObject sysConfig = allSysConfig.atPath(systemName).root();
-      sysConfig.get(IS_SECURE_KEY);
       if (ConfigUtils.getBoolean(sysConfig.toConfig(), IS_SECURE_KEY, false)) {
         secureSystems.put(systemName, sysConfig);
       }
@@ -648,10 +651,11 @@ public class ConfigUtils {
 
     Multimap<String, String> allSysConfFiles = LinkedHashMultimap.create();
 
-    getAllSystemConfig(config).entrySet();
     ConfigObject allSysConfig = getAllSystemConfig(config);
 
-    if (allSysConfig == null) return allSysConfFiles;
+    if (allSysConfig == null) {
+      return allSysConfFiles;
+    }
 
     for (Map.Entry<String, ConfigValue> sysConfig : allSysConfig.entrySet()) {
 
@@ -681,7 +685,9 @@ public class ConfigUtils {
 
     for (String systemName : config.getObject(GOBBLIN_SYNC_SYSTEMS_KEY).keySet()){
       Config sysConfig = config.getConfig(GOBBLIN_SYNC_SYSTEMS_KEY).getConfig(systemName);
-      if(ConfigUtils.getBoolean(sysConfig, IS_SECURE_KEY, false) && ConfigUtils.getBoolean(sysConfig, IS_TOKEN_MGMT_ENABLED_KEY, false) && sysConfig.hasPath(HIVE_SYSTEM_KEY)){
+      if(ConfigUtils.getBoolean(sysConfig, IS_SECURE_KEY, false) &&
+          ConfigUtils.getBoolean(sysConfig, IS_TOKEN_MGMT_ENABLED_KEY, false) &&
+          sysConfig.hasPath(HIVE_SYSTEM_KEY)){
         secureSystems.put(systemName, sysConfig);
       }
     }
@@ -703,7 +709,9 @@ public class ConfigUtils {
 
     ConfigObject allSysConfig = getAllSystemConfig(config);
 
-    if (allSysConfig == null) return sysConfFiles;
+    if (allSysConfig == null) {
+      return sysConfFiles;
+    }
 
     for (Map.Entry<String, ConfigValue> sysConfig : allSysConfig.entrySet()) {
 

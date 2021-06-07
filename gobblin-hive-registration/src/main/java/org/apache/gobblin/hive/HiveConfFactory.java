@@ -18,16 +18,15 @@
 package org.apache.gobblin.hive;
 
 import java.io.IOException;
-import java.util.Map;
 
-import com.google.common.collect.Multimap;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Multimap;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.ResourceInstance;
@@ -38,6 +37,7 @@ import org.apache.gobblin.broker.iface.ScopedConfigView;
 import org.apache.gobblin.broker.iface.SharedResourceFactory;
 import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.hive.HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE;
 
@@ -64,7 +64,8 @@ public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFa
     if (!sharedHiveConfKey.hiveConfUri.equals(SharedHiveConfKey.INSTANCE.toConfigurationKey()) && StringUtils
         .isNotEmpty(sharedHiveConfKey.hiveConfUri)) {
       // match the uri with gobblin_sync_system config and load appropriate config
-      Multimap<String, String> sysConfigFiles = ConfigUtils.getSystemConfigForMetastore(sharedHiveConfKey.hiveConfUri, null);
+      Multimap<String, String> sysConfigFiles =
+          ConfigUtils.getSystemConfigForMetastore(sharedHiveConfKey.hiveConfUri, null);
       if (sysConfigFiles.size() == 0) {
         log.warn("no additional config specified for metastore {} to load as HiveConf()", sharedHiveConfKey.hiveConfUri);
       } else {

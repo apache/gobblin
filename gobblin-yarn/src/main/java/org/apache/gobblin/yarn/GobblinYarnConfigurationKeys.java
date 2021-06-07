@@ -65,7 +65,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_JARS_KEY = GOBBLIN_YARN_PREFIX + "container.jars";
   public static final String CONTAINER_FILES_LOCAL_KEY = GOBBLIN_YARN_PREFIX + "container.files.local";
   public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.files.remote";
-  public static final String CONTAINER_COPY_SYSTEM_CONFIGS = GOBBLIN_YARN_PREFIX + "container.copy_sync_system_configs";
+  public static final String CONTAINER_COPY_SYSTEM_CONFIGS = GOBBLIN_YARN_PREFIX + "container.copySyncSystemConfigs";
   public static final String CONTAINER_ZIPS_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.zips.remote";
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
