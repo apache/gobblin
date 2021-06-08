@@ -34,7 +34,7 @@ public class FlowStatusGeneratorTest {
     String flowGroup = "testGroup";
     Mockito.when(jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1)).thenReturn(null);
 
-    FlowStatusGenerator flowStatusGenerator = FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
+    FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
     Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
 
     //If a flow is COMPILED, isFlowRunning() should return true.

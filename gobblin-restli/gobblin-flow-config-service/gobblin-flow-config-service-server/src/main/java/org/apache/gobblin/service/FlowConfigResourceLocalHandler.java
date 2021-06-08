@@ -36,6 +36,7 @@ import com.linkedin.restli.server.UpdateResponse;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,6 +65,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   protected final ContextAwareMeter deleteFlow;
   protected final ContextAwareMeter runImmediatelyFlow;
 
+  @Inject
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
     this.flowCatalog = flowCatalog;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());

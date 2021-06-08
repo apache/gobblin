@@ -27,9 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
-import javax.inject.Inject;
-import javax.inject.Named;
-
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -38,6 +35,9 @@ import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
+import javax.inject.Inject;
+import javax.inject.Named;
+
 /**
  * Resource for handling flow configuration requests
  */
@@ -45,19 +45,15 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
 
-  public static final String INJECT_FLOW_CONFIG_RESOURCE_HANDLER = "flowConfigsResourceHandler";
-  public static final String INJECT_REQUESTER_SERVICE = "requesterService";
   public static final String INJECT_READY_TO_USE = "readToUse";
 
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
   @Inject
-  @Named(INJECT_FLOW_CONFIG_RESOURCE_HANDLER)
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
 
   // For getting who sends the request
   @Inject
-  @Named(INJECT_REQUESTER_SERVICE)
   private RequesterService requesterService;
 
   // For blocking use of this resource until it is ready

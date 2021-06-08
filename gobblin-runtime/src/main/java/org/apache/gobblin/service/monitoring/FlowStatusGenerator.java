@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
-import lombok.Builder;
+import javax.inject.Inject;
 
 import org.apache.gobblin.annotation.Alpha;
 
@@ -34,12 +34,16 @@ import org.apache.gobblin.annotation.Alpha;
  * Generator for {@link FlowStatus}, which relies on a {@link JobStatusRetriever}.
  */
 @Alpha
-@Builder
 public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
   public static final int MAX_LOOKBACK = 100;
 
   private final JobStatusRetriever jobStatusRetriever;
+
+  @Inject
+  public FlowStatusGenerator(JobStatusRetriever jobStatusRetriever) {
+    this.jobStatusRetriever = jobStatusRetriever;
+  }
 
   /**
    * Get the flow statuses of last <code>count</code> (or fewer) executions

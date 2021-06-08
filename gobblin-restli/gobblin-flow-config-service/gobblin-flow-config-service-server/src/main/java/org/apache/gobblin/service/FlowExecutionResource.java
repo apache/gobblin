@@ -41,9 +41,8 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
  */
 @RestLiCollection(name = "flowexecutions", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatusId, EmptyRecord, FlowExecution> {
-  public static final String FLOW_EXECUTION_GENERATOR_INJECT_NAME = "FlowExecutionResourceHandler";
 
-  @Inject @javax.inject.Inject @javax.inject.Named(FLOW_EXECUTION_GENERATOR_INJECT_NAME)
+  @Inject
   FlowExecutionResourceHandler flowExecutionResourceHandler;
 
   public FlowExecutionResource() {}

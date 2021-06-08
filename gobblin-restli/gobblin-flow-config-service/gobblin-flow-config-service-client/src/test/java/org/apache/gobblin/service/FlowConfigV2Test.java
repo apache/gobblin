@@ -119,12 +119,12 @@ public class FlowConfigV2Test {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
+        binder.bind(FlowConfigsV2ResourceHandler.class).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
         // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
         // been made
         binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-        binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(_requesterService);
-        binder.bind(GroupOwnershipService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_GROUP_OWNERSHIP_SERVICE)).toInstance(groupOwnershipService);
+        binder.bind(RequesterService.class).toInstance(_requesterService);
+        binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
       }
     });
 

@@ -297,20 +297,14 @@ class CancelPredicate implements Predicate<Void> {
 class MockedDagManager extends DagManager {
 
   public MockedDagManager(Config config, boolean instrumentationEnabled) {
-    super(config, instrumentationEnabled);
+    super(config, createJobStatusRetriever(), instrumentationEnabled);
   }
 
-  @Override
-  JobStatusRetriever createJobStatusRetriever(Config config) {
+  private static JobStatusRetriever createJobStatusRetriever() {
     JobStatusRetriever mockedJbStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).
         getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
     return  mockedJbStatusRetriever;
-  }
-
-  @Override
-  KafkaJobStatusMonitor createJobStatusMonitor(Config config) {
-    return null;
   }
 
   @Override

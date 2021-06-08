@@ -31,16 +31,20 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 
 
 
 @Alpha
+@Singleton
 public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
 
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
@@ -52,6 +56,7 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
     this(config, Optional.<Logger>absent());
   }
 
+  @Inject
   public ConfigBasedTopologySpecFactory(Config config, Optional<Logger> log) {
     Preconditions.checkNotNull(config, "Config should not be null");
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());

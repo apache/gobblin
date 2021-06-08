@@ -48,6 +48,7 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.guavaretrying
   compile externalDependency.guice
+  compile externalDependency.guiceMultibindings
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
   compile externalDependency.helix
@@ -127,12 +128,6 @@ configurations {
 configurations {
   compile {
     transitive = false
-  }
-
-  testRuntime {
-    resolutionStrategy {
-      force 'com.google.inject:guice:3.0'
-    }
   }
 }
 

@@ -35,6 +35,8 @@ import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.util.PatchApplier;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +50,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.modules.utils.InjectionNames;
 
 
 /**
@@ -65,11 +68,13 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   private GobblinServiceJobScheduler jobScheduler;
   private boolean forceLeader;
 
-  public GobblinServiceFlowConfigResourceHandler(String serviceName, boolean flowCatalogLocalCommit,
+  @Inject
+  public GobblinServiceFlowConfigResourceHandler(@Named(InjectionNames.SERVICE_NAME) String serviceName,
+      @Named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT) boolean flowCatalogLocalCommit,
       FlowConfigResourceLocalHandler handler,
       Optional<HelixManager> manager,
       GobblinServiceJobScheduler jobScheduler,
-      boolean forceLeader) {
+      @Named(InjectionNames.FORCE_LEADER) boolean forceLeader) {
     this.flowCatalogLocalCommit = flowCatalogLocalCommit;
     this.serviceName = serviceName;
     this.localHandler = handler;

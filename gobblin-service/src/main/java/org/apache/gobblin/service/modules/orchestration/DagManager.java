@@ -51,6 +51,8 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -116,6 +118,7 @@ import static org.apache.gobblin.service.ExecutionStatus.*;
  */
 @Alpha
 @Slf4j
+@Singleton
 public class DagManager extends AbstractIdleService {
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
 
@@ -127,8 +130,6 @@ public class DagManager extends AbstractIdleService {
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String NUM_THREADS_KEY = DAG_MANAGER_PREFIX + "numThreads";
   public static final String JOB_STATUS_POLLING_INTERVAL_KEY = DAG_MANAGER_PREFIX + "pollingInterval";
-  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = JOB_STATUS_RETRIEVER_KEY + ".class";
-  private static final String DEFAULT_JOB_STATUS_RETRIEVER_CLASS = FsJobStatusRetriever.class.getName();
   private static final String DAG_STATESTORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   private static final String FAILED_DAG_RETENTION_TIME_UNIT = FAILED_DAG_STATESTORE_PREFIX + ".retention.timeUnit";
@@ -193,7 +194,7 @@ public class DagManager extends AbstractIdleService {
 
   private volatile boolean isActive = false;
 
-  public DagManager(Config config, boolean instrumentationEnabled) {
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, boolean instrumentationEnabled) {
     this.config = config;
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     this.queue = initializeDagQueue(this.numThreads);
@@ -216,23 +217,10 @@ public class DagManager extends AbstractIdleService {
       this.perUserQuota.put(userQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(userQuota.split(QUOTA_SEPERATOR)[1]));
     }
 
-    try {
-      this.jobStatusRetriever = createJobStatusRetriever(config);
-    } catch (ReflectiveOperationException e) {
-      throw new RuntimeException("Exception encountered during DagManager initialization", e);
-    }
+    this.jobStatusRetriever = jobStatusRetriever;
 
     TimeUnit timeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, FAILED_DAG_RETENTION_TIME_UNIT, DEFAULT_FAILED_DAG_RETENTION_TIME_UNIT));
     this.failedDagRetentionTime = timeUnit.toMillis(ConfigUtils.getLong(config, FAILED_DAG_RETENTION_TIME, DEFAULT_FAILED_DAG_RETENTION_TIME));
-  }
-
-  JobStatusRetriever createJobStatusRetriever(Config config) throws ReflectiveOperationException {
-    Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, DEFAULT_JOB_STATUS_RETRIEVER_CLASS));
-    return (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
-  }
-
-  KafkaJobStatusMonitor createJobStatusMonitor(Config config) throws ReflectiveOperationException {
-    return new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
   }
 
   DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
@@ -254,8 +242,9 @@ public class DagManager extends AbstractIdleService {
     return queue;
   }
 
-  public DagManager(Config config) {
-    this(config, true);
+  @Inject
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever) {
+    this(config, jobStatusRetriever, true);
   }
 
   /** Start the service. On startup, the service launches a fixed pool of {@link DagManagerThread}s, which are scheduled at

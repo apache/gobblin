@@ -21,6 +21,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import javax.inject.Inject;
+import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -34,11 +36,18 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * A factory implementation that returns a {@link KafkaJobStatusMonitor} instance.
  */
 @Slf4j
-public class KafkaJobStatusMonitorFactory {
+public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMonitor> {
   private static final String KAFKA_SSL_CONFIG_PREFIX_KEY = "jobStatusMonitor.kafka.config";
   private static final String DEFAULT_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
 
-  public KafkaJobStatusMonitor createJobStatusMonitor(Config config)
+  Config config;
+
+  @Inject
+  public KafkaJobStatusMonitorFactory(Config config) {
+    this.config = config;
+  }
+
+  private KafkaJobStatusMonitor createJobStatusMonitor()
       throws ReflectiveOperationException {
     Config jobStatusConfig = config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX);
 
@@ -63,5 +72,14 @@ public class KafkaJobStatusMonitorFactory {
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
     return (KafkaJobStatusMonitor) GobblinConstructorUtils.invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads);
+  }
+
+  @Override
+  public KafkaJobStatusMonitor get() {
+    try {
+      return createJobStatusMonitor();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

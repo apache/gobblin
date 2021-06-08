@@ -37,10 +37,10 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
 /**
@@ -51,7 +51,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
   private boolean flowCatalogLocalCommit;
   private GobblinServiceJobScheduler jobScheduler;
-  private GobblinServiceFlowConfigResourceHandler resourceHandler;
+  private FlowConfigsResourceHandler resourceHandler;
   private String serviceName;
 
   @Override
@@ -80,12 +80,12 @@ class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactor
   private static class ControllerUserDefinedMessageHandler extends MessageHandler {
     private boolean flowCatalogLocalCommit;
     private GobblinServiceJobScheduler jobScheduler;
-    private GobblinServiceFlowConfigResourceHandler resourceHandler;
+    private FlowConfigsResourceHandler resourceHandler;
     private String serviceName;
 
     public ControllerUserDefinedMessageHandler(Message message, NotificationContext context, String serviceName,
         boolean flowCatalogLocalCommit, GobblinServiceJobScheduler scheduler,
-        GobblinServiceFlowConfigResourceHandler resourceHandler) {
+        FlowConfigsResourceHandler resourceHandler) {
       super(message, context);
       this.serviceName = serviceName;
       this.flowCatalogLocalCommit = flowCatalogLocalCommit;

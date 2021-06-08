@@ -18,8 +18,6 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -94,14 +92,12 @@ public class FlowConfigTest {
        @Override
        public void configure(Binder binder) {
          binder.bind(FlowConfigsResourceHandler.class)
-             .annotatedWith(Names.named(FlowConfigsResource.INJECT_FLOW_CONFIG_RESOURCE_HANDLER))
              .toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
 
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
          binder.bindConstant().annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-         binder.bind(RequesterService.class)
-             .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE)).toInstance(new NoopRequesterService(config));
+         binder.bind(RequesterService.class).toInstance(new NoopRequesterService(config));
        }
     });
 

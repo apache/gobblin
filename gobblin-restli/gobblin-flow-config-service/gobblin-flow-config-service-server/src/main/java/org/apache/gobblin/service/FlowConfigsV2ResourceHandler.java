@@ -17,27 +17,5 @@
 
 package org.apache.gobblin.service;
 
-import java.util.List;
-
-import com.google.common.collect.Lists;
-import com.linkedin.restli.server.resources.BaseResource;
-import com.typesafe.config.Config;
-
-import javax.inject.Inject;
-
-
-/**
- * Default requester service which does not track any requester information.
- */
-public class NoopRequesterService extends RequesterService {
-
-  @Inject
-  public NoopRequesterService(Config config) {
-    super(config);
-  }
-
-  @Override
-  public List<ServiceRequester> findRequesters(BaseResource resource) {
-    return Lists.newArrayList();
-  }
+public interface FlowConfigsV2ResourceHandler extends FlowConfigsResourceHandler {
 }

@@ -34,7 +34,6 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.configuration.State;
@@ -83,13 +82,12 @@ public class FlowStatusTest {
   @BeforeClass
   public void setUp() throws Exception {
     JobStatusRetriever jobStatusRetriever = new TestJobStatusRetriever();
-    final FlowStatusGenerator flowStatusGenerator =
-        FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
+    final FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
 
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(FlowStatusGenerator.class).annotatedWith(Names.named(FlowStatusResource.FLOW_STATUS_GENERATOR_INJECT_NAME))
+         binder.bind(FlowStatusGenerator.class)
              .toInstance(flowStatusGenerator);
        }
     });

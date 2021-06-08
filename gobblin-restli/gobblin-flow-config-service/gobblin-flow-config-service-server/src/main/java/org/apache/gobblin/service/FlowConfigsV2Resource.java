@@ -58,10 +58,7 @@ import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 @RestLiCollection(name = "flowconfigsV2", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, FlowStatusId, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsV2Resource.class);
-  public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsV2ResourceHandler";
-  public static final String INJECT_REQUESTER_SERVICE = "v2RequesterService";
   public static final String INJECT_READY_TO_USE = "v2ReadyToUse";
-  public static final String INJECT_GROUP_OWNERSHIP_SERVICE = "v2GroupOwnershipService";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
 
@@ -69,12 +66,10 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
 
   @Inject
-  @Named(FLOW_CONFIG_GENERATOR_INJECT_NAME)
-  private FlowConfigsResourceHandler flowConfigsResourceHandler;
+  private FlowConfigsV2ResourceHandler flowConfigsResourceHandler;
 
   // For getting who sends the request
   @Inject
-  @Named(INJECT_REQUESTER_SERVICE)
   private RequesterService requesterService;
 
   // For blocking use of this resource until it is ready
@@ -83,7 +78,6 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   private Boolean readyToUse;
 
   @Inject
-  @Named(INJECT_GROUP_OWNERSHIP_SERVICE)
   private GroupOwnershipService groupOwnershipService;
 
   public FlowConfigsV2Resource() {
