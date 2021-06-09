@@ -134,7 +134,7 @@ ext.externalDependency = [
     "bcprovJdk15on": "org.bouncycastle:bcprov-jdk15on:1.52",
     "calciteCore": "org.apache.calcite:calcite-core:1.16.0",
     "calciteAvatica": "org.apache.calcite:calcite-avatica:1.13.0",
-    "jhyde": "org.pentaho:pentaho-aggdesigner-algorithm:5.1.5-jhyde",
+    "jhyde": "net.hydromatic:aggdesigner-algorithm:6.0",
     "curatorFramework": "org.apache.curator:curator-framework:2.10.0",
     "curatorRecipes": "org.apache.curator:curator-recipes:2.10.0",
     "curatorClient": "org.apache.curator:curator-client:2.10.0",
