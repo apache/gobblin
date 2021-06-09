@@ -55,6 +55,7 @@ public class FsSpecProducerTest {
     Properties properties = new Properties();
     properties.put("key1", "val1");
     properties.put("key2", "val2");
+    //Introduce a key which is a prefix of another key and ensure it is correctly handled in the code
     properties.put("key3.1", "val3");
     properties.put("key3.1.1", "val4");
 
