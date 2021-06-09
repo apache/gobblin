@@ -34,6 +34,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.util.ConfigUtils;
+
 
 public class FsSpecProducerTest {
   private FsSpecProducer _fsSpecProducer;
@@ -50,10 +52,17 @@ public class FsSpecProducerTest {
   }
 
   private JobSpec createTestJobSpec() throws URISyntaxException {
-    JobSpec jobSpec = JobSpec.builder("testJob").withConfig(ConfigFactory.empty().
-        withValue("key1", ConfigValueFactory.fromAnyRef("val1")).
-        withValue("key2", ConfigValueFactory.fromAnyRef("val2"))).
-        withVersion("1").withDescription("").withTemplate(new URI("FS:///")).build();
+    Properties properties = new Properties();
+    properties.put("key1", "val1");
+    properties.put("key2", "val2");
+    properties.put("key3.1", "val3");
+    properties.put("key3.1.1", "val4");
+
+    JobSpec jobSpec = JobSpec.builder("testJob")
+        .withConfig(ConfigUtils.propertiesToConfig(properties))
+        .withVersion("1")
+        .withDescription("")
+        .withTemplate(new URI("FS:///")).build();
     return jobSpec;
   }
 
@@ -68,6 +77,8 @@ public class FsSpecProducerTest {
     Assert.assertEquals(jobSpecs.get(0).getRight().getUri().toString(), "testJob");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key1"), "val1");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key2"), "val2");
+    Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1" + ConfigUtils.STRIP_SUFFIX), "val3");
+    Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1.1"), "val4");
   }
 
   @Test (dependsOnMethods = "testAddSpec")
@@ -80,6 +91,8 @@ public class FsSpecProducerTest {
     Assert.assertEquals(jobSpecs.get(0).getRight().getUri().toString(), "testJob");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key1"), "val1");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key2"), "val2");
+    Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1" + ConfigUtils.STRIP_SUFFIX), "val3");
+    Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1.1"), "val4");
   }
 
   @Test (dependsOnMethods = "testUpdateSpec")
