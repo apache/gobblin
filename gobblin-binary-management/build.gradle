@@ -43,6 +43,7 @@ dependencies {
 configurations {
     compile {
         transitive = true
+        exclude group: "org.pentaho"
     }
     archives
 }
