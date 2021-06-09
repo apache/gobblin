@@ -55,4 +55,10 @@ dependencies {
     testCompile externalDependency.mockito
 }
 
+configurations {
+    compile {
+        exclude group: "org.pentaho"
+    }
+}
+
 ext.classification="library"

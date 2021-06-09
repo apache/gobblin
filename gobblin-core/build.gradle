@@ -80,6 +80,7 @@ configurations {
   // HADOOP-5254 and MAPREDUCE-5664
   all*.exclude group: 'xml-apis'
   all*.exclude group: 'xerces'
+  all*.exclude group: "org.pentaho"
 }
 
 test {
