@@ -166,7 +166,7 @@ ext.externalDependency = [
     "reflections" : "org.reflections:reflections:0.9.10",
     "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
     "testMysqlServer": "com.wix:wix-embedded-mysql:4.6.1",
-    "flyway": "org.flywaydb:flyway-core:3.2.1",
+    "flyway": "org.flywaydb:flyway-core:7.9.2",
     "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2",
     "googleAnalytics": "com.google.apis:google-api-services-analytics:v3-rev134-1.22.0",
     "googleDrive": "com.google.apis:google-api-services-drive:v3-rev42-1.22.0",
