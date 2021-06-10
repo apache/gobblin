@@ -45,6 +45,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
 
@@ -112,8 +113,11 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
         JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(avroJobSpec.getUri());
         Properties props = new Properties();
         props.putAll(avroJobSpec.getProperties());
-        jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri()).withVersion(avroJobSpec.getVersion())
-            .withDescription(avroJobSpec.getDescription()).withConfigAsProperties(props);
+        jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri())
+            .withVersion(avroJobSpec.getVersion())
+            .withDescription(avroJobSpec.getDescription())
+            .withConfigAsProperties(props)
+            .withConfig(ConfigUtils.propertiesToConfig(props));
 
         try {
           if (!avroJobSpec.getTemplateUri().isEmpty()) {
