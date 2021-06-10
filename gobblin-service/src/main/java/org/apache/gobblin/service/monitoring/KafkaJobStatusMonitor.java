@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -172,6 +171,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     if (states.size() > 0) {
       String previousStatus = states.get(states.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+      int newCurrentAttempt = findNewCurrentAttempts(jobStatus, states.get(states.size() - 1));
 
       // PENDING_RESUME is allowed to override, because it happens when a flow is being resumed from previously being failed
       if (previousStatus != null && currentStatus != null && !currentStatus.equals(ExecutionStatus.PENDING_RESUME.name())
@@ -182,6 +182,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       } else {
         jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
       }
+      jobStatus.setProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, newCurrentAttempt);
     }
 
     modifyStateIfRetryRequired(jobStatus);
@@ -215,6 +216,32 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     mergedState.putAll(state.getProperties());
 
     return new org.apache.gobblin.configuration.State(mergedState);
+  }
+
+  /**
+   * Events with different `currentAttempts` may arrive out of order and we should use the max of both the counts to
+   * set the new value of `currentAttempts`. However, when a flow is resumed, it sends an event with count=0 and at that
+   * time, we should update it to zero. Because events can arrive out of order, we must do this only when the event with
+   * count=0 has a newer timestamp than the persisted timestamp.
+   * @param currentState state of the event being processed
+   * @param persistedState state which is persisted in the store
+   * @return new value of `currentAttempts`
+   */
+  private static int findNewCurrentAttempts(org.apache.gobblin.configuration.State currentState, org.apache.gobblin.configuration.State persistedState) {
+    long currentTimestamp = Long.parseLong(currentState.getProp(JobStatusRetriever.TIMESTAMP_FIELD, "-1"));
+    long persistedTimestamp = Long.parseLong(persistedState.getProp(JobStatusRetriever.TIMESTAMP_FIELD, "-1"));
+    int currentCurrentAttempt = Integer.parseInt(currentState.getProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "-1"));
+    int persistedCurrentAttempt = Integer.parseInt(persistedState.getProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "-1"));
+
+    int newCurrentAttempt;
+
+    if (currentTimestamp > persistedTimestamp && currentCurrentAttempt == 0) {
+      newCurrentAttempt = 0;
+    } else {
+      newCurrentAttempt = Math.max(currentCurrentAttempt, persistedCurrentAttempt);
+    }
+
+    return newCurrentAttempt;
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {

@@ -48,15 +48,20 @@ public abstract class JobStatusRetrieverTest {
   abstract void setUp() throws Exception;
 
   protected void addJobStatusToStateStore(Long flowExecutionId, String jobName, String status) throws IOException {
-    addJobStatusToStateStore(flowExecutionId, jobName, status, 0, 0);
+    addJobStatusToStateStore(flowExecutionId, jobName, status, 0, 0, -1);
   }
 
   protected void addJobStatusToStateStore(Long flowExecutionId, String jobName, String status, long startTime, long endTime) throws IOException {
+    addJobStatusToStateStore(flowExecutionId, jobName, status, startTime, endTime, -1);
+  }
+
+  protected void addJobStatusToStateStore(Long flowExecutionId, String jobName, String status, long startTime, long endTime, long timestamp) throws IOException {
     Properties properties = new Properties();
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, FLOW_GROUP);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, FLOW_NAME);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+    properties.setProperty(JobStatusRetriever.TIMESTAMP_FIELD, String.valueOf(timestamp));
     if (!jobName.equals(JobStatusRetriever.NA_KEY)) {
       jobGroup = MY_JOB_GROUP;
       properties.setProperty(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, String.valueOf(JOB_EXECUTION_ID));
@@ -66,12 +71,15 @@ public abstract class JobStatusRetrieverTest {
     }
     properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
-    if (status.equals(ExecutionStatus.RUNNING.name())) {
+    if (status.equals(ExecutionStatus.PENDING.name()) || status.equals(ExecutionStatus.PENDING_RESUME.name())) {
+      properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "0");
+    } else if (status.equals(ExecutionStatus.RUNNING.name())) {
       properties.setProperty(TimingEvent.JOB_START_TIME, String.valueOf(startTime));
     } else if (status.equals(ExecutionStatus.COMPLETE.name())) {
       properties.setProperty(TimingEvent.JOB_END_TIME, String.valueOf(endTime));
     } else if (status.equals(ExecutionStatus.ORCHESTRATED.name())) {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
+      properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "1");
     }
     State jobStatus = new State(properties);
 
@@ -143,6 +151,7 @@ public abstract class JobStatusRetrieverTest {
   @Test (dependsOnMethods = "testJobTiming")
   public void testOutOfOrderJobTimingEvents() throws IOException {
     long flowExecutionId = 1232L;
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING.name(), JOB_START_TIME, JOB_START_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
@@ -156,6 +165,68 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
     Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
     Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testCurrentAttemptsWithFlowResume() throws IOException {
+    long timestamp = System.currentTimeMillis();
+    long flowExecutionId = 1234L;
+    Iterator<JobStatus> jobStatusIterator;
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING.name(), JOB_START_TIME, JOB_START_TIME, timestamp);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 1);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, timestamp + 2);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.FAILED.name(), JOB_END_TIME, JOB_END_TIME, timestamp + 3);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING_RESUME.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 4);
+
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    Assert.assertEquals(jobStatusIterator.next().getCurrentAttempts(), 0);
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 5);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, timestamp + 6);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME, timestamp + 7);
+
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    JobStatus jobStatus = jobStatusIterator.next();
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
+    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
+    Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
+  }
+
+  @Test (dependsOnMethods = "testCurrentAttemptsWithFlowResume")
+  public void testCurrentAttemptWithFlowResumeAndOutOfOrderEvents() throws IOException {
+    long timestamp = System.currentTimeMillis();
+    long flowExecutionId = 1235L;
+    Iterator<JobStatus> jobStatusIterator;
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING.name(), JOB_START_TIME, JOB_START_TIME, timestamp);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 1);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, timestamp + 2);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.FAILED.name(), JOB_END_TIME, JOB_END_TIME, timestamp + 3);
+
+    // next two events are send out of order, pending_resume has currentAttempt=0 and orchestrated has currentAttempt=1
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING_RESUME.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 5);
+
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    Assert.assertEquals(jobStatusIterator.next().getCurrentAttempts(), 0);
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, timestamp + 4);
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    Assert.assertEquals(jobStatusIterator.next().getCurrentAttempts(), 1);
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, timestamp + 6);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME, timestamp + 7);
+
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    JobStatus jobStatus = jobStatusIterator.next();
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
+    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
+    Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
   }
 
   @Test (dependsOnMethods = "testJobTiming")

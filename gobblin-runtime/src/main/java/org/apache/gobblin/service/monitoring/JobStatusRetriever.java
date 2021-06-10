@@ -39,6 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
   public static final String EVENT_NAME_FIELD = "eventName";
   public static final String NA_KEY = "NA";
+  public static final String TIMESTAMP_FIELD = "timestamp";
 
   @Getter
   protected final MetricContext metricContext;
