@@ -19,4 +19,14 @@ record JobStatistics {
    * number of records processed in the last job execution
    */
   processedCount: long
+
+  /**
+   * job progress as a percentage (0-100)
+   */
+  jobProgress: int
+
+  /**
+   * estimate of time left until job completion
+   */
+  estimatedSecondsToCompletion: long
 }

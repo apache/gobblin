@@ -250,8 +250,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     taskStateStore = new FsStateStore<>(this.fs, jobOutputPath.toString(), TaskState.class);
 
     this.taskStateCollectorService =
-        new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, taskStateStore,
-            outputTaskStateDir, getIssueRepository());
+        new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, this.eventSubmitter,
+            taskStateStore, outputTaskStateDir, getIssueRepository());
 
     this.jarFileMaximumRetry =
         jobProps.containsKey(ConfigurationKeys.MAXIMUM_JAR_COPY_RETRY_TIMES_KEY) ? Integer.parseInt(

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
@@ -81,6 +82,7 @@ public class CopySourceTest {
       CopyableFile file = (CopyableFile) CopySource.deserializeCopyEntity(workUnit);
       Assert.assertTrue(file.getOrigin().getPath().toString().startsWith(TestCopyableDataset.ORIGIN_PREFIX));
       Assert.assertEquals(file.getDestinationOwnerAndPermission(), TestCopyableDataset.OWNER_AND_PERMISSION);
+      Assert.assertEquals(workUnit.getProp(ServiceConfigKeys.WORK_UNIT_SIZE), String.valueOf(TestCopyableDataset.FILE_LENGTH));
       Assert.assertEquals(workUnit.getExtract(), extract);
     }
   }
@@ -186,12 +188,12 @@ public class CopySourceTest {
     FileSet<CopyEntity> fileSet = fileSetList.get(0);
     Assert.assertEquals(fileSet.getDataset().getUrn(), "/test");
     Assert.assertEquals(fileSet.getTotalEntities(), 5);
-    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 50);
+    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 75);
 
     fileSet = fileSetList.get(1);
     Assert.assertEquals(fileSet.getDataset().getUrn(), "/test");
     Assert.assertEquals(fileSet.getTotalEntities(), 5);
-    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 50);
+    Assert.assertEquals(fileSet.getTotalSizeInBytes(), 75);
   }
 
   @Test
