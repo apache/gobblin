@@ -495,7 +495,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * @param inputTags list of metadata tags
    * @return
    */
-  private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps, List<? extends Tag<?>> inputTags) {
+  static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps, List<? extends Tag<?>> inputTags) {
     List<Tag<?>> metadataTags = Lists.newArrayList(inputTags);
     String jobId;
 

@@ -236,12 +236,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
         flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
 
-        // Send FLOW_FAILED event
+        // Send FLOW_SKIPPED event
         Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
             + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
         if (this.eventSubmitter.isPresent()) {
-          this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+          this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_SKIPPED).stop(flowMetadata);
         }
         return;
       }
