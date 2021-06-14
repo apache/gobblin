@@ -127,6 +127,39 @@ public class KafkaProduceRateTrackerTest {
   }
 
   @Test
+  public void testWriteProduceRateToKafkaWatermarksNoData() {
+    long currentTime = System.currentTimeMillis();
+
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.setProp(KafkaProduceRateTracker.KAFKA_PRODUCE_RATE_DISABLE_STATS_ON_HOLIDAYS_KEY, false);
+    workUnitState.setProp(FlushingExtractor.FLUSH_INTERVAL_SECONDS_KEY, 1L);
+    workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 5L);
+    WatermarkTracker watermarkTracker = new LastWatermarkTracker(false);
+    KafkaExtractorStatsTracker extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
+
+    KafkaProduceRateTracker tracker =
+        new KafkaProduceRateTracker(workUnitState, kafkaPartitions, watermarkTracker, extractorStatsTracker, currentTime);
+
+    Map<KafkaPartition, Long> latestOffsetMap = Maps.newHashMap();
+    latestOffsetMap.put(kafkaPartitions.get(0), 20L);
+    latestOffsetMap.put(kafkaPartitions.get(1), 30L);
+    Map<String, CheckpointableWatermark> lastCommittedWatermarks = Maps.newHashMap();
+
+    //No new data; High watermark same as latest offsets
+    MultiLongWatermark highWatermark = new MultiLongWatermark(Lists.newArrayList(20L, 30L));
+    extractorStatsTracker.reset();
+    tracker.writeProduceRateToKafkaWatermarks(latestOffsetMap, lastCommittedWatermarks, highWatermark, currentTime);
+
+    Map<String, CheckpointableWatermark> unacknowledgedWatermarks = watermarkTracker.getAllUnacknowledgedWatermarks();
+    for (KafkaPartition topicPartition : kafkaPartitions) {
+      KafkaStreamingExtractor.KafkaWatermark kafkaWatermark = (KafkaStreamingExtractor.KafkaWatermark) unacknowledgedWatermarks.get(topicPartition.toString());
+      Assert.assertTrue(kafkaWatermark.avgProduceRates != null);
+      Assert.assertTrue(kafkaWatermark.avgConsumeRate < 0);
+      Assert.assertTrue(kafkaWatermark.getLwm().getValue() > 0);
+    }
+  }
+
+  @Test (dependsOnMethods = "testWriteProduceRateToKafkaWatermarksNoData")
   public void testWriteProduceRateToKafkaWatermarks() {
     long readStartTime = System.nanoTime();
     long decodeStartTime = readStartTime + 1;

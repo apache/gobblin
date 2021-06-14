@@ -47,16 +47,21 @@ public class KafkaStreamingExtractorTest {
       throws IOException, DataRecordException {
     MultiLongWatermark highWatermark1 = new MultiLongWatermark(this.streamingExtractor.highWatermark);
 
-    //Read 2 records
+    //Read 3 records
     this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 0L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 0L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 0L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 0L);
 
-    this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 0L);
+    streamingExtractor.readStreamEntityImpl();
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 0L);
+
+    streamingExtractor.readStreamEntityImpl();
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 1L);
 
     //Checkpoint watermarks
     this.streamingExtractor.onFlushAck();
@@ -70,13 +75,13 @@ public class KafkaStreamingExtractorTest {
     MultiLongWatermark highWatermark2 = new MultiLongWatermark(this.streamingExtractor.highWatermark);
     //Read 1 more record
     this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 2L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 1L);
 
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(2), 0L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(2), 1L);
 
     //Checkpoint watermarks
     this.streamingExtractor.onFlushAck();
