@@ -165,8 +165,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     } else {
       // Since we are going to change status to isActive=false, unschedule all flows
       for (Spec spec : this.scheduledFlowSpecs.values()) {
-        onDeleteSpec(spec.getUri(), spec.getVersion());
+        onDeleteSpec(spec.getUri(), spec.getVersion(), new Properties(), false);
       }
+      this.scheduledFlowSpecs.clear();
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
     }
@@ -342,6 +343,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
+    onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers, true);
+  }
+
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers, boolean removeFromMap) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
@@ -354,7 +359,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
       if (null != deletedSpec) {
         this.orchestrator.remove(deletedSpec, headers);
-        this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
+        if (removeFromMap) {
+          this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
+        }
         unscheduleJob(deletedSpecURI.toString());
       } else {
         _log.warn(String.format(
