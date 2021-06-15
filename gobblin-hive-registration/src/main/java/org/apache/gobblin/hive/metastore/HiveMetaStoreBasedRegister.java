@@ -227,7 +227,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @VisibleForTesting
   protected void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
-    if (this.schemaRegistry.isPresent()) {
+    if (this.schemaRegistry.isPresent() && existingTable.getSerDeProps().getProp(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) != null) {
       try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
         Schema existingTableSchema = new Schema.Parser().parse(existingTable.getSerDeProps().getProp(
             AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
