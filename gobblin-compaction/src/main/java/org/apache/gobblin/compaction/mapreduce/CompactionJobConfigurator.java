@@ -252,8 +252,7 @@ public abstract class CompactionJobConfigurator {
 
     if(this.state.contains(ConfigurationKeys.USE_DATASET_LOCAL_WORK_DIR)) {
       mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_DEST_DIR);
-      String tmpDir = ".temp";
-      this.mrOutputPath = concatPaths(mrOutputBase, rst.getDatasetName(), tmpDir, rst.getDstSubDir(), rst.getTimeString());
+      this.mrOutputPath = concatPaths(mrOutputBase, rst.getDatasetName(), ConfigurationKeys.TMP_DIR, rst.getDstSubDir(), rst.getTimeString());
     }
     log.info("Cleaning temporary MR output directory: " + mrOutputPath);
     this.fs.delete(mrOutputPath, true);
