@@ -199,6 +199,7 @@ public class DagManagerTest {
     Assert.assertTrue(this.jobToDag.containsKey(dag.getStartNodes().get(0)));
     Assert.assertEquals(this.dagToJobs.get(dagId).size(), 1);
     Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getStartNodes().get(0)));
+    Assert.assertEquals(this.dags.get(dagId).getNodes().get(0).getValue().getCurrentAttempts(), 1);
 
     //Run the thread 2nd time. Ensure the job0 is complete and job1 and job2 are submitted.
     this._dagManagerThread.run();
@@ -411,6 +412,9 @@ public class DagManagerTest {
     this._dagManagerThread.run();
     Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertTrue(this.dags.containsKey(dagId));
+
+    // Verify the current attempt number
+    Assert.assertEquals(dag.getNodes().get(2).getValue().getCurrentAttempts(), 1);
 
     // Job2 complete
     this._dagManagerThread.run();

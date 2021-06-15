@@ -545,6 +545,8 @@ public class DagManager extends AbstractIdleService {
         ExecutionStatus executionStatus = node.getValue().getExecutionStatus();
         if (executionStatus.equals(FAILED) || executionStatus.equals(CANCELLED)) {
           node.getValue().setExecutionStatus(PENDING_RESUME);
+          // reset currentAttempts because we do not want to count previous execution's attempts in deciding whether to retry a job
+          node.getValue().setCurrentAttempts(0);
           Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), node.getValue());
           this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING_RESUME).stop(jobMetadata);
         }
