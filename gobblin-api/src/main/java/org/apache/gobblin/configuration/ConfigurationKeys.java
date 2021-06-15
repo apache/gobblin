@@ -1074,7 +1074,8 @@ public class ConfigurationKeys {
   public static final String USE_DATASET_LOCAL_WORK_DIR = "gobblin.useDatasetLocalWorkDir";
   public static final String DESTINATION_DATASET_HANDLER_CLASS = "gobblin.destination.datasetHandlerClass";
   public static final String DATASET_DESTINATION_PATH = "gobblin.dataset.destination.path";
-  public static final String STAGING_DIR_DEFAULT_SUFFIX = "/.temp/taskStaging";
-  public static final String OUTPUT_DIR_DEFAULT_SUFFIX = "/.temp/taskOutput";
+  public static final String TMP_DIR = ".temp";
+  public static final String STAGING_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskStaging";
+  public static final String OUTPUT_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskOutput";
   public static final String ROW_LEVEL_ERR_FILE_DEFAULT_SUFFIX = "/err";
 }
