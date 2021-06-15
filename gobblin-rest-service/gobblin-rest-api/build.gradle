@@ -140,7 +140,7 @@ buildscript {
         mavenCentral()
         mavenLocal()
         maven {
-            url "https://linkedin.bintray.com/maven"
+            url "https://linkedin.jfrog.io/artifactory/open-source"
         }
     }
 
