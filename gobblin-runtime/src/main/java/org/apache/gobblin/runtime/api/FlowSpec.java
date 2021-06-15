@@ -469,9 +469,9 @@ public class FlowSpec implements Configurable, Spec {
           .setProperties(flowPropsAsStringMap);
     }
 
-    public static int maxFlowSpecUri() {
+    public static int maxFlowSpecUriLength() {
       return URI_SCHEME.length() + ":".length() // URI separator
-        + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_NAME + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_GROUP;
+        + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
     }
   }
 }
