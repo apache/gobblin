@@ -18,15 +18,24 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.Properties;
 
+import com.google.common.base.Strings;
+
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
@@ -73,6 +82,50 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
   public void testGetLatestExecutionIdsForFlow() throws Exception {
     super.testGetLatestExecutionIdsForFlow();
+  }
+
+  @Test
+  public void testMaxColumnName() throws Exception {
+    Properties properties = new Properties();
+    long flowExecutionId = 12340L;
+    String flowGroup = Strings.repeat("A", ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH);
+    String flowName = Strings.repeat("B", ServiceConfigKeys.MAX_FLOW_NAME_LENGTH);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH));
+    properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.ORCHESTRATED.name());
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
+    State jobStatus = new State(properties);
+
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+    Iterator<JobStatus>
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+    Assert.assertTrue(jobStatusIterator.hasNext());
+    Assert.assertEquals(jobStatusIterator.next().getFlowGroup(), flowGroup);
+  }
+
+  @Test
+  public void testInvalidColumnName() {
+    Properties properties = new Properties();
+    long flowExecutionId = 12340L;
+    String flowGroup = Strings.repeat("A", ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + 1);
+    String flowName = Strings.repeat("B", ServiceConfigKeys.MAX_FLOW_NAME_LENGTH);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH));
+    properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.ORCHESTRATED.name());
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
+    State jobStatus = new State(properties);
+
+    try {
+      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+    } catch (IOException e) {
+      Assert.assertTrue(e.getCause().getMessage().contains("Data too long"));
+      return;
+    }
+    Assert.fail();
   }
 
   @Override

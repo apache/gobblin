@@ -76,8 +76,8 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
     int maxStoreName = ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length()
         + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
     int maxTableName = 13 // length of flowExecutionId which is epoch timestamp
-        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_FLOW_NAME_LENGTH
-        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH
+        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_JOB_NAME_LENGTH
+        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_JOB_GROUP_LENGTH
         + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX.length();
 
     return "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(" + maxStoreName + ") CHARACTER SET latin1 COLLATE latin1_bin not null,"
