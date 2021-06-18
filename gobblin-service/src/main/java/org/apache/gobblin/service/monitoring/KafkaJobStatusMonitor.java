@@ -182,6 +182,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       } else {
         jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
       }
+      long currentTimestamp = Long.parseLong(jobStatus.getProp(JobStatusRetriever.TIMESTAMP_FIELD));
+      long previousTimestamp = Long.parseLong(states.get(states.size() - 1).getProp(JobStatusRetriever.TIMESTAMP_FIELD, "-1"));
+
+      if (currentTimestamp < previousTimestamp) {
+        log.warn(String.format("Received status %s with timestamp %d when status is already %s with timestamp %d for flow(%s, %s, %s), job(%s, %s).",
+            currentStatus, currentTimestamp, previousStatus, previousTimestamp, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
+      }
     }
 
     modifyStateIfRetryRequired(jobStatus);
