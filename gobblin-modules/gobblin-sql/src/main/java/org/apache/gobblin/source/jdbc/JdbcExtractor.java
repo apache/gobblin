@@ -959,6 +959,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       int batchSize = this.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE, 0);
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
+      String sourceConnProps = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PROPERTIES);
+      boolean convertZeroDateTimeToNull = sourceConnProps != null
+          && sourceConnProps.contains("zeroDateTimeBehavior=CONVERT_TO_NULL");
+
       int recordCount = 0;
       while (resultset.next()) {
 
@@ -967,8 +971,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
         for (int i = 1; i < numColumns + 1; i++) {
           final String columnName = this.getHeaderRecord().get(i - 1);
-          jsonObject.addProperty(columnName, parseColumnAsString(resultset, resultsetMetadata, i));
-
+          jsonObject.addProperty(columnName, parseColumnAsString(resultset, resultsetMetadata, i, convertZeroDateTimeToNull));
         }
 
         recordSet.add(jsonObject);
@@ -1028,7 +1031,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
    * treat tinyint(1) as BIT.
    *
    * Currently, {@link MysqlExtractor#getDataTypeMap()} uses the information_schema to check types.
-   * That does not do the above conversion. {@link #parseColumnAsString(ResultSet, ResultSetMetaData, int)}
+   * That does not do the above conversion. {@link #parseColumnAsString(ResultSet, ResultSetMetaData, int, boolean)}
    * which does the above type mapping.
    *
    * On the other hand, SqlServerExtractor treats BIT columns as Booleans. So we can be in a bind
@@ -1041,7 +1044,8 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     return true;
   }
 
-  private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i)
+  private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i,
+      boolean convertZeroDateTimeToNull)
       throws SQLException {
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
@@ -1055,6 +1059,15 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         && convertBitToBoolean()) {
       return Boolean.toString(resultset.getBoolean(i));
     }
+
+    // Workaround for when `zeroDateTimeBehavior` is set to CONVERT_TO_NULL
+    // return null instead of "0000-00-00 00:00:00" for zero timestamps
+    if (convertZeroDateTimeToNull && isTimestamp(resultsetMetadata.getColumnType(i))) {
+        if (resultset.getTimestamp(i) == null) {
+          return null;
+        }
+    }
+
     return resultset.getString(i);
   }
 
@@ -1064,6 +1077,10 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
   private static boolean isClob(int columnType) {
     return columnType == Types.CLOB;
+  }
+
+  private static boolean isTimestamp(int columnType) {
+    return columnType == Types.TIMESTAMP || columnType == Types.TIMESTAMP_WITH_TIMEZONE;
   }
 
   protected static Command getCommand(String query, JdbcCommandType commandType) {
