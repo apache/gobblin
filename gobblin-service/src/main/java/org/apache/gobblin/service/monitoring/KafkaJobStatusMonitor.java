@@ -172,18 +172,18 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     if (states.size() > 0) {
       String previousStatus = states.get(states.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+      long currentTimestamp = Long.parseLong(jobStatus.getProp(JobStatusRetriever.TIMESTAMP_FIELD));
+      long previousTimestamp = Long.parseLong(states.get(states.size() - 1).getProp(JobStatusRetriever.TIMESTAMP_FIELD, "-1"));
 
       // PENDING_RESUME is allowed to override, because it happens when a flow is being resumed from previously being failed
       if (previousStatus != null && currentStatus != null && !currentStatus.equals(ExecutionStatus.PENDING_RESUME.name())
         && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus)) < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))) {
-        log.warn(String.format("Received status %s when status is already %s for flow (%s, %s, %s), job (%s, %s)",
-            currentStatus, previousStatus, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
+        log.warn(String.format("Received status %s (timestamp:%d) when status is already %s (timestamp:%d) for flow (%s, %s, %s), job (%s, %s)",
+            currentStatus, currentTimestamp, previousStatus, previousTimestamp, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
         jobStatus = mergeState(states.get(states.size() - 1), jobStatus);
       } else {
         jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
       }
-      long currentTimestamp = Long.parseLong(jobStatus.getProp(JobStatusRetriever.TIMESTAMP_FIELD));
-      long previousTimestamp = Long.parseLong(states.get(states.size() - 1).getProp(JobStatusRetriever.TIMESTAMP_FIELD, "-1"));
 
       if (currentTimestamp < previousTimestamp) {
         log.warn(String.format("Received status %s with timestamp %d when status is already %s with timestamp %d for flow(%s, %s, %s), job(%s, %s).",
