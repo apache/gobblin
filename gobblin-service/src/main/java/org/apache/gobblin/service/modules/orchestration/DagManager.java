@@ -1275,20 +1275,18 @@ public class DagManager extends AbstractIdleService {
       try {
         log.info("Cleaning failed dag state store");
         long startTime = System.currentTimeMillis();
-        List<String> dagIdsToClean = new ArrayList<>();
+        int numCleaned = 0;
 
-        for (String dagId : this.failedDagIds) {
+        Set<String> failedDagIdsCopy = new HashSet<>(this.failedDagIds);
+        for (String dagId : failedDagIdsCopy) {
           if (this.failedDagRetentionTime > 0L && startTime > DagManagerUtils.getFlowExecId(dagId) + this.failedDagRetentionTime) {
             this.failedDagStateStore.cleanUp(dagId);
-            dagIdsToClean.add(dagId);
+            this.failedDagIds.remove(dagId);
+            numCleaned++;
           }
         }
 
-        for (String dagId : dagIdsToClean) {
-          this.failedDagIds.remove(dagId);
-        }
-
-      log.info("Cleaned " + dagIdsToClean.size() + " dags from the failed dag state store");
+      log.info("Cleaned " + numCleaned + " dags from the failed dag state store");
       } catch (Exception e) {
         log.error("Failed to run retention on failed dag state store", e);
       }
