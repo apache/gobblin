@@ -150,7 +150,7 @@ jobs:
             fi
             sleep 30
           done
-          ./gradlew -DjacocoBuild=1 jacocoTestReport
+          ./gradlew -PskipTestGroup=disabledOnCI $GOBBLIN_GRADLE_OPTS -DjacocoBuild=1 jacocoTestReport
       - name: Collect Jacoco Coverage Reports
         run: |
           JACOCO_REPORTS=$(find . -name "jacoco*.xml" -exec printf ',{}' \; | cut -c2- )
