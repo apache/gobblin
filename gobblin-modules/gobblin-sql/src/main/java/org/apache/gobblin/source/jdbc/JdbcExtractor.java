@@ -26,6 +26,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -960,8 +961,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       batchSize = (batchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : batchSize);
 
       String sourceConnProps = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PROPERTIES);
-      boolean convertZeroDateTimeToNull = sourceConnProps != null
-          && sourceConnProps.contains("zeroDateTimeBehavior=CONVERT_TO_NULL");
+      boolean convertZeroDateTime = sourceConnProps != null && sourceConnProps.contains("zeroDateTimeBehavior");
 
       int recordCount = 0;
       while (resultset.next()) {
@@ -971,7 +971,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
 
         for (int i = 1; i < numColumns + 1; i++) {
           final String columnName = this.getHeaderRecord().get(i - 1);
-          jsonObject.addProperty(columnName, parseColumnAsString(resultset, resultsetMetadata, i, convertZeroDateTimeToNull));
+          jsonObject.addProperty(columnName, parseColumnAsString(resultset, resultsetMetadata, i, convertZeroDateTime));
         }
 
         recordSet.add(jsonObject);
@@ -1045,7 +1045,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   }
 
   private String parseColumnAsString(final ResultSet resultset, final ResultSetMetaData resultsetMetadata, int i,
-      boolean convertZeroDateTimeToNull)
+      boolean convertZeroDateTime)
       throws SQLException {
 
     if (isBlob(resultsetMetadata.getColumnType(i))) {
@@ -1060,11 +1060,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       return Boolean.toString(resultset.getBoolean(i));
     }
 
-    // Workaround for when `zeroDateTimeBehavior` is set to CONVERT_TO_NULL
-    // return null instead of "0000-00-00 00:00:00" for zero timestamps
-    if (convertZeroDateTimeToNull && isTimestamp(resultsetMetadata.getColumnType(i))) {
-        if (resultset.getTimestamp(i) == null) {
+    // Workaround for when `zeroDateTimeBehavior` is set
+    // returns null or a rounded timestamp instead of "0000-00-00 00:00:00" for zero timestamps
+    if (convertZeroDateTime && isTimestamp(resultsetMetadata.getColumnType(i))) {
+        Timestamp ts = resultset.getTimestamp(i);
+        if (ts == null) {
           return null;
+        } else {
+          return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(ts);
         }
     }
 
