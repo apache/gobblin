@@ -311,11 +311,12 @@ public class GobblinMultiTaskAttempt {
     }
 
     if (hasTaskFailure) {
-      String errorMsg ="";
+      String errorMsg = String.format("Tasks in container %s failed", containerIdOptional.or(""));
       for (Task task : tasks) {
         if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
-          errorMsg = String.format("Task %s failed due to exception: %s", task.getTaskId(),
-              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
+          errorMsg = String.format("Task failed: %s (Gobblin task id %s, container id %s)",
+                                   task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY),
+                                   task.getTaskId(), containerIdOptional.or(""));
         }
 
         // If there are task failures then the tasks may be reattempted. Save a copy of the task state that is used
@@ -327,9 +328,7 @@ public class GobblinMultiTaskAttempt {
         }
       }
 
-      throw new IOException(
-          String.format("Not all tasks running in container %s completed successfully, last recorded exception[%s]",
-              containerIdOptional.or(""), errorMsg));
+      throw new IOException(errorMsg);
     }
   }
 

@@ -56,6 +56,7 @@ import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.util.ExceptionCleanupUtils;
 import org.apache.gobblin.runtime.util.ForkMetrics;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.ControlMessage;
@@ -265,11 +266,13 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
       compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (Throwable t) {
+      Throwable cleanedUpException = ExceptionCleanupUtils.removeEmptyWrappers(t);
+
       // Set throwable to holder first because AsynchronousFork::putRecord can pull the throwable when it detects ForkState.FAILED status.
       ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
-      holder.setThrowable(this.getIndex(), t);
+      holder.setThrowable(this.getIndex(), cleanedUpException);
       this.forkState.set(ForkState.FAILED);
-      this.logger.error(String.format("Fork %d of task %s failed to process data records. Set throwable in holder %s", this.index, this.taskId, holder), t);
+      this.logger.error(String.format("Fork %d of task %s failed.", this.index, this.taskId), cleanedUpException);
     } finally {
       this.cleanup();
     }
