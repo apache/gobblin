@@ -17,17 +17,12 @@
 
 package org.apache.gobblin.runtime;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import lombok.AllArgsConstructor;
 
 
 public class CountUpAndDownLatchTest {

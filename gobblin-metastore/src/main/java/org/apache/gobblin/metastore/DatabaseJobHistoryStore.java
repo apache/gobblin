@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.metastore;
 
-import javax.annotation.Nullable;
-import javax.sql.DataSource;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -32,6 +30,7 @@ import org.flywaydb.core.api.MigrationVersion;
 import org.reflections.Configuration;
 import org.reflections.Reflections;
 import org.reflections.util.ClasspathHelper;
+import org.reflections.util.ConfigurationBuilder;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -40,13 +39,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 
+import javax.annotation.Nullable;
+import javax.sql.DataSource;
+
 import org.apache.gobblin.metastore.database.SupportedDatabaseVersion;
 import org.apache.gobblin.metastore.database.VersionedDatabaseJobHistoryStore;
 import org.apache.gobblin.rest.JobExecutionInfo;
 import org.apache.gobblin.rest.JobExecutionQuery;
-
-import org.reflections.util.ClasspathHelper;
-import org.reflections.util.ConfigurationBuilder;
 
 
 /**

@@ -22,22 +22,10 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import javax.annotation.Nonnull;
-
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource;
-import org.apache.gobblin.data.management.conversion.hive.utils.LineageUtils;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -56,30 +44,38 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 
+import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
 import org.apache.gobblin.data.management.conversion.hive.avro.AvroSchemaManager;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
 import org.apache.gobblin.data.management.conversion.hive.events.EventConstants;
 import org.apache.gobblin.data.management.conversion.hive.events.EventWorkunitUtils;
 import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
+import org.apache.gobblin.data.management.conversion.hive.utils.LineageUtils;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarker;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.HiveSourceWatermarkerFactory;
 import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionLevelWatermarker;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
-import org.apache.gobblin.util.AutoReturnableObject;
-import org.apache.gobblin.util.HiveJdbcConnector;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
 import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.HiveJdbcConnector;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 

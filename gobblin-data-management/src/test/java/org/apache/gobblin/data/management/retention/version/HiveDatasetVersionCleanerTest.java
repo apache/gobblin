@@ -18,15 +18,13 @@ package org.apache.gobblin.data.management.retention.version;
 
 import java.io.IOException;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCleaner;
 
 
 public class HiveDatasetVersionCleanerTest {

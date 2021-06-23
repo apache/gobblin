@@ -17,9 +17,9 @@
 package org.apache.gobblin.runtime;
 
 import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.metastore.DatasetStateStore;
-import java.util.Properties;
 
 @Alias("fs")
 public class FsDatasetStateStoreFactory implements DatasetStateStore.Factory {

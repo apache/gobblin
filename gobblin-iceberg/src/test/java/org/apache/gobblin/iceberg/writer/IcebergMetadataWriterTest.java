@@ -17,14 +17,11 @@
 
 package org.apache.gobblin.iceberg.writer;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
@@ -32,6 +29,24 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.FindFiles;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.hive.HiveMetastoreTest;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveTable;
@@ -51,19 +66,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.iceberg.FindFiles;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.catalog.Namespace;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.expressions.Expressions;
-import org.apache.iceberg.hive.HiveMetastoreTest;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 public class IcebergMetadataWriterTest extends HiveMetastoreTest {

@@ -19,14 +19,12 @@ package org.apache.gobblin.data.management.copy.hive.filter;
 
 import java.util.Arrays;
 import java.util.Properties;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
-import org.joda.time.DateTime;
-import org.joda.time.Period;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 
 /**

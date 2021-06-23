@@ -22,7 +22,6 @@ import java.net.URI;
 
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
 
@@ -71,7 +70,7 @@ public class FileContextBasedFsStateStore<T extends State> extends FsStateStore<
    * See {@link StateStore#put(String, String, T)}.
    *
    * <p>
-   *   This implementation uses {@link FileContext#rename(Path, Path, Options.Rename...)}, with
+   *   This implementation uses {@link FileContext#rename(Path, Path, org.apache.hadoop.fs.Options.Rename...)}, with
    *   {@link org.apache.hadoop.fs.Options.Rename#OVERWRITE} set to true, to write the
    *   state to the underlying state store.
    * </p>

@@ -16,13 +16,6 @@
  */
 package org.apache.gobblin.data.management.copy.extractor;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyContext;
-import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.data.management.copy.FileAwareInputStream;
-import org.apache.gobblin.data.management.copy.PreserveAttributes;
-
 import java.io.IOException;
 import java.util.Properties;
 
@@ -33,6 +26,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
 
 
 public class InputStreamExtractorTest {

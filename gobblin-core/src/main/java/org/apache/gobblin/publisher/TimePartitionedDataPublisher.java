@@ -18,22 +18,15 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.collect.Lists;
-
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.util.FileListUtils;
-import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
-import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
 
 
 /**

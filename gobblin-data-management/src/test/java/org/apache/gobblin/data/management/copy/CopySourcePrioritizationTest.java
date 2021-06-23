@@ -19,10 +19,8 @@ package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,19 +32,18 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.data.management.partition.FileSetResourceEstimator;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.JobLauncherUtils;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 
 public class CopySourcePrioritizationTest {

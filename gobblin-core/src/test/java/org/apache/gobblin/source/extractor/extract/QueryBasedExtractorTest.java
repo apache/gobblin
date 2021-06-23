@@ -16,6 +16,15 @@
  */
 package org.apache.gobblin.source.extractor.extract;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -24,20 +33,10 @@ import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
 import org.apache.gobblin.source.extractor.exception.RecordCountException;
 import org.apache.gobblin.source.extractor.exception.SchemaException;
 import org.apache.gobblin.source.extractor.partition.Partition;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkPredicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 /**
  * Unit tests for {@link QueryBasedExtractor}

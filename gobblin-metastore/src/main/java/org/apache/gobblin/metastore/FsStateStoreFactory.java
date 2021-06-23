@@ -16,18 +16,20 @@
  */
 package org.apache.gobblin.metastore;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
-import java.util.Properties;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 
 @Alias("fs")
 public class FsStateStoreFactory implements StateStore.Factory {

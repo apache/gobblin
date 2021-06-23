@@ -20,8 +20,6 @@ package org.apache.gobblin.async;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import org.apache.gobblin.async.Callback;
-
 
 /**
  * This class represents a record in a buffer

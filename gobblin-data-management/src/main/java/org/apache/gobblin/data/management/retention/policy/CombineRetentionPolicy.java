@@ -18,13 +18,11 @@
 package org.apache.gobblin.data.management.retention.policy;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import javax.annotation.Nullable;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
@@ -37,6 +35,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import javax.annotation.Nullable;
 
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.data.management.version.DatasetVersion;

@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.curator.test.TestingServer;
 import org.testng.Assert;
@@ -29,10 +28,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.ZkStateStoreConfigurationKeys;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;

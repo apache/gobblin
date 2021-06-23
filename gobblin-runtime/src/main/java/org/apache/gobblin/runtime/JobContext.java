@@ -23,7 +23,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -45,6 +44,10 @@ import com.google.common.eventbus.Subscribe;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.typesafe.config.Config;
+
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
@@ -72,10 +75,6 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-
-import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 
 /**

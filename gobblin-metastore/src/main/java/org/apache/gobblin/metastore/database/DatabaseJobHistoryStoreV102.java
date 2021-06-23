@@ -18,9 +18,6 @@
 package org.apache.gobblin.metastore.database;
 
 import org.apache.gobblin.metastore.JobHistoryStore;
-
-import java.io.IOException;
-
 import org.apache.gobblin.rest.JobExecutionInfo;
 
 

@@ -17,18 +17,6 @@
 
 package org.apache.gobblin.converter.jdbc;
 
-import static org.mockito.Mockito.*;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.converter.SchemaConversionException;
-import org.apache.gobblin.publisher.JdbcPublisher;
-import org.apache.gobblin.writer.Destination.DestinationType;
-import org.apache.gobblin.writer.commands.JdbcWriterCommands;
-import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -43,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -59,9 +46,22 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.publisher.JdbcPublisher;
+import org.apache.gobblin.writer.Destination.DestinationType;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @Test(groups = {"gobblin.converter"})
 public class AvroToJdbcEntryConverterTest {

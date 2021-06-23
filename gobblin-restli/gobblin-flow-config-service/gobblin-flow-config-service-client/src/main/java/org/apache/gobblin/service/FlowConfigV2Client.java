@@ -49,7 +49,6 @@ import com.linkedin.restli.client.UpdateRequest;
 import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
-import com.linkedin.restli.common.IdEntityResponse;
 import com.linkedin.restli.common.PatchRequest;
 
 

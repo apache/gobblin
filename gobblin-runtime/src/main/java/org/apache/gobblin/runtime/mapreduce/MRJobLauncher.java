@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime.mapreduce;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.Authenticator;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -110,7 +109,6 @@ import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.SerializationUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job as a Hadoop MR job.

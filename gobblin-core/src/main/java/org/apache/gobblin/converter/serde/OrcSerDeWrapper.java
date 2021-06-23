@@ -22,8 +22,6 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
 import org.apache.hadoop.io.Writable;
 
-import java.util.ArrayList;
-
 /**
  * The Hive's {@link OrcSerde} caches converted records - the {@link OrcSerde} has a single
  * {@link org.apache.hadoop.hive.ql.io.orc.OrcSerde.OrcSerdeRow} and every time the

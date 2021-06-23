@@ -55,7 +55,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.configuration.State;

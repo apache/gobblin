@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.metrics.event;
 
-
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
@@ -25,9 +24,7 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 
 import lombok.Getter;
 
-import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 
 
 /**

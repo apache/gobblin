@@ -22,8 +22,6 @@ import java.util.ServiceLoader;
 import lombok.Synchronized;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.codec.StreamCodec;
-
 
 /**
  * This class knows how to build encryption algorithms based on configuration parameters. To add your own

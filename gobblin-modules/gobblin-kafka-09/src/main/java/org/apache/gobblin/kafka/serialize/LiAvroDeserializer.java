@@ -17,26 +17,14 @@
 
 package org.apache.gobblin.kafka.serialize;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
-
-import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
-import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 
 
 /**

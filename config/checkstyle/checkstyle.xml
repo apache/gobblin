@@ -13,4 +13,9 @@
     <property name="file" value="config/checkstyle/suppressions.xml"/>
     <property name="optional" value="true"/>
   </module>
+
+  <module name="TreeWalker">
+    <module name="UnusedImports"/>
+    <module name="RedundantImport"/>
+  </module>
 </module>

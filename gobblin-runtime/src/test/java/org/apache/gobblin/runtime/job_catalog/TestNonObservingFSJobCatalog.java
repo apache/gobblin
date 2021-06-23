@@ -38,7 +38,6 @@ import org.apache.gobblin.runtime.api.JobCatalogListener;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 
 /**

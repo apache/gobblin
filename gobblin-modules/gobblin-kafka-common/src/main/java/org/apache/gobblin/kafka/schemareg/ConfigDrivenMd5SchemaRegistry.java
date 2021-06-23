@@ -29,8 +29,6 @@ import org.apache.avro.Schema;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 import org.apache.gobblin.kafka.serialize.MD5Digest;
 
 

@@ -28,9 +28,6 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.Meter;
 import com.google.common.math.DoubleMath;
 
-import org.apache.gobblin.util.limiter.Limiter;
-import org.apache.gobblin.util.limiter.RateBasedLimiter;
-
 
 /**
  * Unit tests for {@link RateBasedLimiter}.

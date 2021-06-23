@@ -26,9 +26,8 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
-import com.google.common.collect.Lists;
-
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.http.HttpOperation;

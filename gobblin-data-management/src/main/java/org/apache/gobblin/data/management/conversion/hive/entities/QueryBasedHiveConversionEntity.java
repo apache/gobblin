@@ -18,6 +18,13 @@ package org.apache.gobblin.data.management.conversion.hive.entities;
 
 import java.util.List;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
@@ -27,15 +34,6 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.source.extractor.Extractor;
-
-import org.apache.hadoop.hive.ql.metadata.Partition;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
 
 
 /**

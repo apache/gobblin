@@ -27,9 +27,6 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;

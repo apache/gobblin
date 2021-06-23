@@ -18,9 +18,6 @@ package org.apache.gobblin.elasticsearch.writer;
 
 import java.util.Properties;
 
-import org.apache.gobblin.elasticsearch.typemapping.AvroGenericRecordTypeMapper;
-import org.apache.gobblin.elasticsearch.typemapping.JsonTypeMapper;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 

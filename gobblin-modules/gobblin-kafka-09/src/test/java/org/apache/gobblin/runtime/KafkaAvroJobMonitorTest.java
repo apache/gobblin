@@ -18,7 +18,6 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
@@ -41,7 +40,6 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.job_monitor.KafkaAvroJobMonitor;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
-import org.apache.gobblin.util.Either;
 
 
 public class KafkaAvroJobMonitorTest {

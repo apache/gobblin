@@ -22,6 +22,8 @@ import java.net.URI;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
@@ -31,9 +33,6 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.job_catalog.InMemoryJobCatalog;
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 
 
 /**

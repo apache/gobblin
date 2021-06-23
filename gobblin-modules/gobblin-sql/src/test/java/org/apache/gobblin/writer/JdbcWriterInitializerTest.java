@@ -17,31 +17,30 @@
 
 package org.apache.gobblin.writer;
 
-import static org.mockito.Mockito.*;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
+import org.mockito.InOrder;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.publisher.JdbcPublisher;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.Destination.DestinationType;
 import org.apache.gobblin.writer.commands.JdbcWriterCommands;
 import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 import org.apache.gobblin.writer.initializer.JdbcWriterInitializer;
 
-import org.apache.commons.lang.StringUtils;
-import org.mockito.InOrder;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-import org.testng.annotations.BeforeMethod;
-
-import com.google.common.collect.Lists;
+import static org.mockito.Mockito.*;
 
 
 @Test(groups = { "gobblin.writer" })

@@ -26,7 +26,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
 /**
  * Unit tests for {@link DefaultConfigurableImpl}

@@ -24,9 +24,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.util.limiter.Limiter;
-import org.apache.gobblin.util.limiter.TimeBasedLimiter;
-
 
 /**
  * Unit tests for {@link TimeBasedLimiter}.

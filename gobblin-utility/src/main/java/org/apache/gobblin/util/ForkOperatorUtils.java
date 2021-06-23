@@ -20,7 +20,6 @@ package org.apache.gobblin.util;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;

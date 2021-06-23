@@ -26,23 +26,23 @@ import java.util.List;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.math3.util.Pair;
-import org.apache.gobblin.elasticsearch.typemapping.JsonSerializer;
-import org.apache.gobblin.elasticsearch.typemapping.TypeMapper;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.Batch;
-import org.apache.gobblin.writer.WriteCallback;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.common.xcontent.XContentType;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.elasticsearch.typemapping.JsonSerializer;
+import org.apache.gobblin.elasticsearch.typemapping.TypeMapper;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.Batch;
+import org.apache.gobblin.writer.WriteCallback;
 
 /**
  * A base class for different types of Elasticsearch writers

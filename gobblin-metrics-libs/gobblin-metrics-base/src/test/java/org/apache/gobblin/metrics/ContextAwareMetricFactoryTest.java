@@ -24,8 +24,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.codahale.metrics.MetricRegistry;
-
 import static org.apache.gobblin.metrics.test.TestConstants.*;
 
 

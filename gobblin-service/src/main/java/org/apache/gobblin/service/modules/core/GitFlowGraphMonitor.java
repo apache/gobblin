@@ -25,9 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.locks.ReadWriteLock;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;

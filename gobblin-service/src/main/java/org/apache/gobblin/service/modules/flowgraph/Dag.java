@@ -34,7 +34,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**

@@ -20,10 +20,12 @@ package org.apache.gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.List;
 import java.util.Queue;
+
 import org.apache.commons.lang3.tuple.Pair;
-import com.google.common.base.Splitter;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;

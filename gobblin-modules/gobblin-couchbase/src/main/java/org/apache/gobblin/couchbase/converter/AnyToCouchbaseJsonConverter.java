@@ -18,14 +18,12 @@
 package org.apache.gobblin.couchbase.converter;
 
 import com.couchbase.client.java.document.RawJsonDocument;
-import com.google.common.base.Preconditions;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;

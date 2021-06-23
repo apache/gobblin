@@ -21,10 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaParseException;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -40,6 +36,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AvroUtils;
 
 
 public class AvroSchemaManagerTest {

@@ -18,19 +18,17 @@ package org.apache.gobblin.salesforce;
 
 import java.util.List;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import com.google.gson.Gson;
-import com.typesafe.config.ConfigFactory;
 
 
 public class SalesforceSourceTest {

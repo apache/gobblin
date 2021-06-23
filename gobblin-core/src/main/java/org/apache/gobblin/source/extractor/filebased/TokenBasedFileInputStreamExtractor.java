@@ -21,10 +21,6 @@ import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.source.extractor.filebased.FileBasedExtractor;
-import org.apache.gobblin.source.extractor.filebased.FileBasedHelper;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**

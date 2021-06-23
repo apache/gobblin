@@ -22,16 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-
-import javax.annotation.Nonnull;
-
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.thrift.TException;
@@ -50,6 +41,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import javax.annotation.Nonnull;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -60,19 +57,12 @@ import org.apache.gobblin.data.management.conversion.hive.provider.UpdateNotFoun
 import org.apache.gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
-import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.source.extractor.Watermark;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.AutoReturnableObject;
-
-import javax.annotation.Nonnull;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**

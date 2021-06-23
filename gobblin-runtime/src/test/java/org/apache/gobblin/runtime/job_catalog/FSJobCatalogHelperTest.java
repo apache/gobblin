@@ -46,14 +46,12 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
-import org.apache.gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PullFileLoader;
-import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
+import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 
 
 /**

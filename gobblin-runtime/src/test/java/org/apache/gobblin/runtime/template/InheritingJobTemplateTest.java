@@ -18,7 +18,6 @@
 package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -31,16 +30,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.AllArgsConstructor;
 
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-
-import lombok.AllArgsConstructor;
 
 
 public class InheritingJobTemplateTest {

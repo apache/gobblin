@@ -42,7 +42,6 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
 import org.apache.gobblin.runtime.job_monitor.SLAEventKafkaJobMonitor;
-import org.apache.gobblin.util.Either;
 
 
 public class SLAEventKafkaJobMonitorTest {

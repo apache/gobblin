@@ -17,12 +17,13 @@
 
 package org.apache.gobblin.salesforce;
 
-import com.google.common.collect.Iterators;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.sforce.async.BulkConnection;
 import java.util.Iterator;
 import java.util.List;
+
+import com.google.common.collect.Iterators;
+import com.google.gson.JsonElement;
+import com.sforce.async.BulkConnection;
+
 import lombok.extern.slf4j.Slf4j;
 
 

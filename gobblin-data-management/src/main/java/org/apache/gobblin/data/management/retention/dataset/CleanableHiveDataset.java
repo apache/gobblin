@@ -20,15 +20,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
@@ -39,6 +33,9 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
@@ -46,8 +43,8 @@ import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCl
 import org.apache.gobblin.data.management.version.HiveDatasetVersion;
 import org.apache.gobblin.data.management.version.finder.AbstractHiveDatasetVersionFinder;
 import org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
-import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 

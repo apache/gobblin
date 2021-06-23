@@ -19,23 +19,22 @@ package org.apache.gobblin.data.management.copy.hive.avro;
 
 import java.io.IOException;
 import java.net.URI;
-
-import com.google.common.base.Optional;
-
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
-import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 
+import com.google.common.base.Optional;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.util.PathUtils;
 
 

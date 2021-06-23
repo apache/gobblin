@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.retention.version.finder;
 
-import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;

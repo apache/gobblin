@@ -22,7 +22,6 @@ import com.typesafe.config.Config;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.util.request_allocation.Request;
 import org.apache.gobblin.util.request_allocation.Requestor;
