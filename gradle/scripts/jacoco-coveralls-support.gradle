@@ -21,7 +21,7 @@
 
 apply plugin: 'jacoco'
 
-ext.jacocoVersion = '0.8.1'
+ext.jacocoVersion = '0.8.2'
 
 jacoco {
   toolVersion = jacocoVersion

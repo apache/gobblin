@@ -28,6 +28,10 @@ on:
   release:
     types: [published, edited]
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build repository
@@ -35,6 +39,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
@@ -55,30 +61,6 @@ jobs:
       - name: Build repository
         run: |
           ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
-
-  test_coverage:
-    runs-on: ubuntu-latest
-    name: Generate test coverage
-    needs: build
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v2
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-      - name: Cache Gradle Dependencies
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          # Only rebuild cache if build.gradle is changed
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-          restore-keys: ${{ runner.os }}-gradle
-      - name: Generate code coverage
-        run: |
-          ./gradlew -PskipTestGroup=disabledOnCI -Dorg.gradle.parallel=false -DjacocoBuild=1 $GOBBLIN_GRADLE_OPTS jacocoTestCoverage
 
   static_checks:
     name: Run static checks
@@ -103,7 +85,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Run CheckStyle and FindBugs
         run: |
-          ./gradlew --no-daemon -x javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
+          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
 
   run_tests:
     timeout-minutes: 120
@@ -129,6 +111,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
+        with:
+          persist-credentials: false
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
@@ -169,3 +153,14 @@ jobs:
             fi
             sleep 30
           done
+          ./gradlew -PskipTestGroup=disabledOnCI $GOBBLIN_GRADLE_OPTS -DjacocoBuild=1 jacocoTestReport
+      - name: Collect Jacoco Coverage Reports
+        run: |
+          JACOCO_REPORTS=$(find . -name "jacoco*.xml" -exec printf ',{}' \; | cut -c2- )
+          echo "jacoco_reports=$JACOCO_REPORTS" >> $GITHUB_ENV
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          files: ${{ env.jacoco_reports }}
+          fail_ci_if_error: true
+          verbose: true
