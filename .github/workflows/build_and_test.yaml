@@ -55,9 +55,6 @@ jobs:
           # Only rebuild cache if build.gradle is changed
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
-      - name: Verify Dependencies
-        run: |
-          eval ./gradlew assemble
       - name: Build repository
         run: |
           ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
