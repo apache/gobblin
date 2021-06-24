@@ -61,7 +61,7 @@ jobs:
       - name: Verify Dependencies
         run: |
           # Since dependencies are cached, check after building if they are valid or not
-          eval ./gradlew assemble
+          eval ./gradlew --no-daemon assemble -x javadoc -Dorg.gradle.parallel=true
 
   static_checks:
     name: Run static checks
