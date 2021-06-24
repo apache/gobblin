@@ -58,6 +58,10 @@ jobs:
       - name: Build repository
         run: |
           ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
+      - name: Verify Dependencies
+        run: |
+          # Since dependencies are cached, check after building if they are valid or not
+          eval ./gradlew assemble
 
   static_checks:
     name: Run static checks
