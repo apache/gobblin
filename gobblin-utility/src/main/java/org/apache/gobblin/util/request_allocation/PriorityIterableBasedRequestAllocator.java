@@ -91,7 +91,8 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
 
       try {
         List<Either<Void, ExecutionException>> results = executor.executeAndGetResults();
-        IteratorExecutor.logFailures(results, log, 10);
+        // Throw runtime failure if an exception occurs during execution to fail the job
+        IteratorExecutor.logAndThrowFailures(results, log, 10);
       } catch (InterruptedException ie) {
         log.error("Request allocation was interrupted.");
         return new AllocatedRequestsIteratorBase<>(
