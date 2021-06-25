@@ -43,7 +43,6 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -78,21 +77,19 @@ public class KafkaStreamTestUtils {
    */
   public static class MockKafkaConsumerClient implements GobblinKafkaConsumerClient {
     public static final String NUM_PARTITIONS_ASSIGNED = "gobblin.kafka.streaming.numPartitions";
+    public static final String CAN_RETURN_NULL_VALUED_RECORDS = "gobblin.kafka.streaming.canReturnNulls";
 
     private final Map<KafkaPartition, Long> latestOffsets = Maps.newHashMap();
     private final Random random = new Random();
     private final String topicName;
+    private final boolean canReturnNullValuedRecords;
     private final List<Integer> partitionIds;
 
     protected MockKafkaConsumerClient(Config baseConfig) {
       this.topicName = baseConfig.getString(KafkaSource.TOPIC_NAME);
       int numPartitionsAssigned = ConfigUtils.getInt(baseConfig, NUM_PARTITIONS_ASSIGNED, 0);
+      this.canReturnNullValuedRecords = ConfigUtils.getBoolean(baseConfig, CAN_RETURN_NULL_VALUED_RECORDS, false);
       this.partitionIds = getPartitionIds(baseConfig, numPartitionsAssigned);
-    }
-
-    public MockKafkaConsumerClient() {
-      topicName = "";
-      partitionIds = Lists.newArrayList();
     }
 
     private List<Integer> getPartitionIds(Config baseConfig, int numPartitionsAssigned) {
@@ -110,7 +107,7 @@ public class KafkaStreamTestUtils {
      */
     @Override
     public Iterator<KafkaConsumerRecord> consume() {
-      return new MockIterator(this.topicName, this.partitionIds);
+      return new MockIterator(this.topicName, this.partitionIds, this.canReturnNullValuedRecords);
     }
 
     @Override
@@ -125,14 +122,12 @@ public class KafkaStreamTestUtils {
     }
 
     @Override
-    public long getEarliestOffset(KafkaPartition partition)
-        throws KafkaOffsetRetrievalFailureException {
+    public long getEarliestOffset(KafkaPartition partition) {
       return 0;
     }
 
     @Override
-    public long getLatestOffset(KafkaPartition partition)
-        throws KafkaOffsetRetrievalFailureException {
+    public long getLatestOffset(KafkaPartition partition) {
       return 0;
     }
 
@@ -180,23 +175,23 @@ public class KafkaStreamTestUtils {
     }
 
     @Override
-    protected Schema fetchSchemaByKey(String key) throws SchemaRegistryException {
+    protected Schema fetchSchemaByKey(String key) {
       return null;
     }
 
     @Override
-    public Schema getLatestSchemaByTopic(String topic) throws SchemaRegistryException {
+    public Schema getLatestSchemaByTopic(String topic) {
       return latestSchema;
     }
 
     @Override
-    public String register(Schema schema) throws SchemaRegistryException {
+    public String register(Schema schema) {
       return null;
     }
 
     @Override
-    public String register(Schema schema, String name) throws SchemaRegistryException {
-      this.latestSchema = schema;
+    public String register(Schema schema, String name) {
+      latestSchema = schema;
       return schema.toString();
     }
   }
@@ -209,20 +204,18 @@ public class KafkaStreamTestUtils {
     }
 
     @Override
-    public String register(String name, Schema schema)
-        throws org.apache.gobblin.kafka.schemareg.SchemaRegistryException {
+    public String register(String name, Schema schema) {
       this.latestSchema = schema;
       return schema.toString();
     }
 
     @Override
-    public Schema getById(String id) throws IOException, org.apache.gobblin.kafka.schemareg.SchemaRegistryException {
+    public Schema getById(String id) {
       return null;
     }
 
     @Override
-    public Schema getLatestSchema(String name)
-        throws IOException, org.apache.gobblin.kafka.schemareg.SchemaRegistryException {
+    public Schema getLatestSchema(String name) {
       return this.latestSchema;
     }
 
@@ -239,7 +232,7 @@ public class KafkaStreamTestUtils {
    * partition ids.
    */
   public static class MockIterator implements Iterator<KafkaConsumerRecord> {
-    //Schema for LiKafka10ConsumerRecords. TODO: Enhance the iterator to return random records
+    // Schema for LiKafka10ConsumerRecords. TODO: Enhance the iterator to return random records
     // according to a given schema.
     private static final String SCHEMA =
         "{\"namespace\": \"example.avro\",\n" + " \"type\": \"record\",\n" + " \"name\": \"user\",\n"
@@ -247,22 +240,23 @@ public class KafkaStreamTestUtils {
             + "     {\"name\": \"DUMMY\", \"type\": [\"null\",\"string\"]}\n" + " ]\n" + "}";
 
     private final Schema schema = new Schema.Parser().parse(SCHEMA);
-    private final Random random = new Random();
     private final String topicName;
     private final long maxNumRecords;
     private final List<Integer> partitionIds;
     private final long[] nextOffsets;
+    private final boolean canReturnNullRecords;
     private long numRecordsReturnedSoFar;
     private int partitionIdx = 0;
 
-    public MockIterator(String topicName, List<Integer> partitionIds) {
-      this(topicName, partitionIds, Long.MAX_VALUE);
+    public MockIterator(String topicName, List<Integer> partitionIds, boolean canReturnNullRecords) {
+      this(topicName, partitionIds, canReturnNullRecords, Long.MAX_VALUE);
     }
 
-    public MockIterator(String topicName, List<Integer> partitionIds, long numRecords) {
+    public MockIterator(String topicName, List<Integer> partitionIds, boolean canReturnNullRecords, long numRecords) {
       this.topicName = topicName;
       this.maxNumRecords = numRecords;
       this.partitionIds = partitionIds;
+      this.canReturnNullRecords = canReturnNullRecords;
       this.nextOffsets = new long[partitionIds.size()];
     }
 
@@ -287,10 +281,10 @@ public class KafkaStreamTestUtils {
     @Override
     public KafkaConsumerRecord next() {
       this.numRecordsReturnedSoFar++;
-      return getMockConsumerRecord(this.numRecordsReturnedSoFar);
+      return getMockConsumerRecord();
     }
 
-    private KafkaConsumerRecord getMockConsumerRecord(long numRecordsReturnedSoFar) {
+    private KafkaConsumerRecord getMockConsumerRecord() {
       DecodeableKafkaRecord mockRecord = Mockito.mock(DecodeableKafkaRecord.class);
       Mockito.when(mockRecord.getValue()).thenReturn(getRecord());
       Mockito.when(mockRecord.getTopic()).thenReturn(topicName);
@@ -303,12 +297,14 @@ public class KafkaStreamTestUtils {
     }
 
     private GenericRecord getRecord() {
-      GenericRecord record = new GenericData.Record(schema);
-      record.put("name", UUID.randomUUID());
-      return record;
+      if ((!this.canReturnNullRecords) || (this.numRecordsReturnedSoFar % 2 == 0)) {
+        GenericRecord record = new GenericData.Record(schema);
+        record.put("name", UUID.randomUUID());
+        return record;
+      } else {
+        return null;
+      }
     }
   }
-
-
 }
 

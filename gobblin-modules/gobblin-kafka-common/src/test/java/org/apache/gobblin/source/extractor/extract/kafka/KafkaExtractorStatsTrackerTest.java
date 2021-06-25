@@ -74,6 +74,23 @@ public class KafkaExtractorStatsTrackerTest {
   }
 
   @Test
+  public void testOnNullRecord() {
+    //Ensure that counters are initialized correctly
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(0).longValue(), -1);
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(0).longValue(), -1);
+
+    //Ensure that counters are updated correctly after 1st call to KafkaExtractorStatsTracker#onNullRecord()
+    this.extractorStatsTracker.onNullRecord(0);
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(0).longValue(), 1);
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(1).longValue(), -1);
+
+    //Ensure that counters are updated correctly after 2nd call to KafkaExtractorStatsTracker#onUndecodeableRecord()
+    this.extractorStatsTracker.onNullRecord(0);
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(0).longValue(), 2);
+    Assert.assertEquals(this.extractorStatsTracker.getNullRecordCount(1).longValue(), -1);
+  }
+
+  @Test
   public void testResetStartFetchEpochTime() {
     long currentTime = System.currentTimeMillis();
     this.extractorStatsTracker.resetStartFetchEpochTime(1);
