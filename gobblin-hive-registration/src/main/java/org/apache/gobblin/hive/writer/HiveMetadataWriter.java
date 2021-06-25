@@ -18,6 +18,7 @@
 package org.apache.gobblin.hive.writer;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
@@ -40,6 +41,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.SchemaSource;
@@ -197,9 +199,9 @@ public class HiveMetadataWriter implements MetadataWriter {
                       MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
                   .build());
           HiveSpec existedSpec = hiveSpecCache.getIfPresent(partitionValue);
+          schemaUpdateHelper(gmce, spec, topicName, tableKey);
           if (existedSpec != null) {
             //if existedSpec is not null, it means we already registered this partition, so check whether we need to update the table/partition
-            schemaUpdateHelper(gmce, spec, topicName, tableKey);
             if ((this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) || (
                 spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
                     existedSpec.getPartition().get(), spec.getPartition().get()))) {
@@ -262,6 +264,23 @@ public class HiveMetadataWriter implements MetadataWriter {
           }
         }
       }
+    } else if (gmce.getRegistrationProperties().containsKey(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB)
+        && !gmce.getRegistrationProperties().get(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB).equals(spec.getTable().getDbName())) {
+      // If schema source is NONE and schema source db is set, we will directly update the schema to source db schema
+      String schemaSourceDb = gmce.getRegistrationProperties().get(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB);
+      try {
+        Optional<HiveTable> schemaSourceTable = hiveRegister.getTable(schemaSourceDb, spec.getTable().getTableName());
+        if (schemaSourceTable.isPresent() && schemaSourceTable.get().getSerDeProps().getProp(
+            AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) != null){
+          spec.getTable()
+              .getSerDeProps()
+              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), schemaSourceTable.get().getSerDeProps().getProp(
+                  AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+        }
+      } catch (IOException e) {
+        log.warn(String.format("Cannot get schema from table %s.%s", schemaSourceDb, spec.getTable().getTableName()), e);
+      }
+      return;
     }
     //Force to set the schema even there is no schema literal defined in the spec
     spec.getTable()
