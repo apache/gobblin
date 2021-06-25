@@ -48,6 +48,8 @@ dependencies {
   compile project(':gobblin-aws')
   compile project(':gobblin-service')
   compile project(':gobblin-runtime-hadoop')
+
+  runtime project(':gobblin-modules:gobblin-sql')
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"
