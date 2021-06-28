@@ -17,10 +17,8 @@
 
 package org.apache.gobblin.hive;
 
-import java.util.Map;
 import java.util.Set;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
@@ -70,7 +68,6 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
  * @author Ziyang Liu
  */
 @Alpha
-@Slf4j
 public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitComparator<?>> {
 
   protected final HiveRegistrationUnit existingUnit;
