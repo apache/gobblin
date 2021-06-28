@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.hive;
 
+import com.google.common.base.Strings;
 import java.util.Set;
 
 import org.apache.avro.Schema;
@@ -148,9 +149,9 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
   private State extractSchemaVersion(State state) {
     State newState = new State(state);
     String schemaFromState = state.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
-    if (schemaFromState != null && !schemaFromState.isEmpty()) {
+    if (Strings.isNullOrEmpty(schemaFromState)) {
       String schemaVersion = AvroUtils.getSchemaCreationTime(new Schema.Parser().parse(schemaFromState));
-      if (schemaVersion != null && !schemaVersion.isEmpty()) {
+      if (Strings.isNullOrEmpty(schemaVersion)) {
          newState.removeProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
          newState.setProp("schema.creationTime", schemaVersion);
       }
