@@ -149,9 +149,9 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
   private State extractSchemaVersion(State state) {
     State newState = new State(state);
     String schemaFromState = state.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
-    if (Strings.isNullOrEmpty(schemaFromState)) {
+    if (!Strings.isNullOrEmpty(schemaFromState)) {
       String schemaVersion = AvroUtils.getSchemaCreationTime(new Schema.Parser().parse(schemaFromState));
-      if (Strings.isNullOrEmpty(schemaVersion)) {
+      if (!Strings.isNullOrEmpty(schemaVersion)) {
          newState.removeProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
          newState.setProp("schema.creationTime", schemaVersion);
       }
