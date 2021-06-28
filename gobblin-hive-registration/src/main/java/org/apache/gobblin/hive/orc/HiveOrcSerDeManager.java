@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import java.util.stream.Collectors;
+import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,6 +34,8 @@ import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -75,11 +78,16 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   public static final String DEFAULT_SERDE_TYPE = "ORC";
   public static final String INPUT_FORMAT_CLASS_KEY = "hiveOrcSerdeManager.inputFormatClass";
   public static final String DEFAULT_INPUT_FORMAT_CLASS = OrcInputFormat.class.getName();
+  public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
 
   public static final String OUTPUT_FORMAT_CLASS_KEY = "hiveOrcSerdeManager.outputFormatClass";
   public static final String DEFAULT_OUTPUT_FORMAT_CLASS = OrcOutputFormat.class.getName();
 
   public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveOrcSerdeManager.schemaReadTimer";
+
+  public static final String HIVE_SPEC_SCHEMA_FROM_WRITER = "hiveOrcSerdeManager.getSchemaFromWriterSchema";
+  public static final boolean DEFAULT_HIVE_SPEC_SCHEMA_FROM_WRITER = false;
+
 
   public static final String ENABLED_ORC_TYPE_CHECK = "hiveOrcSerdeManager.enableFormatCheck";
   public static final boolean DEFAULT_ENABLED_ORC_TYPE_CHECK = false;
@@ -264,7 +272,18 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    *
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
-    TypeInfo schema = getSchemaFromLatestFile(path, this.fs);
+    TypeInfo schema;
+    if(props.getPropAsBoolean(HIVE_SPEC_SCHEMA_FROM_WRITER, DEFAULT_HIVE_SPEC_SCHEMA_FROM_WRITER)) {
+      try {
+        Preconditions.checkArgument(props.contains(WRITER_LATEST_SCHEMA));
+        Schema avroSchema = new Schema.Parser().parse(props.getProp(WRITER_LATEST_SCHEMA));
+        schema = TypeInfoUtils.getTypeInfoFromObjectInspector(new AvroObjectInspectorGenerator(avroSchema).getObjectInspector());
+      } catch (SerDeException e) {
+        throw new IOException(e);
+      }
+    }  else {
+      schema = getSchemaFromLatestFile(path, this.fs);
+    }
     if (schema instanceof StructTypeInfo) {
       StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
       hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,

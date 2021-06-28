@@ -17,14 +17,19 @@
 
 package org.apache.gobblin.hive;
 
+import java.util.Map;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.Schema;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
@@ -65,6 +70,7 @@ import org.apache.gobblin.configuration.State;
  * @author Ziyang Liu
  */
 @Alpha
+@Slf4j
 public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitComparator<?>> {
 
   protected final HiveRegistrationUnit existingUnit;
@@ -142,12 +148,24 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
     return (T) this;
   }
 
+  private State extractSchemaVersion(State state) {
+    State newState = new State(state);
+    String schemaFromState = state.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+    if (schemaFromState != null && !schemaFromState.isEmpty()) {
+      String schemaVersion = AvroUtils.getSchemaCreationTime(new Schema.Parser().parse(schemaFromState));
+      if (schemaVersion != null && !schemaVersion.isEmpty()) {
+         newState.removeProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+         newState.setProp("schema.creationTime", schemaVersion);
+      }
+    }
+    return newState;
+  }
   @SuppressWarnings("unchecked")
   public T compareParameters() {
     if (!this.result) {
       checkExistingIsSuperstate(this.existingUnit.getProps(), this.newUnit.getProps());
       checkExistingIsSuperstate(this.existingUnit.getStorageProps(), this.newUnit.getStorageProps());
-      checkExistingIsSuperstate(this.existingUnit.getSerDeProps(), this.newUnit.getSerDeProps());
+      checkExistingIsSuperstate(extractSchemaVersion(this.existingUnit.getSerDeProps()), extractSchemaVersion(this.newUnit.getSerDeProps()));
     }
     return (T) this;
   }
