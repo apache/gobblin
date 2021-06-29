@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.iceberg.writer;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,17 +27,34 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.writer.MetadataWriter;
+import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -55,21 +64,19 @@ import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
-import org.apache.gobblin.hive.writer.MetadataWriter;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
- * This is a Wrapper of all the MetadataWriters. This writer will manage a list of {@Link MetadataWriter} which do the actual
+ * This is a wrapper of all the MetadataWriters. This writer will manage a list of {@Link MetadataWriter} which do the actual
  * metadata registration for different metadata store.
  * This writer is responsible for:
+ * 0. Consuming {@link GobblinMetadataChangeEvent} and execute metadata registration.
  * 1. Managing a map of Iceberg tables that it is currently processing
  * 2. Ensuring that the underlying metadata writers flush the metadata associated with each Iceberg table
  * 3. Call flush method for a specific table on a change in operation type
  * 4. Calculate {@Link HiveSpec}s and pass them to metadata writers to register metadata
  */
+@SuppressWarnings("UnstableApiUsage")
 @Slf4j
 public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String DEFAULT_HIVE_REGISTRATION_POLICY_KEY = "default.hive.registration.policy";
@@ -92,7 +99,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private Closer closer = Closer.create();
   protected final AtomicLong recordCount = new AtomicLong(0L);
 
-  public GobblinMCEWriter(DataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
+  GobblinMCEWriter(DataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     newSpecsMaps = new HashMap<>();
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
@@ -116,13 +123,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
 
   /**
    * This method is used to get the specs map for a list of files. It will firstly look up in cache
-   * to see if the specs has been calculated previously to recude the computing time
+   * to see if the specs has been calculated previously to reduce the computing time
    * We have an assumption here: "for the same path and the same operation type, the specs should be the same"
-   * @param files  List of files' names
+   * @param files  List of leaf-level files' names
    * @param specsMap The specs map for the files
    * @param cache  Cache that store the pre-calculated specs information
    * @param registerState State used to compute the specs
-   * @param isPrefix if the name of file is prefix, if not we get the parent file name to calculate the hiveSpec
+   * @param isPrefix If false,  we get the parent file name to calculate the hiveSpec. This is to comply with
+   *                 hive's convention on partition which is the parent folder for leaf-level files.
    * @throws IOException
    */
   private void computeSpecMap(List<String> files, ConcurrentHashMap<String, Collection<HiveSpec>> specsMap,
@@ -133,14 +141,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         @Override
         public Void call() throws Exception {
           try {
-            Path regPath = new Path(file);
-            if (!isPrefix) {
-              regPath = regPath.getParent();
-            }
-            //Use raw path for federation purpose
+            Path regPath = isPrefix ? new Path(file) : new Path(file).getParent();
+            //Use raw path to comply with HDFS federation setting.
             Path rawPath = new Path(regPath.toUri().getRawPath());
-            cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath));
-            specsMap.put(regPath.toString(), cache.getIfPresent(regPath.toString()));
+            specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
           } catch (Exception e) {
             log.warn("Cannot get Hive Spec for {} using policy {}", file, policy.toString());
           }
@@ -196,13 +200,15 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         && datasetOperationTypeMap.get(datasetName) != gmce.getOperationType()) {
       datasetOperationTypeMap.put(datasetName, gmce.getOperationType());
     }
-    //We assume in one same operation interval, for same dataset, the table property will not change to reduce the time to compute hiveSpec.
+
+    // Mapping from URI of path of arrival files to the list of HiveSpec objects.
+    // We assume in one same operation interval, for same dataset, the table property will not change to reduce the time to compute hiveSpec.
     ConcurrentHashMap<String, Collection<HiveSpec>> newSpecsMap = new ConcurrentHashMap<>();
     ConcurrentHashMap<String, Collection<HiveSpec>> oldSpecsMap = new ConcurrentHashMap<>();
 
     if (gmce.getNewFiles() != null) {
       State registerState = setHiveRegProperties(state, gmce, true);
-      computeSpecMap(Lists.newArrayList(Iterables.transform(gmce.getNewFiles(), dataFile -> dataFile.getFilePath())),
+      computeSpecMap(Lists.newArrayList(Iterables.transform(gmce.getNewFiles(), DataFile::getFilePath)),
           newSpecsMap, newSpecsMaps.computeIfAbsent(datasetName, t -> CacheBuilder.newBuilder()
               .expireAfterAccess(state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME,
                   MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
@@ -226,6 +232,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     if (newSpecsMap.isEmpty() && oldSpecsMap.isEmpty()) {
       return;
     }
+
+    // Sample one entry among all "Path <--> List<HiveSpec>" pair is good enough, reasoning:
+    // 0. Objective here is to execute metadata registration for all target table destinations of a dataset,
+    // 1. GMCE guarantees all paths coming from single dataset (but not necessary single "partition" in Hive's layout),
+    // 2. HiveSpec of paths from a dataset should be targeting at the same set of table destinations,
+    // 3. therefore fetching one path's HiveSpec and iterate through it is good enough to cover all table destinations.
     Collection<HiveSpec> specs =
         newSpecsMap.isEmpty() ? oldSpecsMap.values().iterator().next() : newSpecsMap.values().iterator().next();
     for (HiveSpec spec : specs) {
@@ -248,8 +260,8 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
 
   /**
    * Call the metadata writers to do flush each table metadata.
-   * Flush of metadata writer is the place that do really metadata
-   * registration (For iceberg, this method will generate a snapshot)
+   * Flush of metadata writer is the place that do real metadata
+   * registrations (e.g. for iceberg, this method will generate a snapshot)
    * @throws IOException
    */
   @Override
