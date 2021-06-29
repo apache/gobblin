@@ -26,13 +26,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.MysqlDagStateStoreFactory;
 import org.apache.gobblin.metastore.MysqlStateStore;
 import org.apache.gobblin.metastore.MysqlStateStoreEntryManager;
-import org.apache.gobblin.metastore.MysqlStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -97,7 +98,7 @@ public class MysqlDagStateStore implements DagStateStore {
    */
   protected StateStore<State> createStateStore(Config config) {
     try {
-      return (MysqlStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
+      return (MysqlDagStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
     } catch (ReflectiveOperationException rfoe) {
       throw new RuntimeException("A MySQL StateStore cannot be correctly initialized due to:", rfoe);
     }
@@ -148,21 +149,21 @@ public class MysqlDagStateStore implements DagStateStore {
    * e.g. storeName = group1_name1, tableName = 1234 gives dagId group1_name1_1234
    */
   private String entryToDagId(String storeName, String tableName) {
-    return Joiner.on("_").join(storeName, tableName);
+    return Joiner.on(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER).join(storeName, tableName);
   }
 
   /**
    * Return a storeName given a dagId. Store name is defined as flowGroup_flowName.
    */
   private String getStoreNameFromDagId(String dagId) {
-    return dagId.substring(0, dagId.lastIndexOf('_'));
+    return dagId.substring(0, dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER));
   }
 
   /**
    * Return a tableName given a dagId. Table name is defined as the flowExecutionId.
    */
   private String getTableNameFromDagId(String dagId) {
-    return dagId.substring(dagId.lastIndexOf('_') + 1);
+    return dagId.substring(dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER) + 1);
   }
 
   /**

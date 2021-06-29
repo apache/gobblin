@@ -345,6 +345,36 @@ public class FlowConfigV2Test {
     }
   }
 
+  @Test
+  public void testInvalidFlowId() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    StringBuilder sb1 = new StringBuilder();
+    StringBuilder sb2 = new StringBuilder();
+    int maxFlowNameLength = ServiceConfigKeys.MAX_FLOW_NAME_LENGTH;
+    int maxFlowGroupLength = ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
+    while(maxFlowGroupLength-- >= 0) {
+      sb1.append("A");
+    }
+    while(maxFlowNameLength-- >= 0) {
+      sb2.append("A");
+    }
+    String TOO_LONG_FLOW_GROUP = sb1.toString();
+    String TOO_LONG_FLOW_NAME = sb2.toString();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TOO_LONG_FLOW_GROUP).setFlowName(TOO_LONG_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_422_Unprocessable_Entity);
+      Assert.assertTrue(e.getMessage().contains("is out of range"));
+      return;
+    }
+
+    Assert.fail();
+  }
+
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
     if (_client != null) {
