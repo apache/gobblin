@@ -87,6 +87,7 @@ import org.apache.gobblin.runtime.locks.JobLockEventListener;
 import org.apache.gobblin.runtime.locks.JobLockException;
 import org.apache.gobblin.runtime.locks.LegacyJobLockFactoryManager;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
@@ -192,7 +193,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
 
-    troubleshooter = AutomaticTroubleshooter.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
     troubleshooter.start();
 
     // Make a copy for both the system and job configuration properties and resolve the job-template if any.

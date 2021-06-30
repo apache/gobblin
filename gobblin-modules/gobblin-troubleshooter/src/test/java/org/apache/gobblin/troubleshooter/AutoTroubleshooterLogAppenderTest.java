@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.troubleshooter;
+package org.apache.gobblin.troubleshooter;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -25,13 +25,17 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.runtime.ThrowableWithErrorCode;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 
 public class AutoTroubleshooterLogAppenderTest {
@@ -55,12 +59,12 @@ public class AutoTroubleshooterLogAppenderTest {
 
     Issue issue = issueRepository.getAll().get(0);
 
-    assertEquals(issue.getSeverity(), IssueSeverity.WARN);
-    assertEquals(issue.getSummary(), "test");
-    assertEquals(issue.getSourceClass(), getClass().getName());
-        assertTrue(issue.getTime().isAfter(ZonedDateTime.now().minus(1, ChronoUnit.MINUTES)));
-    assertTrue(issue.getTime().isBefore(ZonedDateTime.now().plus(1, ChronoUnit.MINUTES)));
-    assertTrue(issue.getCode().length() > 1);
+    Assert.assertEquals(issue.getSeverity(), IssueSeverity.WARN);
+    Assert.assertEquals(issue.getSummary(), "test");
+    Assert.assertEquals(issue.getSourceClass(), getClass().getName());
+        Assert.assertTrue(issue.getTime().isAfter(ZonedDateTime.now().minus(1, ChronoUnit.MINUTES)));
+    Assert.assertTrue(issue.getTime().isBefore(ZonedDateTime.now().plus(1, ChronoUnit.MINUTES)));
+    Assert.assertTrue(issue.getCode().length() > 1);
 
     assertEquals(appender.getProcessedEventCount(), 1);
   }
@@ -82,11 +86,11 @@ public class AutoTroubleshooterLogAppenderTest {
 
     Issue issue = issueRepository.getAll().get(0);
 
-    assertEquals(issue.getSeverity(), IssueSeverity.ERROR);
-    assertTrue(issue.getSummary().contains("test message"));
-    assertTrue(issue.getSummary().contains("test exception"));
-    assertTrue(issue.getCode().length() > 1);
-    assertTrue(issue.getDetails().contains("IOException"));
+    Assert.assertEquals(issue.getSeverity(), IssueSeverity.ERROR);
+    Assert.assertTrue(issue.getSummary().contains("test message"));
+    Assert.assertTrue(issue.getSummary().contains("test exception"));
+    Assert.assertTrue(issue.getCode().length() > 1);
+    Assert.assertTrue(issue.getDetails().contains("IOException"));
   }
 
   @Test
@@ -105,8 +109,8 @@ public class AutoTroubleshooterLogAppenderTest {
 
     Issue issue = issueRepository.getAll().get(0);
 
-    assertEquals(issue.getSeverity(), IssueSeverity.ERROR);
-    assertEquals(issue.getCode(), "TestCode");
+    Assert.assertEquals(issue.getSeverity(), IssueSeverity.ERROR);
+    Assert.assertEquals(issue.getCode(), "TestCode");
   }
 
 

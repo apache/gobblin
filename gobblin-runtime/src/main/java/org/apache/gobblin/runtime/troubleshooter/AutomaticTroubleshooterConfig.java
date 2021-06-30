@@ -47,11 +47,9 @@ public class AutomaticTroubleshooterConfig {
   public AutomaticTroubleshooterConfig(Config config) {
     Objects.requireNonNull(config, "Config cannot be null");
 
-    // Disabled by default for initial rollout.
-    // After the code base runs in production for a while, we'll switch it to be enabled by default.
-    disabled = ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLED, true);
+    disabled = ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLED, false);
     disableEventReporting =
-        ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, true);
+        ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, false);
 
     inMemoryRepositoryMaxSize = ConfigUtils
         .getInt(config, ConfigurationKeys.TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE,

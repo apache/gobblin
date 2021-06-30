@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.troubleshooter;
+package org.apache.gobblin.troubleshooter;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -36,6 +36,10 @@ import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.ThrowableWithErrorCode;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 
 
 /**

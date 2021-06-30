@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.troubleshooter;
+package org.apache.gobblin.troubleshooter;
 
 import java.util.Properties;
 
@@ -26,6 +26,8 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.Matchers.any;
@@ -44,10 +46,8 @@ public class AutomaticTroubleshooterTest {
   public void canCollectAndRefineIssues()
       throws Exception {
     Properties properties = new Properties();
-    properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "false");
-    properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, "false");
     AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooter.createForJob(ConfigUtils.propertiesToConfig(properties));
+        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
     try {
       troubleshooter.start();
       log.warn("Test warning");
@@ -77,7 +77,7 @@ public class AutomaticTroubleshooterTest {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "true");
     AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooter.createForJob(ConfigUtils.propertiesToConfig(properties));
+        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
     try {
       troubleshooter.start();
       log.warn("Test warning");
@@ -101,7 +101,7 @@ public class AutomaticTroubleshooterTest {
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "false");
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, "true");
     AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooter.createForJob(ConfigUtils.propertiesToConfig(properties));
+        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
     try {
       troubleshooter.start();
 

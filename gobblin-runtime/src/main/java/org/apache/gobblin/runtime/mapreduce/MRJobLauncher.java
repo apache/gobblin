@@ -100,6 +100,7 @@ import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.JobFSMState;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.StateType;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -743,7 +744,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       final State gobblinJobState = HadoopUtils.getStateFromConf(context.getConfiguration());
       TaskAttemptID taskAttemptID = context.getTaskAttemptID();
 
-      troubleshooter = AutomaticTroubleshooter.createForJob(ConfigUtils.propertiesToConfig(gobblinJobState.getProperties()));
+      troubleshooter =
+          AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(gobblinJobState.getProperties()));
       troubleshooter.start();
 
       try (Closer closer = Closer.create()) {
