@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.hive.orc;
 
+import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -24,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 
 import java.util.stream.Collectors;
+import org.apache.avro.Schema;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,6 +35,9 @@ import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -264,7 +269,17 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    *
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
-    TypeInfo schema = getSchemaFromLatestFile(path, this.fs);
+    TypeInfo schema;
+    if(!Strings.isNullOrEmpty(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()))) {
+      try {
+        Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+        schema = TypeInfoUtils.getTypeInfoFromObjectInspector(new AvroObjectInspectorGenerator(avroSchema).getObjectInspector());
+      } catch (SerDeException e) {
+        throw new IOException(e);
+      }
+    }  else {
+      schema = getSchemaFromLatestFile(path, this.fs);
+    }
     if (schema instanceof StructTypeInfo) {
       StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
       hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,
