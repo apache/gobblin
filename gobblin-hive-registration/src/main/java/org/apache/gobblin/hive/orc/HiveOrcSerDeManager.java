@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.hive.orc;
 
+import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,6 +37,7 @@ import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
@@ -78,16 +80,11 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   public static final String DEFAULT_SERDE_TYPE = "ORC";
   public static final String INPUT_FORMAT_CLASS_KEY = "hiveOrcSerdeManager.inputFormatClass";
   public static final String DEFAULT_INPUT_FORMAT_CLASS = OrcInputFormat.class.getName();
-  public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
 
   public static final String OUTPUT_FORMAT_CLASS_KEY = "hiveOrcSerdeManager.outputFormatClass";
   public static final String DEFAULT_OUTPUT_FORMAT_CLASS = OrcOutputFormat.class.getName();
 
   public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveOrcSerdeManager.schemaReadTimer";
-
-  public static final String HIVE_SPEC_SCHEMA_FROM_WRITER = "hiveOrcSerdeManager.getSchemaFromWriterSchema";
-  public static final boolean DEFAULT_HIVE_SPEC_SCHEMA_FROM_WRITER = false;
-
 
   public static final String ENABLED_ORC_TYPE_CHECK = "hiveOrcSerdeManager.enableFormatCheck";
   public static final boolean DEFAULT_ENABLED_ORC_TYPE_CHECK = false;
@@ -273,10 +270,9 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     TypeInfo schema;
-    if(props.getPropAsBoolean(HIVE_SPEC_SCHEMA_FROM_WRITER, DEFAULT_HIVE_SPEC_SCHEMA_FROM_WRITER)) {
+    if(!Strings.isNullOrEmpty(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()))) {
       try {
-        Preconditions.checkArgument(props.contains(WRITER_LATEST_SCHEMA));
-        Schema avroSchema = new Schema.Parser().parse(props.getProp(WRITER_LATEST_SCHEMA));
+        Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
         schema = TypeInfoUtils.getTypeInfoFromObjectInspector(new AvroObjectInspectorGenerator(avroSchema).getObjectInspector());
       } catch (SerDeException e) {
         throw new IOException(e);

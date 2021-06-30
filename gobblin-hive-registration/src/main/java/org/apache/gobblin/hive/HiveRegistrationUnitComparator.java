@@ -70,6 +70,7 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
  */
 @Alpha
 public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitComparator<?>> {
+  private static String SCHEMA_CREATION_TIME = "schema.creationTime";
 
   protected final HiveRegistrationUnit existingUnit;
   protected final HiveRegistrationUnit newUnit;
@@ -147,13 +148,15 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
   }
 
   private State extractSchemaVersion(State state) {
+    //FIXME: This is a temp fix for special character in schema string, need to investigate the root
+    //cause of why we see different encoding here and have a permanent fix for this
     State newState = new State(state);
     String schemaFromState = state.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
     if (!Strings.isNullOrEmpty(schemaFromState)) {
       String schemaVersion = AvroUtils.getSchemaCreationTime(new Schema.Parser().parse(schemaFromState));
       if (!Strings.isNullOrEmpty(schemaVersion)) {
          newState.removeProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
-         newState.setProp("schema.creationTime", schemaVersion);
+         newState.setProp(SCHEMA_CREATION_TIME, schemaVersion);
       }
     }
     return newState;
