@@ -21,13 +21,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+
 import org.apache.avro.generic.GenericRecord;
+
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**
- * This is the interface of the writer which is used to calculate and accumulate the desired metadata and register to the metadata store
+ * This is the interface that is used to calculate and accumulate the desired metadata and register to the metadata store
  */
 public interface MetadataWriter extends Closeable {
   String CACHE_EXPIRING_TIME = "GMCEWriter.cache.expiring.time.hours";
@@ -36,11 +39,16 @@ public interface MetadataWriter extends Closeable {
   /*
   Register the metadata of specific table to the metadata store
    */
-  public void flush(String dbName, String tableName) throws IOException;
+  void flush(String dbName, String tableName) throws IOException;
 
-  /*
-  Compute and cache the metadata from the GMCE
+  /**
+   * Compute and cache the metadata from the GMCE
+   * @param recordEnvelope Containing {@link GobblinMetadataChangeEvent}
+   * @param newSpecsMap The container (as a map) for new specs.
+   * @param oldSpecsMap The container (as a map) for old specs.
+   * @param tableSpec A sample table spec representing one instances among all path's {@link HiveSpec}
+   * @throws IOException
    */
-  public void writeEnvelope(RecordEnvelope<GenericRecord> recordEnvelope, Map<String, Collection<HiveSpec>> newSpecsMap,
+  void writeEnvelope(RecordEnvelope<GenericRecord> recordEnvelope, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException;
 }
