@@ -95,6 +95,7 @@ dependencies {
   compile project(path: ':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api', configuration: 'restClient')
   compile project(':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-client')
   compile project(':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-server')
+  compile project(':gobblin-modules:gobblin-troubleshooter')
   compile project(':gobblin-tunnel')
   compile project(':gobblin-utility')
   compile project(':gobblin-yarn')

@@ -31,8 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.destination.DestinationDatasetHandlerService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -64,6 +62,7 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
+import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
@@ -87,6 +86,9 @@ import org.apache.gobblin.runtime.locks.JobLock;
 import org.apache.gobblin.runtime.locks.JobLockEventListener;
 import org.apache.gobblin.runtime.locks.JobLockException;
 import org.apache.gobblin.runtime.locks.LegacyJobLockFactoryManager;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
@@ -173,6 +175,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // Used to generate additional metadata to emit in timing events
   private final MultiEventMetadataGenerator multiEventMetadataGenerator;
 
+  private final AutomaticTroubleshooter troubleshooter;
+
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
     this(jobProps, metadataTags, null);
@@ -188,6 +192,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     List<Tag<?>> clusterNameTags = Lists.newArrayList();
     clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
+
+    troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    troubleshooter.start();
 
     // Make a copy for both the system and job configuration properties and resolve the job-template if any.
     this.jobProps = new Properties();
@@ -206,7 +213,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         instanceBroker = createDefaultInstanceBroker(jobProps);
       }
 
-      this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker);
+      this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker, troubleshooter.getIssueRepository());
       this.eventBus.register(this.jobContext);
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
@@ -556,6 +563,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobContext.getJobState().setJobFailureException(t);
       } finally {
         try {
+          troubleshooter.refineIssues();
+          troubleshooter.logIssueSummary();
+          troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
+        } catch (Exception e) {
+          LOG.error("Failed to report issues", e);
+        }
+
+        try {
           TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CLEANUP);
           cleanupStagingData(jobState);
           jobCleanupTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext, EventName.JOB_CLEANUP));
@@ -665,6 +680,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @Override
   public void close()
       throws IOException {
+
+    troubleshooter.stop();
+
     try {
       this.cancellationExecutor.shutdownNow();
       try {
@@ -1003,6 +1021,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public boolean isEarlyStopped() {
     return this.jobContext.getSource().isEarlyStopped();
+  }
+
+  protected IssueRepository getIssueRepository() {
+    return troubleshooter.getIssueRepository();
   }
 
   /**

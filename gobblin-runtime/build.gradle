@@ -66,6 +66,7 @@ dependencies {
   compile externalDependency.curatorRecipes
   compile externalDependency.findBugsAnnotations
   compile externalDependency.gson
+  compile externalDependency.gsonJavatimeSerialisers
   compile externalDependency.guava
   compile externalDependency.guice
   compile externalDependency.httpclient

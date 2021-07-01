@@ -66,6 +66,9 @@ import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFaceWrapper;
 import org.apache.gobblin.runtime.task.TaskUtils;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -120,6 +123,8 @@ public class GobblinMultiTaskAttempt {
   @Getter
   private volatile AtomicBoolean stopped = new AtomicBoolean(false);
 
+  private final IssueRepository issueRepository;
+
   /**
    * Additional commit steps that may be added by different launcher, and can be environment specific.
    * Usually it should be clean-up steps, which are always executed at the end of {@link #commit()}.
@@ -129,9 +134,19 @@ public class GobblinMultiTaskAttempt {
   public GobblinMultiTaskAttempt(Iterator<WorkUnit> workUnits, String jobId, JobState jobState,
       TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, Optional<String> containerIdOptional,
       Optional<StateStore<TaskState>> taskStateStoreOptional, SharedResourcesBroker<GobblinScopeTypes> jobBroker) {
+
+    this(workUnits, jobId, jobState, taskStateTracker, taskExecutor, containerIdOptional, taskStateStoreOptional,
+         jobBroker, new InMemoryIssueRepository());
+  }
+
+  public GobblinMultiTaskAttempt(Iterator<WorkUnit> workUnits, String jobId, JobState jobState,
+      TaskStateTracker taskStateTracker, TaskExecutor taskExecutor, Optional<String> containerIdOptional,
+      Optional<StateStore<TaskState>> taskStateStoreOptional, SharedResourcesBroker<GobblinScopeTypes> jobBroker,
+      IssueRepository issueRepository) {
     super();
     this.workUnits = workUnits;
     this.jobId = jobId;
+    this.issueRepository = issueRepository;
     this.attemptId = this.getClass().getName() + "." + this.jobId;
     this.jobState = jobState;
     this.taskStateTracker = taskStateTracker;
@@ -247,13 +262,32 @@ public class GobblinMultiTaskAttempt {
       log.error("Committing of tasks interrupted. Aborting.");
       throw new RuntimeException(ie);
     } finally {
+
+      reportTaskIssues();
       persistTaskStateStore();
+
       if (this.cleanupCommitSteps != null) {
         for (CommitStep cleanupCommitStep : this.cleanupCommitSteps) {
           log.info("Executing additional commit step.");
           cleanupCommitStep.execute();
         }
       }
+    }
+  }
+
+  private void reportTaskIssues() {
+    if (issueRepository == null) {
+      log.info("Automatic troubleshooting is not configured for this task. "
+                   + "Make sure to pass issue repository to turn it on.");
+      return;
+    }
+
+    try {
+      for (Task task : this.tasks) {
+        task.getTaskState().setTaskIssues(issueRepository.getAll());
+      }
+    } catch (TroubleshooterException e) {
+      log.warn("Failed to save task issues", e);
     }
   }
 
@@ -574,7 +608,7 @@ public class GobblinMultiTaskAttempt {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits, jobContext.getJobId(), jobContext.getJobState(), taskStateTracker,
             taskExecutor, Optional.<String>absent(), Optional.<StateStore<TaskState>>absent(),
-            jobContext.getJobBroker());
+            jobContext.getJobBroker(), jobContext.getIssueRepository());
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
   }
@@ -598,7 +632,8 @@ public class GobblinMultiTaskAttempt {
   public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
       List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       StateStore<TaskState> taskStateStore, CommitPolicy multiTaskAttemptCommitPolicy,
-      SharedResourcesBroker<GobblinScopeTypes> jobBroker, Predicate<GobblinMultiTaskAttempt> interruptionPredicate)
+      SharedResourcesBroker<GobblinScopeTypes> jobBroker, IssueRepository issueRepository,
+      Predicate<GobblinMultiTaskAttempt> interruptionPredicate)
       throws IOException, InterruptedException {
 
     // dump the work unit if tracking logs are enabled
@@ -609,7 +644,7 @@ public class GobblinMultiTaskAttempt {
 
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits.iterator(), jobId, jobState, taskStateTracker, taskExecutor,
-            Optional.of(containerId), Optional.of(taskStateStore), jobBroker);
+            Optional.of(containerId), Optional.of(taskStateStore), jobBroker, issueRepository);
     multiTaskAttempt.setInterruptionPredicate(interruptionPredicate);
 
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);

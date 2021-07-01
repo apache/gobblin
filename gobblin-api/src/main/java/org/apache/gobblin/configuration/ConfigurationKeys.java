@@ -17,10 +17,10 @@
 
 package org.apache.gobblin.configuration;
 
-import com.google.common.base.Charsets;
-
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.base.Charsets;
 
 
 /**
@@ -252,6 +252,7 @@ public class ConfigurationKeys {
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+  public static final String TASK_ISSUES_KEY = "task.issues";
   public static final String JOB_FAILURE_EXCEPTION_KEY = "job.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
@@ -1078,4 +1079,27 @@ public class ConfigurationKeys {
   public static final String STAGING_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskStaging";
   public static final String OUTPUT_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskOutput";
   public static final String ROW_LEVEL_ERR_FILE_DEFAULT_SUFFIX = "/err";
+
+
+  /**
+   * Troubleshooter configuration
+   */
+
+  /**
+   * Disables all troubleshooter functions
+   * */
+  public static final String TROUBLESHOOTER_DISABLED = "gobblin.troubleshooter.disabled";
+
+  /**
+   * Disables reporting troubleshooter issues as GobblinTrackingEvents
+   * */
+  public static final String TROUBLESHOOTER_DISABLE_EVENT_REPORTING = "gobblin.troubleshooter.disableEventReporting";
+
+  /**
+   * The maximum number of issues that In-memory troubleshooter repository will keep.
+   *
+   * This setting can control memory usage of the troubleshooter.
+   * */
+  public static final String TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = "gobblin.troubleshooter.inMemoryIssueRepository.maxSize";
+  public static final int DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = 100;
 }

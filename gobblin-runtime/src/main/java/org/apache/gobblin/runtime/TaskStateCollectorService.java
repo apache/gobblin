@@ -23,27 +23,32 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
 import com.google.common.eventbus.EventBus;
-import com.google.common.util.concurrent.AbstractScheduledService;
-import com.google.common.base.Predicate;
 import com.google.common.io.Closer;
-import com.google.common.base.Optional;
+import com.google.common.util.concurrent.AbstractScheduledService;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ParallelRunner;
 
 
 /**
@@ -90,12 +95,16 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    */
   private static final boolean defaultPolicyOnCollectorServiceFailure = true;
 
+  private final IssueRepository issueRepository;
+  private final AtomicBoolean reportedIssueConsumptionWarning = new AtomicBoolean(false);
+
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
-      StateStore<TaskState> taskStateStore, Path outputTaskStateDir) {
+      StateStore<TaskState> taskStateStore, Path outputTaskStateDir, IssueRepository issueRepository) {
     this.jobState = jobState;
     this.eventBus = eventBus;
     this.taskStateStore = taskStateStore;
     this.outputTaskStateDir = outputTaskStateDir;
+    this.issueRepository = issueRepository;
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
@@ -200,6 +209,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Add the TaskStates of completed tasks to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
     for (TaskState taskState : taskStateQueue) {
+      consumeTaskIssues(taskState);
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
     }
@@ -223,5 +233,26 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
     // Notify the listeners for the completion of the tasks
     this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
+  }
+
+  private void consumeTaskIssues(TaskState taskState) {
+    List<Issue> taskIssues = taskState.getTaskIssues();
+
+    /* A single job can spawn tens of thousands of tasks, and in case of wide-spread errors they will all produce
+     * similar Issues with large exception stack traces. If the process that collects task states keeps all of them in
+     * job state, it can run out of memory. To avoid that, we're forwarding issues to central repository that has
+     * size limits, and then remove them from the task state.
+     * */
+
+    if (taskIssues != null) {
+      try {
+        issueRepository.put(taskIssues);
+      } catch (TroubleshooterException e) {
+        if (reportedIssueConsumptionWarning.compareAndSet(false, true)) {
+          log.warn("Failed to consume task issues", e);
+        }
+      }
+      taskState.setTaskIssues(null);
+    }
   }
 }

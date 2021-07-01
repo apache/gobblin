@@ -23,7 +23,6 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -46,6 +45,10 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.Getter;
+
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -61,6 +64,7 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobState.DatasetState;
 import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -72,10 +76,6 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-
-import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 
 /**
@@ -130,7 +130,11 @@ public class JobContext implements Closeable {
   // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
   private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
 
-  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+  @Getter
+  private IssueRepository issueRepository;
+
+  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker,
+      IssueRepository issueRepository)
       throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -147,6 +151,8 @@ public class JobContext implements Closeable {
 
     this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
+
+    this.issueRepository = issueRepository;
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);

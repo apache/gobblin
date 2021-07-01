@@ -20,23 +20,30 @@ package org.apache.gobblin.runtime;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.runtime.job.TaskProgress;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonWriter;
-
 import com.linkedin.data.template.StringMap;
 
+import javax.annotation.Nullable;
+import lombok.Getter;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.rest.Metric;
 import org.apache.gobblin.rest.MetricArray;
 import org.apache.gobblin.rest.MetricTypeEnum;
@@ -44,15 +51,13 @@ import org.apache.gobblin.rest.Table;
 import org.apache.gobblin.rest.TableTypeEnum;
 import org.apache.gobblin.rest.TaskExecutionInfo;
 import org.apache.gobblin.rest.TaskStateEnum;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.job.TaskProgress;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.util.ForkOperatorUtils;
-import org.apache.gobblin.metrics.GobblinMetrics;
-
-import lombok.Getter;
 
 
 /**
@@ -232,6 +237,34 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     if (!this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
       this.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY,
           Throwables.getStackTraceAsString(taskFailureException));
+    }
+  }
+
+  /**
+   * Returns list of task issues. Can be null, if no issues were set.
+   */
+  @Nullable
+  public List<Issue> getTaskIssues() {
+    String serializedIssues = this.getProp(ConfigurationKeys.TASK_ISSUES_KEY, null);
+    if (serializedIssues == null) {
+      return null;
+    }
+
+    Type issueListTypeToken = new TypeToken<ArrayList<Issue>>() {
+    }.getType();
+
+    return GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(serializedIssues, issueListTypeToken);
+  }
+
+  /**
+   * Saves the list of task issues into the state, so that parent job can aggregate and consume it.   *
+   */
+  public void setTaskIssues(List<Issue> issues) {
+    if (issues == null) {
+      this.removeProp(ConfigurationKeys.TASK_ISSUES_KEY);
+    } else {
+      String serializedIssues = GsonUtils.GSON_WITH_DATE_HANDLING.toJson(issues);
+      this.setProp(ConfigurationKeys.TASK_ISSUES_KEY, serializedIssues);
     }
   }
 

@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime.mapreduce;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.Authenticator;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +99,8 @@ import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.JobFSMState;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.StateType;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -110,7 +111,6 @@ import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.SerializationUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job as a Hadoop MR job.
@@ -251,7 +251,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     this.taskStateCollectorService =
         new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, taskStateStore,
-            outputTaskStateDir);
+            outputTaskStateDir, getIssueRepository());
 
     this.jarFileMaximumRetry =
         jobProps.containsKey(ConfigurationKeys.MAXIMUM_JAR_COPY_RETRY_TIMES_KEY) ? Integer.parseInt(
@@ -737,10 +737,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
     private final List<WorkUnit> workUnits = Lists.newArrayList();
 
+    private AutomaticTroubleshooter troubleshooter;
+
     @Override
     protected void setup(Context context) {
       final State gobblinJobState = HadoopUtils.getStateFromConf(context.getConfiguration());
       TaskAttemptID taskAttemptID = context.getTaskAttemptID();
+
+      troubleshooter =
+          AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(gobblinJobState.getProperties()));
+      troubleshooter.start();
 
       try (Closer closer = Closer.create()) {
         // Default for customizedProgressEnabled is false.
@@ -874,7 +880,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
         gobblinMultiTaskAttempt =
             GobblinMultiTaskAttempt.runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(),
                 this.jobState, this.workUnits, this.taskStateTracker, this.taskExecutor, this.taskStateStore,
-                multiTaskAttemptCommitPolicy, jobBroker, (gmta) -> {
+                multiTaskAttemptCommitPolicy, jobBroker, troubleshooter.getIssueRepository(), (gmta) -> {
                   try {
                     return this.fs.exists(interruptPath);
                   } catch (IOException ioe) {
@@ -889,6 +895,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
               .put(context.getTaskAttemptID().toString(), gobblinMultiTaskAttempt);
         }
       } finally {
+        try {
+          troubleshooter.refineIssues();
+          troubleshooter.logIssueSummary();
+          troubleshooter.stop();
+        } catch (Exception e) {
+          LOG.error("Failed to report issues from automatic troubleshooter", e);
+        }
+
         CommitStep cleanUpCommitStep = new CommitStep() {
 
           @Override
