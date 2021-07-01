@@ -26,7 +26,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.AsyncWriterManager;
-import org.apache.gobblin.writer.BufferedAsyncDataWriter;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
 

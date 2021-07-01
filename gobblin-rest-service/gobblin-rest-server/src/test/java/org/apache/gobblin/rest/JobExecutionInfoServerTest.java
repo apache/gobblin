@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.rest;
 
-import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -32,7 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-
 import com.linkedin.data.template.StringMap;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;

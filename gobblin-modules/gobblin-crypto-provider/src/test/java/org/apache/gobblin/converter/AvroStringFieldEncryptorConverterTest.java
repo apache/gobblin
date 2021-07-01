@@ -17,7 +17,6 @@
 package org.apache.gobblin.converter;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,19 +30,16 @@ import org.apache.avro.generic.GenericArray;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Encoder;
-import org.apache.avro.io.EncoderFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.collections.Lists;
 
 import com.google.common.collect.Maps;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.test.crypto.InsecureShiftCodec;
-import org.testng.collections.Lists;
 
 
 public class AvroStringFieldEncryptorConverterTest {

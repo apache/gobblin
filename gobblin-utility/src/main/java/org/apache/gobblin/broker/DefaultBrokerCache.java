@@ -19,10 +19,8 @@ package org.apache.gobblin.broker;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,16 +37,16 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.Striped;
 
-import org.apache.gobblin.broker.iface.ScopeType;
-import org.apache.gobblin.broker.iface.SharedResourceFactory;
-import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
-import org.apache.gobblin.broker.iface.SharedResourceKey;
-import org.apache.gobblin.broker.iface.NoSuchScopeException;
-
 import javax.annotation.Nonnull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.broker.iface.NoSuchScopeException;
+import org.apache.gobblin.broker.iface.ScopeType;
+import org.apache.gobblin.broker.iface.SharedResourceFactory;
+import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
+import org.apache.gobblin.broker.iface.SharedResourceKey;
 
 
 /**

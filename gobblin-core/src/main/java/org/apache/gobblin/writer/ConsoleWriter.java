@@ -18,12 +18,8 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
-import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**

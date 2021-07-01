@@ -17,12 +17,9 @@
 
 package org.apache.gobblin.data.management.retention;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -30,9 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.gobblin.configuration.DynamicConfigGenerator;
-import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +40,10 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.typesafe.config.Config;
 
-import org.apache.gobblin.util.AzkabanTags;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 import org.apache.gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
@@ -60,10 +55,13 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.util.AzkabanTags;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.RateControlledFileSystem;
-import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 
 
 /**

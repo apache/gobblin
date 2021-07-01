@@ -19,9 +19,6 @@ package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
 import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.writer.AsyncDataWriter;
 

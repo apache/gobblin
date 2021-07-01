@@ -47,7 +47,6 @@ import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.MetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.util.ConfigUtils;

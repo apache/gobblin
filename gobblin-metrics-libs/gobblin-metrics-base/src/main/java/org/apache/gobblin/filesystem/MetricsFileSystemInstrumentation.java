@@ -23,13 +23,27 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
+import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.iface.ConfigView;
 import org.apache.gobblin.broker.iface.ScopeType;
@@ -39,15 +53,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.filesystem.FileSystemInstrumentation;
 import org.apache.gobblin.util.filesystem.FileSystemInstrumentationFactory;
 import org.apache.gobblin.util.filesystem.FileSystemKey;
-
-import org.apache.hadoop.fs.*;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.hdfs.DistributedFileSystem;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**

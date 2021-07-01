@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -25,7 +24,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -46,6 +44,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 

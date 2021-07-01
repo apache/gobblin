@@ -36,7 +36,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobState.RunningState;
 import org.apache.gobblin.runtime.api.Configurable;
-import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.api.GobblinInstanceLauncher.ConfigAccessor;
 import org.apache.gobblin.runtime.api.JobCatalog;

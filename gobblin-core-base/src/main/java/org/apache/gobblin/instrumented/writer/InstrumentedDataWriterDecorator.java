@@ -18,17 +18,14 @@
 package org.apache.gobblin.instrumented.writer;
 
 import java.io.IOException;
-import java.util.Map;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.records.ControlMessageHandler;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.Decorator;
 import org.apache.gobblin.util.DecoratorUtils;

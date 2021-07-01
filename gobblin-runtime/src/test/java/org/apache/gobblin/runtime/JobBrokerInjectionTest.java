@@ -21,9 +21,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -31,6 +29,10 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import org.apache.gobblin.broker.ResourceInstance;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.ConfigView;
 import org.apache.gobblin.broker.iface.NoSuchScopeException;
@@ -44,7 +46,6 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
-import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.api.JobExecutionDriver;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.api.JobLifecycleListener;
@@ -57,10 +58,6 @@ import org.apache.gobblin.runtime.std.JobSpecFilter;
 import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
 import org.apache.gobblin.writer.test.TestingEventBusAsserter;
 import org.apache.gobblin.writer.test.TestingEventBuses;
-import org.apache.gobblin.broker.ResourceInstance;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 
 public class JobBrokerInjectionTest {

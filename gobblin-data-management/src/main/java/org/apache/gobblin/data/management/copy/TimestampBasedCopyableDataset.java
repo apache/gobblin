@@ -27,32 +27,30 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.joda.time.DateTime;
 
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableDataset;
-import org.apache.gobblin.data.management.copy.CopyableFile;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.util.filters.HiddenFilter;
 
 
 /**

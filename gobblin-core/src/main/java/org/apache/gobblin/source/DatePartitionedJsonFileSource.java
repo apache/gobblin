@@ -23,8 +23,6 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.extractor.DatePartitionedJsonFileExtractor;
 import org.apache.gobblin.source.extractor.Extractor;
 
-import com.google.gson.JsonObject;
-
 public class DatePartitionedJsonFileSource extends PartitionedFileSourceBase<String, String> {
 
   public DatePartitionedJsonFileSource() {

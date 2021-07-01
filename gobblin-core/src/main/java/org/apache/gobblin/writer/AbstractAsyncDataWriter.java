@@ -25,10 +25,6 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import org.apache.gobblin.async.AsyncDataDispatcher;
 import org.apache.gobblin.async.BufferedRecord;
-import org.apache.gobblin.writer.AsyncDataWriter;
-import org.apache.gobblin.writer.FutureWrappedWriteCallback;
-import org.apache.gobblin.writer.WriteCallback;
-import org.apache.gobblin.writer.WriteResponse;
 
 
 /**

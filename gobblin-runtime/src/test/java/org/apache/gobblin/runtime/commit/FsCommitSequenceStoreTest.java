@@ -36,8 +36,6 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.commit.FsRenameCommitStep;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.JobState.DatasetState;
-import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
-import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
 import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 

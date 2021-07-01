@@ -20,7 +20,6 @@ package org.apache.gobblin.kafka.writer;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
@@ -35,7 +34,6 @@ import org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
-import org.apache.gobblin.kafka.serialize.LiAvroDeserializerBase;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;

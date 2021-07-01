@@ -19,7 +19,11 @@ package org.apache.gobblin.data.management.source;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Stream;
+
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -33,10 +37,6 @@ import org.apache.gobblin.dataset.test.StaticDatasetsFinderForTesting;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 
 public class DatasetFinderSourceTest {

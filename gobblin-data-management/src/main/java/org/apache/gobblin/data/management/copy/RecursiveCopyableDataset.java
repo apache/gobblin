@@ -17,16 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.FileListUtils;
-import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -42,6 +32,16 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 
 /**

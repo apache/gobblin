@@ -35,7 +35,6 @@ import com.linkedin.restli.common.RestConstants;
 import org.apache.gobblin.HttpTestUtils;
 import org.apache.gobblin.async.AsyncRequest;
 import org.apache.gobblin.async.BufferedRecord;
-import org.apache.gobblin.r2.R2RestRequestBuilder;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;

@@ -29,7 +29,11 @@ import org.slf4j.Logger;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.base.Optional;
+
+import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -39,12 +43,6 @@ import org.apache.gobblin.data.management.copy.IterableCopyableDataset;
 import org.apache.gobblin.data.management.copy.IterableCopyableDatasetImpl;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
-
-import javax.annotation.Nullable;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**

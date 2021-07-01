@@ -32,8 +32,6 @@ import org.apache.hadoop.fs.PathFilter;
 
 import com.google.common.collect.Maps;
 
-import org.apache.gobblin.util.DecoratorUtils;
-
 import lombok.extern.slf4j.Slf4j;
 
 

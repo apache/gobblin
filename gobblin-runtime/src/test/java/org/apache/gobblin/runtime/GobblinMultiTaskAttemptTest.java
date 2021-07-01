@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime;
 
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
 import org.mockito.Mockito;

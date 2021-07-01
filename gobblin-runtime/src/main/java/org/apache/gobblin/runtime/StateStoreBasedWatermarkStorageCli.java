@@ -30,7 +30,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.cli.CliApplication;
-import org.apache.gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 
 
 /**

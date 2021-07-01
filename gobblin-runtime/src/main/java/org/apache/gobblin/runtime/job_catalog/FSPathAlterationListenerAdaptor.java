@@ -25,7 +25,6 @@ import org.apache.hadoop.fs.Path;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PullFileLoader;
 import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 

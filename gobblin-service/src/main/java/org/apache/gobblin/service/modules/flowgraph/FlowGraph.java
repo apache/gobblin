@@ -19,11 +19,8 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.Collection;
 
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.modules.flow.FlowGraphPath;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 

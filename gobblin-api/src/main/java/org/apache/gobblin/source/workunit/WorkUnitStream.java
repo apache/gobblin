@@ -19,16 +19,9 @@ package org.apache.gobblin.source.workunit;
 
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-
-import lombok.Getter;
-import lombok.Setter;
 
 
 /**

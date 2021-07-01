@@ -20,9 +20,6 @@ package org.apache.gobblin.util.limiter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.util.limiter.CountBasedLimiter;
-import org.apache.gobblin.util.limiter.Limiter;
-
 
 /**
  * Unit tests for {@link CountBasedLimiter}.

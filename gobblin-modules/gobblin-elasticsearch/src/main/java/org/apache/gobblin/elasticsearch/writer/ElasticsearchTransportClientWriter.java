@@ -18,29 +18,12 @@ package org.apache.gobblin.elasticsearch.writer;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.math3.util.Pair;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.Batch;
-import org.apache.gobblin.writer.BatchAsyncDataWriter;
-import org.apache.gobblin.writer.GenericWriteResponseWrapper;
-import org.apache.gobblin.writer.WriteCallback;
-import org.apache.gobblin.writer.WriteResponse;
-import org.apache.gobblin.writer.WriteResponseFuture;
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.bulk.BulkRequest;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -49,6 +32,12 @@ import com.typesafe.config.Config;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.Batch;
+import org.apache.gobblin.writer.BatchAsyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
 
 
 @Slf4j

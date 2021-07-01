@@ -17,18 +17,11 @@
 
 package org.apache.gobblin.writer;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.Schema;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.state.ConstructState;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
@@ -44,7 +37,14 @@ import org.apache.orc.storage.ql.exec.vector.StructColumnVector;
 import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.state.ConstructState;
+
+import static org.apache.gobblin.configuration.ConfigurationKeys.AVG_RECORD_SIZE;
 
 /**
  * A wrapper for ORC-core writer without dependency on Hive SerDe library.

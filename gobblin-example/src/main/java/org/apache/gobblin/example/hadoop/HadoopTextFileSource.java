@@ -17,14 +17,14 @@
 
 package org.apache.gobblin.example.hadoop;
 
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.source.extractor.hadoop.HadoopFileInputExtractor;
-import org.apache.gobblin.source.extractor.hadoop.HadoopFileInputSource;
-import org.apache.gobblin.source.extractor.hadoop.HadoopTextInputSource;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.hadoop.HadoopFileInputExtractor;
+import org.apache.gobblin.source.extractor.hadoop.HadoopFileInputSource;
 
 /**
  * An implementation of {@link org.apache.gobblin.source.extractor.hadoop.HadoopTextInputSource} for reading

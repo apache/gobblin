@@ -18,9 +18,9 @@
 package org.apache.gobblin.salesforce;
 
 import java.util.Properties;
+
 import org.apache.gobblin.typedconfig.Default;
 import org.apache.gobblin.typedconfig.Key;
-import org.apache.gobblin.typedconfig.compiletime.EnumOptions;
 import org.apache.gobblin.typedconfig.compiletime.IntRange;
 
 public class SfConfig extends QueryBasedSourceConfig {

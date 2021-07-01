@@ -17,20 +17,18 @@
 
 package org.apache.gobblin.data.management.copy.converter;
 
-import javax.annotation.Nullable;
-
-import org.apache.gobblin.converter.Converter;
-import org.apache.gobblin.util.io.StreamUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.hadoop.fs.FSDataInputStream;
-
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+
+import javax.annotation.Nullable;
+
+import org.apache.gobblin.converter.Converter;
+import org.apache.gobblin.util.io.StreamUtils;
 
 
 /**

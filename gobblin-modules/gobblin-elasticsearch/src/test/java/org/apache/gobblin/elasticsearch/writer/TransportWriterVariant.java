@@ -18,7 +18,6 @@ package org.apache.gobblin.elasticsearch.writer;
 
 import java.io.IOException;
 
-import org.apache.gobblin.writer.BatchAsyncDataWriter;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequestBuilder;
@@ -26,11 +25,12 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.testng.Assert;
 
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.writer.BatchAsyncDataWriter;
 
 
 /**

@@ -18,7 +18,6 @@ package org.apache.gobblin.compliance.purger;
 
 import com.google.common.base.Preconditions;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compliance.ComplianceConfigurationKeys;

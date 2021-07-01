@@ -24,8 +24,6 @@ import java.util.Collection;
 import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -33,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -147,7 +144,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
    * It fetches the job name from the given jobSpecUri
    * and deletes its corresponding state store
    * @param jobSpecUri jobSpecUri as created by
-   *                   {@link FlowSpec.Utils#createFlowSpecUri}
+   *                   {@link org.apache.gobblin.runtime.api.FlowSpec.Utils#createFlowSpecUri}
    * @throws IOException
    */
   private void deleteStateStore(URI jobSpecUri) throws IOException {

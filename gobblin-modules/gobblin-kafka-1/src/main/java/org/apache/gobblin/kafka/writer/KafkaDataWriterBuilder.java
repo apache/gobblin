@@ -17,12 +17,10 @@
 
 package org.apache.gobblin.kafka.writer;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+import java.util.Properties;
+
 import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.writer.AsyncDataWriter;
-
-import java.util.Properties;
 
 
 /**

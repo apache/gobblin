@@ -17,24 +17,23 @@
 
 package org.apache.gobblin.runtime.spec_executorInstance;
 
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValue;
 import java.net.URI;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.util.CompletedFuture;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecConsumer;
-import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.util.CompletedFuture;
 
 
 

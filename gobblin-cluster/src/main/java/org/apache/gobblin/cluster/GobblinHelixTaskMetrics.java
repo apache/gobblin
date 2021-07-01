@@ -26,7 +26,6 @@ import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskExecutor;
-import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 
 public class GobblinHelixTaskMetrics extends StandardMetricsBridge.StandardMetrics {

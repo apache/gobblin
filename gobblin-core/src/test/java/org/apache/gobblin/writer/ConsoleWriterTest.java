@@ -24,10 +24,8 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
-import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
-
-import static org.mockito.Mockito.mock;
+import org.apache.gobblin.stream.RecordEnvelope;
 
 
 public class ConsoleWriterTest {

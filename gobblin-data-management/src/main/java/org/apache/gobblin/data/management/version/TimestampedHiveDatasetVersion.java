@@ -16,8 +16,6 @@
  */
 package org.apache.gobblin.data.management.version;
 
-import lombok.EqualsAndHashCode;
-
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.joda.time.DateTime;
 

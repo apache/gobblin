@@ -29,10 +29,6 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
-import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
-import org.apache.gobblin.util.HiveAvroTypeConstants;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -60,8 +56,12 @@ import com.google.gson.GsonBuilder;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
+import org.apache.gobblin.util.HiveAvroTypeConstants;
+
 import static org.apache.gobblin.data.management.conversion.hive.entities.StageableTableMetadata.SCHEMA_SOURCE_OF_TRUTH;
-import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
 import static org.apache.gobblin.util.AvroUtils.sanitizeSchemaString;
 
 
