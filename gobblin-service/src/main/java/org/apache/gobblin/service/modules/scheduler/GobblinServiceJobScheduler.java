@@ -19,7 +19,9 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -164,7 +166,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     } else {
       // Since we are going to change status to isActive=false, unschedule all flows
-      for (Spec spec : this.scheduledFlowSpecs.values()) {
+      List<Spec> specs = new ArrayList<>(this.scheduledFlowSpecs.values());
+      for (Spec spec : specs) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
