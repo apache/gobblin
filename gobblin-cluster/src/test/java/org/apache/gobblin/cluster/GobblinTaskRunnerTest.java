@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
@@ -41,6 +42,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.eventbus.EventBus;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -68,7 +70,7 @@ public class GobblinTaskRunnerTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinTaskRunnerTest.class);
 
   private static final String JOB_ID = "job_taskRunnerTestJob_" + System.currentTimeMillis();
-  private static final String TASK_STATE_FILE = "/tmp/" + GobblinTaskRunnerTest.class.getSimpleName() + "/taskState/_RUNNING";
+  private String taskStateFile;
 
   public static final String HADOOP_OVERRIDE_PROPERTY_NAME = "prop";
 
@@ -88,6 +90,10 @@ public class GobblinTaskRunnerTest {
   public void setUp() throws Exception {
     this.testingZKServer = new TestingServer(-1);
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.taskStateFile = tmpDir.getAbsolutePath() + "/" + GobblinTaskRunnerTest.class.getSimpleName()
+        + "/taskState/_RUNNING";
 
     URL url = GobblinTaskRunnerTest.class.getClassLoader().getResource(
         GobblinTaskRunnerTest.class.getSimpleName() + ".conf");
@@ -207,7 +213,7 @@ public class GobblinTaskRunnerTest {
   @Test (groups = {"disabledOnCI"})
   public void testTaskAssignmentAfterHelixConnectionRetry()
       throws Exception {
-    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, this.taskStateFile);
     this.suite = new TaskAssignmentAfterConnectionRetry(jobConfigOverrides);
 
     String zkConnectString = suite.getManagerConfig().getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -225,7 +231,7 @@ public class GobblinTaskRunnerTest {
 
     //Ensure that the SleepingTask is running
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskRunning(TASK_STATE_FILE),"Waiting for the task to enter running state");
+        assertTrue(ClusterIntegrationTest.isTaskRunning(this.taskStateFile),"Waiting for the task to enter running state");
 
     helixManager.disconnect();
   }

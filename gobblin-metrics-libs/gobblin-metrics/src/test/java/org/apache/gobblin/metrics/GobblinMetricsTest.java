@@ -17,11 +17,13 @@
 
 package org.apache.gobblin.metrics;
 
+import java.io.File;
 import java.util.Properties;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -72,12 +74,13 @@ public class GobblinMetricsTest {
   public void testMetricFileReporterSuccessful() {
     String id = getClass().getSimpleName() + "-" + System.currentTimeMillis();
     GobblinMetrics gobblinMetrics = GobblinMetrics.get(id);
-
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
     //Enable file reporter without specifying metrics.log.dir.
     Config config = ConfigFactory.empty()
         .withValue(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
-        .withValue(ConfigurationKeys.METRICS_LOG_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp"))
-        .withValue(ConfigurationKeys.FAILURE_LOG_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp"));
+        .withValue(ConfigurationKeys.METRICS_LOG_DIR_KEY, ConfigValueFactory.fromAnyRef(tmpDir.getAbsolutePath()))
+        .withValue(ConfigurationKeys.FAILURE_LOG_DIR_KEY, ConfigValueFactory.fromAnyRef(tmpDir.getAbsolutePath()));
 
     Properties properties = ConfigUtils.configToProperties(config);
     //Ensure MultiReporterException is thrown

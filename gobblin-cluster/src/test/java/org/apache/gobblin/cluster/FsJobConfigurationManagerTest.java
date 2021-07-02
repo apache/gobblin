@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.cluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -58,9 +59,8 @@ import org.apache.gobblin.util.filters.HiddenFilter;
 public class FsJobConfigurationManagerTest {
   private MutableJobCatalog _jobCatalog;
   private FsJobConfigurationManager jobConfigurationManager;
-
-  private String jobConfDir = "/tmp/" + this.getClass().getSimpleName() + "/jobCatalog";
-  private String fsSpecConsumerPathString = "/tmp/fsJobConfigManagerTest";
+  private String jobConfDir;
+  private String fsSpecConsumerPathString;
   private String jobSpecUriString = "testJobSpec";
 
   private FileSystem fs;
@@ -91,6 +91,10 @@ public class FsJobConfigurationManagerTest {
       return null;
     }).when(this.eventBus).post(Mockito.anyObject());
 
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.jobConfDir = tmpDir.getAbsolutePath() + "/" + this.getClass().getSimpleName() + "/jobCatalog";
+    this.fsSpecConsumerPathString = tmpDir.getAbsolutePath() + "/fsJobConfigManagerTest";
     this.fs = FileSystem.getLocal(new Configuration(false));
     Path jobConfDirPath = new Path(jobConfDir);
     if (!this.fs.exists(jobConfDirPath)) {

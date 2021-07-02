@@ -41,6 +41,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -63,7 +64,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class DagManagerTest {
-  private final String dagStateStoreDir = "/tmp/dagManagerTest/dagStateStore";
+  private String dagStateStoreDir;
   private DagStateStore _dagStateStore;
   private JobStatusRetriever _jobStatusRetriever;
   private DagManager.DagManagerThread _dagManagerThread;
@@ -77,7 +78,9 @@ public class DagManagerTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    FileUtils.deleteDirectory(new File(this.dagStateStoreDir));
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.dagStateStoreDir = tmpDir.getAbsolutePath() + "/dagManagerTest/dagStateStore";
     Config config = ConfigFactory.empty()
         .withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(this.dagStateStoreDir));
 

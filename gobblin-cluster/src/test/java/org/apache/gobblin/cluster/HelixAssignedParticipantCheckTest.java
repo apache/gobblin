@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.cluster;
 
+import java.io.File;
 import java.io.IOException;
 
 import org.apache.helix.HelixManager;
@@ -26,6 +27,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -36,16 +38,20 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 public class HelixAssignedParticipantCheckTest {
   private static final String JOB_ID = "job_testJob_345";
-  private static final String TASK_STATE_FILE = "/tmp/" + HelixAssignedParticipantCheckTest.class.getSimpleName() + "/taskState/_RUNNING";
+  private String taskStateFile;
 
   private IntegrationBasicSuite suite;
   private HelixManager helixManager;
   private Config helixConfig;
 
   @BeforeClass
-  public void setUp()
-      throws Exception {
-    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
+  public void setUp() {
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.taskStateFile = tmpDir.getAbsolutePath() + "/" + HelixAssignedParticipantCheckTest.class.getSimpleName()
+        + "/taskState/_RUNNING";
+
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, this.taskStateFile);
     //Set up a Gobblin Helix cluster integration job
     suite = new IntegrationBasicSuite(jobConfigOverrides);
 
@@ -78,7 +84,7 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that the SleepingTask is running
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskRunning(TASK_STATE_FILE),"Waiting for the task to enter running state");
+        assertTrue(ClusterIntegrationTest.isTaskRunning(this.taskStateFile),"Waiting for the task to enter running state");
 
     //Run the check. Ensure that the configured Helix instance is indeed the assigned participant
     // (i.e. no exceptions thrown).

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -29,12 +30,13 @@ import org.testng.annotations.Test;
 
 
 public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
-
-  private String stateStoreDir = "/tmp/jobStatusRetrieverTest/statestore";
+  private String stateStoreDir;
 
   @BeforeClass
   public void setUp() throws Exception {
-    cleanUpDir();
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.stateStoreDir = tmpDir.getAbsolutePath() + "/jobStatusRetrieverTest/statestore";
     Config config = ConfigFactory.empty().withValue(FsJobStatusRetriever.CONF_PREFIX + "." + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
         ConfigValueFactory.fromAnyRef(stateStoreDir));
     this.jobStatusRetriever = new FsJobStatusRetriever(config);

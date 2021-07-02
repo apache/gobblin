@@ -33,6 +33,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -46,7 +47,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 public class FSDagStateStoreTest {
   private DagStateStore _dagStateStore;
-  private final String dagStateStoreDir = "/tmp/fsDagStateStoreTest/dagStateStore";
+  private String dagStateStoreDir;
   private File checkpointDir;
   private Map<URI, TopologySpec> topologySpecMap;
   private TopologySpec topologySpec;
@@ -55,8 +56,11 @@ public class FSDagStateStoreTest {
   @BeforeClass
   public void setUp()
       throws IOException, URISyntaxException {
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.dagStateStoreDir = tmpDir.getAbsolutePath() + "/fsDagStateStoreTest/dagStateStore";
     this.checkpointDir = new File(dagStateStoreDir);
-    FileUtils.deleteDirectory(this.checkpointDir);
+
     Config config = ConfigFactory.empty().withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
         this.dagStateStoreDir));
     this.topologySpecMap = new HashMap<>();
@@ -147,10 +151,5 @@ public class FSDagStateStoreTest {
     for (Dag<JobExecutionPlan> dag: dags) {
       Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag)));
     }
-  }
-
-  @AfterClass
-  public void cleanUp() throws IOException {
-    FileUtils.deleteDirectory(this.checkpointDir);
   }
 }
