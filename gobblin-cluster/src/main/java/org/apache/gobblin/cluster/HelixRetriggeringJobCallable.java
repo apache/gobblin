@@ -20,11 +20,14 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 
+import org.apache.gobblin.metrics.Tag;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
@@ -39,6 +42,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -104,6 +110,7 @@ class HelixRetriggeringJobCallable implements Callable {
   private final String jobUri;
   private boolean jobDeleteAttempted = false;
   private final Striped<Lock> locks;
+  private final EventSubmitter eventSubmitter;
 
   public HelixRetriggeringJobCallable(
       GobblinHelixJobScheduler jobScheduler,
@@ -117,7 +124,8 @@ class HelixRetriggeringJobCallable implements Callable {
       HelixManager jobHelixManager,
       Optional<HelixManager> taskDriverHelixManager,
       HelixJobsMapping jobsMapping,
-      Striped<Lock> locks) {
+      Striped<Lock> locks,
+      MetricContext metricContext) {
     this.jobScheduler = jobScheduler;
     this.jobCatalog = jobCatalog;
     this.sysProps = sysProps;
@@ -132,6 +140,8 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobUri = jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI);
     this.jobsMapping = jobsMapping;
     this.locks = locks;
+    List<Tag<String>> tags = Tag.tagValuesToString(GobblinHelixJobLauncher.addAdditionalMetadataTags(this.jobProps, Collections.emptyList()));
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.cluster").addMetadata(Tag.toMap(tags)).build();
   }
 
   private boolean isRetriggeringEnabled() {
@@ -264,6 +274,7 @@ class HelixRetriggeringJobCallable implements Callable {
 
       try {
         if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobManager)) {
+          new TimingEvent(this.eventSubmitter, TimingEvent.LauncherTimings.JOB_SKIPPED).stop();
           return;
         }
 

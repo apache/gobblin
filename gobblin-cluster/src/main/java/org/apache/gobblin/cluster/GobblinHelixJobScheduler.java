@@ -227,7 +227,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         this.jobHelixManager,
         this.taskDriverHelixManager,
         this.jobsMapping,
-        this.locks).call();
+        this.locks,
+        this.metricContext).call();
   }
 
   @Override
@@ -257,7 +258,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         this.jobHelixManager,
         this.taskDriverHelixManager,
         this.jobsMapping,
-        this.locks);
+        this.locks,
+        this.metricContext);
 
     final Future<?> future = this.jobExecutor.submit(retriggeringJob);
     return new Future() {
