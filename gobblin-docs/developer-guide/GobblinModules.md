@@ -32,15 +32,20 @@ We have added a build property `gobblinFlavor` which controls what modules to be
     ./gradlew -PgobblinFlavor=minimal build
 ```
 
-Gobblin libraries that support customization can add build files like `gobblin-flavor-<FLAVOR>.gradle` which declare the dependencies. For example, let's look at the current `gobblin-core/gobblin-flavor-standard.gradle` :
+Gobblin libraries that support customization can add build files like `gobblin-flavor-<FLAVOR>.gradle` which declare the dependencies. For example, let's look at the current `gobblin-distribution/gobblin-flavor-standard.gradle` :
 
 ```
 dependencies {
+  compile project(':gobblin-example')
+  compile project(':gobblin-modules:gobblin-azkaban')
+  compile project(':gobblin-modules:gobblin-crypto-provider')
   compile project(':gobblin-modules:gobblin-kafka-08')
+  compile project(':gobblin-modules:google-ingestion')
+  compile project(':gobblin-modules:gobblin-elasticsearch')
 }
 ```
 
-That specifies that the "standard" flavor of Gobblin will include the Kafka 0.8 source, writer and metric reporter.
+That specifies that the "standard" flavor of Gobblin will include the Kafka 0.8 source, writer and metric reporter, etc.
 
 When one specifies the `-PgobblinFlavor=<FLAVOR>` during build time, the build script will automatically include the dependencies specified in the corresponding `gobblin-flavor-<FLAVOR>.gradle` files in any library that contains such file.
 
@@ -48,7 +53,6 @@ Currently, Gobblin defines 4 flavors out of the box:
 
 - minimal - no modules
 - standard - standard modules for frequently used components. This is the flavor used if none is explicitly specified
-- cluster - modules for running Gobblin clusters (YARN, AWS, stand-alone)
 - full - all non-conflicting modules
 - custom - by default, like minimal but lets users/developers modify and customize the dependencies to be included.
 
@@ -59,16 +63,13 @@ Users/developers can define their own flavor files.
 | Module           | Flavors         | Description |
 |------------------|----------------|-------------|
 | gobblin-azkaban | standard, full | Classes to run gobblin jobs in Azkaban |
-| gobblin-aws | cluster, full | Classes to run gobblin clusters on AWS |
-| gobblin-cluster | cluster, full | Generic classes for running Gobblin clusters |
-| gobblin-compliance | full | Source,converters, writer for cleaning existing datasets for compliance purposes |
+| gobblin-compliance | full | Source, converters, writer for cleaning existing datasets for compliance purposes |
+| gobblin-couchbase | full | Writer for Couchbase |
+| gobblin-crypto-provider | standard, full | Gobblin Encryption Provider |
+| gobblin-elasticsearch | standard | Writer for Elasticsearch |
 | gobblin-helix | full | State store implementation using Helix/ZK |
 | gobblin-kafka-08 | standard, full | Source, writer and metrics reporter using Kafka 0.8 APIs |
 | gobblin-kafka-09 |  | Source, writer and metrics reporter using Kafka 0.9 APIs |
-| gobblin-metrics-graphite | standard, full | metrics reporter to Graphite |
-| gobblin-metrics-influxdb | standard, full | metrics reporter to InfluxDB |
-| gobblin-metrics-hadoop | standard, full | metrics reporter to Hadoop counters |
-| gobblin-yarn | cluster, full | Classes to run gobblin clusters on YARN as a native app |
 | google-ingestion | standard, full | Source/extractors for GoogleWebMaster, GoogleAnalytics, GoogleDrive |
 | gobblin-azure-datalake | full | FileSystem for Azure Data lake |
 
