@@ -41,6 +41,9 @@ import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
@@ -56,6 +59,9 @@ import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.NoopRequesterService;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -63,6 +69,7 @@ import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2Resou
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
+import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -202,10 +209,24 @@ public class GobblinServiceGuiceModule implements Module {
             JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
 
     if (serviceConfig.isRestLIServerEnabled()) {
-      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class).in(Singleton.class);
+      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
     }
 
     binder.bind(GobblinServiceManager.class);
+
+    binder.bind(ServiceDatabaseProvider.class).to(ServiceDatabaseProviderImpl.class);
+    binder.bind(ServiceDatabaseProviderImpl.Configuration.class);
+
+    binder.bind(ServiceDatabaseManager.class);
+
+    binder.bind(MultiContextIssueRepository.class)
+        .to(getClassByNameOrAlias(MultiContextIssueRepository.class, serviceConfig.getInnerConfig(),
+                                  ServiceConfigKeys.ISSUE_REPO_CLASS, MySqlMultiContextIssueRepository.class.getName()));
+
+    binder.bind(MySqlMultiContextIssueRepository.Configuration.class);
+    binder.bind(InMemoryMultiContextIssueRepository.Configuration.class);
+
+    binder.bind(JobIssueEventHandler.class);
 
     LOGGER.info("Bindings configured");
   }

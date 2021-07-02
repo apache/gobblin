@@ -38,6 +38,7 @@ dependencies {
   compile externalDependency.httpclient
   compile externalDependency.httpmime
   compile externalDependency.jodaTime
+  compile externalDependency.log4j
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopYarnApi

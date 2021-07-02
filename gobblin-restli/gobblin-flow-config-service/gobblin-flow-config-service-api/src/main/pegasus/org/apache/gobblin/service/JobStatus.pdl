@@ -44,4 +44,11 @@ record JobStatus {
    * Job state that is updated only at the start and end of a job execution.
    */
   jobState: JobState
+
+  /**
+   * Collection of issues for the job.
+   *
+   * Can include various errors and warnings that will help the user to troubleshoot problems.
+   * */
+  issues: array[Issue]
 }
