@@ -138,8 +138,9 @@ public class AvroUtils {
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
-          Field f = new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
-          field.getProps().forEach((key, value) -> f.addProp(key, value));
+          Field f = AvroCompatibilityUtils.newField(field.name(), field.schema(), field.doc(),
+              AvroCompatibilityUtils.fieldDefaultValue(field), field.order());
+          field.getObjectProps().forEach((key, value) -> f.addProp(key, value));
           return f;
         })
         .collect(Collectors.toList());
@@ -150,8 +151,9 @@ public class AvroUtils {
    * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
    * object for non-root level.
    */
-  public static void convertFieldToSchemaWithProps(Map<String,JsonNode> fieldProps, Schema targetSchemaObj) {
-    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : fieldProps.entrySet()) {
+  public static void convertFieldToSchemaWithProps(Map<String,Object> fieldProps,
+      Schema targetSchemaObj) {
+    for (Map.Entry<String, Object> stringJsonNodeEntry : fieldProps.entrySet()) {
       targetSchemaObj.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
     }
   }
@@ -607,7 +609,8 @@ public class AvroUtils {
 
     List<Field> combinedFields = Lists.newArrayList();
     for (Field newFld : newSchema.getFields()) {
-      combinedFields.add(new Field(newFld.name(), newFld.schema(), newFld.doc(), newFld.defaultValue()));
+      combinedFields.add(AvroCompatibilityUtils.newField(newFld.name(), newFld.schema(), newFld.doc(),
+        AvroCompatibilityUtils.fieldDefaultValue(newFld)));
     }
 
     for (Field oldFld : oldSchema.getFields()) {
@@ -622,12 +625,14 @@ public class AvroUtils {
             }
           }
           Schema newFldSchema = Schema.createUnion(union);
-          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+          combinedFields.add(AvroCompatibilityUtils.newField(oldFld.name(), newFldSchema, oldFld.doc(),
+              AvroCompatibilityUtils.fieldDefaultValue(oldFld)));
         } else {
           union.add(Schema.create(Type.NULL));
           union.add(oldFldSchema);
           Schema newFldSchema = Schema.createUnion(union);
-          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+          combinedFields.add(AvroCompatibilityUtils.newField(oldFld.name(), newFldSchema, oldFld.doc(),
+              AvroCompatibilityUtils.fieldDefaultValue(oldFld)));
         }
       }
     }
@@ -676,7 +681,8 @@ public class AvroUtils {
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema(), processed);
       if (newFieldSchema.isPresent()) {
-        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+        fields.add(AvroCompatibilityUtils.newField(field.name(), newFieldSchema.get(), field.doc(),
+          AvroCompatibilityUtils.fieldDefaultValue(field)));
       }
     }
 
@@ -736,7 +742,8 @@ public class AvroUtils {
         if (null == input) {
           return null;
         }
-        Field field = new Field(input.name(), input.schema(), input.doc(), input.defaultValue(), input.order());
+        Field field = AvroCompatibilityUtils.newField(input.name(), input.schema(), input.doc(),
+            AvroCompatibilityUtils.fieldDefaultValue(input), input.order());
         return field;
       }
     });
@@ -779,8 +786,9 @@ public class AvroUtils {
         List<Schema.Field> newFields = new ArrayList<>();
         if (schema.getFields().size() > 0) {
           for (Schema.Field oldField : schema.getFields()) {
-            Field newField = new Field(oldField.name(), switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
-                oldField.defaultValue(), oldField.order());
+            Field newField = AvroCompatibilityUtils.newField(oldField.name(),
+                switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
+                AvroCompatibilityUtils.fieldDefaultValue(oldField), oldField.order());
             // Copy field level properties
             copyFieldProperties(oldField, newField);
             newFields.add(newField);
@@ -834,7 +842,7 @@ public class AvroUtils {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
 
-    Map<String, JsonNode> props = oldSchema.getJsonProps();
+    Map<String, Object> props = oldSchema.getObjectProps();
     copyProperties(props, newSchema);
   }
 
@@ -843,12 +851,12 @@ public class AvroUtils {
    * @param props Properties to copy to Avro Schema
    * @param schema Avro Schema to copy properties to
    */
-  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
+  private static void copyProperties(Map<String, Object> props, Schema schema) {
     Preconditions.checkNotNull(schema);
 
     // (if null, don't copy but do not throw exception)
     if (null != props) {
-      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
+      for (Map.Entry<String, Object> prop : props.entrySet()) {
         schema.addProp(prop.getKey(), prop.getValue());
       }
     }
@@ -1092,7 +1100,8 @@ public class AvroUtils {
           if (copiedFieldSchema == null) {
           } else {
             Schema.Field copiedField =
-                new Schema.Field(field.name(), copiedFieldSchema, field.doc(), field.defaultValue(), field.order());
+                AvroCompatibilityUtils.newField(field.name(), copiedFieldSchema, field.doc(),
+                AvroCompatibilityUtils.fieldDefaultValue(field), field.order());
             copyFieldProperties(field, copiedField);
             copiedSchemaFields.add(copiedField);
           }
@@ -1145,7 +1154,7 @@ public class AvroUtils {
    * @param copiedField
    */
   private static void copyFieldProperties(Schema.Field sourceField, Schema.Field copiedField) {
-    sourceField.getProps().forEach((key, value) -> copiedField.addProp(key, value));
+    sourceField.getObjectProps().forEach((key, value) -> copiedField.addProp(key, value));
   }
 
 }

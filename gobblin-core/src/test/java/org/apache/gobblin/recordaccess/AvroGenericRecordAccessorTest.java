@@ -49,6 +49,8 @@ public class AvroGenericRecordAccessorTest {
 
   @BeforeMethod
   public void initRecord() throws IOException {
+    // TODO: Fix this test. Error -
+    // org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null not a [{"type":"array","items":"string"},"null"]
     recordSchema =
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("converter/fieldPickInput.avsc"));
      record = new GenericData.Record(recordSchema);

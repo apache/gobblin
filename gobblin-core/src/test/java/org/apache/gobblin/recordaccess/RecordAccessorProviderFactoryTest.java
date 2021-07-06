@@ -31,6 +31,8 @@ public class RecordAccessorProviderFactoryTest {
   @Test
   public void testWithAvroRecord()
       throws IOException {
+    // TODO: Fix this test. Error -
+    // org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null not a [{"type":"array","items":"string"},"null"]
     Schema recordSchema =
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("converter/fieldPickInput.avsc"));
 

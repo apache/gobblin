@@ -41,6 +41,7 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
+import org.apache.gobblin.util.AvroCompatibilityUtils;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -87,9 +88,11 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
       if (!field.schema().getType().equals(Schema.Type.MAP)) {
         if (fieldsRenameMap.containsKey(curFieldName)) {
           newFields.add(
-              new Schema.Field(fieldsRenameMap.get(curFieldName), field.schema(), field.doc(), field.defaultValue()));
+              AvroCompatibilityUtils.newField(fieldsRenameMap.get(curFieldName), field.schema(),
+                  field.doc(), AvroCompatibilityUtils.fieldDefaultValue(field)));
         } else {
-          newFields.add(new Schema.Field(curFieldName, field.schema(), field.doc(), field.defaultValue()));
+          newFields.add(AvroCompatibilityUtils.newField(curFieldName, field.schema(), field.doc(),
+              AvroCompatibilityUtils.fieldDefaultValue(field)));
         }
         this.nonMapFields.add(curFieldName);
       } else {

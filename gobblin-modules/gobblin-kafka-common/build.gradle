@@ -27,6 +27,7 @@ dependencies {
   compile project(":gobblin-core-base")
 
   compile externalDependency.avro
+  compile externalDependency.avroCompatHelper
   compile externalDependency.confluentSchemaRegistryClient
   compile externalDependency.commonsCodec
   compile externalDependency.commonsHttpClient

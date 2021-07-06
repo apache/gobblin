@@ -40,6 +40,7 @@ import org.apache.avro.mapreduce.AvroJob;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.gobblin.compaction.dataset.Dataset;
 import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
+import org.apache.gobblin.util.AvroCompatibilityUtils;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -198,7 +199,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = getKeySchema(field);
       if (newFieldSchema.isPresent()) {
-        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+        fields.add(AvroCompatibilityUtils.newField(field.name(), newFieldSchema.get(), field.doc(),
+          AvroCompatibilityUtils.fieldDefaultValue(field)));
       }
     }
     if (!fields.isEmpty()) {

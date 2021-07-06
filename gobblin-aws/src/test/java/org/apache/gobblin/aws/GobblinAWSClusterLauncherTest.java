@@ -192,6 +192,8 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
 
   @Test
   public void testCreateHelixCluster() throws Exception {
+    // TODO - Fix this test. Throws java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
+    // Caused by: java.lang.ClassNotFoundException: org.codehaus.jackson.annotate.JsonClass
     // This is tested here instead of in HelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
     HelixUtils
         .createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),

@@ -160,6 +160,9 @@ public class JsonIntermediateToAvroConverterTest {
   @Test
   public void testComplexSchema3()
       throws Exception {
+    // TODO: Fix this test.
+    // Error: org.apache.avro.AvroTypeException: Invalid default for field id: null not a
+    // [{"type":"int","source.type":"int"},{"type":"null","source.type":"null"}]
     complexSchemaTest("/converter/complex3.json");
   }
 

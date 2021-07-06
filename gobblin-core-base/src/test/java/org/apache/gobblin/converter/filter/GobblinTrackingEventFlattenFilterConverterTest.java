@@ -45,6 +45,8 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
     Schema output = converter.convertSchema(
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState);
+    // TODO - fix this test. Error - Expected schema has additional square brackets []. But
+    // Actual schema does not have additional square brackets [].
     Assert.assertEquals(output, new Schema.Parser().parse(
         "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"
@@ -61,6 +63,8 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
     Schema output2 = converter.convertSchema(
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState2);
+    // TODO - fix this test. Error - Expected schema has additional square brackets []. But
+    // Actual schema does not have additional square brackets [].
     Assert.assertEquals(output2, new Schema.Parser().parse(
         "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"

@@ -92,6 +92,8 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
+    // This exception thrown from Helix library and requires fix in Helix library.
     HelixUtils.createGobblinHelixCluster(zkConnectionString,
         config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
 

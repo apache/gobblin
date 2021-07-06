@@ -34,6 +34,7 @@ dependencies {
   compile externalDependency.calciteCore
   compile externalDependency.jhyde
   compile externalDependency.avro
+  compile externalDependency.avroCompatHelper
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath
   compile externalDependency.mockito

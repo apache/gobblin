@@ -26,6 +26,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.util.AvroCompatibilityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,14 +145,15 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
       Preconditions.checkNotNull(innerSrcField, child.val + " does not exist under " + recordSchema);
 
       if (child.children.isEmpty()) { //Leaf
-        newFields.add(
-            new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
+        newFields.add(AvroCompatibilityUtils.newField(innerSrcField.name(), innerSrcField.schema(),
+            innerSrcField.doc(), AvroCompatibilityUtils.fieldDefaultValue(innerSrcField)));
       } else {
         Schema innerSrcSchema = innerSrcField.schema();
 
         Schema innerDestSchema = createSchemaHelper(innerSrcSchema, child); //Recurse of schema
         Field innerDestField =
-            new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
+            AvroCompatibilityUtils.newField(innerSrcField.name(), innerDestSchema, innerSrcField.doc(),
+                AvroCompatibilityUtils.fieldDefaultValue(innerSrcField));
         newFields.add(innerDestField);
       }
     }
