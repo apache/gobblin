@@ -104,8 +104,6 @@ public class GobblinTaskRunnerTest {
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     this.clusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     HelixUtils.createGobblinHelixCluster(zkConnectionString, this.clusterName);
 
     // Participant

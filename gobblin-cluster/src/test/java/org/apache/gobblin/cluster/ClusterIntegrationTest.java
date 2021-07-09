@@ -69,8 +69,6 @@ public class ClusterIntegrationTest {
   public void testJobShouldComplete()
       throws Exception {
     this.suite = new IntegrationBasicSuite();
-    // TODO: Fix this - java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     runAndVerify();
   }
 
@@ -91,8 +89,6 @@ public class ClusterIntegrationTest {
         IntegrationJobCancelSuite.TASK_STATE_FILE)
         .withValue(SleepingTask.SLEEP_TIME_IN_SECONDS, ConfigValueFactory.fromAnyRef(100));
     this.suite = new IntegrationJobCancelSuite(jobConfigOverrides);
-    // TODO: fix this - java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     HelixManager helixManager = getHelixManager();
     suite.startCluster();
     helixManager.connect();
@@ -228,8 +224,6 @@ public class ClusterIntegrationTest {
   public void testSeparateProcessMode()
       throws Exception {
     this.suite = new IntegrationSeparateProcessSuite();
-    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     runAndVerify();
   }
 
@@ -237,8 +231,6 @@ public class ClusterIntegrationTest {
   public void testDedicatedManagerCluster()
       throws Exception {
     this.suite = new IntegrationDedicatedManagerClusterSuite();
-    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     runAndVerify();
   }
 
@@ -260,8 +252,6 @@ public class ClusterIntegrationTest {
   public void testPlanningJobFactory()
       throws Exception {
     this.suite = new IntegrationJobFactorySuite();
-    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     runAndVerify();
   }
 

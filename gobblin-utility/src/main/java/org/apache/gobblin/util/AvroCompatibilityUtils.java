@@ -22,6 +22,7 @@ import com.linkedin.avroutil1.compatibility.AvroVersion;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import org.apache.avro.JsonProperties;
 import org.apache.avro.Schema;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.node.BooleanNode;
@@ -44,7 +45,7 @@ public class AvroCompatibilityUtils {
   private static final Constructor<Schema.Field> FIELD_CONSTRUCTOR;
   private static final Method DEFAULT_VALUE_METHOD;
 
-  public static final Object NULL_VALUE = new Object();
+  public static final Object NULL_VALUE = Schema.Field.NULL_DEFAULT_VALUE;
 
   static {
     if (EARLIER_THAN_AVRO_1_9) {

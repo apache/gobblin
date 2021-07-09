@@ -59,8 +59,6 @@ public class HelixAssignedParticipantCheckTest {
   @Test (groups = {"disabledOnCI"})
   //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
   public void testExecute() throws Exception {
-    // TODO: java.lang.NoClassDefFoundError: org/codehaus/jackson/annotate/JsonClass
-    // This exception thrown from Helix library and requires fix in Helix library.
     suite.startCluster();
 
     //Connect to the previously started Helix cluster
