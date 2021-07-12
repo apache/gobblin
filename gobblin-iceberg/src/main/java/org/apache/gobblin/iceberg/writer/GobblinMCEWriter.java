@@ -233,15 +233,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
       if (tableOperationTypeMap.containsKey(tableString)
-          && tableOperationTypeMap.get(tableString) != gmce.getOperationType()
-          && !gmce.getOperationType().equals(OperationType.change_property)) {
+          && tableOperationTypeMap.get(tableString) != gmce.getOperationType()) {
         for (MetadataWriter writer : metadataWriters) {
           writer.flush(dbName, tableName);
         }
       }
-      if(!tableOperationTypeMap.containsKey(tableString) || !gmce.getOperationType().equals(OperationType.change_property)) {
-        tableOperationTypeMap.put(tableString, gmce.getOperationType());
-      }
+      tableOperationTypeMap.put(tableString, gmce.getOperationType());
       for (MetadataWriter writer : metadataWriters) {
         writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
       }

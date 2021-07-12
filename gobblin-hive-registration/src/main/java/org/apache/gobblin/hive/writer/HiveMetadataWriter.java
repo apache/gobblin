@@ -269,13 +269,11 @@ public class HiveMetadataWriter implements MetadataWriter {
       // If schema source is NONE and schema source db is set, we will directly update the schema to source db schema
       String schemaSourceDb = gmce.getRegistrationProperties().get(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB);
       try {
-        Optional<HiveTable> schemaSourceTable = hiveRegister.getTable(schemaSourceDb, spec.getTable().getTableName());
-        if (schemaSourceTable.isPresent() && schemaSourceTable.get().getSerDeProps().getProp(
-            AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) != null){
+        String sourceSchema = fetchSchemaFromTable(schemaSourceDb, spec.getTable().getTableName());
+        if (sourceSchema != null){
           spec.getTable()
               .getSerDeProps()
-              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), schemaSourceTable.get().getSerDeProps().getProp(
-                  AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), sourceSchema);
         }
       } catch (IOException e) {
         log.warn(String.format("Cannot get schema from table %s.%s", schemaSourceDb, spec.getTable().getTableName()), e);
@@ -286,6 +284,12 @@ public class HiveMetadataWriter implements MetadataWriter {
     spec.getTable()
         .getSerDeProps()
         .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), lastestSchemaMap.get(tableKey));
+  }
+
+  private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
+    Optional<HiveTable> table = hiveRegister.getTable(dbName, tableName);
+    return table.isPresent()? table.get().getSerDeProps().getProp(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) : null;
   }
 
   @Override
