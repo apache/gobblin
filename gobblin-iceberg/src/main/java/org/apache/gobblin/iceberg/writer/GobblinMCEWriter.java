@@ -289,6 +289,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         : (gmce.getRegistrationPolicyForOldData() != null ? gmce.getRegistrationPolicyForOldData() : defaultPolicy);
 
     tmpState.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY, policyClass);
+    if (!forNew) {
+      //For old data, we don't use the old spec to update table, we set the flag to true to avoid listing operation
+      tmpState.setProp(HiveRegistrationPolicy.MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, true);
+    }
     if (gmce.getPartitionColumns() != null && !gmce.getPartitionColumns().isEmpty()) {
       //We only support on partition column for now
       //TODO: Support multi partition columns
