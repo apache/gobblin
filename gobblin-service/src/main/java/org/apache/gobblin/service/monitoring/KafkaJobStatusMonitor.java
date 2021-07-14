@@ -140,7 +140,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     try {
       GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
 
-      if (gobblinTrackingEvent != null && IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
+      if (gobblinTrackingEvent == null) {
+        return;
+      }
+
+      if (IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
         try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
           jobIssueEventHandler.processEvent(gobblinTrackingEvent);
         }

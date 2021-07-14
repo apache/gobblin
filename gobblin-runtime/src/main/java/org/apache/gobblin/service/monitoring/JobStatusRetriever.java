@@ -20,11 +20,11 @@ package org.apache.gobblin.service.monitoring;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import com.google.common.collect.Iterators;
 import com.typesafe.config.ConfigFactory;
 
-import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,11 +51,11 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   @Getter
   protected final MetricContext metricContext;
 
-  @Inject
-  private MultiContextIssueRepository issueRepository;
+  private final MultiContextIssueRepository issueRepository;
 
-  protected JobStatusRetriever() {
+  protected JobStatusRetriever(MultiContextIssueRepository issueRepository) {
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+    this.issueRepository = Objects.requireNonNull(issueRepository);
   }
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,

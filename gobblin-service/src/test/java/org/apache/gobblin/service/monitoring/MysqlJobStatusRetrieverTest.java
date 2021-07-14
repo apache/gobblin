@@ -21,11 +21,11 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Properties;
 
-import com.google.common.base.Strings;
-
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Strings;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -34,8 +34,11 @@ import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+
+import static org.mockito.Mockito.mock;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
@@ -54,7 +57,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     configBuilder.addPrimitive(MysqlJobStatusRetriever.MYSQL_JOB_STATUS_RETRIEVER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);
     configBuilder.addPrimitive(MysqlJobStatusRetriever.MYSQL_JOB_STATUS_RETRIEVER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
 
-    this.jobStatusRetriever = new MysqlJobStatusRetriever(configBuilder.build());
+    this.jobStatusRetriever =
+        new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
     cleanUpDir();
   }
