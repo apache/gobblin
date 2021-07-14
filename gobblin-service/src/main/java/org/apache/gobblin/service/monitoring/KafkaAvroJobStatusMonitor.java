@@ -115,6 +115,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
     }
     Properties properties = new Properties();
     properties.putAll(event.getMetadata());
+    properties.put(JobStatusRetriever.TIMESTAMP_FIELD, event.getTimestamp().toString());
 
     switch (event.getName()) {
       case TimingEvent.FlowTimings.FLOW_COMPILED:
