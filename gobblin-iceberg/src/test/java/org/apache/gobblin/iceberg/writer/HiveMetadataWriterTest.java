@@ -297,9 +297,6 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
       }
       return tables;
     }
-    /*protected Iterable<String> getDatabaseNames(Path path) {
-      return Lists.newArrayList("hivedb");
-    }    */
     protected List<String> getTableNames(Optional<String> dbPrefix, Path path) {
       return Lists.newArrayList("testTable");
     }
