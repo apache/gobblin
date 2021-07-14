@@ -55,10 +55,13 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+
+import static org.mockito.Mockito.mock;
 
 
 public class KafkaAvroJobStatusMonitorTest {
@@ -176,7 +179,8 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
     messageAndMetadata = iterator.next();
-    Assert.assertNull(jobStatusMonitor.parseJobStatus(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata)));
+    Assert.assertNull(jobStatusMonitor.parseJobStatus(
+        jobStatusMonitor.deserializeEvent(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata))));
 
     // Check that state didn't get set to running since it was already complete
     messageAndMetadata = iterator.next();
@@ -465,7 +469,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class));
     }
 
     @Override

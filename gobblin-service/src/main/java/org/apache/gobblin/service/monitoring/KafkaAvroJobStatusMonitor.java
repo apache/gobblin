@@ -29,6 +29,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
 import com.codahale.metrics.Meter;
+import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -43,6 +44,7 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -62,9 +64,11 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   @Getter
   private Meter messageParseFailures;
 
-  public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads)
+  public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
+      JobIssueEventHandler jobIssueEventHandler)
       throws IOException, ReflectiveOperationException {
-    super(topic, config, numThreads);
+    super(topic, config, numThreads,  jobIssueEventHandler);
+
     if (ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false)) {
       KafkaAvroSchemaRegistry schemaRegistry = (KafkaAvroSchemaRegistry) new KafkaAvroSchemaRegistryFactory().
           create(ConfigUtils.configToProperties(config));
@@ -86,13 +90,14 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   }
 
   @Override
-  public org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message) {
+  @VisibleForTesting
+  public GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
       InputStream is = new ByteArrayInputStream(message.getValue());
       schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
       Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
-      GobblinTrackingEvent decodedMessage = this.reader.get().read(null, decoder);
-      return parseJobStatus(decodedMessage);
+
+      return this.reader.get().read(null, decoder);
     } catch (Exception exc) {
       this.messageParseFailures.mark();
       if (this.messageParseFailures.getFiveMinuteRate() < 1) {
@@ -109,7 +114,9 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
    * @param event an instance of {@link GobblinTrackingEvent}
    * @return job status as an instance of {@link org.apache.gobblin.configuration.State}
    */
-  private org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event) {
+  @Override
+  @VisibleForTesting
+  public org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event) {
     if (!acceptEvent(event)) {
       return null;
     }

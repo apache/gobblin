@@ -43,11 +43,14 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.retention.DatasetCleanerTask;
+import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -66,6 +69,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
       JOB_STATUS_MONITOR_PREFIX,  "getAndSetJobStatus");
+
+  private static final String PROCESS_JOB_ISSUE = MetricRegistry
+      .name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX, "jobIssueProcessingTime");
 
   static final String JOB_STATUS_MONITOR_TOPIC_KEY = "topic";
   static final String JOB_STATUS_MONITOR_NUM_THREADS_KEY = "numThreads";
@@ -86,7 +92,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.COMPLETE,
           ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
-  public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
+  private final JobIssueEventHandler jobIssueEventHandler;
+
+  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -94,6 +102,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.stateStore =
         ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config, org.apache.gobblin.configuration.State.class);
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+    this.jobIssueEventHandler = jobIssueEventHandler;
   }
 
   @Override
@@ -128,7 +138,19 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message);
+      GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
+
+      if (gobblinTrackingEvent == null) {
+        return;
+      }
+
+      if (IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
+        try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
+          jobIssueEventHandler.processEvent(gobblinTrackingEvent);
+        }
+      }
+
+      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
       if (jobStatus != null) {
         try(Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           addJobStatusToStateStore(jobStatus, this.stateStore);
@@ -231,6 +253,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     return Long.parseLong(Splitter.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
-  public abstract org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message);
+  protected abstract GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[],byte[]> message);
+
+  protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
 }

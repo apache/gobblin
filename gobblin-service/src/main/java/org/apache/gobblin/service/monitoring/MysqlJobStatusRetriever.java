@@ -29,6 +29,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.State;
@@ -36,11 +38,13 @@ import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
  * Mysql based Retriever for {@link JobStatus}.
  */
+@Singleton
 public class MysqlJobStatusRetriever extends JobStatusRetriever {
   public static final String MYSQL_JOB_STATUS_RETRIEVER_PREFIX = "mysqlJobStatusRetriever";
   public static final String GET_LATEST_JOB_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
@@ -53,7 +57,9 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   @Getter
   private MysqlJobStatusStateStore<State> stateStore;
 
-  public MysqlJobStatusRetriever(Config config) throws ReflectiveOperationException {
+  @Inject
+  public MysqlJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) throws ReflectiveOperationException {
+    super(issueRepository);
     config = config.getConfig(MYSQL_JOB_STATUS_RETRIEVER_PREFIX).withFallback(config);
     this.stateStore = (MysqlJobStatusStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
   }

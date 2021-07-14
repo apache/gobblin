@@ -1,0 +1,8 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Epoch/UNIX time in milliseconds
+ *
+ * Represents the number of milliseconds since the epoch of 1970-01-01T00:00:00Z
+ */
+typeref Timestamp = long
