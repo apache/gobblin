@@ -946,6 +946,7 @@ public class ConfigurationKeys {
   public static final String AZKABAN_JOB_URL = "azkaban.link.job.url";
   public static final String AZKABAN_JOB_EXEC_URL = "azkaban.link.jobexec.url";
   public static final String AZKABAN_WEBSERVERHOST = "azkaban.webserverhost";
+  public static final String AZKABAN_SERVER_NAME = "azkaban.server.name";
 
   /**
    * Hive registration properties
@@ -969,6 +970,9 @@ public class ConfigurationKeys {
   public static final Charset DEFAULT_CHARSET_ENCODING = Charsets.UTF_8;
   public static final String TEST_HARNESS_LAUNCHER_IMPL = "gobblin.testharness.launcher.impl";
   public static final int PERMISSION_PARSING_RADIX = 8;
+  // describes a comma separated list of non transient errors that may come in a gobblin job
+  // e.g. "invalid_grant,CredentialStoreException"
+  public static final String GOBBLIN_NON_TRANSIENT_ERRORS = "gobblin.errorMessages.nonTransientErrors";
 
   /**
    * Configuration properties related to Flows
