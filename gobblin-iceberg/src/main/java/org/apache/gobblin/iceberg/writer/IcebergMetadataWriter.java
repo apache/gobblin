@@ -317,6 +317,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
     for (Map.Entry<String, String> entry : gmce.getTopicPartitionOffsetsRange().entrySet()) {
       List<String> rangePair = Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(entry.getValue());
       Range range = Range.openClosed(Long.parseLong(rangePair.get(0)), Long.parseLong(rangePair.get(1)));
+      if (range.lowerEndpoint().equals(range.upperEndpoint())) {
+        //Ignore this case
+        continue;
+      }
       List<Range> existRanges = offsets.getOrDefault(entry.getKey(), new ArrayList<>());
       List<Range> newRanges = new ArrayList<>();
       for (Range r : existRanges) {
