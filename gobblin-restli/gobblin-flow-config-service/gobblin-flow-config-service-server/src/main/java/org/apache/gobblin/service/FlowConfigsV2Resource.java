@@ -17,27 +17,35 @@
 package org.apache.gobblin.service;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
+import com.linkedin.data.DataMap;
 import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
+import com.linkedin.restli.internal.server.util.DataMapUtils;
 import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.PagingContext;
+import com.linkedin.restli.server.PathKeys;
+import com.linkedin.restli.server.ResourceLevel;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.annotations.Action;
 import com.linkedin.restli.server.annotations.Context;
 import com.linkedin.restli.server.annotations.Finder;
 import com.linkedin.restli.server.annotations.Optional;
+import com.linkedin.restli.server.annotations.PathKeysParam;
 import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.annotations.ReturnEntity;
@@ -195,6 +203,20 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.getFlowConfigResourceHandler().deleteFlowConfig(flowId, getHeaders());
+  }
+
+  /**
+   * Trigger a new execution of an existing flow
+   * @param pathKeys key of {@link FlowId} specified in path
+   */
+  @Action(name="runImmediately", resourceLevel=ResourceLevel.ENTITY)
+  public String runImmediately(@PathKeysParam PathKeys pathKeys) {
+    String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson, Charset.defaultCharset()));
+    PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
+    ComplexResourceKey<FlowId, FlowStatusId> id = pathKeys.get("id");
+    update(id, flowConfigPatch);
+    return "Successfully triggered flow " + id.getKey().toString();
   }
 
   private FlowConfigsResourceHandler getFlowConfigResourceHandler() {
