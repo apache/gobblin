@@ -79,7 +79,12 @@
       } ]
     } ],
     "entity" : {
-      "path" : "/flowconfigsV2/{id}"
+      "path" : "/flowconfigsV2/{id}",
+      "actions" : [ {
+        "name" : "runImmediately",
+        "doc" : "Trigger a new execution of an existing flow",
+        "returns" : "string"
+      } ]
     }
   }
 }

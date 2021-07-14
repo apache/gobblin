@@ -46,7 +46,6 @@ import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.internal.server.util.DataMapUtils;
 import com.linkedin.restli.server.resources.BaseResource;
-import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -84,6 +83,9 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_9 = "testFlow9";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
+
+  private static final ServiceRequester TEST_REQUESTER = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+  private static final ServiceRequester TEST_REQUESTER2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -168,6 +170,7 @@ public class FlowConfigV2Test {
   @Test
   public void testPartialUpdate() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_3);
+    _requesterService.setRequester(TEST_REQUESTER);
 
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
@@ -187,9 +190,7 @@ public class FlowConfigV2Test {
     DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
     PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
 
-    PatchApplier.applyPatch(flowConfig, flowConfigPatch);
-
-    _client.updateFlowConfig(flowConfig);
+    _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
 
     FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
 
@@ -273,8 +274,7 @@ public class FlowConfigV2Test {
 
   @Test
   public void testGroupUpdateRejected() throws Exception {
-   ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-   _requesterService.setRequester(testRequester);
+   _requesterService.setRequester(TEST_REQUESTER);
    Map<String, String> flowProperties = Maps.newHashMap();
 
    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
@@ -296,9 +296,7 @@ public class FlowConfigV2Test {
 
   @Test
   public void testRequesterUpdate() throws Exception {
-    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
-    _requesterService.setRequester(testRequester);
+    _requesterService.setRequester(TEST_REQUESTER);
     Map<String, String> flowProperties = Maps.newHashMap();
 
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8);
@@ -310,22 +308,20 @@ public class FlowConfigV2Test {
     _client.createFlowConfig(flowConfig);
 
     // testName2 takes ownership of the flow
-    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(TEST_REQUESTER2)));
     flowConfig.setProperties(new StringMap(flowProperties));
-    _requesterService.setRequester(testRequester2);
+    _requesterService.setRequester(TEST_REQUESTER2);
     _client.updateFlowConfig(flowConfig);
 
     // Check that the requester list was actually updated
     FlowConfig updatedFlowConfig = _client.getFlowConfig(flowId);
     Assert.assertEquals(RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST)),
-        Lists.newArrayList(testRequester2));
+        Lists.newArrayList(TEST_REQUESTER2));
   }
 
   @Test
   public void testRequesterUpdateRejected() throws Exception {
-    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
-    _requesterService.setRequester(testRequester);
+    _requesterService.setRequester(TEST_REQUESTER);
     Map<String, String> flowProperties = Maps.newHashMap();
 
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
@@ -335,7 +331,7 @@ public class FlowConfigV2Test {
     _client.createFlowConfig(flowConfig);
 
     // Update should be rejected because testName is not allowed to update the owner to testName2
-    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(TEST_REQUESTER2)));
     flowConfig.setProperties(new StringMap(flowProperties));
     try {
       _client.updateFlowConfig(flowConfig);
@@ -373,6 +369,29 @@ public class FlowConfigV2Test {
     }
 
     Assert.fail();
+  }
+
+  @Test
+  public void testRunFlow() throws Exception {
+    String flowName = "testRunFlow";
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(flowName);
+    _requesterService.setRequester(TEST_REQUESTER);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(flowName))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+
+    // Create initial flowConfig
+    _client.createFlowConfig(flowConfig);
+
+    // Trigger flow
+    _client.runImmediately(flowId);
+
+    // Verify runImmediately was changed to true
+    Assert.assertTrue(_client.getFlowConfig(flowId).getSchedule().isRunImmediately());
   }
 
   @AfterClass(alwaysRun = true)
