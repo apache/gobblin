@@ -299,8 +299,8 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
     String tableKey = tableNameJoiner.join(dbName, tableName);
-    if (lastestSchemaMap.containsKey(tableKey)) {
-      return lastestSchemaMap.get(tableKey);
+    if (latestSchemaMap.containsKey(tableKey)) {
+      return latestSchemaMap.get(tableKey);
     }
     Optional<HiveTable> table = hiveRegister.getTable(dbName, tableName);
     return table.isPresent()? table.get().getSerDeProps().getProp(
