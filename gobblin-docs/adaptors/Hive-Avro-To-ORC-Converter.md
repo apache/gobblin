@@ -9,7 +9,7 @@ Gobblin provides ready to use adapters for converting data in [Avro](http://avro
 
 <b>Note: The job requires Avro data to be registered in Hive.</b>
 
-* Gobblin Avro to ORC job leverages [Hive](http://hive.apache.org/) for the conversion. Meaning, Gobblin does not read the Avro data record by record and convert each one of them to ORC, instead Gobblin executes hive queries to perform the conversion. This means that Avro data MUST be registred in hive for the converison to be possible. Below is a sample query.
+* Gobblin Avro to ORC job leverages [Hive](http://hive.apache.org/) for the conversion. Meaning, Gobblin does not read the Avro data record by record and convert each one of them to ORC, instead Gobblin executes hive queries to perform the conversion. This means that Avro data MUST be registered in hive for the conversion to be possible. Below is a sample query.
 
 <b>Example Conversion DDL</b>
 
