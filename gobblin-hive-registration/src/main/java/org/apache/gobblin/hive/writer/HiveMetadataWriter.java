@@ -49,6 +49,8 @@ import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.AvroUtils;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
@@ -58,8 +60,11 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
  * and then register the partition if needed
  * For rewrite_files operation, this writer will directly register the new hive spec and try to de-register the old hive spec if oldFilePrefixes is set
  * For drop_files operation, this writer will de-register the hive partition only if oldFilePrefixes is set in the GMCE
+ *
+ * Added warning suppression for all references of {@link Cache}.
  */
 @Slf4j
+@SuppressWarnings("UnstableApiUsage")
 public class HiveMetadataWriter implements MetadataWriter {
 
   private static final String HIVE_REGISTRATION_WHITELIST = "hive.registration.whitelist";
@@ -69,27 +74,32 @@ public class HiveMetadataWriter implements MetadataWriter {
   private final Joiner tableNameJoiner = Joiner.on('.');
   private final Closer closer = Closer.create();
   protected final HiveRegister hiveRegister;
-  private final WhitelistBlacklist whiteistBlacklist;
+  private final WhitelistBlacklist whitelistBlacklist;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
 
+  /* Mapping from tableIdentifier to a cache, key'ed by timestamp and value is not in use. */
   private final HashMap<String, Cache<String, String>> schemaCreationTimeMap;
+
+  /* Mapping from tableIdentifier to a cache, key'ed by a list of partitions with value as HiveSpec object. */
   private final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
-  private final HashMap<String, String> lastestSchemaMap;
+
+  /* Mapping from tableIdentifier to latest schema observed. */
+  private final HashMap<String, String> latestSchemaMap;
   private final long timeOutSeconds;
   private State state;
 
   public HiveMetadataWriter(State state) throws IOException {
     this.state = state;
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
-    this.whiteistBlacklist = new WhitelistBlacklist(state.getProp(HIVE_REGISTRATION_WHITELIST, ""),
+    this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(HIVE_REGISTRATION_WHITELIST, ""),
         state.getProp(HIVE_REGISTRATION_BLACKLIST, ""));
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
     this.currentExecutionMap = new HashMap<>();
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
-    this.lastestSchemaMap = new HashMap<>();
+    this.latestSchemaMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
   }
@@ -124,9 +134,9 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
 
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    if (!lastestSchemaMap.containsKey(tableKey)) {
+    if (!latestSchemaMap.containsKey(tableKey)) {
       HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
-      lastestSchemaMap.put(tableKey,
+      latestSchemaMap.put(tableKey,
           existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     }
 
@@ -138,6 +148,7 @@ public class HiveMetadataWriter implements MetadataWriter {
       //In case the topic name is not the table name or the topic name contains '-'
       topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
     }
+
     switch (gmce.getOperationType()) {
       case add_files: {
         addFiles(gmce, newSpecsMap, dbName, tableName, topicName);
@@ -247,18 +258,18 @@ public class HiveMetadataWriter implements MetadataWriter {
                 .build());
         if (gmce.getSchemaSource() == SchemaSource.EVENT) {
           // Schema source is Event, update schema anyway
-          lastestSchemaMap.put(tableKey, newSchemaString);
+          latestSchemaMap.put(tableKey, newSchemaString);
           // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
           existedSchemaCreationTimes.cleanUp();
         } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
             && existedSchemaCreationTimes.getIfPresent(newSchemaCreationTime) == null) {
           // We haven't seen this schema before, so we query schemaRegistry to get latest schema
-          if (topicName != null && !topicName.isEmpty()) {
+          if (StringUtils.isNoneEmpty(topicName)) {
             Schema latestSchema = (Schema) this.schemaRegistry.getLatestSchemaByTopic(topicName);
             String latestCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
             if (latestCreationTime.equals(newSchemaCreationTime)) {
               //new schema is the latest schema, we update our record
-              lastestSchemaMap.put(tableKey, newSchemaString);
+              latestSchemaMap.put(tableKey, newSchemaString);
             }
             existedSchemaCreationTimes.put(newSchemaCreationTime, "");
           }
@@ -283,7 +294,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     //Force to set the schema even there is no schema literal defined in the spec
     spec.getTable()
         .getSerDeProps()
-        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), lastestSchemaMap.get(tableKey));
+        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
   }
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
@@ -302,10 +313,10 @@ public class HiveMetadataWriter implements MetadataWriter {
     GenericRecord genericRecord = recordEnvelope.getRecord();
     GobblinMetadataChangeEvent gmce =
         (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
-    if (whiteistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
+    if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
       write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
     } else {
-      log.debug(String.format("Skip table %s.%s since it's blacklisted", tableSpec.getTable().getDbName(),
+      log.debug(String.format("Skip table %s.%s since it's not selected", tableSpec.getTable().getDbName(),
           tableSpec.getTable().getTableName()));
     }
   }
