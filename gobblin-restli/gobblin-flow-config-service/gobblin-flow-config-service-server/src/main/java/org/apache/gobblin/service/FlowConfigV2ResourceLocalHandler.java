@@ -21,12 +21,14 @@ import java.util.Map;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.util.PatchApplier;
 
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -97,8 +99,20 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 
+  /**
+   * Note: this method is only implemented for testing, normally partial update would be called in
+   * GobblinServiceFlowConfigResourceHandler.partialUpdateFlowConfig
+   */
   @Override
   public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
-    throw new UnsupportedOperationException("Partial update only supported by GobblinServiceFlowConfigResourceHandler");
+    FlowConfig flowConfig = getFlowConfig(flowId);
+
+    try {
+      PatchApplier.applyPatch(flowConfig, flowConfigPatch);
+    } catch (DataProcessingException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply partial update", e);
+    }
+
+    return updateFlowConfig(flowId, flowConfig);
   }
 }

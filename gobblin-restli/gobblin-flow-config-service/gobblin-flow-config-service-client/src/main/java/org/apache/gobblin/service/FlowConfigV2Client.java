@@ -36,6 +36,7 @@ import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.ActionRequest;
 import com.linkedin.restli.client.CreateIdEntityRequest;
 import com.linkedin.restli.client.DeleteRequest;
 import com.linkedin.restli.client.FindRequest;
@@ -253,6 +254,19 @@ public class FlowConfigV2Client implements Closeable {
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
 
     response.getResponse();
+  }
+
+  public String runImmediately(FlowId flowId)
+      throws RemoteInvocationException {
+    LOG.debug("runImmediately with groupName " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
+
+    ActionRequest<String> runImmediatelyRequest = _flowconfigsV2RequestBuilders.actionRunImmediately()
+        .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).build();
+
+    Response<String> response = (Response<String>) FlowClientUtils.sendRequestWithRetry(_restClient.get(), runImmediatelyRequest,
+        FlowconfigsV2RequestBuilders.getPrimaryResource());
+
+    return response.getEntity();
   }
 
   @Override
