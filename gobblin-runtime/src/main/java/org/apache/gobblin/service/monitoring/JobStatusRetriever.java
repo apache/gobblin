@@ -17,25 +17,33 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 import com.google.common.collect.Iterators;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * Retriever for {@link JobStatus}.
  */
+@Slf4j
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
   public static final String EVENT_NAME_FIELD = "eventName";
   public static final String NA_KEY = "NA";
@@ -43,8 +51,11 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   @Getter
   protected final MetricContext metricContext;
 
-  protected JobStatusRetriever() {
+  private final MultiContextIssueRepository issueRepository;
+
+  protected JobStatusRetriever(MultiContextIssueRepository issueRepository) {
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+    this.issueRepository = Objects.requireNonNull(issueRepository);
   }
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
@@ -95,11 +106,21 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     int currentAttempts = Integer.parseInt(jobState.getProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "1"));
     boolean shouldRetry = Boolean.parseBoolean(jobState.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, "false"));
 
+
+    List<Issue> issues;
+    try {
+      String contextId = TroubleshooterUtils.getContextIdForJob(jobState.getProperties());
+      issues = issueRepository.getAll(contextId);
+    } catch (TroubleshooterException e) {
+      log.warn("Cannot retrieve job issues", e);
+      issues = Collections.emptyList();
+    }
+
     return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
         jobName(jobName).jobGroup(jobGroup).jobTag(jobTag).jobExecutionId(jobExecutionId).eventName(eventName).
         lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime).
         message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts).
-        shouldRetry(shouldRetry).build();
+        shouldRetry(shouldRetry).issues(issues).build();
   }
 
   public abstract StateStore<State> getStateStore();

@@ -33,6 +33,7 @@ import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +41,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
@@ -48,6 +50,7 @@ import org.apache.gobblin.metastore.FsStateStore;
  * The store name is set to flowGroup.flowName, while the table name is set to flowExecutionId.jobGroup.jobName.
  */
 @Slf4j
+@Singleton
 public class FsJobStatusRetriever extends JobStatusRetriever {
   public static final String CONF_PREFIX = "fsJobStatusRetriever";
 
@@ -55,7 +58,8 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
   private final FileContextBasedFsStateStore<State> stateStore;
 
   @Inject
-  public FsJobStatusRetriever(Config config) {
+  public FsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
+    super(issueRepository);
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }

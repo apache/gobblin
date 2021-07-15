@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.base.Preconditions;
-
-import com.google.common.collect.Iterators;
-import com.typesafe.config.Config;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,18 +24,26 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
+import com.typesafe.config.Config;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.spec_executorInstance.LocalFsSpecProducer;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
-
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A job status monitor for jobs completed by a Gobblin Standalone instance running on the same machine. Mainly used for sandboxing/testing
  * Considers a job done when Gobblin standalone appends ".done" to the job. Otherwise it will assume the job is in progress
  */
 @Slf4j
+@Singleton
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
   public static final String CONF_PREFIX = "localFsJobStatusRetriever.";
@@ -47,7 +51,9 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   private String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
-  public LocalFsJobStatusRetriever(Config config) {
+  @Inject
+  public LocalFsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
+    super(issueRepository);
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 

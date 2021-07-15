@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Objects;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -28,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -40,11 +43,13 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private static final String KAFKA_SSL_CONFIG_PREFIX_KEY = "jobStatusMonitor.kafka.config";
   private static final String DEFAULT_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
 
-  Config config;
+  private final Config config;
+  private final JobIssueEventHandler jobIssueEventHandler;
 
   @Inject
-  public KafkaJobStatusMonitorFactory(Config config) {
-    this.config = config;
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler) {
+    this.config = Objects.requireNonNull(config);
+    this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -71,7 +76,8 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
           config.getValue(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE));
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
-    return (KafkaJobStatusMonitor) GobblinConstructorUtils.invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads);
+    return (KafkaJobStatusMonitor) GobblinConstructorUtils
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler);
   }
 
   @Override

@@ -1,0 +1,46 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Issue describes a specific unique problem in the job or application.
+ *
+ * Issue can be generated from log entries, health checks, and other places.
+ */
+record Issue {
+
+  /**
+   * Time when the issue have occured
+   */
+  time: Timestamp
+
+  /**
+   * Severity from DEBUG to FATAL
+   */
+  severity: IssueSeverity
+
+  /**
+   * Unique machine-readable code that identifies a specific problem.
+   *
+   * It can be used for making programmatic decisions on how to handle and recover from this issue.
+   *
+   * Issues representing the same kind of problem will have the same code.
+   * */
+  code: string
+
+  /**
+   * Short, human-readable description of the issue.
+   *
+   * It should focus on what is the root cause of the problem, and what steps the user should do to resolve it.
+   */
+  summary: string
+
+  /**
+   * Human-readable issue details that can include exception stack trace and additional information about the problem.
+   */
+  details: string
+
+  /**
+   * Additional machine-readable properties of the issue.
+   *
+   */
+  properties: map[string,string]
+}

@@ -41,6 +41,9 @@ import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
@@ -206,6 +209,10 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     binder.bind(GobblinServiceManager.class);
+
+    binder.bind(MultiContextIssueRepository.class).to(InMemoryMultiContextIssueRepository.class);
+
+    binder.bind(JobIssueEventHandler.class);
 
     LOGGER.info("Bindings configured");
   }
