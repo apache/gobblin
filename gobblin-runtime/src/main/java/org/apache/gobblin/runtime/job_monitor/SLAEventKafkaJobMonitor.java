@@ -36,6 +36,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
+import lombok.Getter;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
@@ -46,11 +48,8 @@ import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import lombok.Getter;
 
 
 /**
@@ -172,7 +171,7 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
   }
 
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(GobblinTrackingEvent event) {
+  public Collection<JobSpec> parseJobSpec(GobblinTrackingEvent event) {
 
     if (!acceptEvent(event)) {
       this.rejectedEvents.inc();
@@ -192,7 +191,7 @@ public class SLAEventKafkaJobMonitor extends KafkaAvroJobMonitor<GobblinTracking
 
     JobSpec jobSpec = JobSpec.builder(jobSpecURI).withTemplate(this.template).withConfig(jobConfig).build();
 
-    return Lists.newArrayList(Either.<JobSpec, URI>left(jobSpec));
+    return Lists.newArrayList(jobSpec);
   }
 
   /**

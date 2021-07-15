@@ -48,7 +48,7 @@ import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 /**
  * Unit tests for {@link DecryptConverter}.
  */
-@Test(enabled=false, groups = { "gobblin.data.management.copy.converter", "disabledOnTravis" })
+@Test(enabled=false, groups = { "gobblin.data.management.copy.converter", "disabledOnCI" })
 public class DecryptConverterTest {
 
   private final File masterPwdFile = new File("masterPwd");

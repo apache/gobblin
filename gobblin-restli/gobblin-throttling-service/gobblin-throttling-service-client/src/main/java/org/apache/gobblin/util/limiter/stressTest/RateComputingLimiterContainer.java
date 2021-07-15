@@ -18,7 +18,6 @@
 package org.apache.gobblin.util.limiter.stressTest;
 
 import java.io.Closeable;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,14 +31,14 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import org.apache.gobblin.util.Decorator;
-import org.apache.gobblin.util.limiter.Limiter;
-import org.apache.gobblin.util.limiter.RestliServiceBasedLimiter;
-
 import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.Decorator;
+import org.apache.gobblin.util.limiter.Limiter;
+import org.apache.gobblin.util.limiter.RestliServiceBasedLimiter;
 
 
 /**

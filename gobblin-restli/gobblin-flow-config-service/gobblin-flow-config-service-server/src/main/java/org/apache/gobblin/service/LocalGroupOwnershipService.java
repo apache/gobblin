@@ -16,14 +16,20 @@
  */
 package org.apache.gobblin.service;
 
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Splitter;
 import com.google.gson.JsonObject;
 import com.typesafe.config.Config;
-import java.io.IOException;
-import java.util.List;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
-import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -31,11 +37,13 @@ import org.apache.hadoop.fs.Path;
  * and values denote a list of group members
  */
 @Alias("local")
+@Singleton
 public class LocalGroupOwnershipService extends GroupOwnershipService {
   public static final String GROUP_MEMBER_LIST = "groupOwnershipService.groupMembers.path";
   LocalGroupOwnershipPathAlterationListener listener;
   PathAlterationObserver observer;
 
+  @Inject
   public LocalGroupOwnershipService(Config config) {
     Path groupOwnershipFilePath = new Path(config.getString(GROUP_MEMBER_LIST));
     try {

@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.fork.Fork;

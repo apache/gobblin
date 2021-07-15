@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.type;
 
-import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

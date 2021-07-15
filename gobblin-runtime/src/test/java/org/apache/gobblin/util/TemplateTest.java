@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Properties;
 
-import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -37,7 +36,6 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
-import org.apache.gobblin.runtime.template.HOCONInputStreamJobTemplate;
 import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
 
 

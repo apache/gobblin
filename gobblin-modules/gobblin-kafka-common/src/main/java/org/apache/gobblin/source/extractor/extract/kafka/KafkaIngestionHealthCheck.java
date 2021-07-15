@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.eventbus.EventBusFactory;
@@ -40,13 +41,11 @@ public class KafkaIngestionHealthCheck implements CommitStep {
   public static final String KAFKA_INGESTION_HEALTH_CHECK_SLIDING_WINDOW_SIZE_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "slidingWindow.size";
   public static final String KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "ingestionLatency.minutes";
   public static final String KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "consumptionRate.dropOffFraction";
-  public static final String KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "expected.consumptionRateMbps";
   public static final String KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "increasingLatencyCheckEnabled";
 
   public static final int DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_SLIDING_WINDOW_SIZE = 3;
   public static final long DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES= 15;
   public static final double DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION = 0.7;
-  public static final double DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS = 10.0;
   private static final boolean DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED = true;
 
   private final Config config;
@@ -65,7 +64,7 @@ public class KafkaIngestionHealthCheck implements CommitStep {
     this.slidingWindowSize = ConfigUtils.getInt(config, KAFKA_INGESTION_HEALTH_CHECK_SLIDING_WINDOW_SIZE_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_SLIDING_WINDOW_SIZE);
     this.ingestionLatencyThresholdMinutes = ConfigUtils.getLong(config, KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES);
     this.consumptionRateDropOffFraction = ConfigUtils.getDouble(config, KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION);
-    this.expectedConsumptionRate = ConfigUtils.getDouble(config, KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS);
+    this.expectedConsumptionRate = ConfigUtils.getDouble(config, KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY, KafkaTopicGroupingWorkUnitPacker.DEFAULT_CONTAINER_CAPACITY);
     this.increasingLatencyCheckEnabled = ConfigUtils.getBoolean(config, KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED);
     this.ingestionLatencies = EvictingQueue.create(this.slidingWindowSize);
     this.consumptionRateMBps = EvictingQueue.create(this.slidingWindowSize);

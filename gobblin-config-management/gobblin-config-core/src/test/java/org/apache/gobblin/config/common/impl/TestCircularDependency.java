@@ -39,7 +39,7 @@ public class TestCircularDependency {
   private final String version = "V1.0";
   List<ConfigKeyPath> emptyList = Collections.emptyList();
 
-  public static void addConfigStoreChildren(ConfigStore mockup, String version, ConfigKeyPath parent,
+  private static void addConfigStoreChildren(ConfigStore mockup, String version, ConfigKeyPath parent,
       ConfigKeyPath... configKeyPaths) {
     List<ConfigKeyPath> children = new ArrayList<ConfigKeyPath>();
     for (ConfigKeyPath p : configKeyPaths) {
@@ -49,7 +49,7 @@ public class TestCircularDependency {
     when(mockup.getChildren(parent, version)).thenReturn(children);
   }
 
-  public static void addConfigStoreImports(ConfigStore mockup, String version, ConfigKeyPath self,
+  private static void addConfigStoreImports(ConfigStore mockup, String version, ConfigKeyPath self,
       ConfigKeyPath... configKeyPaths) {
     List<ConfigKeyPath> ownImports = new ArrayList<ConfigKeyPath>();
     for (ConfigKeyPath p : configKeyPaths) {

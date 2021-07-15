@@ -48,7 +48,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 
-import static org.apache.gobblin.compaction.event.CompactionSlaEventHelper.DUPLICATE_COUNT_TOTAL;
+import static org.apache.gobblin.compaction.event.CompactionSlaEventHelper.*;
 
 
 /**
@@ -66,14 +66,18 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
   private EventSubmitter eventSubmitter;
   private FileSystem fs;
 
-  public CompactionCompleteFileOperationAction(State state, CompactionJobConfigurator configurator) {
+  public CompactionCompleteFileOperationAction(State state, CompactionJobConfigurator configurator, InputRecordCountHelper helper) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
     this.state = (WorkUnitState) state;
-    this.helper = new InputRecordCountHelper(state);
+    this.helper = helper;
     this.configurator = configurator;
     this.fs = configurator.getFs();
+  }
+
+  public CompactionCompleteFileOperationAction(State state, CompactionJobConfigurator configurator) {
+    this(state, configurator, new InputRecordCountHelper(state));
   }
 
   /**
@@ -127,8 +131,10 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
         if (state.getPropAsBoolean(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, false)) {
-          Path oldFilePath = PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount)));
-          dstPath = PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount + 1)));
+          Path oldFilePath =
+              PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount)));
+          dstPath =
+              PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount + 1)));
           this.configurator.getOldFiles().add(this.fs.makeQualified(oldFilePath).toString());
           //Write to a new path, no need to delete the old path
         } else {
@@ -166,6 +172,10 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
             Long.toString(executionCount));
         compactionState.setProp(DUPLICATE_COUNT_TOTAL + Long.toString(executionCount),
             compactionState.getProp(DUPLICATE_COUNT_TOTAL, "null"));
+      }
+      if (state.getPropAsBoolean(ConfigurationKeys.GOBBLIN_METADATA_CHANGE_EVENT_ENABLED, false)) {
+        //GMCE enabled, set the key to be false to indicate that GMCE has not been sent yet
+        compactionState.setProp(CompactionGMCEPublishingAction.GMCE_EMITTED_KEY, false);
       }
       compactionState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
       compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executionCount + 1));

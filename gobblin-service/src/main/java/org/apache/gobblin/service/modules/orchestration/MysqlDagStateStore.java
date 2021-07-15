@@ -22,28 +22,33 @@ import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.MysqlDagStateStoreFactory;
 import org.apache.gobblin.metastore.MysqlStateStore;
-import org.apache.gobblin.metastore.MysqlStateStoreFactory;
+import org.apache.gobblin.metastore.MysqlStateStoreEntryManager;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.Config;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateFlowIdInString;
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.getFlowExecId;
+import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
 
 
 /**
@@ -93,7 +98,7 @@ public class MysqlDagStateStore implements DagStateStore {
    */
   protected StateStore<State> createStateStore(Config config) {
     try {
-      return (MysqlStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
+      return (MysqlDagStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
     } catch (ReflectiveOperationException rfoe) {
       throw new RuntimeException("A MySQL StateStore cannot be correctly initialized due to:", rfoe);
     }
@@ -102,19 +107,63 @@ public class MysqlDagStateStore implements DagStateStore {
   @Override
   public void writeCheckpoint(Dag<JobExecutionPlan> dag)
       throws IOException {
-    mysqlStateStore.put(generateFlowIdInString(dag), getFlowExecId(dag) + "", convertDagIntoState(dag));
+    mysqlStateStore.put(getStoreNameFromDagId(generateDagId(dag)), getTableNameFromDagId(generateDagId(dag)), convertDagIntoState(dag));
   }
 
   @Override
   public void cleanUp(Dag<JobExecutionPlan> dag)
       throws IOException {
-    mysqlStateStore.delete(generateFlowIdInString(dag), getFlowExecId(dag) + "");
+    cleanUp(generateDagId(dag));
+  }
+
+  @Override
+  public void cleanUp(String dagId)
+      throws IOException {
+    mysqlStateStore.delete(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
   }
 
   @Override
   public List<Dag<JobExecutionPlan>> getDags()
       throws IOException {
     return mysqlStateStore.getAll().stream().map(this::convertStateObjIntoDag).collect(Collectors.toList());
+  }
+
+  @Override
+  public Dag<JobExecutionPlan> getDag(String dagId) throws IOException {
+    List<State> states = mysqlStateStore.getAll(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
+    if (states.isEmpty()) {
+      return null;
+    }
+    return convertStateObjIntoDag(states.get(0));
+  }
+
+  @Override
+  public Set<String> getDagIds() throws IOException {
+    List<MysqlStateStoreEntryManager> entries = (List<MysqlStateStoreEntryManager>) mysqlStateStore
+        .getMetadataForTables(new StateStorePredicate(Predicates.alwaysTrue()));
+    return entries.stream().map(entry -> entryToDagId(entry.getStoreName(), entry.getTableName())).collect(Collectors.toSet());
+  }
+
+  /**
+   * Convert a state store entry into a dag ID
+   * e.g. storeName = group1_name1, tableName = 1234 gives dagId group1_name1_1234
+   */
+  private String entryToDagId(String storeName, String tableName) {
+    return Joiner.on(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER).join(storeName, tableName);
+  }
+
+  /**
+   * Return a storeName given a dagId. Store name is defined as flowGroup_flowName.
+   */
+  private String getStoreNameFromDagId(String dagId) {
+    return dagId.substring(0, dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER));
+  }
+
+  /**
+   * Return a tableName given a dagId. Table name is defined as the flowExecutionId.
+   */
+  private String getTableNameFromDagId(String dagId) {
+    return dagId.substring(dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER) + 1);
   }
 
   /**

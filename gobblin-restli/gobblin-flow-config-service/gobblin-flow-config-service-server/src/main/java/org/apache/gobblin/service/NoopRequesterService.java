@@ -23,12 +23,15 @@ import com.google.common.collect.Lists;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+
 
 /**
  * Default requester service which does not track any requester information.
  */
 public class NoopRequesterService extends RequesterService {
 
+  @Inject
   public NoopRequesterService(Config config) {
     super(config);
   }

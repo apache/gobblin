@@ -86,8 +86,8 @@ APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
 # https://github.com/settings/tokens. This tool only requires the "public_repo" scope.
 GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
 
-GITHUB_BASE = "https://github.com/apache/incubator-gobblin/pull"
-GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-gobblin"
+GITHUB_BASE = "https://github.com/apache/gobblin/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/gobblin"
 GITHUB_USER = 'asfgit'
 
 JIRA_BASE = "https://issues.apache.org/jira/browse"
@@ -1050,10 +1050,10 @@ def setup_git_remotes():
         GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:
 
           git remote -v
-          apache https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git (fetch)
-          apache https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git (push)
-          github https://github.com/apache/incubator-gobblin.git (fetch)
-          github https://github.com/apache/incubator-gobblin.git (push)
+          apache https://git-wip-us.apache.org/repos/asf/gobblin.git (fetch)
+          apache https://git-wip-us.apache.org/repos/asf/gobblin.git (push)
+          github https://github.com/apache/gobblin.git (fetch)
+          github https://github.com/apache/gobblin.git (push)
 
         If these remotes already exist, the tool will display an error.
         """))
@@ -1061,14 +1061,14 @@ def setup_git_remotes():
 
     error = False
     try:
-        run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git')
+        run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/gobblin.git')
     except:
         click.echo(click.style(reflow(
             '>>ERROR: Could not create apache remote. If it already exists, '
             'run `git remote remove apache` to delete it.', fg='red')))
         error = True
     try:
-        run_cmd('git remote add github https://github.com/apache/incubator-gobblin.git')
+        run_cmd('git remote add github https://github.com/apache/gobblin.git')
     except:
         click.echo(click.style(reflow(
             '>>ERROR: Could not create github remote. If it already exists, '

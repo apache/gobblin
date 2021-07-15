@@ -132,4 +132,13 @@ public class ServiceConfigKeys {
   // Group Membership authentication service
   public static final String GROUP_OWNERSHIP_SERVICE_CLASS = GOBBLIN_SERVICE_PREFIX + "groupOwnershipService.class";
   public static final String DEFAULT_GROUP_OWNERSHIP_SERVICE = "org.apache.gobblin.service.NoopGroupOwnershipService";
+
+  public static final int MAX_FLOW_NAME_LENGTH = 128; // defined in FlowId.pdl
+  public static final int MAX_FLOW_GROUP_LENGTH = 128; // defined in FlowId.pdl
+  public static final int MAX_JOB_NAME_LENGTH = 374;
+  public static final int MAX_JOB_GROUP_LENGTH = 374;
+  public static final String STATE_STORE_TABLE_SUFFIX = "gst";
+  public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
+  public static final String DAG_STORE_KEY_SEPARATION_CHARACTER = "_";
+
 }

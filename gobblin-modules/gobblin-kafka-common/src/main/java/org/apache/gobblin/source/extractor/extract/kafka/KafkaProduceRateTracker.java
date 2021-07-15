@@ -256,14 +256,10 @@ public class KafkaProduceRateTracker {
           (KafkaStreamingExtractor.KafkaWatermark) lastCommittedWatermarks.get(partition.toString());
       KafkaStreamingExtractor.KafkaWatermark unacknowledgedWatermark =
           (KafkaStreamingExtractor.KafkaWatermark) unacknowledgedWatermarks.get(partition.toString());
-      if (unacknowledgedWatermark == null && kafkaWatermark == null) {
-        //If there is no previously committed watermark for the topic partition and no records in current time window, no further
-        //processing needed for the topic partition.
-        continue;
-      }
+
       if (kafkaWatermark == null) {
         //If there is no previously committed watermark for the topic partition, create a dummy watermark for computing stats
-        kafkaWatermark = new KafkaStreamingExtractor.KafkaWatermark(partition, new LongWatermark(0L));
+        kafkaWatermark = new KafkaStreamingExtractor.KafkaWatermark(partition, new LongWatermark(maxOffset >= 0? maxOffset : 0L));
       }
       long avgRecordSize = this.statsTracker.getAvgRecordSize(partitionIndex);
       long previousMaxOffset = highWatermark.get(partitionIndex++);

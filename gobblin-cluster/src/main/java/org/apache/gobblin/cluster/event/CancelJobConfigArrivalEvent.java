@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.cluster.event;
 
-import java.util.Properties;
-
-
 public class CancelJobConfigArrivalEvent {
   private final String jobUri;
 

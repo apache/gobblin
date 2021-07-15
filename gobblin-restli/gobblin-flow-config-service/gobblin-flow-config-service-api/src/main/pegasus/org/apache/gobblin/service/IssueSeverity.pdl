@@ -1,0 +1,9 @@
+namespace org.apache.gobblin.service
+
+enum IssueSeverity {
+  DEBUG,
+  INFO,
+  WARN,
+  ERROR,
+  FATAL
+}

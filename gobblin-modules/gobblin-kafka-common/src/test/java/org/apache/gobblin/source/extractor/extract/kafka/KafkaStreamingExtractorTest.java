@@ -26,9 +26,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.extract.FlushingExtractor;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.stream.StreamEntity;
 
 
 public class KafkaStreamingExtractorTest {
@@ -37,9 +40,9 @@ public class KafkaStreamingExtractorTest {
 
   @BeforeClass
   public void setUp() {
-    WorkUnitState state = KafkaExtractorUtils.getWorkUnitState("testTopic", numPartitions);
-    state.setProp(FlushingExtractor.FLUSH_DATA_PUBLISHER_CLASS, TestDataPublisher.class.getName());
-    this.streamingExtractor = new KafkaStreamingExtractor(state);
+    WorkUnitState state1 = KafkaExtractorUtils.getWorkUnitState("testTopic", numPartitions);
+    state1.setProp(FlushingExtractor.FLUSH_DATA_PUBLISHER_CLASS, TestDataPublisher.class.getName());
+    this.streamingExtractor = new KafkaStreamingExtractor(state1);
   }
 
   @Test
@@ -47,16 +50,21 @@ public class KafkaStreamingExtractorTest {
       throws IOException, DataRecordException {
     MultiLongWatermark highWatermark1 = new MultiLongWatermark(this.streamingExtractor.highWatermark);
 
-    //Read 2 records
-    this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 0L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 0L);
+    //Read 3 records
+    StreamEntity<DecodeableKafkaRecord> streamEntity = this.streamingExtractor.readStreamEntityImpl();
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 0L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 0L);
 
     this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 0L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 0L);
+
+    this.streamingExtractor.readStreamEntityImpl();
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 1L);
 
     //Checkpoint watermarks
     this.streamingExtractor.onFlushAck();
@@ -70,13 +78,13 @@ public class KafkaStreamingExtractorTest {
     MultiLongWatermark highWatermark2 = new MultiLongWatermark(this.streamingExtractor.highWatermark);
     //Read 1 more record
     this.streamingExtractor.readStreamEntityImpl();
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.nextWatermark.get(2), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(0), 2L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.nextWatermark.get(2), 1L);
 
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(0), 1L);
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(1), 1L);
-    Assert.assertEquals( this.streamingExtractor.lowWatermark.get(2), 0L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(0), 1L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(1), 1L);
+    Assert.assertEquals(this.streamingExtractor.lowWatermark.get(2), 1L);
 
     //Checkpoint watermarks
     this.streamingExtractor.onFlushAck();
@@ -98,11 +106,27 @@ public class KafkaStreamingExtractorTest {
   }
 
   @Test
-  public void testGenerateAdditionalTagHelper() throws Exception {
+  public void testGenerateAdditionalTagHelper() {
     // Verifying that produce rate has been added.
     Map<KafkaPartition, Map<String, String>> result = this.streamingExtractor.getAdditionalTagsHelper();
     for (Map<String, String> entry: result.values()) {
       Assert.assertTrue(entry.containsKey(KafkaProduceRateTracker.KAFKA_PARTITION_PRODUCE_RATE_KEY));
+    }
+  }
+
+  @Test
+  public void testReadRecordEnvelopeImpl()
+      throws IOException {
+    WorkUnitState state = KafkaExtractorUtils.getWorkUnitState("testTopic", numPartitions);
+    state.setProp(FlushingExtractor.FLUSH_DATA_PUBLISHER_CLASS, TestDataPublisher.class.getName());
+    //Enable config that allows underlying KafkaConsumerClient to return null-valued Kafka records.
+    state.setProp(KafkaStreamTestUtils.MockKafkaConsumerClient.CAN_RETURN_NULL_VALUED_RECORDS, "true");
+    KafkaStreamingExtractor streamingExtractorWithNulls = new KafkaStreamingExtractor(state);
+
+    //Extract 4 records. Ensure each record returned by readRecordEnvelopeImpl() is a non-null valued record.
+    for (int i = 0; i < 4; i++) {
+      RecordEnvelope<DecodeableKafkaRecord> recordEnvelope = streamingExtractorWithNulls.readRecordEnvelopeImpl();
+      Assert.assertNotNull(recordEnvelope.getRecord().getValue() != null);
     }
   }
 
@@ -126,8 +150,7 @@ public class KafkaStreamingExtractorTest {
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() {
 
     }
   }

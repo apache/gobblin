@@ -25,9 +25,6 @@ import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
-import org.jetbrains.annotations.Nullable;
-import org.mockito.Mockito;
-import org.mockito.exceptions.base.MockitoAssertionError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -35,13 +32,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
-import com.google.common.eventbus.EventBus;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
-import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
@@ -53,11 +47,10 @@ import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
-import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
+
 
 @Test
 public class GobblinServiceHATest {
@@ -148,6 +141,7 @@ public class GobblinServiceHATest {
     commonServiceCoreProperties.put("zookeeper.connect", testingZKServer.getConnectString());
     commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlJobStatusStateStoreFactory.class.getName());
     commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
+    commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
 
     Properties node1ServiceCoreProperties = new Properties();
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);
@@ -166,13 +160,13 @@ public class GobblinServiceHATest {
     node2ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
 
     // Start Node 1
-    this.node1GobblinServiceManager = new TestGobblinServiceManager("CoreService1", "1",
-        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), Optional.of(new Path(NODE_1_SERVICE_WORK_DIR)));
+    this.node1GobblinServiceManager = GobblinServiceManager.create("CoreService1", "1",
+        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), new Path(NODE_1_SERVICE_WORK_DIR));
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
-    this.node2GobblinServiceManager = new TestGobblinServiceManager("CoreService2", "2",
-        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), Optional.of(new Path(NODE_2_SERVICE_WORK_DIR)));
+    this.node2GobblinServiceManager = GobblinServiceManager.create("CoreService2", "2",
+        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), new Path(NODE_2_SERVICE_WORK_DIR));
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client
@@ -549,30 +543,7 @@ public class GobblinServiceHATest {
     logger.info("Total failover time in ms: " + (failOverEndTime - failOverStartTime));
 
     Assert.assertTrue(assertSuccess, "New master should take over all old master jobs.");
-
-    // Check eventbus was registered with new leader
-    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().logger(LoggerFactory.getLogger("checkEventbusRegistered")).timeoutMs(20000);
-    assertWithBackoff.assertTrue(new com.google.common.base.Predicate<Void>() {
-      @Override
-      public boolean apply(@Nullable Void input) {
-        try {
-          Mockito.verify(secondary.getEventBus(), Mockito.atLeastOnce()).register(secondary.getDagManager());
-          return true;
-        } catch (MockitoAssertionError e) {
-          return false;
-        }
-      }
-    }, "Checking eventBus was registered");
-
     logger.info("+++++++++++++++++++ testKillNode END");
   }
 
-  public class TestGobblinServiceManager extends GobblinServiceManager {
-    public TestGobblinServiceManager(String serviceName, String serviceId, Config config, Optional<Path> serviceWorkDirOptional) throws Exception {
-      super(serviceName, serviceId, config, serviceWorkDirOptional);
-      this.isDagManagerEnabled = true;
-      this.eventBus = Mockito.mock(EventBus.class);
-      this.dagManager = Mockito.mock(DagManager.class);
-    }
-  }
 }

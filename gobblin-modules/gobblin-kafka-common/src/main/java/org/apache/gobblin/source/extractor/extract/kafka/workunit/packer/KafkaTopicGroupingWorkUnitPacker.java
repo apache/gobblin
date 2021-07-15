@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
@@ -46,6 +45,7 @@ import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.io.GsonInterfaceAdapter;
@@ -70,7 +70,6 @@ import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.
 public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String GOBBLIN_KAFKA_PREFIX = "gobblin.kafka.";
   private static final int DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 10;
-  private static final String TOPIC_PARTITION_DELIMITER = "-";
 
   //A global configuration for container capacity. The container capacity refers to the peak rate (in MB/s) that a
   //single JVM can consume from Kafka for a single topic and controls the number of partitions of a topic that will be
@@ -187,6 +186,10 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         containerCapacity = getContainerCapacityForTopic(capacitiesByTopic.get(topic), this.containerCapacityComputationStrategy);
         log.info("Container capacity for topic {}: {}", topic, containerCapacity);
       }
+      //Add CONTAINER_CAPACITY into each workunit. Useful when KafkaIngestionHealthCheck is enabled.
+      for (WorkUnit workUnit: workUnitsForTopic) {
+        workUnit.setProp(CONTAINER_CAPACITY_KEY, containerCapacity);
+      }
       double estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
       int previousSize = mwuGroups.size();
       if (estimatedDataSizeForTopic < containerCapacity) {
@@ -220,6 +223,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
     return squeezedGroups;
   }
 
+
   /**
    * TODO: This method should be moved into {@link KafkaSource}, which requires moving classes such
    * as {@link KafkaStreamingExtractor.KafkaWatermark} to the open source. A side-effect of this method is to
@@ -239,7 +243,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
           GSON.fromJson(state.getProp(topicPartition), KafkaStreamingExtractor.KafkaWatermark.class);
       lastCommittedWatermarks.put(topicPartition, watermark);
       if (this.isPerTopicContainerCapacityEnabled) {
-        String topicName = topicPartition.split(TOPIC_PARTITION_DELIMITER)[0];
+        String topicName = KafkaUtils.getTopicNameFromTopicPartition(topicPartition);
         List<Double> capacities = capacitiesByTopic.getOrDefault(topicName, Lists.newArrayList());
         capacities.add(watermark.getAvgConsumeRate() > 0 ? watermark.getAvgConsumeRate() : DEFAULT_CONTAINER_CAPACITY);
         capacitiesByTopic.put(topicName, capacities);
@@ -278,7 +282,8 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
    * @return the minimum workunit size.
    */
   private Double getMinWorkUnitSize(WorkUnit workUnit) {
-    int minContainersForTopic = workUnit.getPropAsInt(MIN_CONTAINERS_FOR_TOPIC, -1);
+    int minContainersForTopic = Math.min(workUnit.getPropAsInt(MIN_CONTAINERS_FOR_TOPIC, -1),
+        workUnit.getPropAsInt(KafkaSource.NUM_TOPIC_PARTITIONS));
     if (minContainersForTopic == -1) {
       //No minimum configured? Return lower bound for workunit size to be 0.
       return 0.0;
@@ -334,7 +339,10 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
    */
   @VisibleForTesting
   static double getContainerCapacityForTopic(List<Double> capacities, ContainerCapacityComputationStrategy strategy) {
-    Preconditions.checkArgument(capacities.size() > 0, "Capacities size must be > 0");
+    //No previous stats for a topic? Return default.
+    if (capacities == null) {
+      return DEFAULT_CONTAINER_CAPACITY;
+    }
     Collections.sort(capacities);
     log.info("Capacity computation strategy: {}, capacities: {}", strategy.name(), capacities);
     switch (strategy) {

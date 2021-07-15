@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
@@ -34,7 +33,9 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryIssueRepository;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 
@@ -74,7 +75,7 @@ public class TaskStateCollectorServiceTest {
 
 
     this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
-        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID));
+        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID), new InMemoryIssueRepository());
 
     this.eventBus.register(this);
   }
@@ -108,7 +109,7 @@ public class TaskStateCollectorServiceTest {
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
     TaskStateCollectorService taskStateCollectorServiceHive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
-        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"));
+        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"), new InMemoryIssueRepository());
     Assert.assertEquals(taskStateCollectorServiceHive.getOptionalTaskCollectorHandler().get().getClass().getName(),
         "org.apache.gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
     taskStateCollectorServiceHive.shutDown();

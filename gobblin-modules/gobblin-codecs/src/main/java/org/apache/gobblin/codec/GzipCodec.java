@@ -22,8 +22,6 @@ import java.io.OutputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.gobblin.codec.StreamCodec;
-
 
 /**
  * Implement GZIP compression and decompression.

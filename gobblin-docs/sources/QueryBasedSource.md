@@ -1,11 +1,11 @@
 [TOC]
 
 # Introduction
-[`QueryBasedSource`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java)
+[`QueryBasedSource`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java)
 represents a category of sources whose data is pulled by sending queries. A dataset of a source is identified as a
-[`SourceEntity`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java#L96).
+[`SourceEntity`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java#L96).
 Query can be done by sending HTTP requests or SQL commands. A source often, but not always, has a corresponding
-[`QueryBasedExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedExtractor.java),
+[`QueryBasedExtractor`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedExtractor.java),
 which defines the way and implements common routines to extract data from the source.
 
 # Constructs
@@ -25,7 +25,7 @@ Like other categories of sources, a `QueryBasedSource` focuses on creating work 
 - pick up previously failed work units.
 
 At last, it will group several work units as
-[`MultiWorkUnit`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/source/workunit/MultiWorkUnit.java)
+[`MultiWorkUnit`](https://github.com/apache/gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/source/workunit/MultiWorkUnit.java)
 according to the `mr.job.max.mappers` configuration (Note: other categories of source might have a different approach to group work units into `MultiWorkUnit`). 
 
 ## `QueryBasedExtractor`
@@ -37,13 +37,13 @@ according to the `mr.job.max.mappers` configuration (Note: other categories of s
 </p>
 
 Currently in Gobblin, depending on how an extractor communicates with a source
-(or [different communication protocols](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/ProtocolSpecificLayer.java)),
+(or [different communication protocols](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/ProtocolSpecificLayer.java)),
 a `QueryBasedExtractor` falls into 2 categories:
-[`RestApiExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/restapi/RestApiExtractor.java)
+[`RestApiExtractor`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/restapi/RestApiExtractor.java)
 and
-[`JdbcExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-sql/src/main/java/org/apache/gobblin/source/jdbc/JdbcExtractor.java).
+[`JdbcExtractor`](https://github.com/apache/gobblin/blob/master/gobblin-modules/gobblin-sql/src/main/java/org/apache/gobblin/source/jdbc/JdbcExtractor.java).
 A specific extractor has to provide some
-[source specific logic](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/SourceSpecificLayer.java)
+[source specific logic](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/SourceSpecificLayer.java)
 in order to successfully extract information from the source.
 
 ### `build`

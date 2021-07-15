@@ -19,8 +19,6 @@ package org.apache.gobblin.util.limiter;
 
 import java.io.IOException;
 
-import org.apache.gobblin.util.limiter.Limiter;
-
 
 /**
  * Indicates there were not enough permits in the {@link Limiter} to finish the copy.

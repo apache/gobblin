@@ -17,22 +17,23 @@
 
 package org.apache.gobblin.task;
 
+import java.io.File;
+import java.util.Set;
+import java.util.UUID;
+
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 import org.apache.gobblin.writer.test.TestingEventBuses;
-import java.io.File;
-import java.util.Set;
-import java.util.UUID;
-
-import org.junit.internal.runners.statements.Fail;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 
 public class CustomTaskTest {

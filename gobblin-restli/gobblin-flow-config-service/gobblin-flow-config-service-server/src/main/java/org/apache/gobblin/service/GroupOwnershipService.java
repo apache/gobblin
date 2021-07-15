@@ -18,7 +18,6 @@
 package org.apache.gobblin.service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Service for handling group ownership of flows

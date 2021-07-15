@@ -36,6 +36,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.service.ServiceConfigKeys;
 
 
 @Slf4j
@@ -68,6 +69,21 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
    */
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
     return getAll(storeName, flowExecutionId + "%", true);
+  }
+
+  @Override
+  protected String getCreateJobStateTableTemplate() {
+    int maxStoreName = ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length()
+        + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
+    int maxTableName = 13 // length of flowExecutionId which is epoch timestamp
+        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_JOB_NAME_LENGTH
+        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.MAX_JOB_GROUP_LENGTH
+        + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length() + ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX.length();
+
+    return "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(" + maxStoreName + ") CHARACTER SET latin1 COLLATE latin1_bin not null,"
+        + "table_name varchar(" + maxTableName + ") CHARACTER SET latin1 COLLATE latin1_bin not null,"
+        + " modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
+        + " state longblob, primary key(store_name, table_name))";
   }
 
   @Override

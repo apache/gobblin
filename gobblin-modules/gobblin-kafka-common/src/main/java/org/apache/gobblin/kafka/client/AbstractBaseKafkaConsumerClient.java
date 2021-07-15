@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -28,8 +29,11 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DatasetFilterUtils;
@@ -38,6 +42,7 @@ import org.apache.gobblin.util.DatasetFilterUtils;
 /**
  * A base {@link GobblinKafkaConsumerClient} that sets configurations shared by all {@link GobblinKafkaConsumerClient}s
  */
+@Slf4j
 public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaConsumerClient {
 
   public static final String CONFIG_NAMESPACE = "source.kafka";
@@ -49,18 +54,23 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
   private static final int CONFIG_KAFKA_FETCH_REQUEST_MIN_BYTES_DEFAULT = 1024;
   public static final String CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE = CONFIG_PREFIX + "socketTimeoutMillis";
   public static final int CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT = 30000; // 30 seconds
+  public static final String CONFIG_ENABLE_SCHEMA_CHECK = CONFIG_PREFIX + "enableSchemaCheck";
+  public static final boolean ENABLE_SCHEMA_CHECK_DEFAULT = false;
 
   protected final List<String> brokers;
   protected final int fetchTimeoutMillis;
   protected final int fetchMinBytes;
   protected final int socketTimeoutMillis;
+  protected final Config config;
+  protected Optional<KafkaSchemaRegistry> schemaRegistry;
+  protected final boolean schemaCheckEnabled;
 
   public AbstractBaseKafkaConsumerClient(Config config) {
+    this.config = config;
     this.brokers = ConfigUtils.getStringList(config, ConfigurationKeys.KAFKA_BROKERS);
     if (this.brokers.isEmpty()) {
       throw new IllegalArgumentException("Need to specify at least one Kafka broker.");
     }
-
     this.socketTimeoutMillis =
         ConfigUtils.getInt(config, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT);
     this.fetchTimeoutMillis =
@@ -71,16 +81,52 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     Preconditions.checkArgument((this.fetchTimeoutMillis < this.socketTimeoutMillis),
         "Kafka Source configuration error: FetchTimeout " + this.fetchTimeoutMillis
             + " must be smaller than SocketTimeout " + this.socketTimeoutMillis);
+    this.schemaCheckEnabled = ConfigUtils.getBoolean(config, CONFIG_ENABLE_SCHEMA_CHECK, ENABLE_SCHEMA_CHECK_DEFAULT);
   }
 
+  /**
+   * Filter topics based on whitelist and blacklist patterns
+   * and if {@link #schemaCheckEnabled}, also filter on whether schema is present in schema registry
+   * @param blacklist - List of regex patterns that need to be blacklisted
+   * @param whitelist - List of regex patterns that need to be whitelisted
+   *
+   * @return
+   */
   @Override
   public List<KafkaTopic> getFilteredTopics(final List<Pattern> blacklist, final List<Pattern> whitelist) {
     return Lists.newArrayList(Iterables.filter(getTopics(), new Predicate<KafkaTopic>() {
       @Override
       public boolean apply(@Nonnull KafkaTopic kafkaTopic) {
-        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist);
+        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(kafkaTopic.getName());
       }
     }));
+  }
+
+  private boolean isSchemaRegistryConfigured() {
+    if(this.schemaRegistry == null) {
+      this.schemaRegistry = (config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) && config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL)) ? Optional.of(KafkaSchemaRegistry.get(ConfigUtils.configToProperties(this.config))) : Optional.absent();
+    }
+    return this.schemaRegistry.isPresent();
+  }
+
+  /**
+   * accept topic if {@link #schemaCheckEnabled} and schema registry is configured
+   * @param topic
+   * @return
+   */
+  private boolean isSchemaPresent(String topic) {
+    if(this.schemaCheckEnabled && isSchemaRegistryConfigured()) {
+      try {
+        if(this.schemaRegistry.get().getLatestSchemaByTopic(topic) == null) {
+          log.warn(String.format("Schema not found for topic %s skipping.", topic));
+          return false;
+        }
+      } catch (SchemaRegistryException e) {
+        log.warn(String.format("Schema not found for topic %s skipping.", topic));
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

@@ -50,7 +50,7 @@ echo "CLEANING"
 
 upload_all=0
 
-for P in :gobblin-admin :gobblin-api :gobblin-azkaban :gobblin-compaction :gobblin-config-management:gobblin-config-core :gobblin-config-management:gobblin-config-client :gobblin-core :gobblin-data-management :gobblin-distribution :gobblin-example :gobblin-metastore :gobblin-metrics :gobblin-oozie :gobblin-rest-service:gobblin-rest-api :gobblin-rest-service:gobblin-rest-client :gobblin-rest-service:gobblin-rest-server :gobblin-runtime :gobblin-salesforce :gobblin-scheduler :gobblin-test :gobblin-test-harness :gobblin-utility :gobblin-yarn ; do
+for P in :gobblin-admin :gobblin-api :gobblin-azkaban :gobblin-compaction :gobblin-config-management:gobblin-config-core :gobblin-config-management:gobblin-config-client :gobblin-core :gobblin-data-management :gobblin-distribution :gobblin-example :gobblin-metastore :gobblin-metrics :gobblin-oozie :gobblin-rest-service:gobblin-rest-api :gobblin-rest-service:gobblin-rest-client :gobblin-rest-service:gobblin-rest-server :gobblin-runtime :gobblin-salesforce :gobblin-scheduler :gobblin-test :gobblin-iceberg :gobblin-test-harness :gobblin-utility :gobblin-yarn ; do
     echo "----------------------------"
     if [ "$upload_all" -eq 0 ] ; then
         read -p "UPLOAD $P [y(es)|n(o)|a(ll)]" ans

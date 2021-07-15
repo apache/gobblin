@@ -19,7 +19,6 @@ package org.apache.gobblin.kafka.writer;
 
 import java.util.Properties;
 
-import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

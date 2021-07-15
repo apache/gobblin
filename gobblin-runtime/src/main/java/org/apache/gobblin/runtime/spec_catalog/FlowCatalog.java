@@ -39,6 +39,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 
 import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 
 import org.apache.gobblin.instrumented.Instrumented;
@@ -67,6 +69,7 @@ import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
  * A service that interact with FlowSpec storage.
  * The FlowSpec storage, a.k.a. {@link SpecStore} should be plugable with different implementation.
  */
+@Singleton
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
 
   /***
@@ -98,6 +101,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this(config, log, Optional.<MetricContext>absent(), true);
   }
 
+  @Inject
   public FlowCatalog(Config config, GobblinInstanceEnvironment env) {
     this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
         env.isInstrumentationEnabled());
@@ -119,6 +123,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+
     try {
       Config newConfig = config;
       if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
@@ -338,7 +343,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
-      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
+      // If flow fails compilation, the result will have a non-empty string with the error
+      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
     }
@@ -367,9 +373,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+    // If we cannot get the response from the scheduler, assume that the flow failed compilation
     AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
-
+        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
     return isCompileSuccessful(addSpecResponse.getValue());
   }
 

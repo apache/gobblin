@@ -54,7 +54,7 @@ import org.testng.annotations.Test;
  *
  * @author kkandekar@linkedin.com
  */
-@Test(enabled=false, singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnTravis" })
+@Test(enabled=false, singleThreaded = true, groups = { "gobblin.tunnel", "disabledOnCI" })
 public class TestTunnelWithArbitraryTCPTraffic {
   private static final Logger LOG = LoggerFactory.getLogger(TestTunnelWithArbitraryTCPTraffic.class);
 

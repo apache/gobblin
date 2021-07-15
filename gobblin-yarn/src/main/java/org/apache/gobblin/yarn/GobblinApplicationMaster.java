@@ -93,6 +93,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
       this.applicationLauncher
           .addService(logCopier);
     }
+    YarnHelixUtils.setYarnClassPath(config, yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, yarnConfiguration);
     this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
     this.applicationLauncher.addService(this.yarnService);

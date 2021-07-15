@@ -16,25 +16,32 @@
  */
 package org.apache.gobblin.service;
 
-
-import com.typesafe.config.Config;
 import java.util.List;
 import java.util.Set;
+
+import org.apache.log4j.Logger;
+
+import com.typesafe.config.Config;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import javax.naming.NamingException;
 import javax.naming.PartialResultException;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.util.LdapUtils;
-import org.apache.log4j.Logger;
 
 
 /**
  * Queries external Active Directory service to check if the requester is part of the group
  */
 @Alias("ldap")
+@Singleton
 public class LdapGroupOwnershipService extends GroupOwnershipService {
   LdapUtils ldapUtils;
   private static final Logger logger = Logger.getLogger(LdapGroupOwnershipService.class);
 
+  @Inject
   public LdapGroupOwnershipService(Config config) {
     this.ldapUtils = new LdapUtils(config);
   }

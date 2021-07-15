@@ -61,7 +61,7 @@ public class TestConfigClient {
 
   private final ConfigKeyPath nertzTag2 = tag2.createChild("nertzTag2");
 
-  public void printConfig(Config config){
+  private void printConfig(Config config){
     Set<Map.Entry<String,ConfigValue>> entrySet = config.entrySet();
     for(Map.Entry<String,ConfigValue> entry: entrySet){
       System.out.println("key: " + entry.getKey() + ", value: " + entry.getValue());

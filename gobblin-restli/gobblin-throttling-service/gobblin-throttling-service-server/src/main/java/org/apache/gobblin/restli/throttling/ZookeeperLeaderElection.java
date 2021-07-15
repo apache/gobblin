@@ -17,11 +17,7 @@
 
 package org.apache.gobblin.restli.throttling;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -38,9 +34,9 @@ import org.apache.zookeeper.data.Stat;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
-import org.apache.gobblin.util.SerializationUtils;
-
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.SerializationUtils;
 
 
 /**

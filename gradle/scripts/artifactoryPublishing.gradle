@@ -1,0 +1,147 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import org.gradle.api.internal.java.JavaLibrary
+
+ext.pomAttributes = {
+  packaging = 'jar'
+  // optionally artifactId can be defined here
+  name = 'Apache Gobblin (incubating)'
+  description = 'A distributed data integration framework for streaming and batch data ecosystems.'
+  url = 'https://gobblin.apache.org/'
+
+  scm {
+    url = 'https://git-wip-us.apache.org/repos/asf?p=incubator-gobblin.git;a=tree'
+    connection = 'scm:http://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+    developerConnection = 'scm:https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+  }
+
+  licenses {
+    license {
+      name = 'The Apache License, Version 2.0'
+      url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    }
+  }
+}
+
+// Default publication (mavenJava) to publish artifacts as maven modules
+// Uses maven-publish plugin and generates the default jar, sources, javadoc
+// and pom file (https://docs.gradle.org/current/userguide/publishing_maven.html)
+subprojects{
+  apply plugin: "com.jfrog.artifactory"
+  plugins.withType(JavaPlugin) {
+    plugins.apply('maven-publish')
+    publishing {
+      publications {
+        mavenJava(MavenPublication) {
+          from components.java
+          artifact sourcesJar
+          artifact javadocJar
+
+          pom pomAttributes
+
+          pom.withXml {
+            //Ensures that correct dependencies are in the pom when subproject declares a project dependency
+            // with specific target configuration (restClient, dataTemplate, etc.)
+            //Needed because pom model is lossy and does not carry the 'configuration' information
+            def dependenciesNode = it.asNode().dependencies[0]
+            def removed = [] as Set; def added = [] //helps auditing
+            configurations.runtime.allDependencies.each { d ->
+              def confToPom = ['restClient': 'rest-client', 'dataTemplate': 'data-template', 'tests': 'test']
+              if (d instanceof ProjectDependency && confToPom.containsKey(d.targetConfiguration)) {
+                boolean dependsOnMainModule = configurations.runtime.allDependencies.any {
+                  it.name == d.name && it.targetConfiguration == 'default'
+                }
+                if (!dependsOnMainModule) {
+                  //subproject declares a dependency on target configuration (i.e. path: 'gobblin-rest-api', configuration: 'restClient')
+                  // but does not declare a dependency on the 'default' artifact (i.e. 'gobblin-rest-api')
+                  //we need to remove the 'default' artifact from the pom file
+                  def mainModuleNode = dependenciesNode.find { it.artifactId.text() == d.name }
+                  dependenciesNode.remove(mainModuleNode)
+                  removed.add(d.name)
+                }
+
+                //adding explicit dependency on the artifact that corresponds to given target configuration
+                // (i.e. 'gobblin-rest-api-rest-client')
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', d.group)
+                def newArtifactId = d.name + "-" + confToPom[d.targetConfiguration]
+                dependencyNode.appendNode('artifactId', newArtifactId)
+                dependencyNode.appendNode('version', d.version)
+                added.add(newArtifactId)
+
+                //adding global exclude rules to the new dependency entries
+                if (configurations.runtime.excludeRules.size() > 0) {
+                  def exclusionsNode = dependencyNode.appendNode('exclusions')
+                  configurations.runtime.excludeRules.each { rule ->
+                    def exclusionNode = exclusionsNode.appendNode('exclusion')
+                    exclusionNode.appendNode('groupId', rule.group ?: "*")
+                    exclusionNode.appendNode('artifactId', rule.module)
+                  }
+                }
+              }
+            }
+            if (added || removed) {
+              logger.lifecycle("Updated pom dependencies in {}, added: {}, removed: {}", project.path, added, removed)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Using gradle artifactory plugin to publish artifacts to Jfrog Artifactory
+  artifactory {
+    contextUrl = 'https://linkedin.jfrog.io/artifactory/'
+    publish {
+      repository {
+        repoKey = 'gobblin-github'
+        username = project.hasProperty('artifactoryUser') ? project.property('artifactoryUser') : System.getenv('ARTIFACTORY_USER')
+        password = project.hasProperty('artifactoryApiKey') ? project.property('artifactoryApiKey') : System.getenv('ARTIFACTORY_API_KEY')
+      }
+      defaults {
+        publications ('mavenJava')
+      }
+    }
+  }
+
+  tasks.artifactoryPublish {
+      dependsOn publishToMavenLocal
+  }
+
+  ext.addRuntimeDependenciesToPom = {
+    def dependenciesNode = asNode().appendNode('dependencies')
+    configurations.runtime.allDependencies.each {
+      if (it.group != null && it.name != null) {
+        def dependencyNode = dependenciesNode.appendNode('dependency')
+        dependencyNode.appendNode('groupId', it.group)
+        dependencyNode.appendNode('artifactId', it.name)
+        dependencyNode.appendNode('version', it.version)
+
+        if (it.excludeRules.size() > 0) {
+          def exclusionsNode = dependencyNode.appendNode('exclusions')
+          it.excludeRules.each { rule ->
+            def exclusionNode = exclusionsNode.appendNode('exclusion')
+            exclusionNode.appendNode('groupId', rule.group)
+            exclusionNode.appendNode('artifactId', rule.module)
+          }
+        }
+      }
+    }
+  }
+
+}

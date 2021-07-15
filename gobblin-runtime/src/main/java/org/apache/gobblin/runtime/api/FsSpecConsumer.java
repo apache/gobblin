@@ -45,13 +45,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
 
 @Slf4j
 public class FsSpecConsumer implements SpecConsumer<Spec> {
   public static final String SPEC_PATH_KEY = "gobblin.cluster.specConsumer.path";
-  public static final String VERB_KEY = "Verb";
 
   private final Path specDirPath;
   private final FileSystem fs;
@@ -113,8 +113,11 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
         JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(avroJobSpec.getUri());
         Properties props = new Properties();
         props.putAll(avroJobSpec.getProperties());
-        jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri()).withVersion(avroJobSpec.getVersion())
-            .withDescription(avroJobSpec.getDescription()).withConfigAsProperties(props);
+        jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri())
+            .withVersion(avroJobSpec.getVersion())
+            .withDescription(avroJobSpec.getDescription())
+            .withConfigAsProperties(props)
+            .withConfig(ConfigUtils.propertiesToConfig(props));
 
         try {
           if (!avroJobSpec.getTemplateUri().isEmpty()) {
@@ -125,7 +128,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
           continue;
         }
 
-        String verbName = avroJobSpec.getMetadata().get(VERB_KEY);
+        String verbName = avroJobSpec.getMetadata().get(SpecExecutor.VERB_KEY);
         SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
         JobSpec jobSpec = jobSpecBuilder.build();

@@ -227,7 +227,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @VisibleForTesting
   protected void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
-    if (this.schemaRegistry.isPresent()) {
+    if (this.schemaRegistry.isPresent() && existingTable.getSerDeProps().getProp(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) != null) {
       try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
         Schema existingTableSchema = new Schema.Parser().parse(existingTable.getSerDeProps().getProp(
             AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
@@ -278,6 +279,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
           return true;
         } catch (AlreadyExistsException e) {
+          log.debug("Table {}.{} already existed", table.getDbName(), table.getTableName());
         }
       }catch (TException e) {
         log.error(
@@ -377,7 +379,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         });
       } catch (ExecutionException ee) {
-        throw new IOException("Database existence checking throwing execution exception.");
+        throw new IOException("Database existence checking throwing execution exception.", ee);
       }
       return retVal;
     } else {
@@ -401,8 +403,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Deprecated
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
-        AutoCloseableHiveLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table), table);
     }
   }
@@ -476,7 +477,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         });
       } catch (ExecutionException ee) {
-        throw new IOException("Table existence checking throwing execution exception.");
+        throw new IOException("Table existence checking throwing execution exception.", ee);
       }
     } else {
       this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);

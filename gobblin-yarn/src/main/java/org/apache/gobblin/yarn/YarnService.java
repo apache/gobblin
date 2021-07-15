@@ -73,7 +73,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -122,8 +121,6 @@ import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_
 public class YarnService extends AbstractIdleService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnService.class);
-
-  private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
   private static final String UNKNOWN_HELIX_INSTANCE = "UNKNOWN";
 
@@ -514,9 +511,13 @@ public class YarnService extends AbstractIdleService {
         new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME), resourceMap);
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY)) {
-      addRemoteAppFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY), resourceMap);
+      YarnHelixUtils.addRemoteFilesToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY),
+          resourceMap, yarnConfiguration);
     }
-
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_ZIPS_REMOTE_KEY)) {
+      YarnHelixUtils.addRemoteZipsToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_ZIPS_REMOTE_KEY),
+          resourceMap, yarnConfiguration);
+    }
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
@@ -547,13 +548,6 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private void addRemoteAppFiles(String hdfsFileList, Map<String, LocalResource> resourceMap) throws IOException {
-    for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
-      Path srcFilePath = new Path(hdfsFilePath);
-      YarnHelixUtils.addFileAsLocalResource(
-          srcFilePath.getFileSystem(this.yarnConfiguration), srcFilePath, LocalResourceType.FILE, resourceMap);
-    }
-  }
 
   private ByteBuffer getSecurityTokens() throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();

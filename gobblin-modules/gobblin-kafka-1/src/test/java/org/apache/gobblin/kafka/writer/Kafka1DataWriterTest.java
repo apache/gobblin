@@ -46,6 +46,7 @@ import static org.mockito.Mockito.*;
 
 
 @Slf4j
+@Test( groups = {"disabledOnCI"} )
 public class Kafka1DataWriterTest {
 
 

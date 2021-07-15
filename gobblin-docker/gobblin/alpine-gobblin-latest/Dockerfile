@@ -30,10 +30,11 @@ COPY ./gobblin-docker/gobblin/alpine-gobblin-latest/entrypoint.sh ./bin/entrypoi
 COPY --from=build /home/gobblin/gobblin-dist .
 RUN apk add --no-cache bash && \
     mkdir /tmp/gobblin && \
-    mkdir /tmp/gobblin/jobs && \
+    mkdir /etc/gobblin && \
+    mkdir /etc/gobblin/jobs && \
     chmod +x ./bin/entrypoint.sh
 
 ENV GOBBLIN_WORK_DIR=/tmp/gobblin/
-ENV GOBBLIN_JOB_CONFIG_DIR=/tmp/gobblin/jobs
+ENV GOBBLIN_JOB_CONFIG_DIR=/etc/gobblin/jobs
 
 ENTRYPOINT ["./bin/entrypoint.sh"]

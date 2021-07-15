@@ -70,7 +70,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   protected final String fileName;
   protected final FileSystem fs;
   protected final FileContext fileContext;
-  protected final Path stagingFile;
+  protected Path stagingFile;
   protected final String partitionKey;
   private final GlobalMetadata defaultMetadata;
   protected Path outputFile;
@@ -101,8 +101,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
     this.fileContext = FileContext.getFileContext(
-            WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
-            conf);
+        WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
+        conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
@@ -131,7 +131,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ConfigurationKeys.DEFAULT_BUFFER_SIZE);
 
     this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
         this.fs.getDefaultReplication(this.outputFile));
 
     this.blockSize = properties.getPropAsLong(ForkOperatorUtils
@@ -256,18 +256,18 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
     this.bytesWritten = Optional.of(Long.valueOf(stagingFileStatus.getLen()));
 
+    // Rename staging file to add record count before copying to output file
+    if (this.shouldIncludeRecordCountInFileName) {
+      String filePathWithRecordCount = addRecordCountToStagingFile();
+      this.stagingFile = new Path(filePathWithRecordCount);
+      this.outputFile = new Path(this.outputFile.getParent().toString(), new Path(filePathWithRecordCount).getName());
+    }
+
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
     HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile, true);
-
-    // The staging file is moved to the output path in commit, so rename to add record count after that
-    if (this.shouldIncludeRecordCountInFileName) {
-      String filePathWithRecordCount = addRecordCountToFileName();
-      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
-    } else {
-      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
-    }
+    this.properties.appendToSetProp(this.allOutputFilesPropName, this.outputFile.toString());
 
     FsWriterMetrics metrics = new FsWriterMetrics(
         this.id,
@@ -275,7 +275,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
     );
     this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
- }
+  }
 
   /**
    * {@inheritDoc}.
@@ -301,13 +301,12 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     this.closer.close();
   }
 
-  private synchronized String addRecordCountToFileName()
+  private synchronized String addRecordCountToStagingFile()
       throws IOException {
-    String filePath = getOutputFilePath();
+    String filePath = this.stagingFile.toString();
     String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount), true);
-    this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }
 

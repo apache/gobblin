@@ -42,6 +42,7 @@ public class LdapUtils {
   public static final String LDAP_PORT_KEY = LDAP_PREFIX + ".port";
   public static final String LDAP_USER_KEY = LDAP_PREFIX + ".username";
   public static final String LDAP_PASSWORD_KEY = LDAP_PREFIX + ".password";
+  public static final String LDAP_USE_SECURE_TRUSTMANAGER = LDAP_PREFIX + ".useSecureTrustManager";
 
   private static final Logger logger = Logger.getLogger(LdapUtils.class);
 
@@ -52,6 +53,7 @@ public class LdapUtils {
   // Creds of headless account for searching LDAP
   private final String _ldapUser;
   private final String _ldapPassword;
+  private final boolean _ldapUseSecureTrustManager;
 
   private final String _personSearchFilter = "(&(objectcategory=Person)(samaccountname=%s))";
   private final String _groupSearchFilter = "(&(objectcategory=Group)(cn=%s))";
@@ -69,6 +71,11 @@ public class LdapUtils {
     _ldapUser = config.getString(LDAP_USER_KEY);
     _ldapPassword = password;
     _ldapBaseDN = config.getString(LDAP_BASE_DN_KEY);
+    if(config.hasPath(LDAP_USE_SECURE_TRUSTMANAGER)) {
+      _ldapUseSecureTrustManager = config.getBoolean(LDAP_USE_SECURE_TRUSTMANAGER);
+    } else {
+      _ldapUseSecureTrustManager = false;
+    }
   }
 
   /**
@@ -87,7 +94,11 @@ public class LdapUtils {
     env.put(Context.SECURITY_PRINCIPAL, username);
     env.put(Context.SECURITY_CREDENTIALS, password);
 
-    env.put("java.naming.ldap.factory.socket", TrustManagerSocketFactory.class.getCanonicalName());
+    if (_ldapUseSecureTrustManager) {
+      env.put("java.naming.ldap.factory.socket", TrustManagerSecureSocketFactory.class.getCanonicalName());
+    } else {
+      env.put("java.naming.ldap.factory.socket", TrustManagerSocketFactory.class.getCanonicalName());
+    }
 
     return new InitialDirContext(env);
   }

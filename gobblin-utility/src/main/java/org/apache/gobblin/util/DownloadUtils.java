@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Map;
@@ -108,7 +109,7 @@ public class DownloadUtils {
     }
 
     // Create temporary Ivy settings file.
-    ivySettingsFile = File.createTempFile("ivy.settings", ".xml");
+    ivySettingsFile = Files.createTempFile("ivy.settings", ".xml").toFile();
     ivySettingsFile.deleteOnExit();
 
     try (OutputStream os = new BufferedOutputStream(new FileOutputStream(ivySettingsFile))) {

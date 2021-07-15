@@ -20,13 +20,6 @@ package org.apache.gobblin.compaction.mapreduce;
 import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyCompactorOutputFormat;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyComparator;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcValueCombineFileInputFormat;
-import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.orc.OrcConf;
@@ -34,12 +27,20 @@ import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
 
-import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
-import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyCompactorOutputFormat;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyComparator;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcValueCombineFileInputFormat;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper;
+import org.apache.gobblin.configuration.State;
 
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
+import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
+import static org.apache.gobblin.writer.GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE;
+import static org.apache.gobblin.writer.GobblinOrcWriter.ORC_WRITER_BATCH_SIZE;
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
-
   /**
    * The key schema for the shuffle output.
    */
@@ -81,6 +82,14 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     job.getConfiguration().set(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute(), schema.toString());
   }
 
+  private int getWriterRowBatchSize() {
+    return this.state.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
+  }
+
+  protected void setOrcWriterBatchSize(Job job) {
+    job.getConfiguration().setInt(ORC_WRITER_BATCH_SIZE, getWriterRowBatchSize());
+  }
+
   protected void configureMapper(Job job) {
     job.setInputFormatClass(OrcValueCombineFileInputFormat.class);
     job.setMapperClass(OrcValueMapper.class);
@@ -96,5 +105,6 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(OrcValue.class);
     setNumberOfReducers(job);
+    setOrcWriterBatchSize(job);
   }
 }

@@ -53,8 +53,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.copy.extractor.EmptyExtractor;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
-import org.apache.gobblin.data.management.copy.hive.HiveDataset;
-import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import org.apache.gobblin.data.management.copy.replication.ConfigBasedDataset;
@@ -132,8 +130,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
   public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
   public static final String SCHEMA_CHECK_ENABLED = "shcema.check.enabled";
-  public static final String DATASET_STAGING_DIR_PATH = "dataset.staging.dir.path";
-  public static final String DATASET_STAGING_PATH = "dataset.staging.path";
   public final static boolean DEFAULT_SCHEMA_CHECK_ENABLED = false;
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
@@ -370,9 +366,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset) this.copyableDataset).getExpectedSchema());
             }
           }
-          if ((this.copyableDataset instanceof HiveDataset) && (state.getPropAsBoolean(ConfigurationKeys.IS_DATASET_STAGING_DIR_USED,false))) {
-            workUnit.setProp(DATASET_STAGING_DIR_PATH, ((HiveDataset) this.copyableDataset).getProperties().getProperty(DATASET_STAGING_PATH));
-          }
+
+          // Ensure that the writer temporary directories are contained within the dataset shard
+          String datasetPath = this.copyableDataset.getDatasetPath();
+          workUnit.setProp(ConfigurationKeys.DATASET_DESTINATION_PATH, datasetPath);
+
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,

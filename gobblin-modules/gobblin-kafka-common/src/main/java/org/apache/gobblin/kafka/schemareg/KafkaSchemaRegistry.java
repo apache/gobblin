@@ -19,8 +19,6 @@ package org.apache.gobblin.kafka.schemareg;
 
 import java.io.IOException;
 
-import org.apache.avro.Schema;
-
 
 /**
  * An interface for a Kafka Schema Registry

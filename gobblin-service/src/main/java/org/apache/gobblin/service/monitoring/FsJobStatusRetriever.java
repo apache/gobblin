@@ -25,15 +25,15 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,7 +41,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
@@ -50,13 +50,16 @@ import org.apache.gobblin.metrics.event.TimingEvent;
  * The store name is set to flowGroup.flowName, while the table name is set to flowExecutionId.jobGroup.jobName.
  */
 @Slf4j
+@Singleton
 public class FsJobStatusRetriever extends JobStatusRetriever {
   public static final String CONF_PREFIX = "fsJobStatusRetriever";
 
   @Getter
   private final FileContextBasedFsStateStore<State> stateStore;
 
-  public FsJobStatusRetriever(Config config) {
+  @Inject
+  public FsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
+    super(issueRepository);
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }

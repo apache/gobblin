@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.data.management.copy.publisher;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
@@ -72,7 +73,10 @@ public class DeletingCopyDataPublisherTest {
     CopySource.serializeCopyEntity(wus, cf);
 
     Assert.assertTrue(fs.exists(new Path(testMethodTempPath, "test.txt")));
-
+    // these 2 properties should already be set before the publisher is called
+    wus.setProp(ConfigurationKeys.WRITER_STAGING_DIR, testMethodTempPath + "/" + ConfigurationKeys.STAGING_DIR_DEFAULT_SUFFIX);
+    wus.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, testMethodTempPath + "/task-output");
+    wus.setProp(ConfigurationKeys.JOB_ID_KEY, "jobid");
     wus.setWorkingState(WorkingState.SUCCESSFUL);
 
     copyDataPublisher.publishData(ImmutableList.of(wus));

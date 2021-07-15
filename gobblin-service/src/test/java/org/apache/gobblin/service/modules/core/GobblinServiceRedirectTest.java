@@ -31,7 +31,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.linkedin.data.template.StringMap;
@@ -167,13 +166,13 @@ public class GobblinServiceRedirectTest {
     node2ServiceCoreProperties.put(ServiceConfigKeys.SERVICE_PORT, port2);
 
     // Start Node 1
-    this.node1GobblinServiceManager = new GobblinServiceManager("RedirectCoreService1", "1",
-        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), Optional.of(new Path(NODE_1_SERVICE_WORK_DIR)));
+    this.node1GobblinServiceManager = GobblinServiceManager.create("RedirectCoreService1", "1",
+        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), new Path(NODE_1_SERVICE_WORK_DIR));
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
-    this.node2GobblinServiceManager = new GobblinServiceManager("RedirectCoreService2", "2",
-        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), Optional.of(new Path(NODE_2_SERVICE_WORK_DIR)));
+    this.node2GobblinServiceManager = GobblinServiceManager.create("RedirectCoreService2", "2",
+        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), new Path(NODE_2_SERVICE_WORK_DIR));
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client

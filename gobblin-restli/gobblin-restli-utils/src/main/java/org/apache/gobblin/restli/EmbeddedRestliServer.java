@@ -34,6 +34,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import com.google.inject.Singleton;
 import com.linkedin.r2.filter.FilterChain;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.filter.compression.EncodingType;
@@ -69,6 +70,7 @@ import lombok.Setter;
  * * name - defaults to the name of the first resource in the resource collection.
  * * injector - an {@link Injector} to inject dependencies into the Rest.li resources.
  */
+@Singleton
 public class EmbeddedRestliServer extends AbstractIdleService {
 
   private static final int MAX_PORT = 65535;

@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -28,9 +25,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Pattern;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,14 +35,18 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableFile;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.dataset.Dataset;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 /**

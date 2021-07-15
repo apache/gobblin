@@ -17,7 +17,6 @@
 package org.apache.gobblin.source.extractor;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 
 import lombok.EqualsAndHashCode;

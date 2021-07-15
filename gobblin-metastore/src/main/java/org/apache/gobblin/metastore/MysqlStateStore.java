@@ -162,13 +162,17 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     SELECT_METADATA_SQL = SELECT_METADATA_TEMPLATE.replace("$TABLE$", stateStoreTableName);
 
     // create table if it does not exist
-    String createJobTable = CREATE_JOB_STATE_TABLE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    String createJobTable = getCreateJobStateTableTemplate().replace("$TABLE$", stateStoreTableName);
     try (Connection connection = dataSource.getConnection();
         PreparedStatement createStatement = connection.prepareStatement(createJobTable)) {
       createStatement.executeUpdate();
     } catch (SQLException e) {
       throw new IOException("Failure creation table " + stateStoreTableName, e);
     }
+  }
+
+  protected String getCreateJobStateTableTemplate() {
+    return CREATE_JOB_STATE_TABLE_TEMPLATE;
   }
 
   /**

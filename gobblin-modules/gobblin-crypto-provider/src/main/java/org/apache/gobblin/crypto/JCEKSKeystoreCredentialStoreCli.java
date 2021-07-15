@@ -18,7 +18,6 @@ package org.apache.gobblin.crypto;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
@@ -47,7 +46,6 @@ import javax.xml.bind.DatatypeConverter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.crypto.JCEKSKeystoreCredentialStore;
 import org.apache.gobblin.runtime.cli.CliApplication;
 
 

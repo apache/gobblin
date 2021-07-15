@@ -19,13 +19,11 @@ package org.apache.gobblin.util.limiter;
 
 import java.io.Closeable;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.annotation.Alias;
-
-import lombok.AccessLevel;
 import lombok.Getter;
+
+import org.apache.gobblin.annotation.Alias;
 
 
 /**

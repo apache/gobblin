@@ -20,7 +20,6 @@ package org.apache.gobblin.source.extractor.extract.google;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.Mockito.*;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;

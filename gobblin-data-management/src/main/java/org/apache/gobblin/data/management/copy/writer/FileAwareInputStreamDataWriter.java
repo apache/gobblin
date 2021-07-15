@@ -17,6 +17,11 @@
 
 package org.apache.gobblin.data.management.copy.writer;
 
+import com.codahale.metrics.Meter;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,25 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Options;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-
-import com.codahale.metrics.Meter;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
@@ -75,6 +62,15 @@ import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
 import org.apache.gobblin.writer.DataWriter;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileContext;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Options;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 
 /**
@@ -88,8 +84,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
-  public static final String STAGING_DIR_SUFFIX = "/taskStaging";
-  public static final String DATASET_STAGING_DIR_PATH = "dataset.staging.dir.path";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -118,6 +112,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId)
       throws IOException {
+    this(state, null, numBranches, branchId, writerAttemptId);
+  }
+
+  public FileAwareInputStreamDataWriter(State state, FileSystem fileSystem, int numBranches, int branchId, String writerAttemptId)
+      throws IOException {
     super(state);
 
     if (numBranches > 1) {
@@ -139,22 +138,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
     Configuration conf = WriterUtils.getFsConfiguration(state);
     URI uri = URI.create(uriStr);
-    this.fs = FileSystem.get(uri, conf);
+    if (fileSystem != null) {
+      this.fs = fileSystem;
+    } else {
+      this.fs = FileSystem.get(uri, conf);
+    }
     this.fileContext = FileContext.getFileContext(uri, conf);
-
-    /**
-     * The staging directory defines the path of staging folder.
-     * USER_DEFINED_STATIC_STAGING_DIR_FLAG shall be set to true when user wants to specify the staging folder and the directory can be fetched through USER_DEFINED_STATIC_STAGING_DIR property.
-     * IS_DATASET_STAGING_DIR_USED when true creates the staging folder within a dataset location for dataset copying.
-     * Else system will calculate the staging directory automatically.
-     */
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
-    } else if ((state.getPropAsBoolean(ConfigurationKeys.IS_DATASET_STAGING_DIR_USED,false))) {
-      String stgDir = state.getProp(DATASET_STAGING_DIR_PATH) + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
-      state.setProp(ConfigurationKeys.WRITER_STAGING_DIR,stgDir);
-      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
-          : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     } else {
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
@@ -196,11 +187,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
-      throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
+      throw new IOException(this.getClass().getCanonicalName() + " can only process one file and cannot be reused.");
     }
-    this.actualProcessedCopyableFile = Optional.of(copyableFile);
+
     this.fs.mkdirs(stagingFile.getParent());
     writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile, fileAwareInputStream);
+
+    this.actualProcessedCopyableFile = Optional.of(copyableFile);
     this.filesWritten.incrementAndGet();
   }
 

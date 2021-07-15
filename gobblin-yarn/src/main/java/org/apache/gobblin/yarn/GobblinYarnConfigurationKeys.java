@@ -44,6 +44,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_JARS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jars";
   public static final String APP_MASTER_FILES_LOCAL_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.local";
   public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.remote";
+  public static final String APP_MASTER_ZIPS_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.zips.remote";
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
   public static final String APP_MASTER_SERVICE_CLASSES = GOBBLIN_YARN_PREFIX + "app.master.serviceClasses";
@@ -64,6 +65,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_JARS_KEY = GOBBLIN_YARN_PREFIX + "container.jars";
   public static final String CONTAINER_FILES_LOCAL_KEY = GOBBLIN_YARN_PREFIX + "container.files.local";
   public static final String CONTAINER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.files.remote";
+  public static final String CONTAINER_ZIPS_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "container.zips.remote";
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
   public static final String CONTAINER_HOST_AFFINITY_ENABLED = GOBBLIN_YARN_PREFIX + "container.affinity.enabled";
@@ -124,4 +126,5 @@ public class GobblinYarnConfigurationKeys {
   public static final String GOBBLIN_YARN_AZKABAN_CLASS_LOG_LEVELS = GOBBLIN_YARN_PREFIX + "azkaban.class.logLevels";
   //Container classpaths properties
   public static final String GOBBLIN_YARN_ADDITIONAL_CLASSPATHS = GOBBLIN_YARN_PREFIX + "additional.classpaths";
+  public static final String GOBBLIN_YARN_CLASSPATHS = GOBBLIN_YARN_PREFIX + "classpaths";
 }

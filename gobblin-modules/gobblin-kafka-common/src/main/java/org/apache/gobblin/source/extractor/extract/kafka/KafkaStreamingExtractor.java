@@ -87,7 +87,8 @@ import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.
 public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableKafkaRecord> {
   public static final String DATASET_KEY = "dataset";
   public static final String DATASET_PARTITION_KEY = "datasetPartition";
-  private static final Long MAX_LOG_DECODING_ERRORS = 5L;
+  private static final Long MAX_LOG_ERRORS = 100L;
+
   private static final String KAFKA_EXTRACTOR_STATS_REPORTING_INTERVAL_MINUTES_KEY =
       "gobblin.kafka.extractor.statsReportingIntervalMinutes";
   private static final Long DEFAULT_KAFKA_EXTRACTOR_STATS_REPORTING_INTERVAL_MINUTES = 1L;
@@ -129,6 +130,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
       log.error("Interrupted when attempting to shutdown metrics collection threads.");
     }
     this.shutdownRequested.set(true);
+    super.shutdown();
   }
 
   @ToString
@@ -349,20 +351,33 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     this.readStartTime = System.nanoTime();
     long fetchStartTime = System.nanoTime();
     try {
-      while (this.messageIterator == null || !this.messageIterator.hasNext()) {
-        Long currentTime = System.currentTimeMillis();
-        //it's time to flush, so break the while loop and directly return null
-        if ((currentTime - timeOfLastFlush) > this.flushIntervalMillis) {
-          return new FlushRecordEnvelope();
+      DecodeableKafkaRecord kafkaConsumerRecord;
+      while(true) {
+        while (this.messageIterator == null || !this.messageIterator.hasNext()) {
+          Long currentTime = System.currentTimeMillis();
+          //it's time to flush, so break the while loop and directly return null
+          if ((currentTime - timeOfLastFlush) > this.flushIntervalMillis) {
+            return new FlushRecordEnvelope();
+          }
+          try {
+            fetchStartTime = System.nanoTime();
+            this.messageIterator = this.kafkaConsumerClient.consume();
+          } catch (Exception e) {
+            log.error("Failed to consume from Kafka", e);
+          }
         }
-        try {
-          fetchStartTime = System.nanoTime();
-          this.messageIterator = this.kafkaConsumerClient.consume();
-        } catch (Exception e) {
-          log.error("Failed to consume from Kafka", e);
+        kafkaConsumerRecord = (DecodeableKafkaRecord) this.messageIterator.next();
+        if (kafkaConsumerRecord.getValue() != null) {
+          break;
+        } else {
+          //Filter the null-valued records early, so that they do not break the pipeline downstream.
+          if (shouldLogError()) {
+            log.error("Encountered a null-valued record at offset: {}, partition: {}", kafkaConsumerRecord.getOffset(),
+                kafkaConsumerRecord.getPartition());
+          }
+          this.statsTracker.onNullRecord(this.partitionIdToIndexMap.get(kafkaConsumerRecord.getPartition()));
         }
       }
-      DecodeableKafkaRecord kafkaConsumerRecord = (DecodeableKafkaRecord) this.messageIterator.next();
 
       int partitionIndex = this.partitionIdToIndexMap.get(kafkaConsumerRecord.getPartition());
       this.statsTracker.onFetchNextMessageBuffer(partitionIndex, fetchStartTime);
@@ -394,7 +409,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
   }
 
   private boolean shouldLogError() {
-    return this.statsTracker.getUndecodableMessageCount() <= MAX_LOG_DECODING_ERRORS;
+    return (this.statsTracker.getUndecodableMessageCount() + this.statsTracker.getNullRecordCount()) <= MAX_LOG_ERRORS;
   }
 
   @Override

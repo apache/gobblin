@@ -204,7 +204,7 @@ public class GobblinTaskRunnerTest {
     Assert.assertTrue(true);
   }
 
-  @Test (groups = {"disabledOnTravis"})
+  @Test (groups = {"disabledOnCI"})
   public void testTaskAssignmentAfterHelixConnectionRetry()
       throws Exception {
     Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
@@ -230,7 +230,7 @@ public class GobblinTaskRunnerTest {
     helixManager.disconnect();
   }
 
-  @Test (groups = {"disabledOnTravis"}, dependsOnMethods = "testSendReceiveShutdownMessage", expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = ".*ContainerHealthCheckException.*")
+  @Test (groups = {"disabledOnCI"}, dependsOnMethods = "testSendReceiveShutdownMessage", expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = ".*ContainerHealthCheckException.*")
   public void testShutdownOnHealthCheckFailure() throws Exception {
     this.gobblinTaskRunnerHealthCheck.connectHelixManager();
 

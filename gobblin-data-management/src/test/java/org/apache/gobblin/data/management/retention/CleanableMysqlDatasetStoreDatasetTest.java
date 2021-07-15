@@ -50,7 +50,7 @@ import org.apache.gobblin.util.ConfigUtils;
 /**
  * Unit test for cleaning {@link MysqlStateStore} and {@link MysqlDatasetStateStore}
  */
-@Test(singleThreaded = true)
+@Test(singleThreaded = true, groups = {"disabledOnCI"})
 public class CleanableMysqlDatasetStoreDatasetTest {
   private static final String TEST_STATE_STORE = "TestStateStore";
   private static final String TEST_JOB_NAME1 = "TestJob1";
@@ -173,7 +173,7 @@ public class CleanableMysqlDatasetStoreDatasetTest {
   /**
    * Test cleanup of the dataset state store. This test uses the combined selection policy to test that the newest 2
    * entries are retained even when the timestamp is old.
-   * 
+   *
    * @throws IOException
    */
   @Test

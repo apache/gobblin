@@ -69,8 +69,10 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
     Assert.assertEquals(workUnits.get(0).getProp(KafkaSource.TOPIC_NAME), "topic1");
     Assert.assertEquals(workUnits.get(0).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 1);
     Assert.assertEquals(workUnits.get(0).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 1)), 2);
+    Assert.assertEquals(workUnits.get(0).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
     Assert.assertEquals(workUnits.get(1).getProp(KafkaSource.TOPIC_NAME), "topic1");
     Assert.assertEquals(workUnits.get(1).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 3);
+    Assert.assertEquals(workUnits.get(1).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
   }
 
   /**
@@ -95,14 +97,20 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
     Assert.assertEquals(workUnits.get(0).getProp(KafkaSource.TOPIC_NAME), "topic1");
     Assert.assertEquals(workUnits.get(0).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 1);
     Assert.assertEquals(workUnits.get(0).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 1)), 2);
+    Assert.assertEquals(workUnits.get(0).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
+
     Assert.assertEquals(workUnits.get(1).getProp(KafkaSource.TOPIC_NAME), "topic1");
     Assert.assertEquals(workUnits.get(1).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 3);
+    Assert.assertEquals(workUnits.get(1).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
 
     Assert.assertEquals(workUnits.get(2).getProp(KafkaSource.TOPIC_NAME), "topic2");
     Assert.assertEquals(workUnits.get(2).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 1);
     Assert.assertEquals(workUnits.get(2).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 1)), 2);
+    Assert.assertEquals(workUnits.get(2).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
+
     Assert.assertEquals(workUnits.get(3).getProp(KafkaSource.TOPIC_NAME), "topic2");
     Assert.assertEquals(workUnits.get(3).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 3);
+    Assert.assertEquals(workUnits.get(3).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
   }
 
 

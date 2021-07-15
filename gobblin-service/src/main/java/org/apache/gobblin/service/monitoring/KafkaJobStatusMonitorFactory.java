@@ -17,15 +17,20 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Objects;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import javax.inject.Inject;
+import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -34,11 +39,20 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * A factory implementation that returns a {@link KafkaJobStatusMonitor} instance.
  */
 @Slf4j
-public class KafkaJobStatusMonitorFactory {
+public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMonitor> {
   private static final String KAFKA_SSL_CONFIG_PREFIX_KEY = "jobStatusMonitor.kafka.config";
   private static final String DEFAULT_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
 
-  public KafkaJobStatusMonitor createJobStatusMonitor(Config config)
+  private final Config config;
+  private final JobIssueEventHandler jobIssueEventHandler;
+
+  @Inject
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler) {
+    this.config = Objects.requireNonNull(config);
+    this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
+  }
+
+  private KafkaJobStatusMonitor createJobStatusMonitor()
       throws ReflectiveOperationException {
     Config jobStatusConfig = config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX);
 
@@ -62,6 +76,16 @@ public class KafkaJobStatusMonitorFactory {
           config.getValue(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE));
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
-    return (KafkaJobStatusMonitor) GobblinConstructorUtils.invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads);
+    return (KafkaJobStatusMonitor) GobblinConstructorUtils
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler);
+  }
+
+  @Override
+  public KafkaJobStatusMonitor get() {
+    try {
+      return createJobStatusMonitor();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

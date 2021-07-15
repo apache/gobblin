@@ -37,7 +37,7 @@ import org.apache.gobblin.writer.test.TestingEventBuses;
 
 public class TextFileBasedSourceTest {
 
-  @Test(enabled=false, groups = { "disabledOnTravis" })
+  @Test(enabled=false, groups = { "disabledOnCI" })
   public void test() throws Exception {
     File stateStoreDir = Files.createTempDir();
     stateStoreDir.deleteOnExit();

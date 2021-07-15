@@ -17,14 +17,18 @@
 
 package org.apache.gobblin.hive;
 
+import com.google.common.base.Strings;
 import java.util.Set;
 
+import org.apache.avro.Schema;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
@@ -66,6 +70,7 @@ import org.apache.gobblin.configuration.State;
  */
 @Alpha
 public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitComparator<?>> {
+  private static String SCHEMA_CREATION_TIME = "schema.creationTime";
 
   protected final HiveRegistrationUnit existingUnit;
   protected final HiveRegistrationUnit newUnit;
@@ -142,12 +147,26 @@ public class HiveRegistrationUnitComparator<T extends HiveRegistrationUnitCompar
     return (T) this;
   }
 
+  private State extractSchemaVersion(State state) {
+    //FIXME: This is a temp fix for special character in schema string, need to investigate the root
+    //cause of why we see different encoding here and have a permanent fix for this
+    State newState = new State(state);
+    String schemaFromState = state.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+    if (!Strings.isNullOrEmpty(schemaFromState)) {
+      String schemaVersion = AvroUtils.getSchemaCreationTime(new Schema.Parser().parse(schemaFromState));
+      if (!Strings.isNullOrEmpty(schemaVersion)) {
+         newState.removeProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+         newState.setProp(SCHEMA_CREATION_TIME, schemaVersion);
+      }
+    }
+    return newState;
+  }
   @SuppressWarnings("unchecked")
   public T compareParameters() {
     if (!this.result) {
       checkExistingIsSuperstate(this.existingUnit.getProps(), this.newUnit.getProps());
       checkExistingIsSuperstate(this.existingUnit.getStorageProps(), this.newUnit.getStorageProps());
-      checkExistingIsSuperstate(this.existingUnit.getSerDeProps(), this.newUnit.getSerDeProps());
+      checkExistingIsSuperstate(extractSchemaVersion(this.existingUnit.getSerDeProps()), extractSchemaVersion(this.newUnit.getSerDeProps()));
     }
     return (T) this;
   }

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.metrics.reporter;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
@@ -45,11 +46,15 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.notification.EventNotification;
@@ -74,14 +79,28 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   protected static final String METRIC_KEY_PREFIX = "gobblin.metrics";
   protected static final String EVENTS_QUALIFIER = "events";
   private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
-  private static final int QUEUE_CAPACITY = 100;
+  public static final int DEFAULT_QUEUE_CAPACITY = 100;
+  public static final String QUEUE_CAPACITY_KEY = ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".queue.capacity";
+  public static final int DEFAULT_QUEUE_OFFER_TIMEOUT_SECS = 10;
+  public static final String QUEUE_OFFER_TIMOUT_SECS_KEY = ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".queue.offer.timeout.secs";
   private static final String NULL_STRING = "null";
 
   private final MetricContext metricContext;
   private final BlockingQueue<GobblinTrackingEvent> reportingQueue;
+  @Getter
+  private final int queueCapacity;
+  @Getter
+  private final int queueOfferTimeoutSecs;
   private final ExecutorService immediateReportExecutor;
   private final UUID notificationTargetKey;
   protected final Closer closer;
+  protected final Config config;
+  private static final Config FALLBACK = ConfigFactory.parseMap(
+      ImmutableMap.<String, Object>builder()
+          .put(QUEUE_CAPACITY_KEY, DEFAULT_QUEUE_CAPACITY)
+          .put(QUEUE_OFFER_TIMOUT_SECS_KEY, DEFAULT_QUEUE_OFFER_TIMEOUT_SECS)
+          .build());
+
 
   public EventReporter(Builder builder) {
     super(builder.context, builder.name, builder.filter, builder.rateUnit, builder.durationUnit);
@@ -101,7 +120,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
         return null;
       }
     });
-    this.reportingQueue = Queues.newLinkedBlockingQueue(QUEUE_CAPACITY);
+
+    this.config = builder.config.withFallback(FALLBACK);
+    this.queueCapacity = this.config.getInt(QUEUE_CAPACITY_KEY);
+    this.queueOfferTimeoutSecs = this.config.getInt(QUEUE_OFFER_TIMOUT_SECS_KEY);
+    this.reportingQueue = Queues.newLinkedBlockingQueue(this.queueCapacity);
   }
 
   /**
@@ -120,11 +143,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    * @param event {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to add to queue.
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
-    if (this.reportingQueue.size() > QUEUE_CAPACITY * 2 / 3) {
+    if (this.reportingQueue.size() > this.queueCapacity * 2 / 3) {
       immediatelyScheduleReport();
     }
     try {
-      if (!this.reportingQueue.offer(sanitizeEvent(event), 10, TimeUnit.SECONDS)) {
+      if (!this.reportingQueue.offer(sanitizeEvent(event), this.queueOfferTimeoutSecs, TimeUnit.SECONDS)) {
         log.error("Enqueuing of event {} at reporter with class {} timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
       }
@@ -189,6 +212,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     protected MetricFilter filter;
     protected TimeUnit rateUnit;
     protected TimeUnit durationUnit;
+    protected Config config;
 
     protected Builder(MetricContext context) {
       this.context = context;
@@ -196,6 +220,12 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
       this.rateUnit = TimeUnit.SECONDS;
       this.durationUnit = TimeUnit.MILLISECONDS;
       this.filter = MetricFilter.ALL;
+      this.config = ConfigFactory.empty();
+    }
+
+    public T withConfig(Config config) {
+      this.config = (config == null) ? ConfigFactory.empty() : config;
+      return self();
     }
 
     protected abstract T self();

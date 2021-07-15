@@ -33,7 +33,6 @@ import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
-
 /**
  * Reports {@link GobblinTrackingEvent} to a Kafka topic serialized as JSON.
  */
@@ -52,7 +51,7 @@ public class KafkaEventReporter extends EventReporter {
       this.kafkaPusher = builder.kafkaPusher.get();
     } else {
         String pusherClassName = builder.pusherClassName.or(PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
-        this.kafkaPusher = PusherUtils.getPusher(pusherClassName, builder.brokers, builder.topic, builder.config);
+        this.kafkaPusher = PusherUtils.getPusher(pusherClassName, builder.brokers, builder.topic, builder.kafkaConfig);
     }
     this.closer.register(this.kafkaPusher);
   }
@@ -122,7 +121,7 @@ public class KafkaEventReporter extends EventReporter {
     protected String brokers;
     protected String topic;
     protected Optional<Pusher> kafkaPusher;
-    protected Optional<Config> config = Optional.absent();
+    protected Optional<Config> kafkaConfig = Optional.absent();
     protected Optional<String> pusherClassName = Optional.absent();
 
     protected Builder(MetricContext context) {
@@ -141,8 +140,8 @@ public class KafkaEventReporter extends EventReporter {
     /**
      * Set additional configuration.
      */
-    public T withConfig(Config config) {
-      this.config = Optional.of(config);
+    public T withKafkaConfig(Config config) {
+      this.kafkaConfig = Optional.of(config);
       return self();
     }
 

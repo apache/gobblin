@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.source.extractor.extract.sftp;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.source.extractor.extract.sftp.SftpFsHelper.SftpGetMonitor;
-import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.io.SeekableFSInputStream;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -47,6 +41,11 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.SftpATTRS;
 import com.jcraft.jsch.SftpException;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.source.extractor.extract.sftp.SftpFsHelper.SftpGetMonitor;
+import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**

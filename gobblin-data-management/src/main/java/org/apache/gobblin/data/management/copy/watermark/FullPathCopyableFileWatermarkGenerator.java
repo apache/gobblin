@@ -21,7 +21,6 @@ import java.io.IOException;
 
 import com.google.common.base.Optional;
 
-import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.source.extractor.ComparableWatermark;
 import org.apache.gobblin.source.extractor.WatermarkInterval;

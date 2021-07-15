@@ -17,15 +17,22 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Enums;
-import com.google.common.base.Optional;
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.avro.Schema;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyCompactorOutputFormat;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
@@ -33,14 +40,7 @@ import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyRecursiveCombineFileI
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
-import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.AvroUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.Job;
 
 
 /**

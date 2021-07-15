@@ -71,6 +71,10 @@ public class DagManagerUtils {
     return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
   }
 
+  static long getFlowExecId(String dagId) {
+    return Long.parseLong(dagId.substring(dagId.lastIndexOf('_') + 1));
+  }
+
   /**
    * Generate a dagId from the given {@link Dag} instance.
    * @param dag instance of a {@link Dag}.
@@ -94,18 +98,6 @@ public class DagManagerUtils {
 
   static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
-  }
-
-  /**
-   * Generate a FlowId from the given {@link Dag} instance.
-   * FlowId, comparing to DagId, doesn't contain FlowExecutionId so different {@link Dag} could possibly have same
-   * {@link FlowId}.
-   * @param dag
-   * @return
-   */
-  static String generateFlowIdInString(Dag<JobExecutionPlan> dag) {
-    FlowId flowId = getFlowId(dag);
-    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName());
   }
 
   /**

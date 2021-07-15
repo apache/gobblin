@@ -39,13 +39,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.ImmutableList;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
 import org.apache.gobblin.crypto.EncryptionFactory;
-import org.apache.gobblin.metadata.types.GlobalMetadata;
 
 
 /**

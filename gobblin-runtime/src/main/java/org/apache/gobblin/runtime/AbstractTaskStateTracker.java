@@ -23,8 +23,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
-import org.slf4j.MDC;
 import org.slf4j.Logger;
+import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -33,7 +33,6 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 

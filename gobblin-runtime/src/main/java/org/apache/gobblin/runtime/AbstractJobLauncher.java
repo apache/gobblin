@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -60,6 +62,7 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
+import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
@@ -83,6 +86,9 @@ import org.apache.gobblin.runtime.locks.JobLock;
 import org.apache.gobblin.runtime.locks.JobLockEventListener;
 import org.apache.gobblin.runtime.locks.JobLockException;
 import org.apache.gobblin.runtime.locks.LegacyJobLockFactoryManager;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
@@ -98,6 +104,7 @@ import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -168,6 +175,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // Used to generate additional metadata to emit in timing events
   private final MultiEventMetadataGenerator multiEventMetadataGenerator;
 
+  private final AutomaticTroubleshooter troubleshooter;
+
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
     this(jobProps, metadataTags, null);
@@ -184,6 +193,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
 
+    troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    troubleshooter.start();
+
     // Make a copy for both the system and job configuration properties and resolve the job-template if any.
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
@@ -195,11 +207,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     try {
+      setDefaultAuthenticator(this.jobProps);
+
       if (instanceBroker == null) {
         instanceBroker = createDefaultInstanceBroker(jobProps);
       }
 
-      this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker);
+      this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker, troubleshooter.getIssueRepository());
       this.eventBus.register(this.jobContext);
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
@@ -230,6 +244,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  /**
+   * Set default {@link Authenticator} to the one provided in {@link ConfigurationKeys#DEFAULT_AUTHENTICATOR_CLASS},
+   * calling the constructor using the provided {@link Properties}
+   */
+  public static void setDefaultAuthenticator(Properties properties) {
+    String authenticatorClass = properties.getProperty(ConfigurationKeys.DEFAULT_AUTHENTICATOR_CLASS);
+    if (!Strings.isNullOrEmpty(authenticatorClass)) {
+      Authenticator authenticator = GobblinConstructorUtils.invokeConstructor(Authenticator.class, authenticatorClass, properties);
+      Authenticator.setDefault(authenticator);
+    }
+  }
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
@@ -438,6 +463,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           return;
         }
 
+        // Perform work needed before writing is done
+        Boolean canCleanUp = this.canCleanStagingData(this.jobContext.getJobState());
+        closer.register(new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter))
+            .executeHandlers(workUnitStream);
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
         closer.register(ConverterInitializerFactory.newInstance(jobState, workUnitStream)).initialize();
@@ -534,6 +563,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobContext.getJobState().setJobFailureException(t);
       } finally {
         try {
+          troubleshooter.refineIssues();
+          troubleshooter.logIssueSummary();
+          troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
+        } catch (Exception e) {
+          LOG.error("Failed to report issues", e);
+        }
+
+        try {
           TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CLEANUP);
           cleanupStagingData(jobState);
           jobCleanupTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext, EventName.JOB_CLEANUP));
@@ -576,7 +613,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               }
             });
 
-            if (jobState.getState() == JobState.RunningState.FAILED) {
+            if (jobState.getState() == JobState.RunningState.FAILED || jobState.getState() == JobState.RunningState.CANCELLED) {
               notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED, new JobListenerAction() {
                 @Override
                 public void apply(JobListener jobListener, JobContext jobContext)
@@ -643,6 +680,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @Override
   public void close()
       throws IOException {
+
+    troubleshooter.stop();
+
     try {
       this.cancellationExecutor.shutdownNow();
       try {
@@ -981,6 +1021,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public boolean isEarlyStopped() {
     return this.jobContext.getSource().isEarlyStopped();
+  }
+
+  protected IssueRepository getIssueRepository() {
+    return troubleshooter.getIssueRepository();
   }
 
   /**

@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+
 import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -27,6 +28,7 @@ import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -34,11 +36,13 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 @Slf4j
-public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
+public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsV2ResourceHandler {
 
+  @Inject
   public FlowConfigV2ResourceLocalHandler(FlowCatalog flowCatalog) {
     super(flowCatalog);
   }
+
   @Override
   /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true

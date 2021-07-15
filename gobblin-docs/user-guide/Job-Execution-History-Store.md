@@ -54,7 +54,7 @@ The following table summarizes task-level execution information the Job Executio
 
 Default Implementation
 --------------------------------
-The default implementation of the Job Execution History Store stores job execution information into a MySQL database in a few different tables. Specifically, the following tables are used and should be created before writing to the store is enabled. Checkout the MySQL [DDLs](https://github.com/apache/incubator-gobblin/tree/master/gobblin-metastore/src/main/resources/db/migration) of the tables for detailed columns of each table.
+The default implementation of the Job Execution History Store stores job execution information into a MySQL database in a few different tables. Specifically, the following tables are used and should be created before writing to the store is enabled. Checkout the MySQL [DDLs](https://github.com/apache/gobblin/tree/master/gobblin-metastore/src/main/resources/db/migration) of the tables for detailed columns of each table.
 
 * Table `gobblin_job_executions` stores basic information about a job execution including the start and end times, job running state, number of launched and completed tasks, etc. 
 * Table `gobblin_task_executions` stores basic information on task executions of a job, including the start and end times, task running state, task failure message if any, etc, of each task. 

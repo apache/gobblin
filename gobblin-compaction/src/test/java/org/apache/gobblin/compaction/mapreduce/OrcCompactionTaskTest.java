@@ -384,7 +384,7 @@ public class OrcCompactionTaskTest {
    * Read a output ORC compacted file into memory.
    * This only works if fields are int value.
    */
-  public List<OrcStruct> readOrcFile(Path orcFilePath)
+  private List<OrcStruct> readOrcFile(Path orcFilePath)
       throws IOException, InterruptedException {
     ReaderImpl orcReader = new ReaderImpl(orcFilePath, new OrcFile.ReaderOptions(new Configuration()));
 
@@ -402,7 +402,7 @@ public class OrcCompactionTaskTest {
     return result;
   }
 
-  public void writeOrcRecordsInFile(Path path, TypeDescription schema, List<OrcStruct> orcStructs) throws Exception {
+  private void writeOrcRecordsInFile(Path path, TypeDescription schema, List<OrcStruct> orcStructs) throws Exception {
     Configuration configuration = new Configuration();
     OrcFile.WriterOptions options = OrcFile.writerOptions(configuration).setSchema(schema);
 

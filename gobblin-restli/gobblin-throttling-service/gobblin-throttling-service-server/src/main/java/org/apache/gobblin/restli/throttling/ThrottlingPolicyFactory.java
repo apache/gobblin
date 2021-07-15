@@ -19,7 +19,6 @@ package org.apache.gobblin.restli.throttling;
 
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.broker.ResourceInstance;
 import org.apache.gobblin.broker.TTLResourceEntry;
 import org.apache.gobblin.broker.iface.ConfigView;
 import org.apache.gobblin.broker.iface.NotConfiguredException;

@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.kafka.serialize;
 
-import java.io.IOException;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
-
-import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
 
 
 /**

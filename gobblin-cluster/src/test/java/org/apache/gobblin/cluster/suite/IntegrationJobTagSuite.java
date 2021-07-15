@@ -26,7 +26,6 @@ import org.testng.collections.Lists;
 import org.testng.collections.Maps;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
@@ -38,10 +37,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.cluster.ClusterIntegrationTest;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.cluster.TaskRunnerSuiteBase;
 import org.apache.gobblin.cluster.TaskRunnerSuiteForJobTagTest;
-import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 

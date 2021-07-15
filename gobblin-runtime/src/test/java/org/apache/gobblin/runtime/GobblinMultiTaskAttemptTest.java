@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
@@ -66,7 +65,7 @@ public class GobblinMultiTaskAttemptTest {
   public void testRunWithTaskCreationFailure()
       throws Exception {
     // Preparing Instance of TaskAttempt with designed failure on task creation
-    WorkUnit tmpWU = new WorkUnit();
+    WorkUnit tmpWU = WorkUnit.createEmpty();
     // Put necessary attributes in workunit
     tmpWU.setProp(ConfigurationKeys.TASK_ID_KEY, "task_test");
     List<WorkUnit> workUnit = ImmutableList.of(tmpWU);
@@ -95,9 +94,9 @@ public class GobblinMultiTaskAttemptTest {
   @Test
   public void testRunWithTaskStatsTrackerNotScheduledFailure()
       throws Exception {
-    TaskStateTracker stateTracker = new FailingTestStateTracker(new Properties(), log);
+    TaskStateTracker stateTracker = new DummyTestStateTracker(new Properties(), log);
     // Preparing Instance of TaskAttempt with designed failure on task creation
-    WorkUnit tmpWU = new WorkUnit();
+    WorkUnit tmpWU = WorkUnit.createEmpty();
     // Put necessary attributes in workunit
     tmpWU.setProp(ConfigurationKeys.TASK_ID_KEY, "task_test");
     List<WorkUnit> workUnit = ImmutableList.of(tmpWU);
@@ -122,8 +121,33 @@ public class GobblinMultiTaskAttemptTest {
     Assert.fail();
   }
 
-  public static class FailingTestStateTracker extends AbstractTaskStateTracker {
-    public FailingTestStateTracker(Properties properties, Logger logger) {
+  @Test
+  public void testRunAfterCancellation() throws Exception {
+    WorkUnit tmpWU = WorkUnit.createEmpty();
+    // Put necessary attributes in workunit
+    tmpWU.setProp(ConfigurationKeys.TASK_ID_KEY, "task_test");
+    List<WorkUnit> workUnit = ImmutableList.of(tmpWU);
+    JobState jobState = new JobState();
+    // Limit the number of times of retry in task-creation.
+    jobState.setProp(RETRY_TIME_OUT_MS, 1000);
+    jobState.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, DatasetStateStoreTest.DummySource.class.getName());
+
+    TaskStateTracker stateTrackerMock = Mockito.mock(TaskStateTracker.class);
+
+    taskAttempt =
+        new GobblinMultiTaskAttempt(workUnit.iterator(), "testJob1", jobState, stateTrackerMock, taskExecutorMock,
+            Optional.absent(), Optional.absent(), jobBroker);
+
+    //Call shutdown() before creation of underlying Gobblin tasks.
+    taskAttempt.shutdownTasks();
+    taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+    Assert.assertEquals(taskAttempt.getNumTasksCreated(), 0);
+    Assert.assertTrue(taskAttempt.getStopped().get());
+  }
+
+
+  public static class DummyTestStateTracker extends AbstractTaskStateTracker {
+    public DummyTestStateTracker(Properties properties, Logger logger) {
       super(properties, logger);
     }
 
@@ -134,7 +158,7 @@ public class GobblinMultiTaskAttemptTest {
 
     @Override
     public void onTaskRunCompletion(Task task) {
-
+      task.markTaskCompletion();
     }
 
     @Override

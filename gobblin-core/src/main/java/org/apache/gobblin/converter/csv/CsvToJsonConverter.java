@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.converter.csv;
 
-import org.apache.gobblin.converter.Converter;
-import org.apache.gobblin.converter.SingleRecordIterable;
-import java.io.IOException;
 import java.util.List;
 
 import com.google.common.base.Strings;
@@ -32,8 +29,10 @@ import com.google.gson.JsonParser;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.source.extractor.utils.InputStreamCSVReader;
 
 

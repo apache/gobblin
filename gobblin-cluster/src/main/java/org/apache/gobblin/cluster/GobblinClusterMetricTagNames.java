@@ -18,12 +18,11 @@
 package org.apache.gobblin.cluster;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.metrics.event.TimingEvent;
 
 
 /**
  * A central place for constants of {@link org.apache.gobblin.metrics.MetricContext} tag names for a Gobblin cluster.
- * Some shared constants have been moved to {@link TimingEvent.FlowEventConstants}.
+ * Some shared constants have been moved to {@link org.apache.gobblin.metrics.event.TimingEvent.FlowEventConstants}.
  *
  * @author Yinan Li
  */

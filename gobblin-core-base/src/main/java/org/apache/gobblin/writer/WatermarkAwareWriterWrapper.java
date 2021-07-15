@@ -17,11 +17,9 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.util.Map;
 
 import com.google.common.base.Optional;
 
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 

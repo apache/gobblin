@@ -45,3 +45,9 @@ dependencies {
 }
 
 ext.classification="library"
+
+configurations {
+  compile {
+    exclude group: "org.pentaho"
+  }
+}

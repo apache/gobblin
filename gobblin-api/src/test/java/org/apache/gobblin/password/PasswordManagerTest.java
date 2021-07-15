@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-@Test(enabled=false, groups = {"disabledOnTravis"} )
+@Test(enabled=false, groups = {"disabledOnCI"} )
 public class PasswordManagerTest {
 
   @Test (enabled=false)
@@ -183,7 +183,7 @@ public class PasswordManagerTest {
     Assert.fail("Password Manager decrypted password without correct master password.");
   }
 
-  private File getMasterPwdFile(String masterPwd) throws IOException {
+  public static File getMasterPwdFile(String masterPwd) throws IOException {
     File masterPwdFile = File.createTempFile("masterPassword", null);
     Files.write(masterPwd, masterPwdFile, Charset.defaultCharset());
     return masterPwdFile;

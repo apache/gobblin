@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import org.I0Itec.zkclient.ZkClient;
+import org.I0Itec.zkclient.ZkConnection;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -32,17 +34,13 @@ import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import kafka.utils.ZkUtils;
 import kafka.admin.AdminUtils;
 import kafka.utils.ZKStringSerializer$;
+import kafka.utils.ZkUtils;
 import lombok.extern.slf4j.Slf4j;
-
-import org.I0Itec.zkclient.ZkClient;
-import org.I0Itec.zkclient.ZkConnection;
 
 import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
 import org.apache.gobblin.writer.WriteResponseFuture;

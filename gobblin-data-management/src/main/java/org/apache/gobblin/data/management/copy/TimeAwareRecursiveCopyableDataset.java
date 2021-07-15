@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -34,8 +33,8 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
-import org.testng.Assert;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;

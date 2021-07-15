@@ -17,31 +17,23 @@
 
 package org.apache.gobblin.qualitychecker.row;
 
-import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
-import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.qualitychecker.TestConstants;
-import org.apache.gobblin.qualitychecker.TestRowLevelPolicy;
 import java.io.File;
 import java.io.Flushable;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.FileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.DatumReader;
-import org.apache.gobblin.records.ControlMessageHandler;
-import org.apache.gobblin.records.FlushControlMessageHandler;
-import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,6 +42,14 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.TestConstants;
+import org.apache.gobblin.qualitychecker.TestRowLevelPolicy;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
+import org.apache.gobblin.stream.FlushControlMessage;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.ROW_LEVEL_ERR_FILE;
 import static org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker.ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY;

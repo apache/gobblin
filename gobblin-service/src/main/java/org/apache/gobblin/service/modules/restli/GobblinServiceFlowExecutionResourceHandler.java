@@ -29,13 +29,18 @@ import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.FlowExecution;
 import org.apache.gobblin.service.FlowExecutionResourceHandler;
+import org.apache.gobblin.service.FlowExecutionResourceLocalHandler;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.FlowStatusId;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.modules.utils.InjectionNames;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
 
@@ -47,13 +52,15 @@ import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
  */
 @Slf4j
 public class GobblinServiceFlowExecutionResourceHandler implements FlowExecutionResourceHandler {
-  private FlowExecutionResourceHandler localHandler;
+  private FlowExecutionResourceLocalHandler localHandler;
   private EventBus eventBus;
   private Optional<HelixManager> helixManager;
   private boolean forceLeader;
 
-  public GobblinServiceFlowExecutionResourceHandler(FlowExecutionResourceHandler handler, EventBus eventBus,
-      Optional<HelixManager> manager, boolean forceLeader) {
+  @Inject
+  public GobblinServiceFlowExecutionResourceHandler(FlowExecutionResourceLocalHandler handler,
+      @Named(GobblinServiceManager.SERVICE_EVENT_BUS_NAME) EventBus eventBus,
+      Optional<HelixManager> manager, @Named(InjectionNames.FORCE_LEADER) boolean forceLeader) {
     this.localHandler = handler;
     this.eventBus = eventBus;
     this.helixManager = manager;
@@ -71,7 +78,7 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   }
 
   @Override
-  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     Long flowExecutionId = key.getKey().getFlowExecutionId();
@@ -79,7 +86,6 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
       HelixUtils.throwErrorIfNotLeader(this.helixManager);
     }
     this.eventBus.post(new ResumeFlowEvent(flowGroup, flowName, flowExecutionId));
-    return new UpdateResponse(HttpStatus.S_200_OK);
   }
 
   @Override

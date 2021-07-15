@@ -45,6 +45,10 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.Getter;
+
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -60,6 +64,7 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobState.DatasetState;
 import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -71,10 +76,6 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-
-import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Getter;
 
 
 /**
@@ -129,7 +130,11 @@ public class JobContext implements Closeable {
   // A map from dataset URNs to DatasetStates (optional and maybe absent if not populated)
   private Optional<Map<String, JobState.DatasetState>> datasetStatesByUrns = Optional.absent();
 
-  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+  @Getter
+  private IssueRepository issueRepository;
+
+  public JobContext(Properties jobProps, Logger logger, SharedResourcesBroker<GobblinScopeTypes> instanceBroker,
+      IssueRepository issueRepository)
       throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
@@ -146,6 +151,8 @@ public class JobContext implements Closeable {
 
     this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
+
+    this.issueRepository = issueRepository;
 
     State jobPropsState = new State();
     jobPropsState.addAll(jobProps);
@@ -546,5 +553,19 @@ public class JobContext implements Closeable {
   public String toString() {
     return Objects.toStringHelper(JobContext.class.getSimpleName()).add("jobName", getJobName())
         .add("jobId", getJobId()).add("jobState", getJobState()).toString();
+  }
+
+  /**
+   * Get all of the failures from the datasetStates stored in the jobContext to determine if
+   * email notification should be sent or not. Previously job context only looked at jobStates, where
+   * failures from datasetStates were not propagated from
+   * Failures are tracked using {@link ConfigurationKeys#JOB_FAILURES_KEY}
+   */
+  public int getDatasetStateFailures() {
+    int totalFailures = 0;
+    for (Map.Entry<String, JobState.DatasetState> datasetState: this.getDatasetStatesByUrns().entrySet()) {
+      totalFailures += datasetState.getValue().getJobFailures();
+    }
+    return totalFailures;
   }
 }

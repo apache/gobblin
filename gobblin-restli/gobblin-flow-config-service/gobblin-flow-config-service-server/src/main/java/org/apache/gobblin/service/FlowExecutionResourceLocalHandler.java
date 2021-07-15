@@ -21,8 +21,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.ObjectUtils;
+
 import com.google.common.base.Strings;
 import com.linkedin.data.template.SetMode;
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -30,8 +33,10 @@ import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.service.monitoring.FlowStatus;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
@@ -42,6 +47,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
   private final FlowStatusGenerator flowStatusGenerator;
 
+  @Inject
   public FlowExecutionResourceLocalHandler(FlowStatusGenerator flowStatusGenerator) {
     this.flowStatusGenerator = flowStatusGenerator;
   }
@@ -69,7 +75,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     throw new UnsupportedOperationException("Resume should be handled in GobblinServiceFlowConfigResourceHandler");
   }
 
@@ -145,7 +151,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
-              setHighWatermark(queriedJobStatus.getHighWatermark()));
+              setHighWatermark(queriedJobStatus.getHighWatermark()))
+          .setIssues(new IssueArray(queriedJobStatus.getIssues().stream()
+              .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject).collect(Collectors.toList())));
 
       if (!Strings.isNullOrEmpty(queriedJobStatus.getMetrics())) {
         jobStatus.setMetrics(queriedJobStatus.getMetrics());
@@ -164,6 +172,24 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setMessage(flowMessage)
         .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray);
+  }
+
+  private static org.apache.gobblin.service.Issue convertIssueToRestApiObject(Issue issues) {
+    org.apache.gobblin.service.Issue converted = new org.apache.gobblin.service.Issue();
+
+    converted.setCode(issues.getCode())
+        .setSummary(ObjectUtils.firstNonNull(issues.getSummary(), ""))
+        .setDetails(ObjectUtils.firstNonNull(issues.getDetails(), ""))
+        .setSeverity(IssueSeverity.valueOf(issues.getSeverity().name()))
+        .setTime(issues.getTime().toInstant().toEpochMilli());
+
+    if (issues.getProperties() != null) {
+      converted.setProperties(new StringMap(issues.getProperties()));
+    } else {
+      converted.setProperties(new StringMap());
+    }
+
+    return converted;
   }
 
   /**

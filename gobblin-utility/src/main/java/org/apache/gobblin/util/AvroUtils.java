@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -54,7 +53,6 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.math3.util.Pair;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -77,7 +75,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
@@ -888,13 +885,13 @@ public class AvroUtils {
   }
 
   /**
-   * Escaping ";" and "'" character in the schema string when it is being used in DDL.
+   * Escaping "\", """, ";" and "'" character in the schema string when it is being used in DDL.
    * These characters are not allowed to show as part of column name but could possibly appear in documentation field.
    * Therefore the escaping behavior won't cause correctness issues.
    */
   public static String sanitizeSchemaString(String schemaString) {
-    return schemaString.replace("\\\"", "\\\\\\\"").replace(";",  "\\;")
-        .replace("'", "\\'");
+    return schemaString.replace("\\\\", "\\\\\\\\").replace("\\\"", "\\\\\\\"")
+        .replace(";",  "\\;").replace("'", "\\'");
   }
 
   /**

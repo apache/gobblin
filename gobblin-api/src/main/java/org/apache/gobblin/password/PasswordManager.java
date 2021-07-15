@@ -22,10 +22,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -50,10 +48,10 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.io.Closer;
 import com.google.common.io.LineReader;
 
+import lombok.EqualsAndHashCode;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-
-import lombok.EqualsAndHashCode;
 
 /**
  * A class for managing password encryption and decryption. To encrypt or decrypt a password, a master password

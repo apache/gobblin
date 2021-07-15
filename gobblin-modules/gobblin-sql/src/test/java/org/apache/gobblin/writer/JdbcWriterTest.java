@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.writer;
 
-import static org.mockito.Mockito.*;
-
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -28,8 +26,9 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-import org.apache.gobblin.writer.JdbcWriter;
 import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+
+import static org.mockito.Mockito.*;
 
 @Test(groups = {"gobblin.writer"})
 public class JdbcWriterTest {

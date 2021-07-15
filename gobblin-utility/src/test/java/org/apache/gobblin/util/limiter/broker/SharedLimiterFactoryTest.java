@@ -28,17 +28,16 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.broker.BrokerConstants;
+import org.apache.gobblin.broker.ResourceInstance;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.SharedResourcesBrokerImpl;
 import org.apache.gobblin.broker.SimpleScope;
 import org.apache.gobblin.broker.SimpleScopeType;
-import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.util.limiter.CountBasedLimiter;
 import org.apache.gobblin.util.limiter.Limiter;
 import org.apache.gobblin.util.limiter.MultiLimiter;
 import org.apache.gobblin.util.limiter.NoopLimiter;
-import org.apache.gobblin.broker.ResourceInstance;
 
 
 public class SharedLimiterFactoryTest {

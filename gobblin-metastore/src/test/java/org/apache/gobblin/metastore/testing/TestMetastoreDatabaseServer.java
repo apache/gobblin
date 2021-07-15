@@ -19,7 +19,6 @@ package org.apache.gobblin.metastore.testing;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -52,6 +51,7 @@ class TestMetastoreDatabaseServer implements Closeable {
 
   private static final String INFORMATION_SCHEMA = "information_schema";
   private static final String ROOT_USER = "root";
+  private static final String ROOT_PASSWORD = "password";
   private static final String DROP_DATABASE_TEMPLATE = "DROP DATABASE IF EXISTS %s;";
   private static final String CREATE_DATABASE_TEMPLATE = "CREATE DATABASE %s CHARACTER SET = %s COLLATE = %s;";
   private static final String ADD_USER_TEMPLATE = "GRANT ALL ON %s.* TO '%s'@'%%';";
@@ -60,9 +60,9 @@ class TestMetastoreDatabaseServer implements Closeable {
   public static final String EMBEDDED_MYSQL_ENABLED_KEY = "embeddedMysqlEnabled";
   public static final String EMBEDDED_MYSQL_ENABLED_FULL_KEY =
       CONFIG_PREFIX + "." + EMBEDDED_MYSQL_ENABLED_KEY;
-  public static final String DBUSER_NAME_KEY = "dbUserName";
+  public static final String DBUSER_NAME_KEY = "testUser";
   public static final String DBUSER_NAME_FULL_KEY =  CONFIG_PREFIX + "." + DBUSER_NAME_KEY;
-  public static final String DBUSER_PASSWORD_KEY = "dbUserPassword";
+  public static final String DBUSER_PASSWORD_KEY = "testPassword";
   public static final String DBUSER_PASSWORD_FULL_KEY =  CONFIG_PREFIX + "." + DBUSER_PASSWORD_KEY;
   public static final String DBHOST_KEY = "dbHost";
   public static final String DBHOST_FULL_KEY =  CONFIG_PREFIX + "." + DBHOST_KEY;
@@ -151,9 +151,12 @@ class TestMetastoreDatabaseServer implements Closeable {
   }
 
   private MySqlJdbcUrl getInformationSchemaJdbcUrl() throws URISyntaxException {
+    // embedded mysql has an empty password by default
+    String password =  this.embeddedMysqlEnabled ? "" : ROOT_PASSWORD;
     return getBaseJdbcUrl()
         .setPath(INFORMATION_SCHEMA)
-        .setUser(ROOT_USER);
+        .setUser(ROOT_USER)
+        .setPassword(password);
   }
 
   private Optional<Connection> getConnector(MySqlJdbcUrl jdbcUrl) throws SQLException {

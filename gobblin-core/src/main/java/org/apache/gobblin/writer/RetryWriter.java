@@ -95,7 +95,6 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
         @Override
         public <V> void onRetry(Attempt<V> attempt) {
           if (attempt.hasException()) {
-            LOG.warn("Caught exception. This may be retried.", attempt.getExceptionCause());
             Instrumented.markMeter(retryMeter);
             failedWrites++;
           }
@@ -140,7 +139,9 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
   private void callWithRetry(Callable<Void> callable) throws IOException {
     try {
       this.retryer.wrap(callable).call();
-    } catch (ExecutionException | RetryException e) {
+    } catch (RetryException e) {
+      throw new IOException(e.getLastFailedAttempt().getExceptionCause());
+    } catch (ExecutionException e) {
       throw new IOException(e);
     }
   }
@@ -177,7 +178,19 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
     return RetryerBuilder.<Void> newBuilder()
         .retryIfException(transients)
         .withWaitStrategy(WaitStrategies.exponentialWait(multiplier, maxWaitMsPerInterval, TimeUnit.MILLISECONDS)) //1, 2, 4, 8, 16 seconds delay
-        .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)); //Total 5 attempts and fail.
+        .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)) //Total 5 attempts and fail.
+        .withRetryListener(new RetryListener() {
+          @Override
+          public <V> void onRetry(Attempt<V> attempt) {
+            // We can get different exceptions on each attempt. The first one can be meaningful, and follow up
+            // exceptions can come from incorrect state of the system, and hide the real problem. Logging all of them
+            // to simplify troubleshooting
+            if (attempt.hasException() && attempt.getAttemptNumber() < maxAttempts) {
+              LOG.warn("Caught exception. Operation will be retried. Attempt #" + attempt.getAttemptNumber(),
+                  attempt.getExceptionCause());
+            }
+          }
+        });
   }
 
   @Override

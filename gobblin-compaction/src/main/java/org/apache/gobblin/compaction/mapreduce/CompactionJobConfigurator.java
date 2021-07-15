@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -27,14 +25,28 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.commons.math3.primes.Primes;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.filecache.DistributedCache;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.TaskCompletionEvent;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.math3.primes.Primes;
+
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
@@ -45,15 +57,6 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.filecache.DistributedCache;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.TaskCompletionEvent;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 
 /**
@@ -249,6 +252,11 @@ public abstract class CompactionJobConfigurator {
     CompactionPathParser.CompactionParserResult rst = parser.parse(dataset);
     this.mrOutputPath = concatPaths(mrOutputBase, rst.getDatasetName(), rst.getDstSubDir(), rst.getTimeString());
 
+    if(this.state.contains(ConfigurationKeys.USE_DATASET_LOCAL_WORK_DIR)) {
+      mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_DEST_DIR);
+      this.mrOutputPath = concatPaths(mrOutputBase, rst.getDatasetName(),
+          ConfigurationKeys.TMP_DIR, rst.getDstSubDir(), rst.getTimeString());
+    }
     log.info("Cleaning temporary MR output directory: " + mrOutputPath);
     this.fs.delete(mrOutputPath, true);
 

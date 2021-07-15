@@ -80,6 +80,7 @@ import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
 import org.apache.gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.util.ExceptionCleanupUtils;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -379,11 +380,15 @@ public class Task implements TaskIFace {
             filter(not(Fork::isSucceeded)).map(x -> x.getIndex()).collect(Collectors.toList());
         ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
 
-        Exception e = null;
+        Throwable e = null;
         if (!holder.isEmpty()) {
-          e = holder.getAggregatedException(failedForksId, this.taskId);
+          if (failedForksId.size() == 1 && holder.getThrowable(failedForksId.get(0)).isPresent()) {
+            e = holder.getThrowable(failedForksId.get(0)).get();
+          }else{
+            e = holder.getAggregatedException(failedForksId, this.taskId);
+          }
         }
-        throw e == null ? new RuntimeException("Some forks failed") : new RuntimeException("Forks failed with exception:", e);
+        throw e == null ? new RuntimeException("Some forks failed") : e;
       }
 
       //TODO: Move these to explicit shutdown phase
@@ -397,13 +402,9 @@ public class Task implements TaskIFace {
       failTask(t);
     } finally {
       synchronized (this) {
-        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
-          this.taskStateTracker.onTaskRunCompletion(this);
-          completeShutdown();
-          this.taskFuture = null;
-        } else {
-          LOG.info("will not decrease count down latch as this task is cancelled");
-        }
+        this.taskStateTracker.onTaskRunCompletion(this);
+        completeShutdown();
+        this.taskFuture = null;
       }
     }
   }
@@ -564,14 +565,17 @@ public class Task implements TaskIFace {
     this.lastRecordPulledTimestampMillis = System.currentTimeMillis();
   }
 
-  private void failTask(Throwable t) {
-    LOG.error(String.format("Task %s failed", this.taskId), t);
+  protected void failTask(Throwable t) {
+    Throwable cleanedException = ExceptionCleanupUtils.removeEmptyWrappers(t);
+
+    LOG.error(String.format("Task %s failed", this.taskId), cleanedException);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
-    this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
+    this.taskState
+        .setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(cleanedException));
 
     // Send task failure event
     FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
-    failureEvent.setRootCause(t);
+    failureEvent.setRootCause(cleanedException);
     failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
     failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
     failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
@@ -927,11 +931,16 @@ public class Task implements TaskIFace {
         if (this.taskState.getWorkingState() != WorkUnitState.WorkingState.FAILED) {
           this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
         }
-      } else {
+      }
+      else {
         ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
         LOG.info("Holder for this task {} is {}", this.taskId, holder);
         if (!holder.isEmpty()) {
-          failTask(holder.getAggregatedException(failedForkIds, this.taskId));
+          if (failedForkIds.size() == 1 && holder.getThrowable(failedForkIds.get(0)).isPresent()) {
+            failTask(holder.getThrowable(failedForkIds.get(0)).get());
+          } else {
+            failTask(holder.getAggregatedException(failedForkIds, this.taskId));
+          }
         } else {
           // just in case there are some corner cases where Fork throw an exception but doesn't add into holder
           failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
@@ -1039,8 +1048,6 @@ public class Task implements TaskIFace {
   public synchronized boolean cancel() {
     LOG.info("Calling task cancel with interrupt flag: {}", this.shouldInterruptTaskOnCancel);
     if (this.taskFuture != null && this.taskFuture.cancel(this.shouldInterruptTaskOnCancel)) {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      this.completeShutdown();
       return true;
     } else {
       return false;

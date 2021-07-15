@@ -17,13 +17,12 @@
 
 package org.apache.gobblin.metastore.predicates;
 
-import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
-
 import com.google.common.base.Predicate;
 
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
+
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
 
 /**

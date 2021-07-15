@@ -299,6 +299,11 @@ public class AvroUtilsTest {
     expectedString = "abc\\\\\\\"";
     Assert.assertEquals(actualString, expectedString);
     Assert.assertEquals(actualString.length(), invalidStringWithSlash.length() + 2);
+
+    String stringWithBackslash = "\\\\d+";
+    actualString = AvroUtils.sanitizeSchemaString(stringWithBackslash);
+    Assert.assertEquals(actualString, "\\\\\\\\d+");
+    Assert.assertEquals(actualString.length(), stringWithBackslash.length() + 2);
   }
 
   public static List<GenericRecord> getRecordFromFile(String path)

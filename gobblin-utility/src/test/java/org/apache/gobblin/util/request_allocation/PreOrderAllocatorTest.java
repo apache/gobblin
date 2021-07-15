@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
+import static org.mockito.Mockito.*;
 
 public class PreOrderAllocatorTest {
 
@@ -59,6 +60,28 @@ public class PreOrderAllocatorTest {
     Assert.assertTrue(estimator.getQueriedRequests().contains("d-30"));
     Assert.assertFalse(estimator.getQueriedRequests().contains("e-20"));
     Assert.assertFalse(estimator.getQueriedRequests().contains("f-50"));
+  }
+
+  @Test
+  public void testThrowExceptionOnFailure() throws Exception {
+    ResourceEstimator<StringRequest> failingEstimator = mock(ResourceEstimator.class);
+    when(failingEstimator.estimateRequirement(any(), any())).thenThrow(new RuntimeException("Error"));
+
+    RequestAllocatorConfig<StringRequest> configuration =
+        RequestAllocatorConfig.builder(failingEstimator)
+            .allowParallelization()
+            .withPrioritizer(new StringRequest.StringRequestComparator()).build();
+    PreOrderAllocator<StringRequest> allocator =
+        new PreOrderAllocator<>(configuration);
+
+    ResourcePool pool = ResourcePool.builder().maxResource(StringRequest.MEMORY, 100.).build();
+
+    List<Requestor<StringRequest>> requests = Lists.<Requestor<StringRequest>>newArrayList(
+        new StringRequestor("r1", "a-50", "f-50", "k-20"),
+        new StringRequestor("r2", "j-10", "b-20", "e-20"),
+        new StringRequestor("r3", "g-20", "c-200", "d-30"));
+
+    Assert.expectThrows(RuntimeException.class, () -> allocator.allocateRequests(requests.iterator(), pool));
   }
 
 }

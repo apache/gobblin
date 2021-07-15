@@ -112,6 +112,8 @@ public class GobblinClusterConfigurationKeys {
    * @see <a href="https://gobblin.readthedocs.io/en/latest/user-guide/Working-with-Job-Configuration-Files/">Job Config Files</a>
    */
   public static final String JOB_CONF_PATH_KEY = GOBBLIN_CLUSTER_PREFIX + "job.conf.path";
+  //A java.util.regex specifying the subset of jobs under JOB_CONF_PATH to be run.
+  public static final String JOBS_TO_RUN = GOBBLIN_CLUSTER_PREFIX + "jobsToRun";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
   public static final String OUTPUT_TASK_STATE_DIR_NAME = "_taskstates";
   // This is the directory to store job.state files when a state store is used.

@@ -1,16 +1,38 @@
 # Apache Gobblin 
-[![Build Status](https://api.travis-ci.org/apache/incubator-gobblin.svg?branch=master)](https://travis-ci.org/apache/incubator-gobblin)
+[![Build Status](https://github.com/apache/gobblin/actions/workflows/build_and_test.yaml/badge.svg?branch=master)](https://travis-ci.org/apache/gobblin)
 [![Documentation Status](https://readthedocs.org/projects/gobblin/badge/?version=latest)](https://gobblin.readthedocs.org/en/latest/?badge=latest)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.gobblin/gobblin-api/badge.svg)](https://search.maven.org/search?q=g:org.apache.gobblin)
 [![Stack Overflow](http://img.shields.io/:stack%20overflow-gobblin-brightgreen.svg)](http://stackoverflow.com/questions/tagged/gobblin)
 [![Join us on Slack](https://img.shields.io/badge/slack-apache--gobblin-brightgreen.svg)](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
-[![codecov.io](https://codecov.io/github/apache/incubator-gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/incubator-gobblin)
+[![codecov.io](https://codecov.io/github/apache/gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/gobblin)
 
-Apache Gobblin is a universal data ingestion framework for extracting, transforming, and loading large volume of data from a variety of data sources: databases, rest APIs, FTP/SFTP servers, filers, etc., onto Hadoop. 
+Apache Gobblin is a highly scalable data management solution for structured and byte-oriented data in heterogeneous data ecosystems. 
 
-Apache Gobblin handles the common routine tasks required for all data ingestion ETLs, including job/task scheduling, task partitioning, error handling, state management, data quality checking, data publishing, etc. 
+### Capabilities
+- Ingestion and export of data from a variety of sources and sinks into and out of the data lake. Gobblin is optimized and designed for ELT patterns with inline transformations on ingest (small t).
+- Data Organization within the lake (e.g. compaction, partitioning, deduplication)
+- Lifecycle Management of data within the lake (e.g. data retention)
+- Compliance Management of data across the ecosystem (e.g. fine-grain data deletions)
 
-Gobblin ingests data from different data sources in the same execution framework, and manages metadata of different sources all in one place. This, combined with other features such as auto scalability, fault tolerance, data quality assurance, extensibility, and the ability of handling data model evolution, makes Gobblin an easy-to-use, self-serving, and efficient data ingestion framework.
+### Highlights
+- Battle tested at scale: Runs in production at petabyte-scale at companies like LinkedIn, PayPal, Verizon etc.
+- Feature rich: Supports task partitioning, state management for incremental processing, atomic data publishing, data quality checking, job scheduling, fault tolerance etc.
+- Supports stream and batch execution modes 
+- Control Plane (Gobblin-as-a-service) supports programmatic triggering and orchestration of data plane operations. 
+
+### Common Patterns used in production
+- Stream / Batch ingestion of Kafka to Data Lake (HDFS, S3, ADLS)
+- Bulk-loading serving stores from the Data Lake (e.g. HDFS -> Couchbase)
+- Support for data sync across Federated Data Lake (HDFS <-> HDFS, HDFS <-> S3, S3 <-> ADLS)
+- Integrate external vendor API-s (e.g. Salesforce, Dynamics etc.) with data store (HDFS, Couchbase etc)
+- Enforcing Data retention policies and GDPR deletion on HDFS / ADLS
+
+
+### Apache Gobblin is NOT
+- A general purpose data transformation engine like Spark or Flink. Gobblin can delegate complex-data processing tasks to Spark, Hive etc. 
+- A data storage system like Apache Kafka or HDFS. Gobblin integrates with these systems as sources or sinks. 
+- A general-purpose workflow execution system like Airflow, Azkaban, Dagster, Luigi. 
+
 
 # Requirements
 * Java >= 1.8
@@ -20,13 +42,11 @@ If building the distribution with tests turned on:
 
 # Instructions to run Apache RAT (Release Audit Tool)
 1. Extract the archive file to your local directory.
-2. Download gradle-wrapper.jar (version 2.13) and place it in the gradle/wrapper folder. See 'Instructions to download gradle wrapper' above.
-3. Run `./gradlew rat`. Report will be generated under build/rat/rat-report.html
+2. Run `./gradlew rat`. Report will be generated under build/rat/rat-report.html
 
 # Instructions to build the distribution
 1. Extract the archive file to your local directory.
-2. Download gradle-wrapper.jar (version 2.13) and place it in the gradle/wrapper folder. See 'Instructions to download gradle wrapper' above.
-3. Skip tests and build the distribution: 
+2. Skip tests and build the distribution: 
 Run `./gradlew build -x findbugsMain -x test -x rat -x checkstyleMain` 
 The distribution will be created in build/gobblin-distribution/distributions directory.
 (or)
@@ -37,10 +57,11 @@ The distribution will be created in build/gobblin-distribution/distributions dir
 # Quick Links
 
   * [Gobblin documentation](https://gobblin.apache.org/docs/)
+    * [Running Gobblin on Docker from your laptop](https://github.com/apache/gobblin/blob/master/gobblin-docs/user-guide/Docker-Integration.md)
     * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
     * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
   * Community Slack: [Get your invite](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
   * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
-  * [Sample project](https://github.com/apache/incubator-gobblin/tree/master/gobblin-example)
+  * [Sample project](https://github.com/apache/gobblin/tree/master/gobblin-example)
   * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)
   * [Issue tracker - Apache Jira](https://issues.apache.org/jira/projects/GOBBLIN/issues/)

@@ -17,14 +17,16 @@
 
 package org.apache.gobblin.yarn;
 
+import java.io.IOException;
+
+import org.apache.hadoop.fs.FileSystem;
+
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
-import java.io.IOException;
+
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 
 public class YarnAppMasterSecurityManager extends YarnContainerSecurityManager{

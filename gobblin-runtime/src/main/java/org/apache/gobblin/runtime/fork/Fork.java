@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
@@ -57,6 +56,7 @@ import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.util.ExceptionCleanupUtils;
 import org.apache.gobblin.runtime.util.ForkMetrics;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.ControlMessage;
@@ -228,8 +228,12 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
           r.ack();
         }
       }, e -> {
+          // Handle writer close in error case since onComplete will not call when exception happens
+          if (this.writer.isPresent()) {
+            this.writer.get().close();
+          }
           logger.error("Failed to process record.", e);
-          throw(new RuntimeException(e));
+          verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
           },
         () -> {
           if (this.writer.isPresent()) {
@@ -262,11 +266,13 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
       compareAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED);
     } catch (Throwable t) {
+      Throwable cleanedUpException = ExceptionCleanupUtils.removeEmptyWrappers(t);
+
       // Set throwable to holder first because AsynchronousFork::putRecord can pull the throwable when it detects ForkState.FAILED status.
       ForkThrowableHolder holder = Task.getForkThrowableHolder(this.broker);
-      holder.setThrowable(this.getIndex(), t);
+      holder.setThrowable(this.getIndex(), cleanedUpException);
       this.forkState.set(ForkState.FAILED);
-      this.logger.error(String.format("Fork %d of task %s failed to process data records. Set throwable in holder %s", this.index, this.taskId, holder), t);
+      this.logger.error(String.format("Fork %d of task %s failed.", this.index, this.taskId), cleanedUpException);
     } finally {
       this.cleanup();
     }
@@ -431,7 +437,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   }
 
   public boolean isDone() {
-    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED;
+    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED
+        || this.forkState.get() == ForkState.COMMITTED;
   }
 
   @Override

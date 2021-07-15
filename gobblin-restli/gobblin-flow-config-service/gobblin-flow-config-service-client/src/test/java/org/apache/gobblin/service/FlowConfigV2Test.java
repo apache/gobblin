@@ -18,12 +18,13 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.mortbay.jetty.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -57,6 +58,9 @@ import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.*;
+
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
 public class FlowConfigV2Test {
@@ -76,6 +80,8 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_5 = "testFlow5";
   private static final String TEST_FLOW_NAME_6 = "testFlow6";
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
+  private static final String TEST_FLOW_NAME_8 = "testFlow8";
+  private static final String TEST_FLOW_NAME_9 = "testFlow9";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -92,7 +98,10 @@ public class FlowConfigV2Test {
 
     Config config = configBuilder.build();
     final FlowCatalog flowCatalog = new FlowCatalog(config);
-
+    final SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    flowCatalog.addListener(mockListener);
     flowCatalog.startAsync();
     flowCatalog.awaitRunning();
 
@@ -110,12 +119,12 @@ public class FlowConfigV2Test {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
+        binder.bind(FlowConfigsV2ResourceHandler.class).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
         // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
         // been made
         binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-        binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(_requesterService);
-        binder.bind(GroupOwnershipService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_GROUP_OWNERSHIP_SERVICE)).toInstance(groupOwnershipService);
+        binder.bind(RequesterService.class).toInstance(_requesterService);
+        binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
       }
     });
 
@@ -263,42 +272,107 @@ public class FlowConfigV2Test {
   }
 
   @Test
-  public void testLocalGroupOwnershipUpdates() throws Exception {
-    try {
-      ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-      _requesterService.setRequester(testRequester);
-      Map<String, String> flowProperties = Maps.newHashMap();
+  public void testGroupUpdateRejected() throws Exception {
+   ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+   _requesterService.setRequester(testRequester);
+   Map<String, String> flowProperties = Maps.newHashMap();
 
-      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
-          .setTemplateUris(TEST_TEMPLATE_URI)
-          .setProperties(new StringMap(flowProperties))
-          .setOwningGroup("testGroup2");
+   FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+       .setTemplateUris(TEST_TEMPLATE_URI)
+       .setProperties(new StringMap(flowProperties))
+       .setOwningGroup("testGroup");
 
-      _client.createFlowConfig(flowConfig);
+   _client.createFlowConfig(flowConfig);
 
-    } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
-    }
+   // Update should be rejected because testName is not part of dummyGroup
+   flowConfig.setOwningGroup("dummyGroup");
+   try {
+     _client.updateFlowConfig(flowConfig);
+     Assert.fail("Expected update to be rejected");
+   } catch (RestLiResponseException e) {
+     Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+   }
+  }
 
-    String filePath = this.groupConfigFile.getAbsolutePath();
-    this.groupConfigFile.delete();
-    this.groupConfigFile = new File(filePath);
-    String groups ="{\"testGroup2\": \"testName,testName3\"}";
-    Files.write(groups.getBytes(), this.groupConfigFile);
-
+  @Test
+  public void testRequesterUpdate() throws Exception {
     ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
     _requesterService.setRequester(testRequester);
     Map<String, String> flowProperties = Maps.newHashMap();
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI)
         .setProperties(new StringMap(flowProperties))
-        .setOwningGroup("testGroup2");
+        .setOwningGroup("testGroup");
 
-    // this should no longer fail as the localGroupOwnership service should have updated as the file changed
     _client.createFlowConfig(flowConfig);
-    testRequester.setName("testName3");
-    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7));
+
+    // testName2 takes ownership of the flow
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    _requesterService.setRequester(testRequester2);
+    _client.updateFlowConfig(flowConfig);
+
+    // Check that the requester list was actually updated
+    FlowConfig updatedFlowConfig = _client.getFlowConfig(flowId);
+    Assert.assertEquals(RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST)),
+        Lists.newArrayList(testRequester2));
+  }
+
+  @Test
+  public void testRequesterUpdateRejected() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
+    _requesterService.setRequester(testRequester);
+    Map<String, String> flowProperties = Maps.newHashMap();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties));
+
+    _client.createFlowConfig(flowConfig);
+
+    // Update should be rejected because testName is not allowed to update the owner to testName2
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    try {
+      _client.updateFlowConfig(flowConfig);
+      Assert.fail("Expected update to be rejected");
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
+  }
+
+  @Test
+  public void testInvalidFlowId() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    StringBuilder sb1 = new StringBuilder();
+    StringBuilder sb2 = new StringBuilder();
+    int maxFlowNameLength = ServiceConfigKeys.MAX_FLOW_NAME_LENGTH;
+    int maxFlowGroupLength = ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
+    while(maxFlowGroupLength-- >= 0) {
+      sb1.append("A");
+    }
+    while(maxFlowNameLength-- >= 0) {
+      sb2.append("A");
+    }
+    String TOO_LONG_FLOW_GROUP = sb1.toString();
+    String TOO_LONG_FLOW_NAME = sb2.toString();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TOO_LONG_FLOW_GROUP).setFlowName(TOO_LONG_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_422_Unprocessable_Entity);
+      Assert.assertTrue(e.getMessage().contains("is out of range"));
+      return;
+    }
+
+    Assert.fail();
   }
 
   @AfterClass(alwaysRun = true)

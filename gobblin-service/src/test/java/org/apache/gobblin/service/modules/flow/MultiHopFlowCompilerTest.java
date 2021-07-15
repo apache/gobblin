@@ -33,7 +33,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -528,7 +527,7 @@ public class MultiHopFlowCompilerTest {
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     //Ensure no path to destination.
-    Assert.assertTrue(jobDag.isEmpty());
+    Assert.assertEquals(jobDag, null);
   }
 
   @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")
@@ -551,6 +550,25 @@ public class MultiHopFlowCompilerTest {
 
 
   @Test (dependsOnMethods = "testCompileFlowSingleHop")
+  public void testCompileFlowSingleHopGridFS() throws IOException, URISyntaxException {
+    FlowSpec spec = createFlowSpec("flow/flow6.conf", "HDFS-1", "GRIDFS-1", false, false);
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+    Assert.assertEquals(jobDag.getNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().get(0), jobDag.getEndNodes().get(0));
+
+    //Ensure hop is from HDFS-1 to GRIDFS-1 i.e. jobName == "testFlowGroup_testFlowName_DistcpToGridFS_HDFS-1_GRIDFS-1.
+    DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    String expectedJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "DistcpToGridFS", "HDFS-1", "GRIDFS-1", "hdfsToGridFs");
+    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName.startsWith(expectedJobName));
+  }
+
+
+  @Test (dependsOnMethods = "testCompileFlowSingleHopGridFS")
   public void testMulticastPath() throws IOException, URISyntaxException {
     FlowSpec spec = createFlowSpec("flow/flow2.conf", "LocalFS-1", "HDFS-3,HDFS-4", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -647,9 +665,9 @@ public class MultiHopFlowCompilerTest {
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    Assert.assertTrue(dag.isEmpty());
-    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
-    Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains(AzkabanProjectConfig.USER_TO_PROXY));
+    Assert.assertEquals(dag, null);
+    Assert.assertEquals(spec.getCompilationErrors().size(), 2);
+    spec.getCompilationErrors().stream().anyMatch(s -> s.contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")

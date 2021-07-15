@@ -44,7 +44,6 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
-import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -106,15 +105,15 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
         assertTrue(input -> dagManager.dagManagerThreads[queue3].dagToJobs.containsKey(dagId3), ERROR_MESSAGE);
 
-    // mock delete spec
+    // mock cancel job
     dagManager.stopDag(FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowGroup("group0").setFlowName("flow0")));
     dagManager.stopDag(FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowGroup("group1").setFlowName("flow1")));
     dagManager.stopDag(FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowGroup("group2").setFlowName("flow2")));
 
-    // verify deleteSpec() of specProducer is called once
-    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag1), ERROR_MESSAGE);
-    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new DeletePredicate(dag2), ERROR_MESSAGE);
-    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new DeletePredicate(dag3), ERROR_MESSAGE);
+    // verify cancelJob() of specProducer is called once
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new CancelPredicate(dag1), ERROR_MESSAGE);
+    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new CancelPredicate(dag2), ERROR_MESSAGE);
+    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new CancelPredicate(dag3), ERROR_MESSAGE);
 
     // mock flow cancellation tracking event
     Mockito.doReturn(DagManagerTest.getMockJobStatus("flow0", "group0", flowExecutionId1,
@@ -165,10 +164,10 @@ public class DagManagerFlowTest {
     // check the SLA value
     Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
 
-    // verify deleteSpec() of the specProducer is not called once
+    // verify cancelJob() of the specProducer is not called once
     // which means job cancellation was triggered
     try {
-      AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
+      AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new CancelPredicate(dag), ERROR_MESSAGE);
     } catch (TimeoutException e) {
       AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
           assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
@@ -209,9 +208,9 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
 
-    // verify deleteSpec() of specProducer is called once
+    // verify cancelJob() of specProducer is called once
     // which means job cancellation was triggered
-    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new CancelPredicate(dag), ERROR_MESSAGE);
 
     // check removal of dag from dagToSLA map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -248,9 +247,9 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
 
-    // verify deleteSpec() of specProducer is called once
+    // verify cancelJob() of specProducer is called once
     // which means job cancellation was triggered
-    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new CancelPredicate(dag), ERROR_MESSAGE);
 
     // check removal of dag from dagToSLA map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -277,16 +276,16 @@ public class DagManagerFlowTest {
   }
 }
 
-class DeletePredicate implements Predicate<Void> {
+class CancelPredicate implements Predicate<Void> {
   private final Dag<JobExecutionPlan> dag;
-  public DeletePredicate(Dag<JobExecutionPlan> dag) {
+  public CancelPredicate(Dag<JobExecutionPlan> dag) {
     this.dag = dag;
   }
 
   @Override
   public boolean apply(@Nullable Void input) {
     try {
-      verify(dag.getNodes().get(0).getValue().getSpecExecutor().getProducer().get()).deleteSpec(any(), any());
+      verify(dag.getNodes().get(0).getValue().getSpecExecutor().getProducer().get()).cancelJob(any(), any());
     } catch (Throwable e) {
       return false;
     }
@@ -297,20 +296,14 @@ class DeletePredicate implements Predicate<Void> {
 class MockedDagManager extends DagManager {
 
   public MockedDagManager(Config config, boolean instrumentationEnabled) {
-    super(config, instrumentationEnabled);
+    super(config, createJobStatusRetriever(), instrumentationEnabled);
   }
 
-  @Override
-  JobStatusRetriever createJobStatusRetriever(Config config) {
+  private static JobStatusRetriever createJobStatusRetriever() {
     JobStatusRetriever mockedJbStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).
         getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
     return  mockedJbStatusRetriever;
-  }
-
-  @Override
-  KafkaJobStatusMonitor createJobStatusMonitor(Config config) {
-    return null;
   }
 
   @Override

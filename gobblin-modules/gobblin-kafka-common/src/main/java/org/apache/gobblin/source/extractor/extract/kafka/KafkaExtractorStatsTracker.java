@@ -66,6 +66,7 @@ public class KafkaExtractorStatsTracker {
   private static final String MIN_LOG_APPEND_TIMESTAMP = "minLogAppendTimestamp";
   private static final String MAX_LOG_APPEND_TIMESTAMP = "maxLogAppendTimestamp";
   private static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
+  private static final String NULL_RECORD_COUNT = "nullRecordCount";
   private static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
   private static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
   private static final String AVG_RECORD_SIZE = "avgRecordSize";
@@ -92,6 +93,9 @@ public class KafkaExtractorStatsTracker {
   //TopicPartitions.
   @Getter
   private int undecodableMessageCount = 0;
+  @Getter
+  private int nullRecordCount = 0;
+
   private List<KafkaPartition> partitions;
   private long maxPossibleLatency;
 
@@ -157,6 +161,7 @@ public class KafkaExtractorStatsTracker {
   @Data
   public static class ExtractorStats {
     private long decodingErrorCount = -1L;
+    private long nullRecordCount = -1L;
     private double avgMillisPerRecord = -1;
     private long avgRecordSize;
     private long elapsedTime;
@@ -198,12 +203,37 @@ public class KafkaExtractorStatsTracker {
   }
 
   /**
+   *
+   * @param partitionIdx index of Kafka topic partition.
+   * @return the number of null valued records for a given partition id.
+   */
+  public Long getNullRecordCount(int partitionIdx) {
+    return this.statsMap.get(this.partitions.get(partitionIdx)).getNullRecordCount();
+  }
+
+  /**
    * Called when the KafkaExtractor encounters an undecodeable record.
    */
   public void onUndecodeableRecord(int partitionIdx) {
     this.errorPartitions.add(partitionIdx);
     this.undecodableMessageCount++;
     incrementErrorCount(partitionIdx);
+  }
+
+  public void onNullRecord(int partitionIdx) {
+    this.nullRecordCount++;
+    incrementNullRecordCount(partitionIdx);
+  }
+
+  private void incrementNullRecordCount(int partitionIdx) {
+    this.statsMap.computeIfPresent(this.partitions.get(partitionIdx), (k, v) -> {
+      if (v.nullRecordCount < 0) {
+        v.nullRecordCount = 1;
+      } else {
+        v.nullRecordCount++;
+      }
+      return v;
+    });
   }
 
   private void incrementErrorCount(int partitionIdx) {
@@ -412,6 +442,7 @@ public class KafkaExtractorStatsTracker {
         Long.toString(TimeUnit.NANOSECONDS.toMillis(stats.getFetchMessageBufferTime())));
     tagsForPartition.put(READ_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(stats.getReadRecordTime())));
     tagsForPartition.put(UNDECODABLE_MESSAGE_COUNT, Long.toString(stats.getDecodingErrorCount()));
+    tagsForPartition.put(NULL_RECORD_COUNT, Long.toString(stats.getNullRecordCount()));
     tagsForPartition.put(LAST_RECORD_HEADER_TIMESTAMP, Long.toString(stats.getLastSuccessfulRecordHeaderTimestamp()));
 
     // Commit avg time to pull a record for each partition

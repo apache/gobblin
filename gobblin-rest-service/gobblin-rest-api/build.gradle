@@ -126,15 +126,21 @@ publishing.publications {
       pom.withXml addRuntimeDependenciesToPom
     }
 }
-addPublicationToBintray("dataTemplate")
-addPublicationToBintray("restClient")
+artifactory {
+    contextUrl = 'https://linkedin.jfrog.io/artifactory/'
+    publish {
+        defaults {
+            publications ('mavenJava', 'restClient', 'dataTemplate')
+        }
+    }
+}
 
 buildscript {
     repositories {
         mavenCentral()
         mavenLocal()
         maven {
-            url "https://linkedin.bintray.com/maven"
+            url "https://linkedin.jfrog.io/artifactory/open-source"
         }
     }
 
