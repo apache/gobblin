@@ -287,16 +287,13 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
-    //note: If the pipeline does not register the source table, if may leave the schema unchange until pipeline restart.
     String tableKey = tableNameJoiner.join(dbName, tableName);
-    if (!lastestSchemaMap.containsKey(tableKey)) {
-      Optional<HiveTable> table = hiveRegister.getTable(dbName, tableName);
-      if (table.isPresent()) {
-        lastestSchemaMap.put(tableKey, table.get().getSerDeProps().getProp(
-            AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
-      }
+    if (lastestSchemaMap.containsKey(tableKey)) {
+      return lastestSchemaMap.get(tableKey);
     }
-    return lastestSchemaMap.get(tableKey);
+    Optional<HiveTable> table = hiveRegister.getTable(dbName, tableName);
+    return table.isPresent()? table.get().getSerDeProps().getProp(
+        AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()) : null;
   }
 
   @Override
