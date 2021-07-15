@@ -6,13 +6,13 @@ Table of Contents
 
 # Introduction
 
-This guide will help you setup Gobblin, and run your first job. Currently, Gobblin requires JDK 7 or later to run.
+This guide will help you setup Gobblin, and run your first job. Currently, Gobblin requires JDK 8 or later to run.
 
 # Getting a Gobblin Release
 
-All steps in this page assume you are using a Apache Gobblin source distribution. 
+All steps in this page assume you are using a Apache Gobblin source distribution.
 
-Download source distribution from [here](/download/). 
+Download source distribution from [here](/download/).
 
 ## Building a Distribution
 
@@ -23,7 +23,7 @@ cd /path/to/gobblin/source
 ./gradlew :gobblin-distribution:buildDistributionTar
 ```
 
-Note: A full build takes time because it runs other tasks like test, javadoc, findMainBugs, etc, which impacts the build performance. 
+Note: A full build takes time because it runs other tasks like test, javadoc, findbugsMain, etc, which impacts the build performance.
 For a quick usage, building distribution is good enough. However a full build can be easily made by running:
 ```bash
 ./gradlew build
@@ -31,13 +31,13 @@ For a quick usage, building distribution is good enough. However a full build ca
 
 The generated distribution contains the binary in a specific directory structure, which is different from source.
 
-After the build is done, there should be a tarball (if there are multiple, use the newest one) at 
+After the build is done, there should be a tarball (if there are multiple, use the newest one) at
 
 `build/gobblin-distribution/distributions/`
 
 Distributions built from source are generated as `*.tar.gz` files. After getting the tarball, unpackage it locally:
 
-`tar -xvf gobblin-distribution-[VERSION].tar.gz`. 
+`tar -xvf gobblin-distribution-[VERSION].tar.gz`.
 
 # Run Your First Job
 
@@ -85,19 +85,20 @@ Each Gobblin job minimally involves several constructs, e.g. [Source](https://gi
 
 Some of the classes relevant to this example include [WikipediaSource](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/java/org/apache/gobblin/example/wikipedia/WikipediaSource.java), [WikipediaExtractor](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/java/org/apache/gobblin/example/wikipedia/WikipediaExtractor.java), [WikipediaConverter](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/java/org/apache/gobblin/example/wikipedia/WikipediaConverter.java), [AvroHdfsDataWriter](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/AvroHdfsDataWriter.java) and [BaseDataPublisher](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/publisher/BaseDataPublisher.java).
 
+
 To run Gobblin in standalone daemon mode we need a Gobblin configuration file (such as uses [application.conf](https://github.com/apache/gobblin/blob/master/conf/standalone/application.conf)). And for each job we wish to run, we also need a job configuration file (such as [wikipedia.pull](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull)). The Gobblin configuration file, which is passed to Gobblin as a command line argument, should contain a property `jobconf.dir` which specifies where the job configuration files are located. By default, `jobconf.dir` points to environment variable `GOBBLIN_JOB_CONFIG_DIR`. Each file in `jobconf.dir` with extension `.job` or `.pull` is considered a job configuration file, and Gobblin will launch a job for each such file. For more information on Gobblin deployment in standalone mode, refer to the [Standalone Deployment](user-guide/Gobblin-Deployment#Standalone-Deployment) page.
 
-A list of commonly used configuration properties can be found here: [Configuration Properties Glossary](user-guide/Configuration-Properties-Glossary).
+A list of commonly used configuration properties can be found here: [Configuration Properties Glossary](/user-guide/Configuration-Properties-Glossary).
 
 ## Steps
 
 * Create a folder to store the job configuration file. Put [wikipedia.pull](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in this folder, and set environment variable `GOBBLIN_JOB_CONFIG_DIR` to point to this folder. Also, make sure that the environment variable `JAVA_HOME` is set correctly.
 
-* Create a folder as Gobblin's working directory. Gobblin will write job output as well as other information there, such as locks and state-store (for more information, see the [Standalone Deployment](user-guide/Gobblin-Deployment#Standalone-Deployment) page). Set environment variable `GOBBLIN_WORK_DIR` to point to that folder.
+* Create a folder as Gobblin's working directory. Gobblin will write job output as well as other information there, such as locks and state-store (for more information, see the [Standalone Deployment](/user-guide/Gobblin-Deployment#standalone-architecture) page). Set environment variable `GOBBLIN_WORK_DIR` to point to that folder.
 
 * Unpack Gobblin distribution:
 
-* Launch Gobblin in one of the execution mode [for more info refer: [Gobblin-CLI](/gobblin-docs/user-guide/Gobblin-CLI.md)] :
+* Launch Gobblin in one of the execution mode [for more info refer: [Gobblin-CLI](/user-guide/Gobblin-CLI)] :
 
 ```bash
 gobblin service standalone start
@@ -141,7 +142,7 @@ The job output is written in `GOBBLIN_WORK_DIR/job-output` folder as an Avro fil
 To see the content of the job output, use the Avro tools to convert Avro to JSON. Download the latest version of Avro tools (e.g. avro-tools-1.8.1.jar):
 
 ```bash
-curl -O http://central.maven.org/maven2/org/apache/avro/avro-tools/1.8.1/avro-tools-1.8.1.jar
+curl -O https://repo.maven.apache.org/maven2/org/apache/avro/avro-tools/1.8.1/avro-tools-1.8.1.jar
 ```
 
 and run
