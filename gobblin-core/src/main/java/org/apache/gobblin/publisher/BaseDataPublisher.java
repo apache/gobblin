@@ -103,6 +103,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected final List<FileSystem> publisherFileSystemByBranches;
   protected final List<FileSystem> metaDataWriterFileSystemByBranches;
   protected final List<Optional<String>> publisherFinalDirOwnerGroupsByBranches;
+  protected final List<Optional<String>> publisherOutputDirOwnerGroupByBranches;
   protected final List<FsPermission> permissions;
   protected final Closer closer;
   protected final Closer parallelRunnerCloser;
@@ -161,6 +162,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     this.publisherFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.metaDataWriterFileSystemByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.publisherFinalDirOwnerGroupsByBranches = Lists.newArrayListWithCapacity(this.numBranches);
+    this.publisherOutputDirOwnerGroupByBranches = Lists.newArrayListWithCapacity(this.numBranches);
     this.permissions = Lists.newArrayListWithCapacity(this.numBranches);
     this.metadataMergers = new HashMap<>();
 
@@ -178,9 +180,11 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       this.metaDataWriterFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
+      // (Deprecated) See ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP
       this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
           .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP, this.numBranches, i))));
-
+      this.publisherOutputDirOwnerGroupByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
+          .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_OUTPUT_DIR_GROUP, this.numBranches, i))));
       // The permission(s) will be applied to all directories created by the publisher,
       // which do NOT include directories created by the writer and moved by the publisher.
       // The permissions of those directories are controlled by writer.file.permissions and writer.dir.permissions.
@@ -396,6 +400,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       // Create final output directory
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir,
           this.permissions.get(branchId), retrierConfig);
+      if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
+        LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
+        HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
+      }
       addSingleTaskWriterOutputToExistingDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
     } else {
       if (writerOutputPathsMoved.contains(writerOutputDir)) {
@@ -424,6 +432,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         // Create the parent directory of the final output directory if it does not exist
         WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
             publisherOutputDir.getParent(), this.permissions.get(branchId), retrierConfig);
+        if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
+          LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
+          HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
+        }
       }
 
       movePath(parallelRunner, state, writerOutputDir, publisherOutputDir, branchId);
