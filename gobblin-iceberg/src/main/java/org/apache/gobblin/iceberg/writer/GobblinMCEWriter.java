@@ -75,7 +75,7 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String DEFAULT_HIVE_REGISTRATION_POLICY_KEY = "default.hive.registration.policy";
   public static final String FORCE_HIVE_DATABASE_NAME = "force.hive.database.name";
-  public static final String ACCEPT_CLUSTER_NAMES = "accept.cluster.names";
+  public static final String ACCEPTED_CLUSTER_NAMES = "accepted.cluster.names";
   public static final String METADATA_REGISTRATION_THREADS = "metadata.registration.threads";
   public static final String METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS = "metadata.parallel.runner.timeout.mills";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
@@ -86,7 +86,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   List<MetadataWriter> metadataWriters;
   Map<String, OperationType> tableOperationTypeMap;
   Map<String, OperationType> datasetOperationTypeMap;
-  Set<String> acceptClusters;
+  Set<String> acceptedClusters;
   protected State state;
   private final ParallelRunner parallelRunner;
   private int parallelRunnerTimeoutMills;
@@ -99,7 +99,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     newSpecsMaps = new HashMap<>();
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
-    acceptClusters = properties.getPropAsSet(ACCEPT_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
+    acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
     for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
@@ -184,7 +184,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public void writeEnvelope(RecordEnvelope<GenericRecord> recordEnvelope) throws IOException {
     GenericRecord genericRecord = recordEnvelope.getRecord();
     //filter out the events that not emitted by accepted clusters
-    if (!acceptClusters.contains(genericRecord.get("cluster"))) {
+    if (!acceptedClusters.contains(genericRecord.get("cluster"))) {
       return;
     }
     // Use schema from record to avoid issue when schema evolution

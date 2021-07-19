@@ -144,7 +144,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         TestHiveRegistrationPolicyForIceberg.class.getName());
     state.setProp("use.data.path.as.table.location", true);
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
-    state.setProp(GobblinMCEWriter.ACCEPT_CLUSTER_NAMES, "randomCluster");
+    state.setProp(GobblinMCEWriter.ACCEPTED_CLUSTER_NAMES, "randomCluster");
     gobblinMCEWriterWithAcceptClusters = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
     ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
         HiveMetastoreTest.catalog);
