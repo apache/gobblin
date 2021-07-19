@@ -66,6 +66,7 @@ import static org.apache.gobblin.iceberg.writer.GobblinMCEWriter.HIVE_PARTITION_
 public abstract class GobblinMCEProducer implements Closeable {
 
   public static final String GMCE_PRODUCER_CLASS = "GobblinMCEProducer.class.name";
+  public static final String GMCE_CLUSTER_NAME = "GobblinMCE.cluster.name";
   public static final String OLD_FILES_HIVE_REGISTRATION_KEY = "old.files.hive.registration.policy";
   private static final String HDFS_PLATFORM_URN = "urn:li:dataPlatform:hdfs";
   private static final String DATASET_ORIGIN_KEY = "dataset.origin";
@@ -112,7 +113,7 @@ public abstract class GobblinMCEProducer implements Closeable {
         .setDataOrigin(DataOrigin.valueOf(origin))
         .setNativeName(state.getProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR))
         .build());
-    gmceBuilder.setCluster(ClustersNames.getInstance().getClusterName());
+    gmceBuilder.setCluster(state.getProp(GMCE_CLUSTER_NAME, ClustersNames.getInstance().getClusterName()));
     //retention job does not have job.id
     gmceBuilder.setFlowId(
         state.getProp(AbstractJob.JOB_ID, new Configuration().get(ConfigurationKeys.AZKABAN_FLOW_ID)));

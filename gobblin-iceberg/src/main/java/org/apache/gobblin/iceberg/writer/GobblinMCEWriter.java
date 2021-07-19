@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -81,6 +82,7 @@ import org.apache.gobblin.writer.DataWriterBuilder;
 public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String DEFAULT_HIVE_REGISTRATION_POLICY_KEY = "default.hive.registration.policy";
   public static final String FORCE_HIVE_DATABASE_NAME = "force.hive.database.name";
+  public static final String ACCEPTED_CLUSTER_NAMES = "accepted.cluster.names";
   public static final String METADATA_REGISTRATION_THREADS = "metadata.registration.threads";
   public static final String METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS = "metadata.parallel.runner.timeout.mills";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
@@ -91,6 +93,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   List<MetadataWriter> metadataWriters;
   Map<String, OperationType> tableOperationTypeMap;
   Map<String, OperationType> datasetOperationTypeMap;
+  Set<String> acceptedClusters;
   protected State state;
   private final ParallelRunner parallelRunner;
   private int parallelRunnerTimeoutMills;
@@ -103,6 +106,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     newSpecsMaps = new HashMap<>();
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
+    acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
     for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
@@ -183,8 +187,8 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   @Override
   public void writeEnvelope(RecordEnvelope<GenericRecord> recordEnvelope) throws IOException {
     GenericRecord genericRecord = recordEnvelope.getRecord();
-    //filter out the events that not for this cluster
-    if (!genericRecord.get("cluster").equals(ClustersNames.getInstance().getClusterName())) {
+    //filter out the events that not emitted by accepted clusters
+    if (!acceptedClusters.contains(genericRecord.get("cluster"))) {
       return;
     }
     // Use schema from record to avoid issue when schema evolution
