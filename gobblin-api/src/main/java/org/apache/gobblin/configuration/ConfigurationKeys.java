@@ -494,7 +494,10 @@ public class ConfigurationKeys {
   public static final String DATA_PUBLISHER_REPLACE_FINAL_DIR = DATA_PUBLISHER_PREFIX + ".replace.final.dir";
   public static final String DATA_PUBLISHER_FINAL_NAME = DATA_PUBLISHER_PREFIX + ".final.name";
   public static final String DATA_PUBLISHER_OVERWRITE_ENABLED = DATA_PUBLISHER_PREFIX + ".overwrite.enabled";
-  // This property is used to specify the owner group of the data publisher final output directory
+  // @DATA_PUBLISHER_FINAL_DIR is the final publishing root directory
+  // @DATA_PUBLISHER_FINAL_DIR_GROUP is set at the leaf level (DATA_PUBLISHER_FINAL_DIR/EXTRACT/file.xxx) which is incorrect
+  // Use @DATA_PUBLISHER_OUTPUT_DIR_GROUP to set group at output dir level @DATA_PUBLISHER_FINAL_DIR/EXTRACT
+  @Deprecated
   public static final String DATA_PUBLISHER_FINAL_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".final.dir.group";
   public static final String DATA_PUBLISHER_OUTPUT_DIR_GROUP = DATA_PUBLISHER_PREFIX + ".output.dir.group";
   public static final String DATA_PUBLISHER_PERMISSIONS = DATA_PUBLISHER_PREFIX + ".permissions";

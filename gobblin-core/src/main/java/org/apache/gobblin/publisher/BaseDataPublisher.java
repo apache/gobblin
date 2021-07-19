@@ -180,6 +180,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       this.metaDataWriterFileSystemByBranches.add(FileSystem.get(publisherUri, conf));
 
       // The group(s) will be applied to the final publisher output directory(ies)
+      // (Deprecated) See ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP
       this.publisherFinalDirOwnerGroupsByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
           .getPropertyNameForBranch(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR_GROUP, this.numBranches, i))));
       this.publisherOutputDirOwnerGroupByBranches.add(Optional.fromNullable(this.getState().getProp(ForkOperatorUtils
