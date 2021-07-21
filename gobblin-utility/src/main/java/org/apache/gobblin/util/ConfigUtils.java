@@ -115,7 +115,8 @@ public class ConfigUtils {
       Config resolvedConfig = config.resolve();
       for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
         if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
-          String propKey = desanitizeKey(entry.getKey());
+          // Intern the string so that constant keys are not duplicated to save memory
+          String propKey = desanitizeKey(entry.getKey()).intern();
           String propVal;
           try {
             propVal = resolvedConfig.getString(entry.getKey());
