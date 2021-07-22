@@ -149,7 +149,7 @@ public class HiveSourceTest {
     HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_5);
   }
 
   @Test
