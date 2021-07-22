@@ -50,6 +50,8 @@ public class HiveSourceTest {
   private static final String TEST_TABLE_1 = "testtable1";
   private static final String TEST_TABLE_2 = "testtable2";
   private static final String TEST_TABLE_3 = "testtable3";
+  private static final String TEST_TABLE_4 = "testtable4";
+  private static final String TEST_TABLE_5 = "testtable5";
 
   private LocalHiveMetastoreTestUtils hiveMetastoreTestUtils;
   private HiveSource hiveSource;
@@ -67,7 +69,7 @@ public class HiveSourceTest {
     String dbName = "testdb2";
     String tableSdLoc = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
     SourceState testState = getTestState(dbName);
 
@@ -91,7 +93,7 @@ public class HiveSourceTest {
     String dbName = "testdb3";
     String tableSdLoc = new File(this.tmpDir, TEST_TABLE_3).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
     SourceState testState = getTestState(dbName);
 
@@ -121,19 +123,19 @@ public class HiveSourceTest {
   @Test
   public void testGetWorkunitsAfterWatermark() throws Exception {
     String dbName = "testdb4";
-    String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
-    String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
+    String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_4).getAbsolutePath();
+    String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_5).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc1, Optional.<String> absent());
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_2, tableSdLoc2, Optional.<String> absent(), true);
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_4, tableSdLoc1, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_5, tableSdLoc2, Optional.<String> absent(), true);
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
-    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_1);
+    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_4);
 
-    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_1,
+    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_4,
         TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
