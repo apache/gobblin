@@ -67,7 +67,7 @@ public class HiveSourceTest {
     String dbName = "testdb2";
     String tableSdLoc = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
 
     SourceState testState = getTestState(dbName);
 
@@ -91,7 +91,7 @@ public class HiveSourceTest {
     String dbName = "testdb3";
     String tableSdLoc = new File(this.tmpDir, TEST_TABLE_3).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
 
     SourceState testState = getTestState(dbName);
 
@@ -124,7 +124,7 @@ public class HiveSourceTest {
     String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
     String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
 
-    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, true, true, true);
 
     this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc1, Optional.<String> absent());
     this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_2, tableSdLoc2, Optional.<String> absent(), true);
