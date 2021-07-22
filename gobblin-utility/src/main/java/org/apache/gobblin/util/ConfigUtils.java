@@ -303,7 +303,11 @@ public class ConfigUtils {
    * values Strings. This implementation will try to recognize booleans and numbers. All keys are
    * treated as strings.*/
   private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
+<<<<<<< HEAD
     Map<String, Object> res = Maps.newHashMapWithExpectedSize(srcProperties.size());
+=======
+    Map<String, Object> res = new HashMap<>(srcProperties.size());
+>>>>>>> ff249aa9c (Restore accidentally deleted line)
     for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
       if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
@@ -562,6 +566,7 @@ public class ConfigUtils {
 
     PasswordManager passwordManager = PasswordManager.getInstance(configToProperties(config));
     Map<String, String> tmpMap = Maps.newHashMapWithExpectedSize(encryptedConfig.entrySet().size());
+
     for (Map.Entry<String, ConfigValue> entry : encryptedConfig.entrySet()) {
       String val = entry.getValue().unwrapped().toString();
       val = passwordManager.readPassword(val);
