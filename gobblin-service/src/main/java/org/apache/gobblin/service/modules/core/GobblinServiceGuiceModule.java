@@ -214,6 +214,8 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bind(JobIssueEventHandler.class);
 
+    binder.bind(D2Announcer.class).to(NoopD2Announcer.class);
+
     LOGGER.info("Bindings configured");
   }
 
