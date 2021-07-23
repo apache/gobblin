@@ -133,21 +133,30 @@ public class HiveSourceTest {
 
     Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_1);
 
+    // Denote watermark to have a past created timestamp, so that the watermark workunit gets generated
+    // This is so that the test is reliable across different operating systems and not flaky to System timing differences
     previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_1,
-        TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
+        TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)-100));
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
     testState.setProp(HiveSource.HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY, TableLevelWatermarker.Factory.class.getName());
 
     List<WorkUnit> workUnits = this.hiveSource.getWorkunits(testState);
 
-    Assert.assertEquals(workUnits.size(), 1);
+    Assert.assertEquals(workUnits.size(), 2);
     WorkUnit wu = workUnits.get(0);
 
     HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_1);
+
+    WorkUnit wu2 = workUnits.get(1);
+
+    HiveWorkUnit hwu2 = new HiveWorkUnit(wu2);
+
+    Assert.assertEquals(hwu2.getHiveDataset().getDbAndTable().getDb(), dbName);
+    Assert.assertEquals(hwu2.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
   }
 
   @Test
