@@ -22,12 +22,10 @@ import java.util.Properties;
 
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
-import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -60,7 +58,7 @@ public class FlowConfigUtils {
   }
 
   public static String serializeFlowConfig(FlowConfig flowConfig) throws IOException {
-    Properties properties = ConfigUtils.configToProperties(ConfigFactory.parseMap(flowConfig.getProperties()));
+    Properties properties = PropertiesUtils.stringMapToProperties(flowConfig.getProperties());
     properties.setProperty(FLOWCONFIG_ID_NAME, flowConfig.getId().getFlowName());
     properties.setProperty(FLOWCONFIG_ID_GROUP, flowConfig.getId().getFlowGroup());
 

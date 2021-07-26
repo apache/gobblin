@@ -152,4 +152,12 @@ public class PropertiesUtils {
         .map(entry -> "\"" + entry.getKey() + "\"" + " : " + "\"" + entry.getValue() + "\"")
         .collect(Collectors.joining(",\n"));
   }
+
+  public static Properties stringMapToProperties(Map<String, String> values) {
+    Properties properties = new Properties();
+    for (Map.Entry<String, String> entry : values.entrySet()) {
+      properties.setProperty(entry.getKey(), entry.getValue());
+    }
+    return properties;
+  }
 }
