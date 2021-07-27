@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -125,7 +126,7 @@ public class FlowConfigV2Client implements Closeable {
     matcher.find();
     String allFields = matcher.group("flowStatusIdParams");
     String[] flowStatusIdParams = allFields.split(",");
-    Map<String, String> paramsMap = new HashMap<>(flowStatusIdParams.length);
+    Map<String, String> paramsMap = Maps.newHashMapWithExpectedSize(flowStatusIdParams.length);
     for (String flowStatusIdParam : flowStatusIdParams) {
       paramsMap.put(flowStatusIdParam.split(":")[0], flowStatusIdParam.split(":")[1]);
     }

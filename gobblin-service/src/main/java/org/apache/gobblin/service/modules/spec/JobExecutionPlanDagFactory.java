@@ -17,10 +17,10 @@
 
 package org.apache.gobblin.service.modules.spec;
 
+import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +44,8 @@ public class JobExecutionPlanDagFactory {
 
   public Dag<JobExecutionPlan> createDag(List<JobExecutionPlan> jobExecutionPlans) {
     //Maintain a mapping between job name and the corresponding JobExecutionPlan.
-    Map<String, Dag.DagNode<JobExecutionPlan>> jobExecutionPlanMap = new HashMap<>();
+    Map<String, Dag.DagNode<JobExecutionPlan>> jobExecutionPlanMap =
+        Maps.newHashMapWithExpectedSize(jobExecutionPlans.size());
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>(jobExecutionPlans.size());
     /**
      * Create a {@link Dag.DagNode<JobExecutionPlan>} for every {@link JobSpec} in the flow. Add this node
@@ -89,7 +90,7 @@ public class JobExecutionPlanDagFactory {
    */
   private static List<String> getDependencies(Config config) {
     return config.hasPath(ConfigurationKeys.JOB_DEPENDENCIES) ? Arrays
-        .asList(config.getString(ConfigurationKeys.JOB_DEPENDENCIES).split(",")) : new ArrayList<>();
+        .asList(config.getString(ConfigurationKeys.JOB_DEPENDENCIES).split(",")) : new ArrayList<>(0);
   }
 
   /**

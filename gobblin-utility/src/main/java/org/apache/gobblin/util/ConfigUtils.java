@@ -237,8 +237,7 @@ public class ConfigUtils {
 
     Set<String> fullPrefixKeys = findFullPrefixKeys(properties, prefix);
 
-    ImmutableMap.Builder<String, Object> immutableMapBuilder = prefix.isPresent() ?
-        ImmutableMap.builder() : ImmutableMap.builderWithExpectedSize(properties.size());
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     for (Map.Entry<Object, Object> entry : properties.entrySet()) {
       String entryKey = entry.getKey().toString();
       if (StringUtils.startsWith(entryKey, prefix.or(StringUtils.EMPTY)) &&
@@ -291,8 +290,7 @@ public class ConfigUtils {
    */
   public static Config propertiesToTypedConfig(Properties properties, Optional<String> prefix) {
     Map<String, Object> typedProps = guessPropertiesTypes(properties);
-    ImmutableMap.Builder<String, Object> immutableMapBuilder = prefix.isPresent() ?
-        ImmutableMap.builder() : ImmutableMap.builderWithExpectedSize(properties.size());
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     for (Map.Entry<String, Object> entry : typedProps.entrySet()) {
       if (StringUtils.startsWith(entry.getKey(), prefix.or(StringUtils.EMPTY))) {
         immutableMapBuilder.put(entry.getKey(), entry.getValue());
@@ -305,7 +303,7 @@ public class ConfigUtils {
    * values Strings. This implementation will try to recognize booleans and numbers. All keys are
    * treated as strings.*/
   private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
-    Map<String, Object> res = new HashMap<>(srcProperties.size());
+    Map<String, Object> res = Maps.newHashMapWithExpectedSize(srcProperties.size());
     for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
       if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {

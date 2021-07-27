@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import com.google.common.collect.Maps;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -152,7 +153,7 @@ public class FlowGraphPath {
      List<Config> resolvedJobConfigs = flowTemplate.getResolvedJobConfigs(mergedConfig, inputDatasetDescriptor, outputDatasetDescriptor);
 
      List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>(resolvedJobConfigs.size());
-     Map<String, String> templateToJobNameMap = new HashMap<>(resolvedJobConfigs.size());
+     Map<String, String> templateToJobNameMap = Maps.newHashMapWithExpectedSize(resolvedJobConfigs.size());
      //Iterate over each resolved job config and convert the config to a JobSpec.
      for (Config resolvedJobConfig : resolvedJobConfigs) {
        JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId, sysConfig);
@@ -198,9 +199,10 @@ public class FlowGraphPath {
   private void updateJobDependencies(List<JobExecutionPlan> jobExecutionPlans, Map<String, String> templateToJobNameMap) {
     for (JobExecutionPlan jobExecutionPlan: jobExecutionPlans) {
       JobSpec jobSpec = jobExecutionPlan.getJobSpec();
-      List<String> updatedDependenciesList = new ArrayList<>();
       if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
-        for (String dependency : ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES)) {
+        List<String> jobDependencies = ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES);
+        List<String> updatedDependenciesList = new ArrayList<>(jobDependencies);
+        for (String dependency : jobDependencies) {
           if (!templateToJobNameMap.containsKey(dependency)) {
             //We should never hit this condition. The logic here is a safety check.
             throw new RuntimeException("TemplateToJobNameMap does not contain dependency " + dependency);

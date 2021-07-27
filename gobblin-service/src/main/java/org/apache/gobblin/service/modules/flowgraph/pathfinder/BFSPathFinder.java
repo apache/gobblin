@@ -82,7 +82,7 @@ public class BFSPathFinder extends AbstractPathFinder {
 
     //Base condition 2: Check if we are already at the target. If so, return an empty path.
     if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
-      return new ArrayList<>();
+      return new ArrayList<>(0);
     }
 
     LinkedList<FlowEdgeContext> edgeQueue =
