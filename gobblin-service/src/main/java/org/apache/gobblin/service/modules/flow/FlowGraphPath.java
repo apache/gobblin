@@ -200,7 +200,7 @@ public class FlowGraphPath {
       JobSpec jobSpec = jobExecutionPlan.getJobSpec();
       if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
         List<String> jobDependencies = ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES);
-        List<String> updatedDependenciesList = new ArrayList<>(jobDependencies);
+        List<String> updatedDependenciesList = new ArrayList<>(jobDependencies.size());
         for (String dependency : jobDependencies) {
           if (!templateToJobNameMap.containsKey(dependency)) {
             //We should never hit this condition. The logic here is a safety check.
