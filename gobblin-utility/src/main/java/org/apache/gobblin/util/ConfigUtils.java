@@ -370,7 +370,7 @@ public class ConfigUtils {
     if (config.hasPath(path)) {
       String timeUnit = config.getString(path).toUpperCase();
       Preconditions.checkArgument(validTimeUnits.contains(timeUnit),
-          String.format(timeUnit));
+          "Passed invalid TimeUnit for documentTTLUnits: '%s'".format(timeUnit));
       return TimeUnit.valueOf(timeUnit);
     }
     return def;
