@@ -76,7 +76,7 @@ public class SchedulerUtils {
     Collection<Config> configs =
         loader.loadPullFilesRecursively(rootPath, sysConfig, true);
 
-    List<Properties> jobConfigs = Lists.newArrayList();
+    List<Properties> jobConfigs = Lists.newArrayListWithCapacity(configs.size());
     for (Config config : configs) {
       try {
         jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));
@@ -107,7 +107,7 @@ public class SchedulerUtils {
     Collection<Config> configs =
         loader.loadPullFilesRecursively(commonPropsPath.getParent(), sysConfig, true);
 
-    List<Properties> jobConfigs = Lists.newArrayList();
+    List<Properties> jobConfigs = Lists.newArrayListWithCapacity(configs.size());
     for (Config config : configs) {
       try {
         jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));

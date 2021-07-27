@@ -45,7 +45,7 @@ public class JobExecutionPlanDagFactory {
   public Dag<JobExecutionPlan> createDag(List<JobExecutionPlan> jobExecutionPlans) {
     //Maintain a mapping between job name and the corresponding JobExecutionPlan.
     Map<String, Dag.DagNode<JobExecutionPlan>> jobExecutionPlanMap = new HashMap<>();
-    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
+    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>(jobExecutionPlans.size());
     /**
      * Create a {@link Dag.DagNode<JobExecutionPlan>} for every {@link JobSpec} in the flow. Add this node
      * to a HashMap.

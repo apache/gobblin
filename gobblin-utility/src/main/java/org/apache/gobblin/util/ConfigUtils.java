@@ -97,7 +97,7 @@ public class ConfigUtils {
    * @return a {@link Properties} instance
    */
   public static Properties configToProperties(Config config) {
-    return configToProperties(config, Optional.<String>absent());
+    return configToProperties(config, Optional.absent());
   }
 
   /**
@@ -181,7 +181,7 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties) {
-    return propertiesToConfig(properties, Optional.<String>absent());
+    return propertiesToConfig(properties, Optional.absent());
   }
 
   /**
@@ -229,7 +229,7 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties, Optional<String> prefix) {
-    Set<String> blacklistedKeys = new HashSet<>();
+    Set<String> blacklistedKeys = new HashSet<>(0);
     if (properties.containsKey(GOBBLIN_CONFIG_BLACKLIST_KEYS)) {
       blacklistedKeys = new HashSet<>(Splitter.on(',').omitEmptyStrings().trimResults()
           .splitToList(properties.getProperty(GOBBLIN_CONFIG_BLACKLIST_KEYS)));
@@ -237,7 +237,8 @@ public class ConfigUtils {
 
     Set<String> fullPrefixKeys = findFullPrefixKeys(properties, prefix);
 
-    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = prefix.isPresent() ?
+        ImmutableMap.builder() : ImmutableMap.builderWithExpectedSize(properties.size());
     for (Map.Entry<Object, Object> entry : properties.entrySet()) {
       String entryKey = entry.getKey().toString();
       if (StringUtils.startsWith(entryKey, prefix.or(StringUtils.EMPTY)) &&
@@ -290,7 +291,8 @@ public class ConfigUtils {
    */
   public static Config propertiesToTypedConfig(Properties properties, Optional<String> prefix) {
     Map<String, Object> typedProps = guessPropertiesTypes(properties);
-    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = prefix.isPresent() ?
+        ImmutableMap.builder() : ImmutableMap.builderWithExpectedSize(properties.size());
     for (Map.Entry<String, Object> entry : typedProps.entrySet()) {
       if (StringUtils.startsWith(entry.getKey(), prefix.or(StringUtils.EMPTY))) {
         immutableMapBuilder.put(entry.getKey(), entry.getValue());
@@ -303,7 +305,7 @@ public class ConfigUtils {
    * values Strings. This implementation will try to recognize booleans and numbers. All keys are
    * treated as strings.*/
   private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
-    Map<String, Object> res = new HashMap<>();
+    Map<String, Object> res = new HashMap<>(srcProperties.size());
     for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
       if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
@@ -371,7 +373,7 @@ public class ConfigUtils {
     if (config.hasPath(path)) {
       String timeUnit = config.getString(path).toUpperCase();
       Preconditions.checkArgument(validTimeUnits.contains(timeUnit),
-          "Passed invalid TimeUnit for documentTTLUnits: '%s'".format(timeUnit));
+          String.format(timeUnit));
       return TimeUnit.valueOf(timeUnit);
     }
     return def;
@@ -478,7 +480,7 @@ public class ConfigUtils {
       return Collections.emptyList();
     }
 
-    List<String> valueList = Lists.newArrayList();
+    List<String> valueList;
     try {
       valueList = config.getStringList(path);
     } catch (ConfigException.WrongType e) {
@@ -494,7 +496,7 @@ public class ConfigUtils {
        * b
        * 10,12
        */
-      try (CSVReader csvr = new CSVReader(new StringReader(config.getString(path)));) {
+      try (CSVReader csvr = new CSVReader(new StringReader(config.getString(path)))) {
         valueList = Lists.newArrayList(csvr.readNext());
       } catch (IOException ioe) {
         throw new RuntimeException(ioe);
@@ -561,7 +563,7 @@ public class ConfigUtils {
     Config encryptedConfig = config.getConfig(encConfigPath.get());
 
     PasswordManager passwordManager = PasswordManager.getInstance(configToProperties(config));
-    Map<String, String> tmpMap = Maps.newHashMap();
+    Map<String, String> tmpMap = Maps.newHashMapWithExpectedSize(encryptedConfig.entrySet().size());
     for (Map.Entry<String, ConfigValue> entry : encryptedConfig.entrySet()) {
       String val = entry.getValue().unwrapped().toString();
       val = passwordManager.readPassword(val);
