@@ -58,7 +58,8 @@ public class FlowConfigUtils {
   }
 
   public static String serializeFlowConfig(FlowConfig flowConfig) throws IOException {
-    Properties properties = PropertiesUtils.stringMapToProperties(flowConfig.getProperties());
+    Properties properties = new Properties();
+    properties.putAll(flowConfig.getProperties());
     properties.setProperty(FLOWCONFIG_ID_NAME, flowConfig.getId().getFlowName());
     properties.setProperty(FLOWCONFIG_ID_GROUP, flowConfig.getId().getFlowGroup());
 
