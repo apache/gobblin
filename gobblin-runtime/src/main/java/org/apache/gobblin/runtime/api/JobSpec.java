@@ -318,7 +318,7 @@ public class JobSpec implements Configurable, Spec {
      */
     public Builder withResourceTemplates(List<URI> templateURIs) {
       try {
-        List<JobTemplate> templates = new ArrayList<>();
+        List<JobTemplate> templates = new ArrayList<>(templateURIs.size());
         for(URI uri : templateURIs) {
           templates.add(ResourceBasedJobTemplate.forResourcePath(uri.getPath()));
         }
