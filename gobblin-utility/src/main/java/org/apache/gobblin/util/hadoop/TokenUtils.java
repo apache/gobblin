@@ -188,7 +188,11 @@ public class TokenUtils {
         : Optional.fromNullable(state.getProp(USER_TO_PROXY));
     final Configuration conf = new Configuration();
 
-    List<String> remoteFSURIList = state.getPropAsList(OTHER_NAMENODES);
+    List<String> remoteFSURIList = new ArrayList<>();
+    if (state.contains(OTHER_NAMENODES)) {
+      remoteFSURIList = state.getPropAsList(OTHER_NAMENODES);
+    }
+
     String renewer = state.getProp(TOKEN_RENEWER);
     log.info("Getting tokens for {}, using renewer: {}, including remote FS: {}", userToProxy, renewer, remoteFSURIList.toString());
 
