@@ -119,6 +119,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator();
 
       if (datasets.size() == 0) {
+        workUnitIterator.done();
         return new BasicWorkUnitStream.Builder(workUnitIterator).build();
       }
 
