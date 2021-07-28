@@ -17,10 +17,10 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import com.google.common.collect.Maps;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -60,8 +60,8 @@ import org.apache.gobblin.util.ConfigUtils;
 public class FlowGraphPath {
   @Getter
   private List<List<FlowEdgeContext>> paths;
-  private FlowSpec flowSpec;
-  private Long flowExecutionId;
+  private final FlowSpec flowSpec;
+  private final Long flowExecutionId;
 
   public FlowGraphPath(FlowSpec flowSpec, Long flowExecutionId) {
     this.flowSpec = flowSpec;
@@ -142,26 +142,26 @@ public class FlowGraphPath {
    */
    private Dag<JobExecutionPlan> convertHopToDag(FlowEdgeContext flowEdgeContext, Config sysConfig)
       throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
-    FlowTemplate flowTemplate = flowEdgeContext.getEdge().getFlowTemplate();
-    DatasetDescriptor inputDatasetDescriptor = flowEdgeContext.getInputDatasetDescriptor();
-    DatasetDescriptor outputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
-    Config mergedConfig = flowEdgeContext.getMergedConfig();
-    SpecExecutor specExecutor = flowEdgeContext.getSpecExecutor();
+     FlowTemplate flowTemplate = flowEdgeContext.getEdge().getFlowTemplate();
+     DatasetDescriptor inputDatasetDescriptor = flowEdgeContext.getInputDatasetDescriptor();
+     DatasetDescriptor outputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
+     Config mergedConfig = flowEdgeContext.getMergedConfig();
+     SpecExecutor specExecutor = flowEdgeContext.getSpecExecutor();
 
-    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
-    Map<String, String> templateToJobNameMap = new HashMap<>();
+     //Get resolved job configs from the flow template
+     List<Config> resolvedJobConfigs = flowTemplate.getResolvedJobConfigs(mergedConfig, inputDatasetDescriptor, outputDatasetDescriptor);
 
-    //Get resolved job configs from the flow template
-    List<Config> resolvedJobConfigs = flowTemplate.getResolvedJobConfigs(mergedConfig, inputDatasetDescriptor, outputDatasetDescriptor);
-    //Iterate over each resolved job config and convert the config to a JobSpec.
-    for (Config resolvedJobConfig : resolvedJobConfigs) {
-      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId, sysConfig);
-      jobExecutionPlans.add(jobExecutionPlan);
-      templateToJobNameMap.put(getJobTemplateName(jobExecutionPlan), jobExecutionPlan.getJobSpec().getConfig().getString(
-          ConfigurationKeys.JOB_NAME_KEY));
-    }
-    updateJobDependencies(jobExecutionPlans, templateToJobNameMap);
-    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
+     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>(resolvedJobConfigs.size());
+     Map<String, String> templateToJobNameMap = Maps.newHashMapWithExpectedSize(resolvedJobConfigs.size());
+     //Iterate over each resolved job config and convert the config to a JobSpec.
+     for (Config resolvedJobConfig : resolvedJobConfigs) {
+       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId, sysConfig);
+       jobExecutionPlans.add(jobExecutionPlan);
+       templateToJobNameMap.put(getJobTemplateName(jobExecutionPlan), jobExecutionPlan.getJobSpec().getConfig().getString(
+           ConfigurationKeys.JOB_NAME_KEY));
+     }
+     updateJobDependencies(jobExecutionPlans, templateToJobNameMap);
+     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
   /**
@@ -198,9 +198,10 @@ public class FlowGraphPath {
   private void updateJobDependencies(List<JobExecutionPlan> jobExecutionPlans, Map<String, String> templateToJobNameMap) {
     for (JobExecutionPlan jobExecutionPlan: jobExecutionPlans) {
       JobSpec jobSpec = jobExecutionPlan.getJobSpec();
-      List<String> updatedDependenciesList = new ArrayList<>();
       if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
-        for (String dependency : ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES)) {
+        List<String> jobDependencies = ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES);
+        List<String> updatedDependenciesList = new ArrayList<>(jobDependencies.size());
+        for (String dependency : jobDependencies) {
           if (!templateToJobNameMap.containsKey(dependency)) {
             //We should never hit this condition. The logic here is a safety check.
             throw new RuntimeException("TemplateToJobNameMap does not contain dependency " + dependency);

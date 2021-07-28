@@ -23,7 +23,6 @@ import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -97,7 +96,7 @@ public class ConfigUtils {
    * @return a {@link Properties} instance
    */
   public static Properties configToProperties(Config config) {
-    return configToProperties(config, Optional.<String>absent());
+    return configToProperties(config, Optional.absent());
   }
 
   /**
@@ -181,7 +180,7 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties) {
-    return propertiesToConfig(properties, Optional.<String>absent());
+    return propertiesToConfig(properties, Optional.absent());
   }
 
   /**
@@ -229,7 +228,7 @@ public class ConfigUtils {
    * @return a {@link Config} instance
    */
   public static Config propertiesToConfig(Properties properties, Optional<String> prefix) {
-    Set<String> blacklistedKeys = new HashSet<>();
+    Set<String> blacklistedKeys = new HashSet<>(0);
     if (properties.containsKey(GOBBLIN_CONFIG_BLACKLIST_KEYS)) {
       blacklistedKeys = new HashSet<>(Splitter.on(',').omitEmptyStrings().trimResults()
           .splitToList(properties.getProperty(GOBBLIN_CONFIG_BLACKLIST_KEYS)));
@@ -303,7 +302,7 @@ public class ConfigUtils {
    * values Strings. This implementation will try to recognize booleans and numbers. All keys are
    * treated as strings.*/
   private static Map<String, Object> guessPropertiesTypes(Map<Object, Object> srcProperties) {
-    Map<String, Object> res = new HashMap<>();
+    Map<String, Object> res = Maps.newHashMapWithExpectedSize(srcProperties.size());
     for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
       if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
@@ -478,7 +477,7 @@ public class ConfigUtils {
       return Collections.emptyList();
     }
 
-    List<String> valueList = Lists.newArrayList();
+    List<String> valueList;
     try {
       valueList = config.getStringList(path);
     } catch (ConfigException.WrongType e) {
@@ -494,7 +493,7 @@ public class ConfigUtils {
        * b
        * 10,12
        */
-      try (CSVReader csvr = new CSVReader(new StringReader(config.getString(path)));) {
+      try (CSVReader csvr = new CSVReader(new StringReader(config.getString(path)))) {
         valueList = Lists.newArrayList(csvr.readNext());
       } catch (IOException ioe) {
         throw new RuntimeException(ioe);
@@ -561,7 +560,7 @@ public class ConfigUtils {
     Config encryptedConfig = config.getConfig(encConfigPath.get());
 
     PasswordManager passwordManager = PasswordManager.getInstance(configToProperties(config));
-    Map<String, String> tmpMap = Maps.newHashMap();
+    Map<String, String> tmpMap = Maps.newHashMapWithExpectedSize(encryptedConfig.entrySet().size());
     for (Map.Entry<String, ConfigValue> entry : encryptedConfig.entrySet()) {
       String val = entry.getValue().unwrapped().toString();
       val = passwordManager.readPassword(val);
