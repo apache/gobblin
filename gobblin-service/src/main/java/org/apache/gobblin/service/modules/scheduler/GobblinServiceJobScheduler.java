@@ -203,8 +203,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
       try {
         // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-        if (spec instanceof FlowSpec && ((FlowSpec) spec).getConfigAsProperties()
-            .getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false").equals("true")) {
+        if (spec instanceof FlowSpec && PropertiesUtils.getPropAsBoolean((
+            (FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
           onAddSpec(modifiedSpec);
         } else {
