@@ -295,7 +295,6 @@ public class HiveMetadataWriter implements MetadataWriter {
     spec.getTable()
         .getSerDeProps()
         .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
-
   }
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
