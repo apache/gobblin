@@ -36,8 +36,14 @@ public interface MetadataWriter extends Closeable {
   String CACHE_EXPIRING_TIME = "GMCEWriter.cache.expiring.time.hours";
   int DEFAULT_CACHE_EXPIRING_TIME = 1;
 
-  /*
-  Register the metadata of specific table to the metadata store
+  /**
+   * Register the metadata of specific table to the metadata store. This is a blocking method,
+   * meaning once it returns, as long as the underlying metadata storage is transactional (e.g. Mysql as for HMS),
+   * one could expect the metadata registration going through and being persisted already.
+   *
+   * @param dbName The db name of metadata-registration target.
+   * @param tableName The table name of metadata-registration target.
+   * @throws IOException
    */
   void flush(String dbName, String tableName) throws IOException;
 

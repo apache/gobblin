@@ -35,7 +35,7 @@ import org.apache.gobblin.util.AutoCloseableLock;
  *
  * <p>
  *   Obtaining a table lock does <em>not</em> lock the database, which permits concurrent operations on different
- *   tables in the same database. Similarly, obtianing a partition lock does not lock the table or the database.
+ *   tables in the same database. Similarly, obtaining a partition lock does not lock the table or the database.
  * </p>
  */
 public class HiveLock {
