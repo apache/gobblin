@@ -25,8 +25,11 @@ public class RuntimeMetrics {
   // Metric names
   public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ =
       "gobblin.kafka.highLevelConsumer.messagesRead";
+  public static final String GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS = "gobblin.jobMonitor.kafka.totalSpecs";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS = "gobblin.jobMonitor.kafka.newSpecs";
+  public static final String GOBBLIN_JOB_MONITOR_KAFKA_UPDATED_SPECS = "gobblin.jobMonitor.kafka.updatedSpecs";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS = "gobblin.jobMonitor.kafka.removedSpecs";
+  public static final String GOBBLIN_JOB_MONITOR_KAFKA_CANCELLED_SPECS = "gobblin.jobMonitor.kafka.cancelledSpecs";
   public static final String GOBBLIN_JOB_MONITOR_SLAEVENT_REJECTEDEVENTS = "gobblin.jobMonitor.slaevent.rejectedevents";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_MESSAGE_PARSE_FAILURES =
       "gobblin.jobMonitor.kafka.messageParseFailures";
