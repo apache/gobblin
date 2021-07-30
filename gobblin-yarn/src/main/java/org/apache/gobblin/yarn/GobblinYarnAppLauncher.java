@@ -23,6 +23,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -45,8 +46,11 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
@@ -191,7 +195,6 @@ public class GobblinYarnAppLauncher {
   private final HelixManager helixManager;
 
   private final Configuration yarnConfiguration;
-  private final YarnClient yarnClient;
   private final FileSystem fs;
 
   private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
@@ -235,6 +238,9 @@ public class GobblinYarnAppLauncher {
 
   private final String containerTimezone;
   private final String appLauncherMode;
+  private final String originalYarnRMAddress;
+  private final Map<String, YarnClient> potentialYarnClients;
+  private YarnClient yarnClient;
 
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
@@ -253,8 +259,16 @@ public class GobblinYarnAppLauncher {
     YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
-    this.yarnClient = YarnClient.createYarnClient();
-    this.yarnClient.init(this.yarnConfiguration);
+    this.originalYarnRMAddress = this.yarnConfiguration.get(GobblinYarnConfigurationKeys.YARN_RESOURCEMANAGER_ADDRESS);
+    this.potentialYarnClients = new HashMap();
+    Set<String> potentialRMAddresses = new HashSet<>(ConfigUtils.getStringList(config, GobblinYarnConfigurationKeys.POTENTIAL_YARN_RESOURCEMANAGER_ADDRESSES));
+    potentialRMAddresses.add(originalYarnRMAddress);
+    for (String rmAddress : potentialRMAddresses) {
+       YarnClient tmpYarnClient = YarnClient.createYarnClient();
+      this.yarnConfiguration.set(GobblinYarnConfigurationKeys.YARN_RESOURCEMANAGER_ADDRESS, rmAddress);
+      tmpYarnClient.init(this.yarnConfiguration);
+      potentialYarnClients.put(rmAddress, tmpYarnClient);
+    }
 
     this.fs = GobblinClusterUtils.buildFileSystem(config, this.yarnConfiguration);
     this.closer.register(this.fs);
@@ -340,20 +354,20 @@ public class GobblinYarnAppLauncher {
 
     connectHelixManager();
 
-    startYarnClient();
-
-    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
-
-    boolean isReconnected = reconnectableApplicationId.isPresent();
-    // Before setup application, first login to make sure ugi has the right token.
+    //Before connect with yarn client, we need to login to get the token
     if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
-      this.securityManager = Optional.of(buildSecurityManager(isReconnected));
+      this.securityManager = Optional.of(buildSecurityManager());
       this.securityManager.get().loginAndScheduleTokenRenewal();
     }
 
-    if (!reconnectableApplicationId.isPresent()) {
+    startYarnClient();
+
+    this.applicationId = getReconnectableApplicationId();
+
+    if (!this.applicationId.isPresent()) {
       disableLiveHelixInstances();
       LOGGER.info("No reconnectable application found so submitting a new application");
+      this.yarnClient = potentialYarnClients.get(this.originalYarnRMAddress);
       this.applicationId = Optional.of(setupAndSubmitApplication());
     }
 
@@ -549,12 +563,16 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   void startYarnClient() {
-    this.yarnClient.start();
+    for (YarnClient yarnClient : potentialYarnClients.values()) {
+      yarnClient.start();
+    }
   }
 
   @VisibleForTesting
   void stopYarnClient() {
-    this.yarnClient.stop();
+    for (YarnClient yarnClient : potentialYarnClients.values()) {
+      yarnClient.stop();
+    }
   }
 
   /**
@@ -574,19 +592,21 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
-    List<ApplicationReport> applicationReports =
-        this.yarnClient.getApplications(APPLICATION_TYPES, RECONNECTABLE_APPLICATION_STATES);
-    if (applicationReports == null || applicationReports.isEmpty()) {
-      return Optional.absent();
-    }
+    for (YarnClient yarnClient: potentialYarnClients.values()) {
+      List<ApplicationReport> applicationReports = yarnClient.getApplications(APPLICATION_TYPES, RECONNECTABLE_APPLICATION_STATES);
+      if (applicationReports == null || applicationReports.isEmpty()) {
+        continue;
+      }
 
-    // Try to find an application with a matching application name
-    for (ApplicationReport applicationReport : applicationReports) {
-      if (this.applicationName.equals(applicationReport.getName())) {
-        String applicationId = sanitizeApplicationId(applicationReport.getApplicationId().toString());
-        LOGGER.info("Found reconnectable application with application ID: " + applicationId);
-        LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
-        return Optional.of(applicationReport.getApplicationId());
+      // Try to find an application with a matching application name
+      for (ApplicationReport applicationReport : applicationReports) {
+        if (this.applicationName.equals(applicationReport.getName())) {
+          String applicationId = sanitizeApplicationId(applicationReport.getApplicationId().toString());
+          LOGGER.info("Found reconnectable application with application ID: " + applicationId);
+          LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
+          this.yarnClient = yarnClient;
+          return Optional.of(applicationReport.getApplicationId());
+        }
       }
     }
 
@@ -835,14 +855,22 @@ public class GobblinYarnAppLauncher {
 
     TokenUtils.getAllFSTokens(new Configuration(), credentials, renewerName,
         Optional.absent(), ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
-
+    // Only pass token here and no secrets. (since there is no simple way to remove single token/ get secrets)
+    // For RM token, only pass the RM token for the current RM, or the RM will fail to update the token
+    Credentials finalCredentials = new Credentials();
+    for ( Token<? extends TokenIdentifier> token: credentials.getAllTokens()) {
+      if (token.getKind().equals(new Text("RM_DELEGATION_TOKEN")) && !token.getService().equals(new Text(this.originalYarnRMAddress))) {
+        continue;
+      }
+      finalCredentials.addToken(token.getService(), token);
+    }
     Closer closer = Closer.create();
     try {
       DataOutputBuffer dataOutputBuffer = closer.register(new DataOutputBuffer());
-      credentials.writeTokenStorageToStream(dataOutputBuffer);
+      finalCredentials.writeTokenStorageToStream(dataOutputBuffer);
       ByteBuffer fsTokens = ByteBuffer.wrap(dataOutputBuffer.getData(), 0, dataOutputBuffer.getLength());
       containerLaunchContext.setTokens(fsTokens);
-      LOGGER.info("Setting containerLaunchContext with All credential tokens: " + credentials.getAllTokens());
+      LOGGER.info("Setting containerLaunchContext with All credential tokens: " + finalCredentials.getAllTokens());
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {
@@ -872,7 +900,7 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private AbstractYarnAppSecurityManager buildSecurityManager(boolean isReconnected) throws IOException {
+  private AbstractYarnAppSecurityManager buildSecurityManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
 
@@ -881,7 +909,7 @@ public class GobblinYarnAppLauncher {
     try {
      return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(
           ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS))), this.config, this.helixManager, this.fs,
-          tokenFilePath, isReconnected);
+          tokenFilePath);
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);
     }
