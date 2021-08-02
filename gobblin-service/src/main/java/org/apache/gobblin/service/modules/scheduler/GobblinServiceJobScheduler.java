@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.helix.HelixManager;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
@@ -50,6 +51,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -97,6 +101,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   private volatile boolean isActive;
   private String serviceName;
+  private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
+      GobblinServiceJobScheduler.class);
+  private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
+  private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);;
 
   /**
    * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
@@ -435,6 +443,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
         throw new JobExecutionException(t);
+      } finally {
+        scheduledFlows.mark();
       }
     }
 
@@ -481,6 +491,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       } catch (InterruptedException e) {
       _log.error("Failed to delete the spec " + specUri, e);
+      } finally {
+        nonScheduledFlows.mark();
       }
     }
   }
