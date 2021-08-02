@@ -28,11 +28,17 @@ import java.util.Properties;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
@@ -61,9 +67,19 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
   private Config _config;
   private final String _kafkaProducerClassName;
 
+  private Meter addSpecMeter;
+  private Meter deleteSpecMeter;
+  private Meter updateSpecMeter;
+  private Meter cancelSpecMeter;
+  private MetricContext metricContext = Instrumented.getMetricContext(new State(), getClass());
+
   public SimpleKafkaSpecProducer(Config config, Optional<Logger> log) {
     _kafkaProducerClassName = ConfigUtils.getString(config, KAFKA_DATA_WRITER_CLASS_KEY,
         DEFAULT_KAFKA_DATA_WRITER_CLASS);
+    this.addSpecMeter = createMeter("-Add");
+    this.deleteSpecMeter = createMeter("-Delete");
+    this.updateSpecMeter = createMeter("-Update");
+    this.cancelSpecMeter = createMeter("-Cancel");
 
     try {
       _serializer = new AvroBinarySerializer<>(AvroJobSpec.SCHEMA$, new FixedSchemaVersionWriter());
@@ -82,11 +98,16 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     this(config, Optional.<Logger>absent());
   }
 
+  private Meter createMeter(String suffix) {
+    return this.metricContext.meter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, getClass().getSimpleName(), suffix));
+  }
+
   @Override
   public Future<?> addSpec(Spec addedSpec) {
     AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, SpecExecutor.Verb.ADD);
 
     log.info("Adding Spec: " + addedSpec + " using Kafka.");
+    this.addSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
@@ -96,6 +117,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
 
     log.info("Updating Spec: " + updatedSpec + " using Kafka.");
+    this.updateSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
@@ -108,6 +130,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
         .setProperties(Maps.fromProperties(headers)).build();
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+    this.deleteSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
@@ -119,6 +142,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
         .setProperties(Maps.fromProperties(properties)).build();
 
     log.info("Cancelling job: " + deletedSpecURI + " using Kafka.");
+    this.cancelSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }

@@ -96,6 +96,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Meter> flowOrchestrationFailedMeter;
   @Getter
   private Optional<Timer> flowOrchestrationTimer;
+  private Optional<Meter> skippedFlowsMeter;
   @Setter
   private FlowStatusGenerator flowStatusGenerator;
 
@@ -136,12 +137,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER));
       this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
       this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
+      this.skippedFlowsMeter = Optional.of(metricContext.contextAwareMeter(ServiceMetricNames.SKIPPED_FLOWS));
       this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
     } else {
       this.metricContext = null;
       this.flowOrchestrationSuccessFulMeter = Optional.absent();
       this.flowOrchestrationFailedMeter = Optional.absent();
       this.flowOrchestrationTimer = Optional.absent();
+      this.skippedFlowsMeter = Optional.absent();
       this.eventSubmitter = Optional.absent();
     }
     this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
@@ -235,6 +238,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
         flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
+        Instrumented.markMeter(this.skippedFlowsMeter);
 
         // Send FLOW_FAILED event
         Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
