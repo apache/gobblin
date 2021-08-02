@@ -259,13 +259,13 @@ public class GobblinYarnAppLauncher {
     YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
-    this.originalYarnRMAddress = this.yarnConfiguration.get(GobblinYarnConfigurationKeys.YARN_RESOURCEMANAGER_ADDRESS);
+    this.originalYarnRMAddress = this.yarnConfiguration.get(GobblinYarnConfigurationKeys.YARN_RESOURCE_MANAGER_ADDRESS);
     this.potentialYarnClients = new HashMap();
-    Set<String> potentialRMAddresses = new HashSet<>(ConfigUtils.getStringList(config, GobblinYarnConfigurationKeys.POTENTIAL_YARN_RESOURCEMANAGER_ADDRESSES));
+    Set<String> potentialRMAddresses = new HashSet<>(ConfigUtils.getStringList(config, GobblinYarnConfigurationKeys.OTHER_YARN_RESOURCE_MANAGER_ADDRESSES));
     potentialRMAddresses.add(originalYarnRMAddress);
     for (String rmAddress : potentialRMAddresses) {
        YarnClient tmpYarnClient = YarnClient.createYarnClient();
-      this.yarnConfiguration.set(GobblinYarnConfigurationKeys.YARN_RESOURCEMANAGER_ADDRESS, rmAddress);
+      this.yarnConfiguration.set(GobblinYarnConfigurationKeys.YARN_RESOURCE_MANAGER_ADDRESS, rmAddress);
       tmpYarnClient.init(this.yarnConfiguration);
       potentialYarnClients.put(rmAddress, tmpYarnClient);
     }
@@ -858,7 +858,7 @@ public class GobblinYarnAppLauncher {
     // Only pass token here and no secrets. (since there is no simple way to remove single token/ get secrets)
     // For RM token, only pass the RM token for the current RM, or the RM will fail to update the token
     Credentials finalCredentials = new Credentials();
-    for ( Token<? extends TokenIdentifier> token: credentials.getAllTokens()) {
+    for (Token<? extends TokenIdentifier> token: credentials.getAllTokens()) {
       if (token.getKind().equals(new Text("RM_DELEGATION_TOKEN")) && !token.getService().equals(new Text(this.originalYarnRMAddress))) {
         continue;
       }
