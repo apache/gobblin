@@ -58,6 +58,10 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = GOBBLIN_SERVICE_PREFIX + "flowCatalog.localCommit";
   public static final boolean DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = true;
 
+  // Job Level Keys
+  public static final String WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "work.unit.size";
+  public static final String TOTAL_WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "total.work.unit.size";
+  public static final String TOTAL_WORK_UNIT_COUNT = GOBBLIN_SERVICE_PREFIX + "total.work.unit.count";
   /**
    * Directly use canonical class name here to avoid introducing additional dependency here.
    */

@@ -176,6 +176,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps,
         this.jobContext.getJobState(),
         this.eventBus,
+        this.eventSubmitter,
         this.stateStores.getTaskStateStore(),
         this.outputTaskStateDir,
         this.getIssueRepository());
