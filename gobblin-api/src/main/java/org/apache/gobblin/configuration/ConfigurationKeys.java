@@ -681,6 +681,9 @@ public class ConfigurationKeys {
   public static final String TASK_STATE_COLLECTOR_INTERVAL_SECONDS = "task.state.collector.interval.secs";
   public static final int DEFAULT_TASK_STATE_COLLECTOR_INTERVAL_SECONDS = 60;
   public static final String TASK_STATE_COLLECTOR_HANDLER_CLASS = "task.state.collector.handler.class";
+  public static final String REPORT_JOB_PROGRESS = "report.job.progress";
+  public static final boolean DEFAULT_REPORT_JOB_PROGRESS = false;
+  public static final double DEFAULT_PROGRESS_REPORTING_THRESHOLD = 0.05;
 
   /**
    * Set to true so that job still proceed if TaskStateCollectorService failed.

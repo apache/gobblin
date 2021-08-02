@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -38,6 +40,8 @@ import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.runtime.troubleshooter.InMemoryIssueRepository;
 import org.apache.gobblin.util.JobLauncherUtils;
 
+import static org.mockito.Mockito.*;
+
 
 /**
  * Unit tests for {@link TaskStateCollectorService}.
@@ -51,6 +55,7 @@ public class TaskStateCollectorServiceTest {
   private static final String JOB_ID = JobLauncherUtils.newJobId(JOB_NAME);
   private static final String TASK_ID_0 = JobLauncherUtils.newTaskId(JOB_ID, 0);
   private static final String TASK_ID_1 = JobLauncherUtils.newTaskId(JOB_ID, 1);
+  private static final String WORK_UNIT_SIZE = "20";
 
   private final Path outputTaskStateDir = new Path(TaskStateCollectorServiceTest.class.getSimpleName());
 
@@ -64,6 +69,8 @@ public class TaskStateCollectorServiceTest {
 
   private final EventBus eventBus = new EventBus();
 
+  private EventSubmitter mockEventSubmitter;
+
   private final Map<String, TaskState> taskStateMap = Maps.newHashMap();
 
   @BeforeClass
@@ -73,9 +80,10 @@ public class TaskStateCollectorServiceTest {
 
     this.taskStateStore = new FsStateStore<>(this.localFs, this.outputTaskStateDir.toUri().getPath(), TaskState.class);
 
-
+    this.mockEventSubmitter = mock(EventSubmitter.class);
     this.taskStateCollectorService = new TaskStateCollectorService(new Properties(), this.jobState, this.eventBus,
-        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID), new InMemoryIssueRepository());
+        this.mockEventSubmitter,this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID),
+        new InMemoryIssueRepository());
 
     this.eventBus.register(this);
   }
@@ -85,11 +93,13 @@ public class TaskStateCollectorServiceTest {
     TaskState taskState1 = new TaskState();
     taskState1.setJobId(JOB_ID);
     taskState1.setTaskId(TASK_ID_0);
+    taskState1.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, WORK_UNIT_SIZE);
     this.taskStateStore.put(JOB_ID, TASK_ID_0 + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX, taskState1);
 
     TaskState taskState2 = new TaskState();
     taskState2.setJobId(JOB_ID);
     taskState2.setTaskId(TASK_ID_1);
+    taskState2.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, WORK_UNIT_SIZE);
     this.taskStateStore.put(JOB_ID, TASK_ID_1 + AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX, taskState2);
   }
 
@@ -109,7 +119,9 @@ public class TaskStateCollectorServiceTest {
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.TASK_STATE_COLLECTOR_HANDLER_CLASS, "hivereg");
     TaskStateCollectorService taskStateCollectorServiceHive = new TaskStateCollectorService(props, this.jobState, this.eventBus,
-        this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"), new InMemoryIssueRepository());
+        this.mockEventSubmitter, this.taskStateStore, new Path(this.outputTaskStateDir, JOB_ID + "_prime"),
+        new InMemoryIssueRepository());
+
     Assert.assertEquals(taskStateCollectorServiceHive.getOptionalTaskCollectorHandler().get().getClass().getName(),
         "org.apache.gobblin.runtime.HiveRegTaskStateCollectorServiceHandlerImpl");
     taskStateCollectorServiceHive.shutDown();

@@ -53,4 +53,6 @@ public class JobStatus {
   private final int currentAttempts;
   private final boolean shouldRetry;
   private final List<Issue> issues;
+  private final int progressPercentage;
+  private final long lastProgressEventTime;
 }

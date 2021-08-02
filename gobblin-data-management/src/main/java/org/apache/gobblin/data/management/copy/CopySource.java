@@ -98,6 +98,7 @@ import org.apache.gobblin.util.request_allocation.PriorityIterableBasedRequestAl
 import org.apache.gobblin.util.request_allocation.RequestAllocator;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
 
 
 /**
@@ -353,8 +354,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
         Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractId);
         List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
-        for (CopyEntity copyEntity : fileSet.getFiles()) {
 
+        long fileSize;
+        for (CopyEntity copyEntity : fileSet.getFiles()) {
           CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(this.copyableDataset);
           CopyEntity.DatasetAndPartition datasetAndPartition = copyEntity.getDatasetAndPartition(metadata);
 
@@ -382,9 +384,18 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
           computeAndSetWorkUnitGuid(workUnit);
           addLineageInfo(copyEntity, workUnit);
-          if (copyEntity instanceof CopyableFile && DistcpFileSplitter.allowSplit(this.state, this.targetFs)) {
-            workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity, workUnit, this.targetFs));
+          if (copyEntity instanceof CopyableFile) {
+            CopyableFile castedCopyEntity = (CopyableFile) copyEntity;
+            fileSize = castedCopyEntity.getFileStatus().getLen();
+            workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, fileSize);
+            if (DistcpFileSplitter.allowSplit(this.state, this.targetFs)) {
+              workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity, workUnit, this.targetFs));
+            } else {
+              workUnitsForPartition.add(workUnit);
+            }
           } else {
+            // Occurs when a job has local state files or post publishing steps that are not associated with a byte size
+            workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, 0);
             workUnitsForPartition.add(workUnit);
           }
         }
