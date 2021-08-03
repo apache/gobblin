@@ -187,7 +187,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
-    basicDataSource.setValidationQuery("select 1");
+    // This query will fail if db is in read-only mode, otherwise read-only connections may continue to fail and not get evicted
+    // See https://stackoverflow.com/questions/39552146/evicting-connections-to-a-read-only-node-in-a-cluster-from-the-connection-pool
+    basicDataSource.setValidationQuery("select case when @@read_only = 0 then 1 else (select table_name from information_schema.tables) end as `1`");
     basicDataSource.setTestOnBorrow(true);
     basicDataSource.setDefaultAutoCommit(false);
     basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
