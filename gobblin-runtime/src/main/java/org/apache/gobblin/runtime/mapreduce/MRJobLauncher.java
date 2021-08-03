@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.mapreduce;
 
+import com.codahale.metrics.MetricRegistry;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,6 +28,9 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -79,6 +83,7 @@ import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MultiReporterException;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -290,6 +295,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, workUnits.size());
       this.eventSubmitter.submit(countEventBuilder);
       LOG.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
+
+      MetricContext
+          metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+      String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+          jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY), jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY),
+          JobEvent.WORK_UNITS_CREATED);
+      ContextAwareGauge guage = metricContext.newContextAwareGauge(workUnitCountName, () -> workUnits.size());
+      metricContext.register(workUnitCountName, guage);
 
       prepareHadoopJob(workUnits);
 
