@@ -29,6 +29,7 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.util.AvroSchemaUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -538,7 +539,9 @@ public class HiveAvroORCQueryGenerator {
         .equalsIgnoreCase(schema.getProp(AvroSerDe.AVRO_PROP_LOGICAL_TYPE))) {
       int maxLength = 0;
       try {
-        maxLength = schema.getJsonProp(AvroSerDe.AVRO_PROP_MAX_LENGTH).getValueAsInt();
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProp with getObjectProp
+        // Use AvroSchemaUtils to convert object to the string value
+        maxLength = AvroSchemaUtils.getValueAsInteger(schema, AvroSerDe.AVRO_PROP_MAX_LENGTH);
       } catch (Exception ex) {
         throw new AvroSerdeException("Failed to obtain maxLength value from file schema: " + schema, ex);
       }
