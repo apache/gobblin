@@ -135,6 +135,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler jobScheduler;
   @Getter
   private JobConfigurationManager jobConfigurationManager;
+  @Getter
+  private volatile boolean started = false;
 
   protected final String clusterName;
   @Getter
@@ -218,6 +220,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
 
     this.applicationLauncher.start();
+    this.started = true;
   }
 
   /**
