@@ -143,7 +143,7 @@ public class HttpUtils {
    */
   public static void updateStatusType(ResponseStatus status, int statusCode, Set<String> errorCodeWhitelist) {
     if (statusCode >= 300 & statusCode < 500) {
-      List<String> whitelist = new ArrayList<>();
+      List<String> whitelist = new ArrayList<>(2);
       whitelist.add(Integer.toString(statusCode));
       if (statusCode > 400) {
         whitelist.add(HttpConstants.CODE_4XX);

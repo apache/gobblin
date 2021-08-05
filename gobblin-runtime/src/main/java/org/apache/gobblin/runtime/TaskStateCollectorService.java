@@ -18,7 +18,9 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -47,6 +49,10 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ParallelRunner;
 
@@ -68,6 +74,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final EventBus eventBus;
 
+  private final EventSubmitter eventSubmitter;
+
   // Number of ParallelRunner threads to be used for state serialization/deserialization
   private final int stateSerDeRunnerThreads;
 
@@ -78,6 +86,12 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private final Path outputTaskStateDir;
 
+  private double totalSizeToCopy;
+
+  private double bytesCopiedSoFar;
+
+  private double lastPercentageReported;
+
   /**
    * Add a closeable action to run after each existence-checking of task state file.
    * A typical example to plug here is hive registration:
@@ -87,7 +101,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   private final Optional<TaskStateCollectorServiceHandler> optionalTaskCollectorHandler;
   private final Closer handlerCloser = Closer.create();
 
-  private boolean isJobProceedOnCollectorServiceFailure;
+  private final boolean isJobProceedOnCollectorServiceFailure;
 
   /**
    * By default, whether {@link TaskStateCollectorService} finishes successfully or not won't influence
@@ -99,9 +113,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   private final AtomicBoolean reportedIssueConsumptionWarning = new AtomicBoolean(false);
 
   public TaskStateCollectorService(Properties jobProps, JobState jobState, EventBus eventBus,
-      StateStore<TaskState> taskStateStore, Path outputTaskStateDir, IssueRepository issueRepository) {
+      EventSubmitter eventSubmitter, StateStore<TaskState> taskStateStore, Path outputTaskStateDir,
+      IssueRepository issueRepository) {
     this.jobState = jobState;
     this.eventBus = eventBus;
+    this.eventSubmitter = eventSubmitter;
     this.taskStateStore = taskStateStore;
     this.outputTaskStateDir = outputTaskStateDir;
     this.issueRepository = issueRepository;
@@ -212,6 +228,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       consumeTaskIssues(taskState);
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
+
+      if (this.jobState.getPropAsBoolean(ConfigurationKeys.REPORT_JOB_PROGRESS, ConfigurationKeys.DEFAULT_REPORT_JOB_PROGRESS)) {
+        LOGGER.info("Report job progress config is turned on");
+        reportJobProgress(taskState);
+      }
     }
 
     // Finish any additional steps defined in handler on driver level.
@@ -233,6 +254,43 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
     // Notify the listeners for the completion of the tasks
     this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
+  }
+
+  /**
+   * Uses the size of work units to determine a job's progress and reports the progress as a percentage via
+   * GobblinTrackingEvents
+   * @param taskState of job launched
+   */
+  private void reportJobProgress(TaskState taskState) {
+    String stringSize = taskState.getProp(ServiceConfigKeys.WORK_UNIT_SIZE);
+    if (stringSize == null) {
+      LOGGER.warn("Expected to report job progress but work unit byte size property null");
+      return;
+    }
+
+    Long taskByteSize = Long.parseLong(stringSize);
+
+    // if progress reporting is enabled, value should be present
+    if (!this.jobState.contains(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE)) {
+      LOGGER.warn("Expected to report job progress but total bytes to copy property null");
+      return;
+    }
+    this.totalSizeToCopy = this.jobState.getPropAsLong(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE);
+
+    // avoid flooding Kafka message queue by sending GobblinTrackingEvents only when threshold is passed
+    this.bytesCopiedSoFar += taskByteSize;
+    Double newPercentageCopied = this.bytesCopiedSoFar / this.totalSizeToCopy;
+
+    if (newPercentageCopied - this.lastPercentageReported > ConfigurationKeys.DEFAULT_PROGRESS_REPORTING_THRESHOLD) {
+      this.lastPercentageReported = newPercentageCopied;
+      int percentageToReport = (int) Math.round(this.lastPercentageReported * 100);
+
+      Map<String, String> progress = new HashMap<>();
+      progress.put(TimingEvent.JOB_COMPLETION_PERCENTAGE, String.valueOf(percentageToReport));
+
+      LOGGER.info("Sending copy progress event with percentage " + percentageToReport + "%");
+      new TimingEvent(this.eventSubmitter, TimingEvent.JOB_COMPLETION_PERCENTAGE).stop(progress);
+    }
   }
 
   private void consumeTaskIssues(TaskState taskState) {

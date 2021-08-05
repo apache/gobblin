@@ -17,11 +17,13 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -31,6 +33,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
+
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -463,6 +467,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           return;
         }
 
+        // calculation of total bytes to copy in a job used to track a job's copy progress
+        if (jobState.getPropAsBoolean(ConfigurationKeys.REPORT_JOB_PROGRESS, ConfigurationKeys.DEFAULT_REPORT_JOB_PROGRESS)) {
+          if (workUnitStream.isSafeToMaterialize()) {
+            long totalSizeInBytes = sumWorkUnitsSizes(workUnitStream);
+            this.jobContext.getJobState().setProp(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE, totalSizeInBytes);
+          } else {
+            LOG.warn("Property " + ConfigurationKeys.REPORT_JOB_PROGRESS + " is turned on, but "
+                + "progress cannot be reported for infinite work unit streams. Turn off property "
+                + ConfigurationKeys.REPORT_JOB_PROGRESS);
+          }
+        }
+
         // Perform work needed before writing is done
         Boolean canCleanUp = this.canCleanStagingData(this.jobContext.getJobState());
         closer.register(new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter))
@@ -642,6 +658,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       MDC.remove(ConfigurationKeys.JOB_NAME_KEY);
       MDC.remove(ConfigurationKeys.JOB_KEY_KEY);
     }
+  }
+
+  @VisibleForTesting
+  public static long sumWorkUnitsSizes (WorkUnitStream workUnitStream) {
+    Collection<WorkUnit> workUnits = JobLauncherUtils.flattenWorkUnits(workUnitStream.getMaterializedWorkUnitCollection());
+    long totalSizeInBytes = workUnits.stream().mapToLong(wu -> wu.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE)).sum();
+    return totalSizeInBytes;
   }
 
   private void executeUnfinishedCommitSequences(String jobName)

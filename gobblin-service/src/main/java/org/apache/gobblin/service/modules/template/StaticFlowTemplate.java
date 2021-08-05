@@ -188,7 +188,7 @@ public class StaticFlowTemplate implements FlowTemplate {
     Config outputDescriptorConfig = outputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
 
-    List<Config> resolvedJobConfigs = new ArrayList<>();
+    List<Config> resolvedJobConfigs = new ArrayList<>(getJobTemplates().size());
     JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(userConfig);
     for (JobTemplate jobTemplate: getJobTemplates()) {
       ResolvedJobSpec resolvedJobSpec = this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(jobTemplate).build());

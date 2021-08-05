@@ -191,6 +191,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   protected Optional<HelixLeaderState> helixLeaderGauges;
 
+  @Inject(optional = true)
+  protected D2Announcer d2Announcer;
 
   private final MetricContext metricContext;
   private final Metrics metrics;
@@ -272,7 +274,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
    * Handle leadership change.
    * @param changeContext notification context
    */
-  private void  handleLeadershipChange(NotificationContext changeContext) {
+  private void handleLeadershipChange(NotificationContext changeContext) {
     if (this.helixManager.isPresent() && this.helixManager.get().isLeader()) {
       LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
@@ -297,6 +299,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.eventBus.register(this.dagManager);
         }
       }
+
+      if (configuration.isOnlyAnnounceLeader()) {
+        this.d2Announcer.markUpServer();
+      }
     } else if (this.helixManager.isPresent()) {
       LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
@@ -317,6 +323,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       if (configuration.isDagManagerEnabled()) {
         this.dagManager.setActive(false);
         this.eventBus.unregister(this.dagManager);
+      }
+
+      if (configuration.isOnlyAnnounceLeader()) {
+        this.d2Announcer.markDownServer();
       }
     }
   }

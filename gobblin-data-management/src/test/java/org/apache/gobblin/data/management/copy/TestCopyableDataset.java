@@ -38,6 +38,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 public class TestCopyableDataset implements CopyableDataset, FileSystemDataset {
 
   public static final int FILE_COUNT = 10;
+  public static final int FILE_LENGTH = 15;
   public static final String ORIGIN_PREFIX = "/test";
   public static final String DESTINATION_PREFIX = "/destination";
   public static final String RELATIVE_PREFIX = "/relative";
@@ -61,7 +62,7 @@ public class TestCopyableDataset implements CopyableDataset, FileSystemDataset {
     List<CopyEntity> files = Lists.newArrayList();
 
     for (int i = 0; i < FILE_COUNT; i++) {
-      FileStatus origin = new FileStatus(10, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i)));
+      FileStatus origin = new FileStatus(FILE_LENGTH, false, 0, 0, 0, new Path(this.datasetRoot, Integer.toString(i)));
       CopyableFile.Builder builder = CopyableFile
           .builder(FileSystem.getLocal(new Configuration()), origin, datasetRoot(), configuration).destinationOwnerAndPermission(OWNER_AND_PERMISSION).
           ancestorsOwnerAndPermission(Lists.newArrayList(OWNER_AND_PERMISSION)).checksum("checksum".getBytes());

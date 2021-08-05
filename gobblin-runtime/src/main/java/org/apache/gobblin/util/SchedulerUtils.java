@@ -76,7 +76,7 @@ public class SchedulerUtils {
     Collection<Config> configs =
         loader.loadPullFilesRecursively(rootPath, sysConfig, true);
 
-    List<Properties> jobConfigs = Lists.newArrayList();
+    List<Properties> jobConfigs = Lists.newArrayListWithCapacity(configs.size());
     for (Config config : configs) {
       try {
         jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));
@@ -107,7 +107,7 @@ public class SchedulerUtils {
     Collection<Config> configs =
         loader.loadPullFilesRecursively(commonPropsPath.getParent(), sysConfig, true);
 
-    List<Properties> jobConfigs = Lists.newArrayList();
+    List<Properties> jobConfigs = Lists.newArrayListWithCapacity(configs.size());
     for (Config config : configs) {
       try {
         jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));
@@ -171,15 +171,18 @@ public class SchedulerUtils {
   }
 
   private static Properties resolveTemplate(Properties jobProps, JobSpecResolver resolver) throws IOException {
+    // If there is no job template, do not spend resources creating a new JobSpec
+    if (!jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+      return jobProps;
+    }
+
     try {
       JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(ConfigUtils.propertiesToConfig(jobProps));
-      if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
         JobTemplate jobTemplate = ResourceBasedJobTemplate
             .forResourcePath(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH),
                 new PackagedTemplatesJobCatalogDecorator());
         jobSpecBuilder.withTemplate(jobTemplate);
-      }
-      return ConfigUtils.configToProperties(resolver.resolveJobSpec(jobSpecBuilder.build()).getConfig());
+      return resolver.resolveJobSpec(jobSpecBuilder.build()).getConfigAsProperties();
     } catch (JobTemplate.TemplateException | SpecNotFoundException | URISyntaxException exc) {
       throw new IOException(exc);
     }
