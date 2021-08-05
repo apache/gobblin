@@ -17,6 +17,11 @@
 
 package org.apache.gobblin.service.modules.scheduler;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -24,34 +29,16 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.helix.HelixManager;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.InterruptableJob;
-import org.quartz.JobDataMap;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
-import org.quartz.UnableToInterruptJobException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.JobException;
@@ -74,8 +61,17 @@ import org.apache.gobblin.service.modules.utils.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.helix.HelixManager;
+import org.quartz.DisallowConcurrentExecution;
+import org.quartz.InterruptableJob;
+import org.quartz.JobDataMap;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.UnableToInterruptJobException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
+import static org.apache.gobblin.service.ServiceConfigKeys.*;
 
 
 /**
@@ -176,7 +172,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Since we are going to change status to isActive=false, unschedule all flows
       List<Spec> specs = new ArrayList<>(this.scheduledFlowSpecs.values());
       for (Spec spec : specs) {
-        onDeleteSpec(spec.getUri(), spec.getVersion());
+        unscheduleSpec(spec.getUri(), spec.getVersion());
       }
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
@@ -235,7 +231,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private void clearRunningFlowState(Iterator<URI> drUris) {
     while (drUris.hasNext()) {
       // TODO: Instead of simply call onDeleteSpec, a callback when FlowSpec is deleted from FlowCatalog, should also kill Azkaban Flow from AzkabanSpecProducer.
-      onDeleteSpec(drUris.next(), FlowSpec.Builder.DEFAULT_VERSION);
+      unscheduleSpec(drUris.next(), FlowSpec.Builder.DEFAULT_VERSION);
     }
   }
 
@@ -345,6 +341,30 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     return new AddSpecResponse<>(response);
+  }
+
+  /**
+   * Remove a flowSpec from schedule due to another leader being elected
+   * Unlike onDeleteSpec, we want to avoid deleting the flowSpec on the executor
+   * and we still want to unschedule if we cannot connect to zookeeper as the current node cannot be the master
+   * @param specURI
+   * @param specVersion
+   */
+  private void unscheduleSpec(URI specURI, String specVersion) {
+    _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
+    try {
+      Spec deletedSpec = this.scheduledFlowSpecs.get(specURI.toString());
+      if (null != deletedSpec) {
+        this.scheduledFlowSpecs.remove(specURI.toString());
+        unscheduleJob(specURI.toString());
+      } else {
+        _log.warn(String.format(
+            "Spec with URI: %s was not found in cache during unscheduling. May be it was cleaned, if not please clean it manually",
+            specURI));
+      }
+    } catch (JobException e) {
+      _log.warn(String.format("Spec with URI: %s was not unscheduled", specURI), e);
+    }
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
