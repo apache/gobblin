@@ -266,7 +266,7 @@ public class GobblinYarnAppLauncher {
     for (String rmAddress : potentialRMAddresses) {
       YarnClient tmpYarnClient = YarnClient.createYarnClient();
       this.yarnConfiguration.set(GobblinYarnConfigurationKeys.YARN_RESOURCE_MANAGER_ADDRESS, rmAddress);
-      tmpYarnClient.init(this.yarnConfiguration);
+      tmpYarnClient.init(new YarnConfiguration(this.yarnConfiguration));
       potentialYarnClients.put(rmAddress, tmpYarnClient);
     }
 
