@@ -347,7 +347,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     //Get the logical names of SpecExecutors where the FlowEdge can be executed.
     List<String> specExecutorNames = ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
     //Load all the SpecExecutor configurations for this FlowEdge from the SpecExecutor Catalog.
-    List<SpecExecutor> specExecutors = new ArrayList<>();
+    List<SpecExecutor> specExecutors = new ArrayList<>(specExecutorNames.size());
     for (String specExecutorName: specExecutorNames) {
       URI specExecutorUri = new URI(specExecutorName);
       specExecutors.add(this.topologySpecMap.get(specExecutorUri).getSpecExecutor());

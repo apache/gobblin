@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.service;
 
+import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -125,7 +125,7 @@ public class FlowConfigV2Client implements Closeable {
     matcher.find();
     String allFields = matcher.group("flowStatusIdParams");
     String[] flowStatusIdParams = allFields.split(",");
-    Map<String, String> paramsMap = new HashMap<>();
+    Map<String, String> paramsMap = Maps.newHashMapWithExpectedSize(flowStatusIdParams.length);
     for (String flowStatusIdParam : flowStatusIdParams) {
       paramsMap.put(flowStatusIdParam.split(":")[0], flowStatusIdParam.split(":")[1]);
     }

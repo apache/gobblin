@@ -100,6 +100,8 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
   public static final String JOB_ORCHESTRATED_TIME = "jobOrchestratedTime";
   public static final String JOB_START_TIME = "jobStartTime";
   public static final String JOB_END_TIME = "jobEndTime";
+  public static final String JOB_LAST_PROGRESS_EVENT_TIME = "jobLastProgressEventTime";
+  public static final String JOB_COMPLETION_PERCENTAGE = "jobCompletionPercentage";
 
   @Getter
   private Long startTime;

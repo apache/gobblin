@@ -72,8 +72,8 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
-      List<JobStatus> jobStatuses = new ArrayList<>();
       List<String> tableNames = this.stateStore.getTableNames(storeName, flowExecutionIdPredicate);
+      List<JobStatus> jobStatuses = new ArrayList<>(tableNames.size());
       for (String tableName: tableNames) {
         List<State> jobStates = this.stateStore.getAll(storeName, tableName);
         if (jobStates.isEmpty()) {

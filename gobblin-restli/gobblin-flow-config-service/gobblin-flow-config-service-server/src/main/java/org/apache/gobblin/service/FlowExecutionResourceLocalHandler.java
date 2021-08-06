@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -140,6 +142,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       JobStatus jobStatus = new JobStatus();
 
+      Long timeLeft = estimateCopyTimeLeft(queriedJobStatus.getLastProgressEventTime(), queriedJobStatus.getStartTime(),
+          queriedJobStatus.getProgressPercentage());
+
       jobStatus.setFlowId(flowId)
           .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
@@ -147,7 +152,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           .setExecutionStatistics(new JobStatistics()
               .setExecutionStartTime(queriedJobStatus.getStartTime())
               .setExecutionEndTime(queriedJobStatus.getEndTime())
-              .setProcessedCount(queriedJobStatus.getProcessedCount()))
+              .setProcessedCount(queriedJobStatus.getProcessedCount())
+              .setJobProgress(queriedJobStatus.getProgressPercentage())
+              .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
@@ -198,5 +205,25 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
    */
   private static long getFlowStartTime(org.apache.gobblin.service.monitoring.FlowStatus flowStatus) {
     return flowStatus.getFlowExecutionId();
+  }
+
+  /**
+   * Estimate the time left to complete the copy based on the following formula -
+   *  timeLeft = (100/completionPercentage - 1) * timeElapsed
+   * @param currentTime as an epoch
+   * @param startTime as an epoch
+   * @param completionPercentage of the job
+   * @return time left in seconds
+   */
+  public static long estimateCopyTimeLeft(Long currentTime, Long startTime, int completionPercentage) {
+    if (completionPercentage == 0) {
+      return 0;
+    }
+
+    Instant current = Instant.ofEpochMilli(currentTime);
+    Instant start = Instant.ofEpochMilli(startTime);
+    Long timeElapsed = Duration.between(start, current).getSeconds();
+    Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
+    return timeLeft;
   }
 }
