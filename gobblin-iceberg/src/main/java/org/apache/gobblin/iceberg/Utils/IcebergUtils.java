@@ -75,7 +75,7 @@ public class IcebergUtils {
   /**
    * Given a avro schema string and a hive table,
    * calculate the iceberg table schema and partition schema.
-   * (Since we use 'datepartition' as partition column, which is not included inside the data schema,
+   * (E.g. we use 'datepartition' as the partition column, which is not included inside the data schema,
    * we'll need to add that column to data schema to construct table schema
    */
   public static IcebergDataAndPartitionSchema getIcebergSchema(String schema,
@@ -212,15 +212,15 @@ public class IcebergUtils {
    * This method is mainly used to get the file to be deleted
    */
   public static DataFile getIcebergDataFileWithoutMetric(String file, PartitionSpec partitionSpec,
-      StructLike partition) {
+      StructLike partitionVal) {
     //Use raw Path to support federation.
     String rawPath = new Path(file).toUri().getRawPath();
     //Just want to remove the old files, so set the record number and file size to a random value
     DataFiles.Builder dataFileBuilder =
         DataFiles.builder(partitionSpec).withPath(rawPath).withFileSizeInBytes(0).withRecordCount(0);
 
-    if (partition != null) {
-      dataFileBuilder.withPartition(partition);
+    if (partitionVal != null) {
+      dataFileBuilder.withPartition(partitionVal);
     }
     return dataFileBuilder.build();
   }

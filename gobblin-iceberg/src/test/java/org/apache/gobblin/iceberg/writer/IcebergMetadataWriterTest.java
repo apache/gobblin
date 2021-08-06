@@ -154,13 +154,17 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
   @Test ( priority = 0 )
   public void testWriteAddFileGMCE() throws IOException {
-    gobblinMCEWriterWithAcceptClusters.writeEnvelope(new RecordEnvelope<>(gmce,
+    // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
+    // without risking running into type cast runtime error.
+    GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+
+    gobblinMCEWriterWithAcceptClusters.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(10L))));
     //Test when accept clusters does not contain the gmce cluster, we will skip
     Assert.assertEquals(catalog.listTables(Namespace.of(dbName)).size(), 0);
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(10L))));
@@ -169,8 +173,11 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertFalse(table.properties().containsKey("offset.range.testTopic-1"));
     Assert.assertEquals(table.location(),
         new File(tmpDir, "data/tracking/testIcebergTable/_iceberg_metadata/").getAbsolutePath() + "/" + dbName);
+
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "1000-2000").build());
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    GenericRecord genericGmce_1000_2000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce_1000_2000,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(20L))));
@@ -189,7 +196,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         .setFileFormat("avro")
         .setFileMetrics(DataMetrics.newBuilder().setRecordCount(10L).build())
         .build()));
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    GenericRecord genericGmce_2000_3000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce_2000_3000,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(30L))));
@@ -202,7 +210,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     /* Test it will skip event with lower watermark*/
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "3000-4000").build());
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(30L))));
