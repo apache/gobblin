@@ -172,7 +172,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Since we are going to change status to isActive=false, unschedule all flows
       List<Spec> specs = new ArrayList<>(this.scheduledFlowSpecs.values());
       for (Spec spec : specs) {
-        unscheduleSpec(spec.getUri(), spec.getVersion());
+        try {
+          unscheduleSpec(spec.getUri(), spec.getVersion());
+        } catch (JobException e) {
+          _log.warn(String.format("Spec with URI: %s was not unscheduled during shutdown", spec.getUri()), e);
+        }
       }
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
@@ -231,7 +235,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private void clearRunningFlowState(Iterator<URI> drUris) {
     while (drUris.hasNext()) {
       // TODO: Instead of simply call onDeleteSpec, a callback when FlowSpec is deleted from FlowCatalog, should also kill Azkaban Flow from AzkabanSpecProducer.
-      unscheduleSpec(drUris.next(), FlowSpec.Builder.DEFAULT_VERSION);
+      onDeleteSpec(drUris.next(), FlowSpec.Builder.DEFAULT_VERSION);
     }
   }
 
@@ -350,20 +354,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * @param specURI
    * @param specVersion
    */
-  private void unscheduleSpec(URI specURI, String specVersion) {
-    _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
-    try {
-      Spec deletedSpec = this.scheduledFlowSpecs.get(specURI.toString());
-      if (null != deletedSpec) {
-        this.scheduledFlowSpecs.remove(specURI.toString());
-        unscheduleJob(specURI.toString());
-      } else {
-        _log.warn(String.format(
-            "Spec with URI: %s was not found in cache during unscheduling. May be it was cleaned, if not please clean it manually",
-            specURI));
-      }
-    } catch (JobException e) {
-      _log.warn(String.format("Spec with URI: %s was not unscheduled", specURI), e);
+  private void unscheduleSpec(URI specURI, String specVersion) throws JobException {
+    if (this.scheduledFlowSpecs.containsKey(specURI.toString())) {
+      _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
+      this.scheduledFlowSpecs.remove(specURI.toString());
+      unscheduleJob(specURI.toString());
+    } else {
+      throw new JobException(String.format(
+          "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
+          specURI));
     }
   }
 
@@ -384,15 +383,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     try {
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
-      if (null != deletedSpec) {
-        this.orchestrator.remove(deletedSpec, headers);
-        this.scheduledFlowSpecs.remove(deletedSpecURI.toString());
-        unscheduleJob(deletedSpecURI.toString());
-      } else {
-        _log.warn(String.format(
-            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
-            deletedSpecURI));
-      }
+      unscheduleSpec(deletedSpecURI, deletedSpecVersion);
+      this.orchestrator.remove(deletedSpec, headers);
     } catch (JobException | IOException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }

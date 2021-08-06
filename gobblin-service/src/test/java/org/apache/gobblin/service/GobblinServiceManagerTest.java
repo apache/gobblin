@@ -476,7 +476,7 @@ null, null, null, null);
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
     try {
-      this.flowConfigClient.getFlowConfig(flowId);
+      this.flowConfigClient.deleteFlowConfig(flowId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
       return;
