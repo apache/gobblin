@@ -220,7 +220,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
 
     this.applicationLauncher.start();
-    this.started = true;
   }
 
   /**
@@ -320,6 +319,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     } else {
       startAppLauncherAndServices();
     }
+    this.started = true;
   }
 
   /**

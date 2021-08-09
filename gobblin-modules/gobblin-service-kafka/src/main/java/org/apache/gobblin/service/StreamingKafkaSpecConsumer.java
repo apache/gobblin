@@ -140,7 +140,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     _metrics.getContextAwareMetrics().add(_jobMonitor.getUpdatedSpecs());
     _metrics.getContextAwareMetrics().add(_jobMonitor.getRemovedSpecs());
     _metrics.getContextAwareMetrics().add(_jobMonitor.getCancelledSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getConsumedSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getTotalSpecs());
     _metrics.getContextAwareMetrics().add(_jobMonitor.getMessageParseFailures());
   }
 

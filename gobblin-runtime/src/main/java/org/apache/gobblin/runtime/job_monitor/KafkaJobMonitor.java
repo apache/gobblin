@@ -63,7 +63,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Getter
   protected ContextAwareMeter removedSpecs;
   @Getter
-  protected ContextAwareMeter consumedSpecs;
+  protected ContextAwareMeter totalSpecs;
 
   /**
    * @return A collection of {@link JobSpec}s to add/update/remove from the catalog,
@@ -89,7 +89,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     this.updatedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_UPDATED_SPECS);
     this.removedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
     this.cancelledSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_CANCELLED_SPECS);
-    this.consumedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS);
+    this.totalSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS);
   }
 
   @VisibleForTesting
@@ -119,7 +119,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
           continue;
         }
 
-        this.consumedSpecs.mark();
+        this.totalSpecs.mark();
 
         switch (verb) {
           case ADD:
