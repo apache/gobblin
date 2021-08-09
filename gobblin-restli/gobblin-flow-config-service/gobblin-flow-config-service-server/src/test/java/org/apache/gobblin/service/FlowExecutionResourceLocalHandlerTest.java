@@ -30,8 +30,8 @@ public class FlowExecutionResourceLocalHandlerTest {
     long startTime = 0;
     int copyPercentage = 50;
 
-    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
-    Assert.assertEquals(timeLeft, 10);
+    String timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    Assert.assertEquals(timeLeft, "10 seconds");
   }
 
   @Test
@@ -40,8 +40,8 @@ public class FlowExecutionResourceLocalHandlerTest {
     long startTime = 20000;
     int copyPercentage = 10;
 
-    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
-    Assert.assertEquals(timeLeft, 270);
+    String timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    Assert.assertEquals(timeLeft, "4 minutes 30 seconds");
   }
 
   @Test
@@ -50,8 +50,8 @@ public class FlowExecutionResourceLocalHandlerTest {
     long startTime = 1500000;
     int copyPercentage = 25;
 
-    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
-    Assert.assertEquals(timeLeft,10500);
+    String timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    Assert.assertEquals(timeLeft,"2 hours 55 minutes");
   }
 
   @Test
@@ -60,7 +60,7 @@ public class FlowExecutionResourceLocalHandlerTest {
     long startTime = 1626716510626L;
     int copyPercentage = 24;
 
-    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
-    Assert.assertEquals(timeLeft, 3926L);
+    String timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    Assert.assertEquals(timeLeft, "1 hour 5 minutes 26 seconds");
   }
 }

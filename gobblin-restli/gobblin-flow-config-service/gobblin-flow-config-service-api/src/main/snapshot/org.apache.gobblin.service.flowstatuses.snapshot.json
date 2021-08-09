@@ -185,9 +185,9 @@
                 "type" : "int",
                 "doc" : "job progress as a percentage (0-100)"
               }, {
-                "name" : "estimatedSecondsToCompletion",
-                "type" : "long",
-                "doc" : "estimate of time left until job completion"
+                "name" : "estimatedTimeToCompletion",
+                "type" : "string",
+                "doc" : "estimate of time left until job completion\n\"X hours Y minutes Z seconds\""
               } ]
             },
             "doc" : "Statistics from the job execution. The values may be updated during the run of a job."
