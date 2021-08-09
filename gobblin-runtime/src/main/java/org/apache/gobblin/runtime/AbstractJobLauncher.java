@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.URI;
@@ -33,13 +32,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
-
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -94,6 +92,7 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -469,6 +468,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // calculation of total bytes to copy in a job used to track a job's copy progress
         if (jobState.getPropAsBoolean(ConfigurationKeys.REPORT_JOB_PROGRESS, ConfigurationKeys.DEFAULT_REPORT_JOB_PROGRESS)) {
+            LOG.info("Report job progress config is turned on");
           if (workUnitStream.isSafeToMaterialize()) {
             long totalSizeInBytes = sumWorkUnitsSizes(workUnitStream);
             this.jobContext.getJobState().setProp(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE, totalSizeInBytes);

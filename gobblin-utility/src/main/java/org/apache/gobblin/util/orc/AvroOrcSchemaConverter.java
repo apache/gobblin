@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.writer;
+package org.apache.gobblin.util.orc;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.apache.avro.Schema;
 import org.apache.orc.TypeDescription;
 

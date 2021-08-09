@@ -221,8 +221,11 @@ public class YarnService extends AbstractIdleService {
     this.yarnConfiguration = yarnConfiguration;
     this.fs = fs;
 
+    int amRmHeartbeatIntervalMillis = Long.valueOf(TimeUnit.SECONDS.toMillis(
+        ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.AMRM_HEARTBEAT_INTERVAL_SECS,
+            GobblinYarnConfigurationKeys.DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS))).intValue();
     this.amrmClientAsync = closer.register(
-        AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
+        AMRMClientAsync.createAMRMClientAsync(amRmHeartbeatIntervalMillis, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
     this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
@@ -239,7 +242,10 @@ public class YarnService extends AbstractIdleService {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.containerLaunchExecutor = ScalingThreadPoolExecutor.newScalingThreadPool(5, Integer.MAX_VALUE, 0L,
+    int numContainerLaunchThreads =
+        ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.MAX_CONTAINER_LAUNCH_THREADS_KEY,
+            GobblinYarnConfigurationKeys.DEFAULT_MAX_CONTAINER_LAUNCH_THREADS);
+    this.containerLaunchExecutor = ScalingThreadPoolExecutor.newScalingThreadPool(5, numContainerLaunchThreads, 0L,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
     this.tokens = getSecurityTokens();

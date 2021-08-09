@@ -54,6 +54,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.io.StreamUtils;
@@ -187,7 +188,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
-    basicDataSource.setValidationQuery("select 1");
+    basicDataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
     basicDataSource.setTestOnBorrow(true);
     basicDataSource.setDefaultAutoCommit(false);
     basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
@@ -276,16 +277,15 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
         DataOutputStream dataOutput = new DataOutputStream(os)) {
 
-      int index = 0;
-      insertStatement.setString(++index, storeName);
-      insertStatement.setString(++index, tableName);
+      insertStatement.setString(1, storeName);
+      insertStatement.setString(2, tableName);
 
       for (T state : states) {
         addStateToDataOutputStream(dataOutput, state);
       }
 
       dataOutput.close();
-      insertStatement.setBlob(++index, new ByteArrayInputStream(byteArrayOs.toByteArray()));
+      insertStatement.setBlob(3, new ByteArrayInputStream(byteArrayOs.toByteArray()));
 
       insertStatement.executeUpdate();
       connection.commit();
@@ -298,9 +298,8 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   public T get(String storeName, String tableName, String stateId) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_SQL)) {
-      int index = 0;
-      queryStatement.setString(++index, storeName);
-      queryStatement.setString(++index, tableName);
+      queryStatement.setString(1, storeName);
+      queryStatement.setString(2, tableName);
 
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
@@ -344,12 +343,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       queryStatement.setString(1, storeName);
       queryStatement.setString(2, tableName);
       execGetAllStatement(queryStatement, states);
+      return states;
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
       throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
-    return states;
   }
 
   /**

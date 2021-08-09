@@ -111,8 +111,11 @@ public class FlowCatalogTest {
   public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put("job.name", flowName);
+    properties.put("job.group", flowName);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put("job.schedule", "0 0 0 ? * * 2050");
     Config config = ConfigUtils.propertiesToConfig(properties);
 
     SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);
@@ -147,7 +150,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);
@@ -160,7 +163,8 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should contain 1 Spec after addition");
   }
 
   @Test (dependsOnMethods = "createFlowSpec")
@@ -178,8 +182,8 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should initially have 1 Spec before deletion");
-
+    Assert.assertEquals(specs.size(), 1, "Spec store should initially have 1 Spec before deletion");
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should initially have 1 Spec before deletion");
     this.flowCatalog.remove(flowSpec.getUri());
 
     // List Specs after adding
@@ -190,7 +194,8 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(flowCatalog.getSize(), 0, "Spec store should be empty after deletion");
   }
 
   @Test (dependsOnMethods = "deleteFlowSpec")
@@ -202,7 +207,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
@@ -214,6 +219,7 @@ public class FlowCatalogTest {
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
   }
 
   @Test (dependsOnMethods = "testRejectBadFlow")
@@ -226,7 +232,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
 
@@ -235,6 +241,7 @@ public class FlowCatalogTest {
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
   }
 
   public static URI computeFlowSpecURI() {

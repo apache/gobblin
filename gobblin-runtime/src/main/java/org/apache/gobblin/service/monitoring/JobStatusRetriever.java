@@ -80,16 +80,15 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
         : getJobStatusesForFlowExecution(flowName, flowGroup, latestExecutionId);
   }
 
-
   /**
    *
    * @param jobState instance of {@link State}
    * @return deserialize {@link State} into a {@link JobStatus}.
    */
   protected JobStatus getJobStatus(State jobState) {
-    String flowGroup = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    String flowName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-    long flowExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
+    String flowGroup = getFlowGroup(jobState);
+    String flowName = getFlowName(jobState);
+    long flowExecutionId = getFlowExecutionId(jobState);
     String jobName = jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
     String jobGroup = jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     String jobTag = jobState.getProp(TimingEvent.FlowEventConstants.JOB_TAG_FIELD);
@@ -123,6 +122,18 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
         lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime).
         message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts).
         shouldRetry(shouldRetry).progressPercentage(progressPercentage).lastProgressEventTime(lastProgressEventTime).issues(issues).build();
+  }
+
+  protected final String getFlowGroup(State jobState) {
+    return jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+  }
+
+  protected final String getFlowName(State jobState) {
+    return jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+  }
+
+  protected final long getFlowExecutionId(State jobState) {
+    return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
   }
 
   public abstract StateStore<State> getStateStore();

@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service;
 
+import java.time.Duration;
+
 import org.apache.gobblin.annotation.Alpha;
 
 @Alpha
@@ -147,4 +149,36 @@ public class ServiceConfigKeys {
   public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
   public static final String DAG_STORE_KEY_SEPARATION_CHARACTER = "_";
 
+
+  // Service database connection
+
+  public static final String SERVICE_DB_URL_KEY = GOBBLIN_SERVICE_PREFIX + "db.url";
+  public static final String SERVICE_DB_USERNAME = GOBBLIN_SERVICE_PREFIX + "db.username";
+  public static final String SERVICE_DB_PASSWORD = GOBBLIN_SERVICE_PREFIX + "db.password";
+  public static final String SERVICE_DB_MAX_CONNECTIONS = GOBBLIN_SERVICE_PREFIX + "db.maxConnections";
+  public static final String SERVICE_DB_MAX_CONNECTION_LIFETIME = GOBBLIN_SERVICE_PREFIX + "db.maxConnectionLifetime";
+
+  // Mysql-based issues repository
+  public static final String MYSQL_ISSUE_REPO_PREFIX = GOBBLIN_SERVICE_PREFIX + "issueRepo.mysql.";
+
+  public static final String MYSQL_ISSUE_REPO_CLEANUP_INTERVAL = MYSQL_ISSUE_REPO_PREFIX + "cleanupInterval";
+  public static final Duration DEFAULT_MYSQL_ISSUE_REPO_CLEANUP_INTERVAL = Duration.ofHours(1);
+
+  public static final String MYSQL_ISSUE_REPO_MAX_ISSUES_TO_KEEP = MYSQL_ISSUE_REPO_PREFIX + "maxIssuesToKeep";
+  public static final long DEFAULT_MYSQL_ISSUE_REPO_MAX_ISSUES_TO_KEEP = 10 * 1000 * 1000;
+
+  public static final String MYSQL_ISSUE_REPO_DELETE_ISSUES_OLDER_THAN =
+      MYSQL_ISSUE_REPO_PREFIX + "deleteIssuesOlderThan";
+  public static final Duration DEFAULT_MYSQL_ISSUE_REPO_DELETE_ISSUES_OLDER_THAN = Duration.ofDays(30);
+
+  // In-memory issue repository
+  public static final String MEMORY_ISSUE_REPO_PREFIX = GOBBLIN_SERVICE_PREFIX + "issueRepo.memory.";
+
+  public static final String MEMORY_ISSUE_REPO_MAX_CONTEXT_COUNT = MEMORY_ISSUE_REPO_PREFIX + "maxContextCount";
+  public static final int DEFAULT_MEMORY_ISSUE_REPO_MAX_CONTEXT_COUNT = 100;
+
+  public static final String MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT = MEMORY_ISSUE_REPO_PREFIX + "maxIssuesPerContext";
+  public static final int DEFAULT_MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT= 20;
+
+  public static final String ISSUE_REPO_CLASS = GOBBLIN_SERVICE_PREFIX + "issueRepo.class";
 }

@@ -20,13 +20,10 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
@@ -37,7 +34,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
@@ -46,6 +42,12 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
  */
 @Singleton
 public class MysqlJobStatusRetriever extends JobStatusRetriever {
+
+  @FunctionalInterface
+  private interface SupplierThrowingIO<T> {
+    T get() throws IOException;
+  }
+
   public static final String MYSQL_JOB_STATUS_RETRIEVER_PREFIX = "mysqlJobStatusRetriever";
   public static final String GET_LATEST_JOB_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestJobStatus");
@@ -67,15 +69,9 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   @Override
   public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
-    try {
-      List<State> jobStatusStates;
-      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_LATEST_FLOW_STATUS_METRIC).time()) {
-        jobStatusStates = this.stateStore.getAll(storeName, flowExecutionId);
-      }
-      return getJobStatuses(jobStatusStates);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName, flowExecutionId),
+        GET_LATEST_FLOW_STATUS_METRIC);
+    return getJobStatuses(jobStatusStates);
   }
 
   @Override
@@ -83,30 +79,22 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
       String jobName, String jobGroup) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
-
-    try {
-      List<State> jobStatusStates;
-      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_LATEST_JOB_STATUS_METRIC).time()) {
-        jobStatusStates = this.stateStore.getAll(storeName, tableName);
-      }
-      return getJobStatuses(jobStatusStates);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName, tableName),
+        GET_LATEST_JOB_STATUS_METRIC);
+    return getJobStatuses(jobStatusStates);
   }
 
   @Override
   public List<Long> getLatestExecutionIdsForFlow(String flowName, String flowGroup, int count) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName),
+        GET_ALL_FLOW_STATUSES_METRIC);
+    return getLatestExecutionIds(jobStatusStates, count);
+  }
 
-    try {
-      List<State> jobStatusStates;
-      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_ALL_FLOW_STATUSES_METRIC).time()) {
-        jobStatusStates = this.stateStore.getAll(storeName);
-      }
-      List<Long> flowExecutionIds = jobStatusStates.stream().map(state -> Long.parseLong(state.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))
-          .collect(Collectors.toList());
-      return ImmutableList.copyOf(Iterables.limit(new TreeSet<>(flowExecutionIds).descendingSet(), count));
+  private List<State> timeOpAndWrapIOException(SupplierThrowingIO<List<State>> states, String timerMetricName) {
+    try (Timer.Context context = this.metricContext.contextAwareTimer(timerMetricName).time()) {
+      return states.get();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -114,5 +102,10 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
 
   private Iterator<JobStatus> getJobStatuses(List<State> jobStatusStates) {
     return jobStatusStates.stream().map(this::getJobStatus).iterator();
+  }
+
+  private List<Long> getLatestExecutionIds(List<State> jobStatusStates, int count) {
+    Iterator<Long> flowExecutionIds = jobStatusStates.stream().map(this::getFlowExecutionId).iterator();
+    return Ordering.<Long>natural().greatestOf(flowExecutionIds, count);
   }
 }

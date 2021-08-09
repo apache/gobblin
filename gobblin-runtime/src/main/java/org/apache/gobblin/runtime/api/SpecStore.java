@@ -139,4 +139,10 @@ public interface SpecStore {
    * with root-level FileSystem directory.
    */
   Optional<URI> getSpecStoreURI();
+
+  /***
+   * Returns the number of {@link Spec}s in the {@link SpecStore}.
+   * @throws IOException Exception in retrieving the count of {@link Spec}s.
+   */
+  int getSize() throws IOException;
 }

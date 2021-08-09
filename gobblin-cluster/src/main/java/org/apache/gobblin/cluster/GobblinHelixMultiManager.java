@@ -311,11 +311,12 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
   private static class GobblinLiveInstanceChangeListener implements LiveInstanceChangeListener {
-
     @Override
     public void onLiveInstanceChange(List<LiveInstance> liveInstances, NotificationContext changeContext) {
-      for (LiveInstance liveInstance : liveInstances) {
-        log.info("Live Helix participant instance: " + liveInstance.getInstanceName());
+      if (log.isDebugEnabled()) {
+        for (LiveInstance liveInstance : liveInstances) {
+          log.debug("Live Helix participant instance: " + liveInstance.getInstanceName());
+        }
       }
     }
   }

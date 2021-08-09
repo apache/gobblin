@@ -238,7 +238,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           spec.getTable()
               .getSerDeProps()
               .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
-          table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
+          HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+          table.setSd(HiveMetaStoreUtils.getStorageDescriptor(spec.getTable()));
           return;
         }
         Schema writerSchema = new Schema.Parser().parse((
@@ -254,7 +255,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             spec.getTable()
                 .getSerDeProps()
                 .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
-            table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
+            HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+            table.setSd(HiveMetaStoreUtils.getStorageDescriptor(spec.getTable()));
           }
         }
       } catch ( IOException e) {
@@ -586,7 +588,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         log.info(String.format("Added partition %s to table %s with location %s", stringifyPartition(nativePartition),
             table.getTableName(), nativePartition.getSd().getLocation()));
-      } catch (TException e) {
+      } catch (AlreadyExistsException e) {
         try {
           if (this.skipDiffComputation) {
             onPartitionExistWithoutComputingDiff(table, nativePartition, e);
@@ -632,7 +634,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             onPartitionExist(client, table, partition, nativePartition, existedPartition);
           }
         }
-      } catch (TException e) {
+      } catch (NoSuchObjectException e) {
         try (Timer.Context context = this.metricContext.timer(ADD_PARTITION_TIMER).time()) {
           client.add_partition(getPartitionWithCreateTimeNow(nativePartition));
         }

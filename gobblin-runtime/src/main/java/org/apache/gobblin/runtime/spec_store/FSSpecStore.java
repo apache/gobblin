@@ -352,4 +352,21 @@ public class FSSpecStore extends InstrumentedSpecStore {
   protected URI getURIFromPath(Path fsPath, Path fsSpecStoreDirPath) {
     return PathUtils.relativizePath(fsPath, fsSpecStoreDirPath).toUri();
   }
+
+  public int getSizeImpl() throws IOException {
+    return getSizeImpl(this.fsSpecStoreDirPath);
+  }
+
+  private int getSizeImpl(Path directory) throws IOException {
+    int specs = 0;
+    FileStatus[] fileStatuses = fs.listStatus(directory);
+    for (FileStatus fileStatus : fileStatuses) {
+      if (fileStatus.isDirectory()) {
+        specs += getSizeImpl(fileStatus.getPath());
+      } else {
+        specs++;
+      }
+    }
+    return specs;
+  }
 }

@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.writer;
+package org.apache.gobblin.util.orc;
 
+import com.google.common.base.Preconditions;
 import java.util.List;
-
 import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -26,9 +26,7 @@ import org.apache.orc.TypeDescription;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Preconditions;
-
-import static org.apache.gobblin.writer.AvroOrcSchemaConverter.sanitizeNullableSchema;
+import static org.apache.gobblin.util.orc.AvroOrcSchemaConverter.*;
 
 
 public class AvroOrcSchemaConverterTest {
