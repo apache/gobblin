@@ -132,16 +132,6 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     //            StreamingKafkaSpecConsumer is boot after jobCatalog in GobblinClusterManager::startAppLauncherAndServices()
     _jobCatalog.addListener(new JobSpecListener());
     _jobMonitor.startAsync().awaitRunning();
-    addJobMonitorMetrics();
-  }
-
-  private void addJobMonitorMetrics() {
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getNewSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getUpdatedSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getRemovedSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getCancelledSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getTotalSpecs());
-    _metrics.getContextAwareMetrics().add(_jobMonitor.getMessageParseFailures());
   }
 
   @Override
