@@ -266,6 +266,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    * Call the metadata writers to do flush each table metadata.
    * Flush of metadata writer is the place that do real metadata
    * registrations (e.g. for iceberg, this method will generate a snapshot)
+   * Flush of metadata writer is the place that do really metadata
+   * registration (For iceberg, this method will generate a snapshot)
+   *
+   * Note that this is one of the place where the materialization of aggregated metadata happens.
+   * When there's a change of {@link OperationType}, it also interrupts metadata aggregation,
+   * and triggers materialization of metadata.
    * @throws IOException
    */
   @Override
