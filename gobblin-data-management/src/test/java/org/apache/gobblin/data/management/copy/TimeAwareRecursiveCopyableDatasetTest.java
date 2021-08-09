@@ -42,6 +42,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filters.DotFileFilter;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
 
@@ -87,6 +88,25 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     fs.mkdirs(baseDir3);
     PeriodFormatter formatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
     Period period = formatter.parsePeriod(NUM_LOOKBACK_DAYS_HOURS_STR);
+  }
+
+  @Test
+  public void testDotFileFilter() throws IOException {
+    Path subDirPath = new Path(baseDir1, new Path("testDotFileFilter"));
+    Path path1 = new Path(subDirPath, "_file1");
+    Path path2 = new Path(subDirPath, ".file2");
+    Path path3 = new Path(subDirPath, "file3");
+
+    fs.mkdirs(subDirPath);
+    fs.create(path1);
+    fs.create(path2);
+    fs.create(path3);
+
+    DotFileFilter filter = new DotFileFilter();
+
+    Assert.assertTrue(filter.accept(path1));
+    Assert.assertFalse(filter.accept(path2));
+    Assert.assertTrue(filter.accept(path3));
   }
 
   @Test

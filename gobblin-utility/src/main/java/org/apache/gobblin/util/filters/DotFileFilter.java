@@ -17,29 +17,15 @@
 
 package org.apache.gobblin.util.filters;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
-
 /**
- * A {@link PathFilter} that filters out hidden files (those starting with '_' or '.').
+ * A {@link PathFilter} similar to {@link HiddenFilter}, but does not filter files starting with '_'.
  */
-public class HiddenFilter implements PathFilter {
-
-  private static final String[] HIDDEN_FILE_PREFIX = { "_", "." };
+public class DotFileFilter extends HiddenFilter {
 
   @Override
-  public boolean accept(Path path) {
-    String name = path.getName();
-    for (String prefix : getHiddenFilePrefix()) {
-      if (name.startsWith(prefix)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   protected String[] getHiddenFilePrefix() {
-    return HIDDEN_FILE_PREFIX;
+    return new String[] { "." };
   }
 }
