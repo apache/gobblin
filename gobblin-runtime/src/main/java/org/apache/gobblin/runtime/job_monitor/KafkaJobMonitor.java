@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -54,9 +55,16 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   protected DatasetStateStore datasetStateStore;
   protected final MutableJobCatalog jobCatalog;
 
-  protected Counter newSpecs;
   @Getter
-  protected Counter removedSpecs;
+  protected ContextAwareMeter newSpecs;
+  @Getter
+  protected ContextAwareMeter updatedSpecs;
+  @Getter
+  protected ContextAwareMeter cancelledSpecs;
+  @Getter
+  protected ContextAwareMeter removedSpecs;
+  @Getter
+  protected ContextAwareMeter totalSpecs;
 
   /**
    * @return A collection of {@link JobSpec}s to add/update/remove from the catalog,
@@ -78,8 +86,11 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Override
   protected void createMetrics() {
     super.createMetrics();
-    this.newSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS);
-    this.removedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
+    this.newSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS);
+    this.updatedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_UPDATED_SPECS);
+    this.removedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
+    this.cancelledSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_CANCELLED_SPECS);
+    this.totalSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS);
   }
 
   @VisibleForTesting
@@ -109,10 +120,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
           continue;
         }
 
+        this.totalSpecs.mark();
+
         switch (verb) {
           case ADD:
+            this.newSpecs.mark();
+            this.jobCatalog.put(parsedMessage);
+            break;
           case UPDATE:
-            this.newSpecs.inc();
+            this.updatedSpecs.mark();
             this.jobCatalog.put(parsedMessage);
             break;
           case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
@@ -120,13 +136,14 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             this.jobCatalog.put(parsedMessage);
             break;
           case DELETE:
-            this.removedSpecs.inc();
+            this.removedSpecs.mark();
             URI jobSpecUri = parsedMessage.getUri();
             this.jobCatalog.remove(jobSpecUri);
             // Delete the job state if it is a delete spec request
             deleteStateStore(jobSpecUri);
             break;
           case CANCEL:
+            this.cancelledSpecs.mark();
             this.jobCatalog.remove(parsedMessage.getUri(), true);
             break;
           default:

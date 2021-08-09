@@ -31,13 +31,13 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
-import com.codahale.metrics.Meter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -60,7 +60,7 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   private final SchemaVersionWriter<?> versionWriter;
 
   @Getter
-  private Meter messageParseFailures;
+  private ContextAwareMeter messageParseFailures;
 
   public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
       SchemaVersionWriter<?> versionWriter) {
@@ -93,7 +93,7 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   @Override
   protected void createMetrics() {
     super.createMetrics();
-    this.messageParseFailures = this.getMetricContext().meter(
+    this.messageParseFailures = this.getMetricContext().contextAwareMeter(
         RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_MESSAGE_PARSE_FAILURES);
   }
 
