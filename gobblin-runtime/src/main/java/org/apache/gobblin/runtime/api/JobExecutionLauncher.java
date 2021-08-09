@@ -24,8 +24,9 @@ import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.Instrumentable;
-import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+
 
 /**
  * A factory for {@link JobExecutionDriver}s.
@@ -68,19 +69,19 @@ public interface JobExecutionLauncher extends Instrumentable {
     public static final String EXECUTOR_POOL_SIZE = "executorPoolSize";
     public static final String EXECUTOR_CORE_POOL_SIZE = "executorCorePoolSize";
     public static final String EXECUTOR_QUEUE_SIZE = "executorQueueSize";
-    @Getter private final ContextAwareCounter numJobsLaunched;
-    @Getter private final ContextAwareCounter numJobsCompleted;
-    @Getter private final ContextAwareCounter numJobsCommitted;
-    @Getter private final ContextAwareCounter numJobsFailed;
-    @Getter private final ContextAwareCounter numJobsCancelled;
+    @Getter private final ContextAwareMeter numJobsLaunched;
+    @Getter private final ContextAwareMeter numJobsCompleted;
+    @Getter private final ContextAwareMeter numJobsCommitted;
+    @Getter private final ContextAwareMeter numJobsFailed;
+    @Getter private final ContextAwareMeter numJobsCancelled;
     @Getter private final ContextAwareGauge<Integer> numJobsRunning;
 
     public StandardMetrics(final JobExecutionLauncher parent) {
-      this.numJobsLaunched = parent.getMetricContext().contextAwareCounter(NUM_JOBS_LAUNCHED);
-      this.numJobsCompleted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMPLETED);
-      this.numJobsCommitted = parent.getMetricContext().contextAwareCounter(NUM_JOBS_COMMITTED);
-      this.numJobsFailed = parent.getMetricContext().contextAwareCounter(NUM_JOBS_FAILED);
-      this.numJobsCancelled = parent.getMetricContext().contextAwareCounter(NUM_JOBS_CANCELLED);
+      this.numJobsLaunched = parent.getMetricContext().contextAwareMeter(NUM_JOBS_LAUNCHED);
+      this.numJobsCompleted = parent.getMetricContext().contextAwareMeter(NUM_JOBS_COMPLETED);
+      this.numJobsCommitted = parent.getMetricContext().contextAwareMeter(NUM_JOBS_COMMITTED);
+      this.numJobsFailed = parent.getMetricContext().contextAwareMeter(NUM_JOBS_FAILED);
+      this.numJobsCancelled = parent.getMetricContext().contextAwareMeter(NUM_JOBS_CANCELLED);
       this.numJobsRunning = parent.getMetricContext().newContextAwareGauge(NUM_JOBS_RUNNING,
             new Gauge<Integer>() {
               @Override public Integer getValue() {

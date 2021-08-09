@@ -20,10 +20,13 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.SortedMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Joiner;
@@ -43,8 +46,11 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
+import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -94,6 +100,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final JobIssueEventHandler jobIssueEventHandler;
 
+  private final ConcurrentHashMap<String, Long> flowNameGroupToWorkUnitCount;
+
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
@@ -104,6 +112,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
     this.jobIssueEventHandler = jobIssueEventHandler;
+
+    this.flowNameGroupToWorkUnitCount = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -148,6 +158,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
           jobIssueEventHandler.processEvent(gobblinTrackingEvent);
         }
+      }
+
+      if (gobblinTrackingEvent.getName().equals(JobEvent.WORK_UNITS_CREATED)) {
+        emitWorkUnitCountMetric(gobblinTrackingEvent);
+        return;
       }
 
       org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
@@ -235,6 +250,29 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     mergedState.putAll(state.getProperties());
 
     return new org.apache.gobblin.configuration.State(mergedState);
+  }
+
+  private void emitWorkUnitCountMetric(GobblinTrackingEvent event) {
+    Properties properties = new Properties();
+    properties.putAll(event.getMetadata());
+
+    Long numWorkUnits = Long.parseLong(properties.getProperty(CountEventBuilder.COUNT_KEY));
+    String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
+        properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
+        JobEvent.WORK_UNITS_CREATED);
+
+    SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(
+        (name, metric) -> name.equals(workUnitCountName));
+
+    // If gauge for this flow name and group exists, then value will be updated by reference. Otherwise create
+    // a new gauge and save a reference to the value in the HashMap
+    this.flowNameGroupToWorkUnitCount.put(workUnitCountName, numWorkUnits);
+    if (existingGauges.isEmpty()) {
+      ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName,
+          () -> this.flowNameGroupToWorkUnitCount.get(workUnitCountName));
+      this.getMetricContext().register(workUnitCountName, gauge);
+    }
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {

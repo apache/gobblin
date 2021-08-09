@@ -30,6 +30,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.iceberg.Utils.IcebergUtils;
@@ -153,6 +154,10 @@ public abstract class GobblinMCEProducer implements Closeable {
     if (state.contains(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB)) {
       regProperties.put(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB,
           state.getProp(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB));
+    }
+    if (state.contains(HiveSerDeManager.HIVE_ROW_FORMAT)) {
+      regProperties.put(HiveSerDeManager.HIVE_ROW_FORMAT,
+          state.getProp(HiveSerDeManager.HIVE_ROW_FORMAT));
     }
     if (!regProperties.isEmpty()) {
       gmceBuilder.setRegistrationProperties(regProperties);

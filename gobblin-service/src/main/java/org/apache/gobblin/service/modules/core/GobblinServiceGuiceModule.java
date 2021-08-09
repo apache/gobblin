@@ -59,6 +59,9 @@ import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.NoopRequesterService;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -66,6 +69,7 @@ import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2Resou
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
+import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -129,7 +133,7 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
-        .to(serviceConfig.getServiceName());
+        .to(serviceConfig.isFlowCatalogLocalCommit());
 
     binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
     binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
@@ -205,12 +209,23 @@ public class GobblinServiceGuiceModule implements Module {
             JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
 
     if (serviceConfig.isRestLIServerEnabled()) {
-      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class).in(Singleton.class);
+      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
     }
 
     binder.bind(GobblinServiceManager.class);
 
-    binder.bind(MultiContextIssueRepository.class).to(InMemoryMultiContextIssueRepository.class);
+    binder.bind(ServiceDatabaseProvider.class).to(ServiceDatabaseProviderImpl.class);
+    binder.bind(ServiceDatabaseProviderImpl.Configuration.class);
+
+    binder.bind(ServiceDatabaseManager.class);
+
+    binder.bind(MultiContextIssueRepository.class)
+        .to(getClassByNameOrAlias(MultiContextIssueRepository.class, serviceConfig.getInnerConfig(),
+                                  ServiceConfigKeys.ISSUE_REPO_CLASS,
+                                  InMemoryMultiContextIssueRepository.class.getName()));
+
+    binder.bind(MySqlMultiContextIssueRepository.Configuration.class);
+    binder.bind(InMemoryMultiContextIssueRepository.Configuration.class);
 
     binder.bind(JobIssueEventHandler.class);
 

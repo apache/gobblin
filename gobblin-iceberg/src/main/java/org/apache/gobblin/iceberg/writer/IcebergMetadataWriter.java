@@ -104,7 +104,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor.KafkaWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
@@ -123,15 +123,16 @@ import org.apache.gobblin.util.WriterUtils;
 @Slf4j
 public class IcebergMetadataWriter implements MetadataWriter {
 
+  // Critical when there's dataset-level ACL enforced for both data and Iceberg metadata
   public static final String USE_DATA_PATH_AS_TABLE_LOCATION = "use.data.path.as.table.location";
   public static final String TABLE_LOCATION_SUFFIX = "/_iceberg_metadata/%s";
   public static final String GMCE_HIGH_WATERMARK_KEY = "gmce.high.watermark.%s";
   public static final String GMCE_LOW_WATERMARK_KEY = "gmce.low.watermark.%s";
   private final static String EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "gobblin.iceberg.dataset.expire.snapshots.lookBackTime";
   private final static String DEFAULT_EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "3d";
-  public static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
-  public static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
-  public static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
+  private static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
+  private static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
+  private static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
   private static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
   private static final String CREATE_TABLE_TIME = "iceberg.create.table.time";
   private static final String SCHEMA_CREATION_TIME_KEY = "schema.creation.time";
@@ -139,17 +140,23 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final int DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME = 1;
   private static final String OFFSET_RANGE_KEY_PREFIX = "offset.range.";
   private static final String OFFSET_RANGE_KEY_FORMAT = OFFSET_RANGE_KEY_PREFIX + "%s";
-  private static final String ICEBERG_FILE_PATH_COLUMN = "file_path";
+
   private static final String DEFAULT_CREATION_TIME = "0";
   private static final String SNAPSHOT_EXPIRE_THREADS = "snapshot.expire.threads";
   private static final long DEFAULT_WATERMARK = -1L;
+
+  /* one of the fields in DataFile entry to describe the location URI of a data file with FS Scheme */
+  private static final String ICEBERG_FILE_PATH_COLUMN = DataFile.FILE_PATH.name();
+
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
-  private final WhitelistBlacklist whiteistBlacklist;
+  private final WhitelistBlacklist whitelistBlacklist;
   private final Closer closer = Closer.create();
-  private final Map<TableIdentifier, Long> tableCurrentWaterMarkMap;
-  //Used to store the relationship between table and the gmce topicPartition
-  private final Map<TableIdentifier, String> tableTopicpartitionMap;
+
+  // Mapping between table-id and currently processed watermark
+  private final Map<TableIdentifier, Long> tableCurrentWatermarkMap;
+  // Used to store the relationship between table and the gmce topicPartition
+  private final Map<TableIdentifier, String> tableTopicPartitionMap;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final Map<TableIdentifier, TableMetadata> tableMetadataMap;
@@ -159,16 +166,16 @@ public class IcebergMetadataWriter implements MetadataWriter {
   protected final ReadWriteLock readWriteLock;
   private final HiveLock locks;
   private final ParallelRunner parallelRunner;
-  private final boolean useDataLoacationAsTableLocation;
+  private final boolean useDataLocationAsTableLocation;
   private FsPermission permission;
 
   public IcebergMetadataWriter(State state) throws IOException {
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
     conf = HadoopUtils.getConfFromState(state);
     initializeCatalog();
-    tableTopicpartitionMap = new HashMap<>();
+    tableTopicPartitionMap = new HashMap<>();
     tableMetadataMap = new HashMap<>();
-    tableCurrentWaterMarkMap = new HashMap<>();
+    tableCurrentWatermarkMap = new HashMap<>();
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
     tags.add(new Tag<>(CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
@@ -176,15 +183,17 @@ public class IcebergMetadataWriter implements MetadataWriter {
         GobblinMetricsRegistry.getInstance().getMetricContext(state, IcebergMetadataWriter.class, tags));
     this.eventSubmitter =
         new EventSubmitter.Builder(this.metricContext, IcebergMCEMetadataKeys.METRICS_NAMESPACE_ICEBERG_WRITER).build();
-    this.whiteistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_WHITELIST, ""),
+    this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_WHITELIST, ""),
         state.getProp(ICEBERG_REGISTRATION_BLACKLIST, ""));
-    // Use lock to make it safe when flush and write are called async
+
+    // Use rw-lock to make it thread-safe when flush and write(which is essentially aggregate & reading metadata),
+    // are called in separate threads.
     readWriteLock = new ReentrantReadWriteLock();
     this.locks = new HiveLock(state.getProperties());
     parallelRunner = closer.register(new ParallelRunner(state.getPropAsInt(SNAPSHOT_EXPIRE_THREADS, 20),
         FileSystem.get(HadoopUtils.getConfFromState(state))));
-    useDataLoacationAsTableLocation = state.getPropAsBoolean(USE_DATA_PATH_AS_TABLE_LOCATION, false);
-    if (useDataLoacationAsTableLocation) {
+    useDataLocationAsTableLocation = state.getPropAsBoolean(USE_DATA_PATH_AS_TABLE_LOCATION, false);
+    if (useDataLocationAsTableLocation) {
       permission =
           HadoopUtils.deserializeFsPermission(state, ICEBERG_METADATA_FILE_PERMISSION,
               FsPermission.getDefault());
@@ -204,12 +213,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   *  The method is used to get current watermark of the gmce topic partition for a table
+   *  The method is used to get current watermark of the gmce topic partition for a table, and persist the value
+   *  in the {@link #tableMetadataMap} as a side effect.
+   *
    *  Make the watermark config name contains topicPartition in case we change the gmce topic name for some reason
    */
-  private Long getCurrentWaterMark(TableIdentifier tid, String topicPartition) {
-    if (tableCurrentWaterMarkMap.containsKey(tid)) {
-      return tableCurrentWaterMarkMap.get(tid);
+  private Long getAndPersistCurrentWatermark(TableIdentifier tid, String topicPartition) {
+    if (tableCurrentWatermarkMap.containsKey(tid)) {
+      return tableCurrentWatermarkMap.get(tid);
     }
     org.apache.iceberg.Table icebergTable;
     Long currentWatermark = DEFAULT_WATERMARK;
@@ -229,13 +240,15 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   *The write method will be responsible for process a given gmce and aggregate the metadata
+   * The write method will be responsible for processing gmce and aggregating the metadata.
    * The logic of this function will be:
-   * 1. Check whether a table exists, if not then create the iceberg table
+   * 1. Check whether a table exists, if not then create a iceberg table
    * 2. Compute schema from the gmce and update the cache for candidate schemas
-   * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile or dropFile. change_property means only
-   * update the table level property but no data modification.
-   * Note: this method only aggregate the metadata in cache without committing. The actual commit will be done in flush method
+   * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile, dropFile or change_property.
+   *
+   * Note: this method only aggregates the metadata in cache without committing,
+   * while the actual commit will be done in flush method (except rewrite and drop methods where preserving older file
+   * information increases the memory footprints, therefore we would like to flush them eagerly).
    */
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
@@ -261,7 +274,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       }
     }
     computeCandidateSchema(gmce, tid, tableSpec);
-    tableMetadata.transaction = Optional.of(tableMetadata.transaction.or(table::newTransaction));
+    tableMetadata.ensureTxnInit();
     tableMetadata.lowestGMCEEmittedTime = Long.min(tableMetadata.lowestGMCEEmittedTime, gmce.getGMCEmittedTime());
     switch (gmce.getOperationType()) {
       case add_files: {
@@ -314,7 +327,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     return offsets;
   }
 
-  private void mergeOffsets(GobblinMetadataChangeEvent gmce, TableIdentifier tid) throws IOException {
+  /**
+   * The side effect of this method is to update the offset-range of the table identified by
+   * the given {@link TableIdentifier} with the input {@link GobblinMetadataChangeEvent}
+   */
+  private void mergeOffsets(GobblinMetadataChangeEvent gmce, TableIdentifier tid) {
     TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
     tableMetadata.dataOffsetRange = Optional.of(tableMetadata.dataOffsetRange.or(() -> getLastOffset(tableMetadata)));
     Map<String, List<Range>> offsets = tableMetadata.dataOffsetRange.get();
@@ -360,8 +377,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * @param gmce
    * @param tid
    */
-  private void computeCandidateSchema(GobblinMetadataChangeEvent gmce, TableIdentifier tid, HiveSpec spec)
-      throws IOException {
+  private void computeCandidateSchema(GobblinMetadataChangeEvent gmce, TableIdentifier tid, HiveSpec spec) {
     Table table = getIcebergTable(tid);
     TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
     org.apache.hadoop.hive.metastore.api.Table hiveTable = HiveMetaStoreUtils.getTable(spec.getTable());
@@ -416,7 +432,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     PartitionSpec partitionSpec = IcebergUtils.getPartitionSpec(tableSchema, schemas.partitionSchema);
     Table icebergTable = null;
     String tableLocation = null;
-    if (useDataLoacationAsTableLocation) {
+    if (useDataLocationAsTableLocation) {
       tableLocation = gmce.getDatasetIdentifier().getNativeName() + String.format(TABLE_LOCATION_SUFFIX, table.getDbName());
       //Set the path permission
       Path tablePath = new Path(tableLocation);
@@ -435,8 +451,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   protected void rewriteFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, Table table, TableMetadata tableMetadata) throws IOException {
     PartitionSpec partitionSpec = table.spec();
-    tableMetadata.transaction = Optional.of(tableMetadata.transaction.or(table::newTransaction));
-    Transaction transaction = tableMetadata.transaction.get();
+    tableMetadata.ensureTxnInit();
     Set<DataFile> newDataFiles = new HashSet<>();
     getIcebergDataFilesToBeAddedHelper(gmce, table, newSpecsMap, tableMetadata)
         .forEach(dataFile -> {
@@ -444,22 +459,26 @@ public class IcebergMetadataWriter implements MetadataWriter {
           tableMetadata.addedFiles.put(dataFile.path(), "");
         });
     Set<DataFile> oldDataFiles = getIcebergDataFilesToBeDeleted(gmce, table, newSpecsMap, oldSpecsMap, partitionSpec);
+
+    // Dealing with the case when old file doesn't exist, in which it could either be converted into noop or AppendFile.
     if (oldDataFiles.isEmpty() && !newDataFiles.isEmpty()) {
-      //We randomly check whether one of the new data files already exists in the db to avoid duplication of re-write events
-      DataFile file = newDataFiles.iterator().next();
-      Expression exp = Expressions.startsWith(ICEBERG_FILE_PATH_COLUMN, (String) file.path());
+      //We randomly check whether one of the new data files already exists in the db to avoid reprocessing re-write events
+      DataFile dataFile = newDataFiles.iterator().next();
+      Expression exp = Expressions.startsWith(ICEBERG_FILE_PATH_COLUMN, dataFile.path().toString());
       if (FindFiles.in(table).withMetadataMatching(exp).collect().iterator().hasNext()) {
-        //This means this re-write event is duplicated with the one we already handled, so directly return
+        //This means this re-write event is duplicated with the one we already handled, so noop.
         return;
       }
-      //This is the case when the files to be deleted do not exist in table
-      //So we directly call addFiles interface to add new files into the table.
-      tableMetadata.appendFiles = Optional.of(tableMetadata.appendFiles.or(transaction::newAppend));
-      AppendFiles appendFiles = tableMetadata.appendFiles.get();
+      // This is the case when the files to be deleted do not exist in table
+      // So we directly call addFiles interface to add new files into the table.
+      // Note that this AppendFiles won't be committed here, in contrast to a real rewrite operation
+      // where the commit will be called at once to save memory footprints.
+      AppendFiles appendFiles = tableMetadata.getOrInitAppendFiles();
       newDataFiles.forEach(appendFiles::appendFile);
       return;
     }
-    transaction.newRewrite().rewriteFiles(oldDataFiles, newDataFiles).commit();
+
+    tableMetadata.transaction.get().newRewrite().rewriteFiles(oldDataFiles, newDataFiles).commit();
   }
 
   /**
@@ -478,15 +497,22 @@ public class IcebergMetadataWriter implements MetadataWriter {
     return schemaWithOriginId;
   }
 
+  /**
+   * Deal with both regular file deletions manifested by GMCE(aggregation but no commit),
+   * and expiring older snapshots(commit).
+   */
   protected void dropFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> oldSpecsMap, Table table,
       TableMetadata tableMetadata, TableIdentifier tid) throws IOException {
     PartitionSpec partitionSpec = table.spec();
-    Transaction transaction = tableMetadata.transaction.get();
+
+    // Update DeleteFiles in tableMetadata: This is regular file deletion
+    DeleteFiles deleteFiles = tableMetadata.getOrInitDeleteFiles();
     Set<DataFile> oldDataFiles =
         getIcebergDataFilesToBeDeleted(gmce, table, new HashMap<>(), oldSpecsMap, partitionSpec);
-    tableMetadata.deleteFiles = Optional.of(tableMetadata.deleteFiles.or(transaction::newDelete));
-    DeleteFiles deleteFiles = tableMetadata.deleteFiles.get();
-    oldDataFiles.stream().forEach(deleteFiles::deleteFile);
+    oldDataFiles.forEach(deleteFiles::deleteFile);
+
+    // Update ExpireSnapshots and commit the updates at once: This is for expiring snapshots that are
+    // beyond look-back allowance for time-travel.
     parallelRunner.submitCallable(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -495,6 +521,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
           long start = System.currentTimeMillis();
           ExpireSnapshots expireSnapshots = table.expireSnapshots();
           final Table tmpTable = table;
+
           expireSnapshots.deleteWith(new Consumer<String>() {
             @Override
             public void accept(String file) {
@@ -533,10 +560,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   protected void addFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap, Table table,
-      TableMetadata tableMetadata) throws IOException {
-    Transaction transaction = tableMetadata.transaction.get();
-    tableMetadata.appendFiles = Optional.of(tableMetadata.appendFiles.or(transaction::newAppend));
-    AppendFiles appendFiles = tableMetadata.appendFiles.get();
+      TableMetadata tableMetadata) {
+    AppendFiles appendFiles = tableMetadata.getOrInitAppendFiles();
     getIcebergDataFilesToBeAddedHelper(gmce, table, newSpecsMap, tableMetadata)
         .forEach(dataFile -> {
           appendFiles.appendFile(dataFile);
@@ -544,18 +569,19 @@ public class IcebergMetadataWriter implements MetadataWriter {
         });
   }
 
-  private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table, Map<String, Collection<HiveSpec>> newSpecsMap,
-      TableMetadata tableMetadata) throws IOException {
+  private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table,
+      Map<String, Collection<HiveSpec>> newSpecsMap,
+      TableMetadata tableMetadata) {
     return getIcebergDataFilesToBeAdded(gmce.getNewFiles(), table.spec(), newSpecsMap,
         IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
         .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null);
   }
 
   /**
-   * Method to get dataFiles without metrics information
+   * Method to get a {@link DataFile} collection without metrics information
    * This method is used to get files to be deleted from iceberg
    * If oldFilePrefixes is specified in gmce, this method will use those prefixes to find old file in iceberg,
-   * or the method will callmethod {IcebergUtils.getIcebergDataFileWithMetric} to get DataFile for specific file path
+   * or the method will call method {IcebergUtils.getIcebergDataFileWithMetric} to get DataFile for specific file path
    */
   private Set<DataFile> getIcebergDataFilesToBeDeleted(GobblinMetadataChangeEvent gmce, Table table,
       Map<String, Collection<HiveSpec>> newSpecsMap, Map<String, Collection<HiveSpec>> oldSpecsMap,
@@ -564,7 +590,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     if (gmce.getOldFilePrefixes() != null) {
       Expression exp = Expressions.alwaysFalse();
       for (String prefix : gmce.getOldFilePrefixes()) {
-        //Use both full path and raw path to delete old files
+        // Use both full path and raw path to filter old files
         exp = Expressions.or(exp, Expressions.startsWith(ICEBERG_FILE_PATH_COLUMN, prefix));
         String rawPathPrefix = new Path(prefix).toUri().getRawPath();
         exp = Expressions.or(exp, Expressions.startsWith(ICEBERG_FILE_PATH_COLUMN, rawPathPrefix));
@@ -572,16 +598,16 @@ public class IcebergMetadataWriter implements MetadataWriter {
       long start = System.currentTimeMillis();
       oldDataFiles.addAll(Sets.newHashSet(FindFiles.in(table).withMetadataMatching(exp).collect().iterator()));
       //Use INFO level log here to get better estimate.
-      //This shouldn't overwhelm the log since we receive less than 3 rewrite_file gmces for one table in one day
+      //This shouldn't overwhelm the log since we receive limited number of rewrite_file gmces for one table in a day
       log.info("Spent {}ms to query all old files in iceberg.", System.currentTimeMillis() - start);
     } else {
       for (String file : gmce.getOldFiles()) {
         String specPath = new Path(file).getParent().toString();
         // For the use case of recompaction, the old path may contains /daily path, in this case, we find the spec from newSpecsMap
-        StructLike partition = getIcebergPartition(
+        StructLike partitionVal = getIcebergPartitionVal(
             oldSpecsMap.containsKey(specPath) ? oldSpecsMap.get(specPath) : newSpecsMap.get(specPath), file,
             partitionSpec);
-        oldDataFiles.add(IcebergUtils.getIcebergDataFileWithoutMetric(file, partitionSpec, partition));
+        oldDataFiles.add(IcebergUtils.getIcebergDataFileWithoutMetric(file, partitionSpec, partitionVal));
       }
     }
     return oldDataFiles;
@@ -593,12 +619,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * This method will call method {IcebergUtils.getIcebergDataFileWithMetric} to get DataFile for specific file path
    */
   private Set<DataFile> getIcebergDataFilesToBeAdded(List<org.apache.gobblin.metadata.DataFile> files,
-      PartitionSpec partitionSpec, Map<String, Collection<HiveSpec>> newSpecsMap, Map<Integer, Integer> schemaIdMap)
-      throws IOException {
+      PartitionSpec partitionSpec, Map<String, Collection<HiveSpec>> newSpecsMap, Map<Integer, Integer> schemaIdMap) {
     Set<DataFile> dataFiles = new HashSet<>();
     for (org.apache.gobblin.metadata.DataFile file : files) {
       try {
-        StructLike partition = getIcebergPartition(newSpecsMap.get(new Path(file.getFilePath()).getParent().toString()),
+        StructLike partition = getIcebergPartitionVal(newSpecsMap.get(new Path(file.getFilePath()).getParent().toString()),
             file.getFilePath(), partitionSpec);
         dataFiles.add(IcebergUtils.getIcebergDataFileWithMetric(file, partitionSpec, partition, conf, schemaIdMap));
       } catch (Exception e) {
@@ -608,15 +633,23 @@ public class IcebergMetadataWriter implements MetadataWriter {
     return dataFiles;
   }
 
-  private StructLike getIcebergPartition(Collection<HiveSpec> specs, String filePath, PartitionSpec partitionSpec)
+  /**
+   * Obtain Iceberg partition value with a collection of {@link HiveSpec}.
+   * @param specs A collection of {@link HiveSpec}s.
+   * @param filePath URI of file, used for logging purpose in this method.
+   * @param partitionSpec The scheme of partition.
+   * @return The value of partition based on the given {@link PartitionSpec}.
+   * @throws IOException
+   */
+  private StructLike getIcebergPartitionVal(Collection<HiveSpec> specs, String filePath, PartitionSpec partitionSpec)
       throws IOException {
     if (specs == null || specs.isEmpty()) {
       throw new IOException("Cannot get hive spec for " + filePath);
     }
     HivePartition hivePartition = specs.iterator().next().getPartition().orNull();
-    StructLike partition = hivePartition == null ? null
+    StructLike partitionVal = hivePartition == null ? null
         : IcebergUtils.getPartition(partitionSpec.partitionType(), hivePartition.getValues());
-    return partition;
+    return partitionVal;
   }
 
   /**
@@ -647,10 +680,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Map<String, String> props = tableMetadata.newProperties.or(
             Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties())));
         //Set high waterMark
-        Long highWatermark = tableCurrentWaterMarkMap.get(tid);
-        props.put(String.format(GMCE_HIGH_WATERMARK_KEY, tableTopicpartitionMap.get(tid)), highWatermark.toString());
+        Long highWatermark = tableCurrentWatermarkMap.get(tid);
+        props.put(String.format(GMCE_HIGH_WATERMARK_KEY, tableTopicPartitionMap.get(tid)), highWatermark.toString());
         //Set low waterMark
-        props.put(String.format(GMCE_LOW_WATERMARK_KEY, tableTopicpartitionMap.get(tid)),
+        props.put(String.format(GMCE_LOW_WATERMARK_KEY, tableTopicPartitionMap.get(tid)),
             tableMetadata.lowWatermark.get().toString());
         //Set whether to delete metadata files after commit
         props.put(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, Boolean.toString(
@@ -667,8 +700,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
           //In case the topic name is not the table name or the topic name contains '-'
           topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
         }
-        //Update schema
+        //Update schema(commit)
         updateSchema(tableMetadata, props, topicName);
+
         //Update properties
         UpdateProperties updateProperties = transaction.updateProperties();
         props.forEach(updateProperties::set);
@@ -676,12 +710,17 @@ public class IcebergMetadataWriter implements MetadataWriter {
         try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
           transaction.commitTransaction();
         }
+
+        // Emit GTE for snapshot commits
         Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
         Map<String, String> currentProps = tableMetadata.table.get().properties();
         submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
+
         //Reset the table metadata for next accumulation period
         tableMetadata.reset(currentProps, highWatermark);
-        log.info(String.format("Finish flushing for table %s", tid.toString()));
+        log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid.toString()));
+      } else {
+        log.info("There's no transaction initiated for the table {}", tid.toString());
       }
     } catch (RuntimeException e) {
       throw new RuntimeException(String.format("Fail to flush table %s %s", dbName, tableName), e);
@@ -699,7 +738,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     long currentSnapshotID = snapshot.snapshotId();
     long endToEndLag = System.currentTimeMillis() - tableMetadata.lowestGMCEEmittedTime;
     TableIdentifier tid = TableIdentifier.of(dbName, tableName);
-    String gmceTopicPartition = tableTopicpartitionMap.get(tid);
+    String gmceTopicPartition = tableTopicPartitionMap.get(tid);
 
     //Add information to automatically trigger repair jon when data loss happen
     gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_NAME, gmceTopicPartition.split("-")[0]);
@@ -787,28 +826,27 @@ public class IcebergMetadataWriter implements MetadataWriter {
       GenericRecord genericRecord = recordEnvelope.getRecord();
       GobblinMetadataChangeEvent gmce =
           (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
-      if (whiteistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
+      if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
         TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
-        String topicPartition = tableTopicpartitionMap.computeIfAbsent(tid,
-            t -> ((KafkaStreamingExtractor.KafkaWatermark) recordEnvelope.getWatermark()).getTopicPartition().toString());
-        Long currentWatermark = getCurrentWaterMark(tid, topicPartition);
-        Long currentOffset =
-            ((KafkaStreamingExtractor.KafkaWatermark) recordEnvelope.getWatermark()).getLwm().getValue();
+        String topicPartition = tableTopicPartitionMap.computeIfAbsent(tid,
+            t -> ((KafkaWatermark) recordEnvelope.getWatermark()).getTopicPartition().toString());
+        Long currentWatermark = getAndPersistCurrentWatermark(tid, topicPartition);
+        Long currentOffset = ((KafkaWatermark) recordEnvelope.getWatermark()).getLwm().getValue();
+
         if (currentOffset > currentWatermark) {
           if (currentWatermark == DEFAULT_WATERMARK) {
             //This means we haven't register this table or the GMCE topic partition changed, we need to reset the low watermark
             tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark =
                 Optional.of(currentOffset - 1);
           }
-          tableMetadataMap.get(tid).datasetName = gmce.getDatasetIdentifier().getNativeName();
+          tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
           write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
-          tableCurrentWaterMarkMap.put(tid,
-              ((KafkaStreamingExtractor.KafkaWatermark) recordEnvelope.getWatermark()).getLwm().getValue());
+          tableCurrentWatermarkMap.put(tid, currentOffset);
         } else {
           log.warn(String.format("Skip processing record %s since it has lower watermark", genericRecord.toString()));
         }
       } else {
-        log.info(String.format("Skip table %s.%s since it's blacklisted", tableSpec.getTable().getDbName(),
+        log.info(String.format("Skip table %s.%s since it's not selected", tableSpec.getTable().getDbName(),
             tableSpec.getTable().getTableName()));
       }
     } finally {
@@ -821,32 +859,86 @@ public class IcebergMetadataWriter implements MetadataWriter {
     this.closer.close();
   }
 
+  /**
+   * A collection of Iceberg metadata including {@link Table} itself as well as
+   * A set of buffered objects (reflecting table's {@link org.apache.iceberg.PendingUpdate}s) within the flush interval
+   * that aggregates the metadata like location arriving / deleting files, schema,
+   * along with other table-level metadata like watermark, offset-range, etc.
+   *
+   * Also note the difference with {@link org.apache.iceberg.TableMetadata}.
+   */
   private class TableMetadata {
-    Optional<Transaction> transaction = Optional.absent();
     Optional<Table> table = Optional.absent();
-    Optional<AppendFiles> appendFiles = Optional.absent();
-    Optional<DeleteFiles> deleteFiles = Optional.absent();
+
+    /**
+     * The {@link Transaction} object holds the reference of a {@link org.apache.iceberg.BaseTransaction.TransactionTableOperations}
+     * that is shared by all individual operation (e.g. {@link AppendFiles}) to ensure atomicity even if commit method
+     * is invoked from a individual operation.
+     */
+    Optional<Transaction> transaction = Optional.absent();
+    private Optional<AppendFiles> appendFiles = Optional.absent();
+    private Optional<DeleteFiles> deleteFiles = Optional.absent();
+
     Optional<Map<String, String>> lastProperties = Optional.absent();
     Optional<Map<String, String>> newProperties = Optional.absent();
     Optional<Cache<String, Schema>> candidateSchemas = Optional.absent();
     Optional<Map<String, List<Range>>> dataOffsetRange = Optional.absent();
     Optional<String> lastSchemaVersion = Optional.absent();
     Optional<Long> lowWatermark = Optional.absent();
+
+    @Setter
     String datasetName;
+
     Cache<CharSequence, String> addedFiles = CacheBuilder.newBuilder()
         .expireAfterAccess(conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
             TimeUnit.HOURS)
         .build();
     long lowestGMCEEmittedTime = Long.MAX_VALUE;
 
-    public void reset(Map<String, String> props, Long lowWaterMark) {
+    /**
+     * Always use this method to obtain {@link AppendFiles} object within flush interval
+     * if clients want to have the {@link AppendFiles} committed along with other updates in a txn.
+     */
+    AppendFiles getOrInitAppendFiles() {
+      ensureTxnInit();
+      if (!this.appendFiles.isPresent()) {
+        this.appendFiles = Optional.of(this.transaction.get().newAppend());
+      }
+
+      return this.appendFiles.get();
+    }
+
+    DeleteFiles getOrInitDeleteFiles() {
+      ensureTxnInit();
+      if (!this.deleteFiles.isPresent()) {
+        this.deleteFiles = Optional.of(this.transaction.get().newDelete());
+      }
+
+      return this.deleteFiles.get();
+    }
+
+    /**
+     * Initializing {@link Transaction} object within {@link TableMetadata} when needed.
+     */
+    void ensureTxnInit() {
+      if (!this.transaction.isPresent()) {
+        this.transaction = Optional.of(table.get().newTransaction());
+      }
+    }
+
+    void reset(Map<String, String> props, Long lowWaterMark) {
       this.lastProperties = Optional.of(props);
       this.lastSchemaVersion = Optional.of(props.get(SCHEMA_CREATION_TIME_KEY));
-      //clear cache
       this.transaction = Optional.absent();
       this.deleteFiles = Optional.absent();
       this.appendFiles = Optional.absent();
+
+      // Clean cache and reset to eagerly release unreferenced objects.
+      if (this.candidateSchemas.isPresent()) {
+        this.candidateSchemas.get().cleanUp();
+      }
       this.candidateSchemas = Optional.absent();
+
       this.dataOffsetRange = Optional.absent();
       this.newProperties = Optional.absent();
       this.lowestGMCEEmittedTime = Long.MAX_VALUE;

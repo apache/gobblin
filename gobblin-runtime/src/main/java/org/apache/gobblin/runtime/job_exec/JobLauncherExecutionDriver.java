@@ -264,7 +264,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
       }
       _jobState.switchToRunning();
       if (_instrumentationEnabled && null != _launcherMetrics) {
-        _launcherMetrics.getNumJobsLaunched().inc();
+        _launcherMetrics.getNumJobsLaunched().mark();
       }
     }
 
@@ -281,11 +281,11 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
           "Unexpected state: " + jobContext.getJobState().getState() + " in " + jobContext);
       super.onJobCompletion(jobContext);
       if (_instrumentationEnabled && null != _launcherMetrics) {
-        _launcherMetrics.getNumJobsCompleted().inc();
+        _launcherMetrics.getNumJobsCompleted().mark();
       }
       if (jobContext.getJobState().getState() == RunningState.FAILED) {
         if (_instrumentationEnabled && null != _launcherMetrics) {
-          _launcherMetrics.getNumJobsFailed().inc();
+          _launcherMetrics.getNumJobsFailed().mark();
         }
         _jobState.switchToFailed();
       }
@@ -294,7 +294,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
         _jobState.switchToSuccessful();
         _jobState.switchToCommitted();
         if (_instrumentationEnabled && null != _launcherMetrics) {
-          _launcherMetrics.getNumJobsCommitted().inc();
+          _launcherMetrics.getNumJobsCommitted().mark();
         }
       }
     }
@@ -304,7 +304,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
       super.onJobCancellation(jobContext);
       _jobState.switchToCancelled();
       if (_instrumentationEnabled && null != _launcherMetrics) {
-        _launcherMetrics.getNumJobsCancelled().inc();
+        _launcherMetrics.getNumJobsCancelled().mark();
       }
     }
   }

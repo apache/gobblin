@@ -47,7 +47,7 @@ class GobblinHelixJobLauncherListener extends AbstractJobListener {
       throws Exception {
     super.onJobPrepare(jobContext);
     jobContext.getJobState().setProp(JOB_START_TIME, Long.toString(System.nanoTime()));
-    jobLauncherMetrics.totalJobsLaunched.incrementAndGet();
+    jobLauncherMetrics.numJobsLaunched.mark();
   }
 
   /**
@@ -60,13 +60,13 @@ class GobblinHelixJobLauncherListener extends AbstractJobListener {
       throws Exception {
     super.onJobCompletion(jobContext);
     long startTime = jobContext.getJobState().getPropAsLong(JOB_START_TIME);
-    jobLauncherMetrics.totalJobsCompleted.incrementAndGet();
+    jobLauncherMetrics.numJobsCompleted.mark();
     Instrumented.updateTimer(Optional.of(jobLauncherMetrics.timeForCompletedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
-      jobLauncherMetrics.totalJobsFailed.incrementAndGet();
+      jobLauncherMetrics.numJobsFailed.mark();
       Instrumented.updateTimer(Optional.of(jobLauncherMetrics.timeForFailedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     } else {
-      jobLauncherMetrics.totalJobsCommitted.incrementAndGet();
+      jobLauncherMetrics.numJobsCommitted.mark();
       Instrumented.updateTimer(Optional.of(jobLauncherMetrics.timeForCommittedJobs), System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     }
   }
@@ -75,6 +75,6 @@ class GobblinHelixJobLauncherListener extends AbstractJobListener {
   public void onJobCancellation(JobContext jobContext)
       throws Exception {
     super.onJobCancellation(jobContext);
-    jobLauncherMetrics.totalJobsCancelled.incrementAndGet();
+    jobLauncherMetrics.numJobsCancelled.mark();
   }
 }

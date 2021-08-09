@@ -78,6 +78,8 @@ public class GobblinYarnConfigurationKeys {
   // The ratio of the amount of Xmx to carve out of the container memory before adjusting for jvm memory overhead
   public static final String CONTAINER_JVM_MEMORY_XMX_RATIO_KEY = GOBBLIN_YARN_PREFIX + "container.jvmMemoryXmxRatio";
   public static final double DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO = 1.0;
+  public static final String MAX_CONTAINER_LAUNCH_THREADS_KEY = GOBBLIN_YARN_PREFIX + "maxContainerLaunchThreads";
+  public static final Integer DEFAULT_MAX_CONTAINER_LAUNCH_THREADS = 1024;
 
   // Helix configuration properties.
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";

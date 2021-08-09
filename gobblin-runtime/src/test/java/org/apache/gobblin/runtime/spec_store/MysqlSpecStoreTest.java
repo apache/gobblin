@@ -139,6 +139,8 @@ public class MysqlSpecStoreTest {
     this.specStore.addSpec(this.flowSpec1);
     this.specStore.addSpec(this.flowSpec2);
     this.specStore.addSpec(this.flowSpec4);
+
+    Assert.assertEquals(this.specStore.getSize(), 3);
     Assert.assertTrue(this.specStore.exists(this.uri1));
     Assert.assertTrue(this.specStore.exists(this.uri2));
     Assert.assertTrue(this.specStore.exists(this.uri4));
@@ -245,7 +247,9 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods = "testGetSpecWithTag")
   public void testDeleteSpec() throws Exception {
+    Assert.assertEquals(this.specStore.getSize(), 5);
     this.specStore.deleteSpec(this.uri1);
+    Assert.assertEquals(this.specStore.getSize(), 4);
     Assert.assertFalse(this.specStore.exists(this.uri1));
   }
 

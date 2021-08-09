@@ -51,6 +51,7 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
   private final JobState jobState;
 
   // This is used to retry failed tasks
+  // Life cycle of this object is managed by the same ServiceManager managing the life cycle of LocalStateTracker
   private final TaskExecutor taskExecutor;
 
   // Mapping between tasks and the task state reporters associated with them
@@ -75,7 +76,9 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
   @Override
   public void registerNewTask(Task task) {
     try {
-      this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
+      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+        this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
+      }
     } catch (RejectedExecutionException ree) {
       LOG.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
     }

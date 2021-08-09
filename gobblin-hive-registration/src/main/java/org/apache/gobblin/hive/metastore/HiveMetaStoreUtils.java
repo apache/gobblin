@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.hive.metastore;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -26,7 +27,9 @@ import java.util.Properties;
 
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang.reflect.MethodUtils;
+import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -37,6 +40,7 @@ import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -207,7 +211,7 @@ public class HiveMetaStoreUtils {
     return parameters;
   }
 
-  private static StorageDescriptor getStorageDescriptor(HiveRegistrationUnit unit) {
+  public static StorageDescriptor getStorageDescriptor(HiveRegistrationUnit unit) {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
@@ -419,6 +423,19 @@ public class HiveMetaStoreUtils {
     }
 
     return deserializer;
+  }
+
+  public static void updateColumnsInfoIfNeeded(HiveSpec spec) throws IOException {
+    HiveTable table = spec.getTable();
+    if (table.getSerDeProps().contains(serdeConstants.LIST_COLUMNS)) {
+      if (table.getSerDeManager().isPresent()) {
+        String path = spec.getPartition().isPresent() && spec.getPartition().get().getLocation().isPresent() ? spec.getPartition()
+            .get()
+            .getLocation()
+            .get() : spec.getTable().getLocation().get();
+        table.getSerDeManager().get().addSerDeProperties(new Path(path), table);
+      }
+    }
   }
 
   @VisibleForTesting

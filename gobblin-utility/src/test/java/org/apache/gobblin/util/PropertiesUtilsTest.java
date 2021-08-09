@@ -55,6 +55,33 @@ public class PropertiesUtilsTest {
   }
 
   @Test
+  public void testExtractPropertiesWithPrefixAfterRemovingPrefix() {
+
+    Properties properties = new Properties();
+    properties.setProperty("k1.kk1", "v1");
+    properties.setProperty("k1.kk2", "v2");
+    properties.setProperty("k2.kk", "v3");
+
+    // First prefix
+    Properties extractedPropertiesK1 = PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(properties, "k1.");
+    Assert.assertEquals(extractedPropertiesK1.getProperty("kk1"), "v1");
+    Assert.assertEquals(extractedPropertiesK1.getProperty("kk2"), "v2");
+    Assert.assertTrue(!extractedPropertiesK1.containsKey("k2.kk"));
+
+    // Second prefix
+    Properties extractedPropertiesK2 = PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(properties, "k2");
+    Assert.assertTrue(!extractedPropertiesK2.containsKey("k1.kk1"));
+    Assert.assertTrue(!extractedPropertiesK2.containsKey("k1.kk2"));
+    Assert.assertEquals(extractedPropertiesK2.getProperty(".kk"), "v3");
+
+    // Missing prefix
+    Properties extractedPropertiesK3 = PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(properties, "k3");
+    Assert.assertTrue(!extractedPropertiesK3.containsKey("k1.kk1"));
+    Assert.assertTrue(!extractedPropertiesK3.containsKey("k1.kk1"));
+    Assert.assertTrue(!extractedPropertiesK3.containsKey("k2.kk"));
+  }
+
+  @Test
   public void testGetStringList() {
     Properties properties = new Properties();
     properties.put("key", "1,2, 3");

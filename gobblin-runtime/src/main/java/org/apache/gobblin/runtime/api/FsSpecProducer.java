@@ -41,6 +41,7 @@ import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
@@ -49,6 +50,12 @@ import org.apache.gobblin.util.HadoopUtils;
 /**
  * An implementation of {@link SpecProducer} that produces {@link JobSpec}s to the {@value FsSpecConsumer#SPEC_PATH_KEY}
  * for consumption by the {@link FsSpecConsumer}.
+ *
+ * The pair {@link FsSpecProducer} and {@link FsSpecConsumer} assumes serialization format as Avro. More specifically,
+ * {@link JobSpec}s will be serialized as ".avro" file by {@link FsSpecProducer} and {@link FsSpecConsumer} filtered
+ * all files without proper postfix to avoid loading corrupted {@link JobSpec}s that could possibly existed due to
+ * ungraceful exits of the application or weak file system semantics.
+ *
  */
 @Slf4j
 public class FsSpecProducer implements SpecProducer<Spec> {
@@ -136,7 +143,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
     DatumWriter<AvroJobSpec> datumWriter = new SpecificDatumWriter<>(AvroJobSpec.SCHEMA$);
     DataFileWriter<AvroJobSpec> dataFileWriter = new DataFileWriter<>(datumWriter);
 
-    Path jobSpecPath = new Path(this.specConsumerPath, jobSpec.getUri());
+    Path jobSpecPath = new Path(this.specConsumerPath, annotateSpecFileName(jobSpec.getUri()));
 
     //Write the new JobSpec to a temporary path first.
     Path tmpDir = new Path(this.specConsumerPath, UUID.randomUUID().toString());
@@ -160,4 +167,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
     fs.delete(tmpJobSpecPath.getParent(), true);
   }
 
+  private String annotateSpecFileName(String rawName) {
+    return rawName + AvroUtils.AVRO_SUFFIX;
+  }
 }

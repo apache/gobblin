@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.joda.time.DateTime;
 import org.testng.Assert;
@@ -50,6 +52,8 @@ public class HiveSourceTest {
   private static final String TEST_TABLE_1 = "testtable1";
   private static final String TEST_TABLE_2 = "testtable2";
   private static final String TEST_TABLE_3 = "testtable3";
+  private static final String TEST_TABLE_4 = "testtable4";
+  private static final String TEST_TABLE_5 = "testtable5";
 
   private LocalHiveMetastoreTestUtils hiveMetastoreTestUtils;
   private HiveSource hiveSource;
@@ -87,6 +91,42 @@ public class HiveSourceTest {
   }
 
   @Test
+  public void testAlreadyExistsPartition() throws Exception {
+    String dbName = "testdb";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
+
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc, Optional.of("field"));
+
+    this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
+
+    try {
+      this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
+    } catch (AlreadyExistsException e) {
+      return;
+    }
+    Assert.fail();
+  }
+
+  @Test
+  public void testPartitionNotExists() throws Exception {
+    String dbName = "testdb1";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
+
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc, Optional.of("field"));
+
+    try {
+      this.hiveMetastoreTestUtils.getLocalMetastoreClient().getPartition(tbl.getDbName(), tbl.getTableName(), "field");
+    } catch (NoSuchObjectException e) {
+      return;
+    }
+    Assert.fail();
+  }
+
+  @Test
   public void testGetWorkUnitsForPartitions() throws Exception {
     String dbName = "testdb3";
     String tableSdLoc = new File(this.tmpDir, TEST_TABLE_3).getAbsolutePath();
@@ -121,21 +161,21 @@ public class HiveSourceTest {
   @Test
   public void testGetWorkunitsAfterWatermark() throws Exception {
     String dbName = "testdb4";
-    String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
-    String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
+    String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_4).getAbsolutePath();
+    String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_5).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc1, Optional.<String> absent());
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_2, tableSdLoc2, Optional.<String> absent(), true);
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_4, tableSdLoc1, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_5, tableSdLoc2, Optional.<String> absent(), true);
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
-    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_1);
+    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_4);
 
     // Denote watermark to have a past created timestamp, so that the watermark workunit gets generated
     // This is so that the test is reliable across different operating systems and not flaky to System timing differences
-    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_1,
+    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_4,
         TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)-100));
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
@@ -149,14 +189,14 @@ public class HiveSourceTest {
     HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_1);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_4);
 
     WorkUnit wu2 = workUnits.get(1);
 
     HiveWorkUnit hwu2 = new HiveWorkUnit(wu2);
 
     Assert.assertEquals(hwu2.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu2.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
+    Assert.assertEquals(hwu2.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_5);
   }
 
   @Test
