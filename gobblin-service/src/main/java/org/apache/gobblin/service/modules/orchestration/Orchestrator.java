@@ -296,7 +296,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           //Send the dag to the DagManager.
           this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
         } catch (Exception ex) {
-          // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB cnxn/failover)
+          // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
           String context = String.format("flow: %s; exec: %s",
               DagManagerUtils.getFlowId(jobExecutionPlanDag).toString(),
               DagManagerUtils.getFlowExecId(jobExecutionPlanDag));
