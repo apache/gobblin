@@ -48,8 +48,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A subclass of {@link ConfigurableCleanableDataset} that overwrite the {@link ConfigurableCleanableDataset#cleanImpl(Collection)}
- * to firstly send gmce to delete dataset logically from iceberg and then
- * call {@link org.apache.iceberg.Table#expireSnapshots()} to do physically data and metadata retention
+ * to firstly send gmce to delete dataset logically from iceberg and then process GMCEs within metadata-ingestion pipeline
+ * by calling {@link org.apache.iceberg.Table#expireSnapshots()} to materialize data/metadata retention
  */
 public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends ConfigurableCleanableDataset<T> {
   private final static String RETENTION_INTERVAL_TIME = "retention.interval.time";
@@ -127,6 +127,10 @@ public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends
     }
   }
 
+  /**
+   * Only in charge of filing {@link org.apache.gobblin.metadata.GobblinMetadataChangeEvent}
+   * The processing of these events can be seen in {@link org.apache.gobblin.iceberg.writer.IcebergMetadataWriter}.
+   */
   protected void cleanImpl(Collection<T> deletableVersions, Config retentionConfig) throws IOException {
     List<String> deletablePrefix = new ArrayList<>();
     for (T version : deletableVersions) {

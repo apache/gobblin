@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.joda.time.DateTime;
 import org.testng.Assert;
@@ -84,6 +86,42 @@ public class HiveSourceTest {
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
     Assert.assertEquals(hwu.getTableSchemaUrl(), new Path("/tmp/dummy"));
+  }
+
+  @Test
+  public void testAlreadyExistsPartition() throws Exception {
+    String dbName = "testdb";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
+
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc, Optional.of("field"));
+
+    this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
+
+    try {
+      this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
+    } catch (AlreadyExistsException e) {
+      return;
+    }
+    Assert.fail();
+  }
+
+  @Test
+  public void testPartitionNotExists() throws Exception {
+    String dbName = "testdb1";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
+
+    this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
+
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc, Optional.of("field"));
+
+    try {
+      this.hiveMetastoreTestUtils.getLocalMetastoreClient().getPartition(tbl.getDbName(), tbl.getTableName(), "field");
+    } catch (NoSuchObjectException e) {
+      return;
+    }
+    Assert.fail();
   }
 
   @Test
