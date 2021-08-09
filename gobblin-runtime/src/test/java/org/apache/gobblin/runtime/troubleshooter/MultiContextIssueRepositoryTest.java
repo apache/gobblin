@@ -21,6 +21,8 @@ import java.util.List;
 
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 import static org.testng.Assert.assertEquals;
 
 
@@ -90,7 +92,7 @@ public abstract class MultiContextIssueRepositoryTest {
       throws Exception {
 
     int jobCount = 10;
-    int issueCount = 50;
+    int issueCount = ServiceConfigKeys.DEFAULT_MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT;
 
     MultiContextIssueRepository repository = getRepository();
 
@@ -102,6 +104,7 @@ public abstract class MultiContextIssueRepositoryTest {
 
     for (int j = 0; j < jobCount; j++) {
       List<Issue> retrievedIssues = repository.getAll("job" + j);
+      assertEquals(retrievedIssues.size(), issueCount);
       for (int i = 0; i < issueCount; i++) {
         assertEquals(String.valueOf(i), retrievedIssues.get(i).getCode());
       }

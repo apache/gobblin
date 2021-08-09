@@ -230,7 +230,6 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       this.jobState.addTaskState(taskState);
 
       if (this.jobState.getPropAsBoolean(ConfigurationKeys.REPORT_JOB_PROGRESS, ConfigurationKeys.DEFAULT_REPORT_JOB_PROGRESS)) {
-        LOGGER.info("Report job progress config is turned on");
         reportJobProgress(taskState);
       }
     }
@@ -281,7 +280,9 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.bytesCopiedSoFar += taskByteSize;
     Double newPercentageCopied = this.bytesCopiedSoFar / this.totalSizeToCopy;
 
-    if (newPercentageCopied - this.lastPercentageReported > ConfigurationKeys.DEFAULT_PROGRESS_REPORTING_THRESHOLD) {
+    // Report progress when it reaches 100% regardless of difference from lastPercentageReported
+    if (newPercentageCopied - this.lastPercentageReported >= ConfigurationKeys.DEFAULT_PROGRESS_REPORTING_THRESHOLD ||
+        (Math.abs(newPercentageCopied - 1.0) < 0.001)) {
       this.lastPercentageReported = newPercentageCopied;
       int percentageToReport = (int) Math.round(this.lastPercentageReported * 100);
 

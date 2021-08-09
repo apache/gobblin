@@ -51,6 +51,8 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
    * */
   Collection<Spec> getSpecs();
 
+  int getSize();
+
   /** Metrics for the spec catalog; null if
    * ({@link #isInstrumentationEnabled()}) is false. */
   SpecCatalog.StandardMetrics getMetrics();
@@ -110,7 +112,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
       this.totalUpdatedSpecs = new AtomicLong(0);
       this.numActiveSpecs = metricsContext.newContextAwareGauge(NUM_ACTIVE_SPECS_NAME,  ()->{
           long startTime = System.currentTimeMillis();
-          int size = specCatalog.getSpecs().size();
+          int size = specCatalog.getSize();
           updateGetSpecTime(startTime);
           return size;
       });

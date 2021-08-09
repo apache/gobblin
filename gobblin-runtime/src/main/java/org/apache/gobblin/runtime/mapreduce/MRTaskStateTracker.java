@@ -60,7 +60,9 @@ public class MRTaskStateTracker extends AbstractTaskStateTracker {
   @Override
   public void registerNewTask(Task task) {
     try {
-      scheduleTaskMetricsUpdater(new MRTaskMetricsUpdater(task, this.context), task);
+      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+        scheduleTaskMetricsUpdater(new MRTaskMetricsUpdater(task, this.context), task);
+      }
     } catch (RejectedExecutionException ree) {
       LOG.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
     }

@@ -105,8 +105,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
 
-  public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log, boolean instrumentationEnabled) {
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
+      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -154,7 +154,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<Logger> log) {
-    this(config, flowStatusGenerator, topologyCatalog, dagManager, log, true);
+    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true);
   }
 
 
@@ -296,14 +296,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           //Send the dag to the DagManager.
           this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
         } catch (Exception ex) {
-          // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB cnxn/failover)
-          String context = String.format("flow: %s; exec: %s",
-              DagManagerUtils.getFlowId(jobExecutionPlanDag).toString(),
-              DagManagerUtils.getFlowExecId(jobExecutionPlanDag));
-          String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
-          _log.warn(String.format("[%s] %s", context, failureMessage));
           if (this.eventSubmitter.isPresent()) {
-            // Send FLOW_FAILED event bearing relevant messaging
+            // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
+            String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
             flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
             new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
           }

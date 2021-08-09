@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 
@@ -29,8 +30,11 @@ public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridg
   private final String metricsName;
   public static final String TIMER_FOR_COMPLETED_PLANNING_JOBS = "timeForCompletedPlanningJobs";
   public static final String TIMER_FOR_FAILED_PLANNING_JOBS = "timeForFailedPlanningJobs";
+  public static final String METER_FOR_SKIPPED_PLANNING_JOBS = "skippedPlanningJobs";
+
   final ContextAwareTimer timeForCompletedPlanningJobs;
   final ContextAwareTimer timeForFailedPlanningJobs;
+  final ContextAwareMeter skippedPlanningJobs;
 
   public GobblinHelixPlanningJobLauncherMetrics(String metricsName,
       final MetricContext metricContext,
@@ -40,6 +44,7 @@ public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridg
     this.metricsName = metricsName;
     this.timeForCompletedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_COMPLETED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
     this.timeForFailedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_FAILED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
+    this.skippedPlanningJobs = metricContext.contextAwareMeter(METER_FOR_SKIPPED_PLANNING_JOBS);
     this.contextAwareMetrics.add(timeForCompletedPlanningJobs);
     this.contextAwareMetrics.add(timeForFailedPlanningJobs);
   }

@@ -33,6 +33,7 @@ import org.apache.gobblin.dataset.IterableDatasetFinderImpl;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyableFileFilter;
 import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -43,7 +44,7 @@ public class DatasetUtils {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "profile.class";
-  private static final String PATH_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "path.filter.class";
+  public static final String PATH_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "path.filter.class";
   private static final String COPYABLE_FILE_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "copyable.file.filter.class";
 
   private static final PathFilter ACCEPT_ALL_PATH_FILTER = new PathFilter() {
@@ -114,12 +115,9 @@ public class DatasetUtils {
 
     try {
       Class<?> pathFilterClass = Class.forName(props.getProperty(PATH_FILTER_KEY));
-      return (PathFilter) pathFilterClass.newInstance();
-    } catch (ClassNotFoundException exception) {
-      throw new RuntimeException(exception);
-    } catch (InstantiationException exception) {
-      throw new RuntimeException(exception);
-    } catch (IllegalAccessException exception) {
+      return (PathFilter) GobblinConstructorUtils.invokeLongestConstructor(pathFilterClass,
+          PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(props, CONFIGURATION_KEY_PREFIX));
+    } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }
   }
