@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 
-import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;

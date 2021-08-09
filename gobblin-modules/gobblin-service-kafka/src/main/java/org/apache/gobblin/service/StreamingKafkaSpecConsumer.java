@@ -236,21 +236,6 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       this.contextAwareMetrics.add(_jobMonitor.getTotalSpecs());
       this.contextAwareMetrics.add(_jobMonitor.getMessageParseFailures());
     }
-
-    private long getNewSpecs() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getNewSpecs() != null ?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getNewSpecs().getCount() : 0;
-    }
-
-    private long getRemovedSpecs() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getCancelledSpecs() != null ?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getCancelledSpecs().getCount() : 0;
-    }
-
-    private long getMessageParseFailures() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getMessageParseFailures() != null ?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getMessageParseFailures().getCount():0;
-    }
   }
 
   @Override
