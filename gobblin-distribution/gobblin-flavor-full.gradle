@@ -26,5 +26,6 @@ dependencies {
   compile project(':gobblin-modules:google-ingestion')
   compile project(':gobblin-modules:gobblin-helix')
   compile project(':gobblin-modules:gobblin-azure-datalake')
+  compile project(':gobblin-connectors:aerospike')
 }
 

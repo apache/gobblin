@@ -1,0 +1,8 @@
+plugins {
+    id 'java'
+}
+
+group 'org.apache.gobblin'
+version '0.15.0'
+
+sourceCompatibility = 1.8
