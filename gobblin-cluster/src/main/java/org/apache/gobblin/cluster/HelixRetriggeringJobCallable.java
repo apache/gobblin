@@ -264,6 +264,7 @@ class HelixRetriggeringJobCallable implements Callable {
 
       try {
         if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobManager)) {
+          planningJobLauncherMetrics.skippedPlanningJobs.mark();
           return;
         }
 
