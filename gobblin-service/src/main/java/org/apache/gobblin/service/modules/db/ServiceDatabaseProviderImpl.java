@@ -31,6 +31,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -63,9 +64,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     dataSource.setPassword(configuration.getPassword());
 
     // MySQL server can timeout a connection so we need to validate connections.
-    // Also checking that the DB is not readonly - https://stackoverflow.com/q/39552146
-    dataSource.setValidationQuery("select case when @@read_only + @@innodb_read_only = 0 then 1 else "
-                                      + "(select table_name from information_schema.tables) end as `1`");
+    dataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
     dataSource.setValidationQueryTimeout(5);
 
     // To improve performance, we only check connections on creation, and set a maximum connection lifetime
