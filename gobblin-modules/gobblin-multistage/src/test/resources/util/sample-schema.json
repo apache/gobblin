@@ -1,0 +1,14 @@
+{
+  "type": "object",
+   "properties": {
+     "an": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+     },
+     "data": {
+       "type": "string"
+     }
+   }
+ }

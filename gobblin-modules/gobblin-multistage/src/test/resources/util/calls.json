@@ -1,0 +1,20 @@
+[ {
+    "id" : "111111",
+    "url" : "https://www.abc.com",
+    "title" : "Brothers Connect",
+    "scheduled" : "2019-04-15T08:30:00-07:00",
+    "started" : "2019-04-15T08:15:03.241-07:00",
+    "duration" : 4110,
+    "primaryUserId" : "8888888",
+    "flagged": true
+  }, {
+    "id" : "22222",
+    "url" : "https://www.xyx.com",
+    "title" : "Talent Solutions",
+    "scheduled" : "2019-04-15T08:00:00-07:00",
+    "started" : "2019-04-15T07:45:01.319-07:00",
+    "duration" : 3082,
+    "primaryUserId" : "9999999",
+    "flagged": false
+  }
+]

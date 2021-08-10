@@ -1,0 +1,67 @@
+{
+  "type": "array",
+  "items": {
+    "id": {
+      "type": "string"
+    },
+    "emailAddress": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "emailAliases": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "firstName": {
+      "type": "string"
+    },
+    "lastName": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "phoneNumber": {
+      "type": "string"
+    },
+    "extension": {
+      "type": "null"
+    },
+    "personalMeetingUrls": {
+      "type": "array",
+      "items": {
+        "type": "null"
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "webConferencesRecorded": {
+          "type": "boolean"
+        },
+        "preventWebConferenceRecording": {
+          "type": "boolean"
+        },
+        "telephonyCallsImported": {
+          "type": "boolean"
+        },
+        "emailsImported": {
+          "type": "boolean"
+        },
+        "preventEmailImport": {
+          "type": "boolean"
+        }
+      }
+    },
+    "managerId": {
+      "type": "string"
+    }
+  }
+}

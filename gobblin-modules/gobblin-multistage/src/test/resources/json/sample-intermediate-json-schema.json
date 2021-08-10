@@ -1,0 +1,64 @@
+[{
+  "columnName": "context",
+  "isNullable": "false",
+  "dataType": {
+    "type": "array",
+    "name": "context",
+    "items": {
+      "name": "contextItem",
+      "dataType": {
+        "name": "contextItem",
+        "type": "record",
+        "values": [{
+          "columnName": "objects",
+          "isNullable": "false",
+          "dataType": {
+            "type": "array",
+            "name": "objects",
+            "items": {
+              "name": "objectsItem",
+              "dataType": {
+                "name": "objectsItem",
+                "type": "record",
+                "values": [{
+                  "columnName": "objectType",
+                  "isNullable": "true",
+                  "dataType": {
+                    "type": "string"
+                  }
+                }, {
+                  "columnName": "fields",
+                  "isNullable": "true",
+                  "dataType": {
+                    "type": "array",
+                    "name": "fields",
+                    "items": {
+                      "name": "fieldsItem",
+                      "dataType": {
+                        "name": "fieldsItem",
+                        "type": "record",
+                        "values": [{
+                          "columnName": "name",
+                          "isNullable": "true",
+                          "dataType": {
+                            "type": "string"
+                          }
+                        },{
+                          "columnName": "count",
+                          "isNullable": "true",
+                          "dataType": {
+                            "type": "long"
+                          }
+                        }]
+                      }
+                    }
+                  }
+                }]
+              }
+            }
+          }
+        }]
+      }
+    }
+  }
+}]

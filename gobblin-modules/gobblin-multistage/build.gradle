@@ -1,0 +1,92 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.4'
+  }
+}
+
+apply plugin: 'java'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+jacoco {
+  toolVersion = '0.8.0'
+}
+
+dependencies {
+  compile project(":gobblin-api")
+  compile project(":gobblin-core")
+  compile project(":gobblin-core-base")
+  compile project(":gobblin-runtime")
+
+  runtime externalDependency.commonsLang3
+  runtime externalDependency.gson
+  compile externalDependency.guava
+  runtime externalDependency.jodaTime
+  runtime externalDependency.lombok
+  compile externalDependency.slf4j
+  runtime externalDependency.typesafeConfig
+
+  testCompile externalDependency.jmockit
+  testCompile externalDependency.mockito
+  testCompile externalDependency.powermock
+  testCompile externalDependency.powermockApiMockito
+  testCompile externalDependency.powermockModuleTestng
+  testCompile externalDependency.testng
+}
+
+configurations {
+  all*.exclude group: 'kafka'
+  all*.exclude group: 'org.apache.kafka'
+  all*.exclude group: 'org.apache.hive'
+  all*.exclude group: 'org.bouncycastle'
+  all*.exclude group: 'ch.qos.logback'
+}
+
+shadowJar {
+  zip64 true
+  dependencies {
+    include dependency('org.apache.gobblin-multistage:.*')
+    include dependency('com.squareup.retrofit:.*')
+    include dependency('com.squareup.okhttp:.*')
+    include dependency('com.squareup.okhttp3:.*')
+    include dependency('com.squareup.okio:.*')
+    include dependency('org.testng:.*')
+  }
+
+  exclude 'log4j.xml'
+  exclude 'log4j.properties'
+  exclude 'org/apache/log4j/**'
+  exclude 'org/apache/spark/**'
+  exclude 'org/slf4j/**'
+  exclude 'javax/ws/rs/**'
+
+  relocate('com.squareup', 'gobblin.shaded.com.squareup')
+  relocate('retrofit', 'gobblin.shaded.retrofit')
+  relocate('okhttp3', 'gobblin.shaded.okhttp3')
+  relocate('okio', 'gobblin.shaded.okio')
+  relocate('org.testng', 'gobblin.shaded.org.testng')
+  mergeServiceFiles()
+}
+
+artifacts {
+  archives shadowJar
+}
