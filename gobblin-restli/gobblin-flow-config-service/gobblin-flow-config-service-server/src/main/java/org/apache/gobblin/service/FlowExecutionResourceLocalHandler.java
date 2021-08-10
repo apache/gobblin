@@ -218,7 +218,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
    */
   public static String estimateCopyTimeLeft(Long currentTime, Long startTime, int completionPercentage) {
     if (completionPercentage == 0) {
-      return "Not calculated yet";
+      return "Preparing";
     }
 
     Instant current = Instant.ofEpochMilli(currentTime);
