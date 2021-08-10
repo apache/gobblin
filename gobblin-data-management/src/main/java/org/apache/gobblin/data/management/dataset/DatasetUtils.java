@@ -33,6 +33,7 @@ import org.apache.gobblin.dataset.IterableDatasetFinderImpl;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyableFileFilter;
 import org.apache.gobblin.dataset.DatasetsFinder;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -114,7 +115,8 @@ public class DatasetUtils {
 
     try {
       Class<?> pathFilterClass = Class.forName(props.getProperty(PATH_FILTER_KEY));
-      return (PathFilter) GobblinConstructorUtils.invokeLongestConstructor(pathFilterClass, props);
+      return (PathFilter) GobblinConstructorUtils.invokeLongestConstructor(pathFilterClass,
+          PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(props, CONFIGURATION_KEY_PREFIX));
     } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }

@@ -131,6 +131,28 @@ public class PropertiesUtils {
     return extractedProperties;
   }
 
+  /**
+   * Extract all the keys that start with a <code>prefix</code> in {@link Properties} to a new {@link Properties}
+   * instance. It removes the prefix from the properties.
+   *
+   * @param properties the given {@link Properties} instance
+   * @param prefix of keys to be extracted
+   * @return a {@link Properties} instance
+   */
+  public static Properties extractPropertiesWithPrefixAfterRemovingPrefix(Properties properties, String prefix) {
+    Preconditions.checkNotNull(properties);
+    Preconditions.checkNotNull(prefix);
+
+    Properties extractedProperties = new Properties();
+    for (Map.Entry<Object, Object> entry : properties.entrySet()) {
+      if (StringUtils.startsWith(entry.getKey().toString(), prefix)) {
+        extractedProperties.put(entry.getKey().toString().substring(prefix.length()), entry.getValue());
+      }
+    }
+
+    return extractedProperties;
+  }
+
   public static String serialize(Properties properties) throws IOException {
     StringWriter outputWriter = new StringWriter();
     properties.store(outputWriter, "");

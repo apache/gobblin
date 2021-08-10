@@ -36,7 +36,7 @@ public class PathFilterTest {
     Path matchedPath2 = new Path("a.bc");
     Properties props = new Properties();
     props.setProperty(DatasetUtils.PATH_FILTER_KEY, RegexPathFilter.class.getName());
-    props.setProperty(RegexPathFilter.REGEX, "^[^.].*"); // match everything that does not start with a dot
+    props.setProperty(DatasetUtils.CONFIGURATION_KEY_PREFIX + RegexPathFilter.REGEX, "^[^.].*"); // match everything that does not start with a dot
 
     PathFilter includeFilter = DatasetUtils.instantiatePathFilter(props);
 
