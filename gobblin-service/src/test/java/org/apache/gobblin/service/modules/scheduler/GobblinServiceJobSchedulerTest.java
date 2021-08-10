@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -43,6 +44,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
 import org.mockito.Mockito;
+import org.mockito.invocation.Invocation;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -200,6 +202,79 @@ public class GobblinServiceJobSchedulerTest {
             }
           }
         }, "Waiting all flowSpecs to be scheduled");
+  }
+
+  /**
+   * Test that flowSpecs that throw compilation errors do not block the scheduling of other flowSpecs
+   */
+  @Test
+  public void testJobSchedulerUnschedule() throws Exception {
+    // Mock a FlowCatalog.
+    File specDir = Files.createTempDir();
+
+    Properties properties = new Properties();
+    properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
+    FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
+    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+
+    // Assume that the catalog can store corrupted flows
+    SpecCatalogListener mockListener = Mockito.mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    flowCatalog.addListener(mockListener);
+
+    serviceLauncher.addService(flowCatalog);
+    serviceLauncher.start();
+
+    FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"),
+        MockedSpecCompiler.UNCOMPILABLE_FLOW);
+    FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"));
+    FlowSpec flowSpec2 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec2"));
+
+    // Ensure that these flows are scheduled
+    flowCatalog.put(flowSpec0, true);
+    flowCatalog.put(flowSpec1, true);
+    flowCatalog.put(flowSpec2, true);
+
+    Assert.assertEquals(flowCatalog.getSpecs().size(), 3);
+
+    Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
+
+    // Mock a GaaS scheduler.
+    TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, null);
+
+    SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
+    Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
+    Mockito.doAnswer((Answer<Void>) a -> {
+      scheduler.isCompilerHealthy = true;
+      return null;
+    }).when(mockCompiler).awaitHealthy();
+
+    scheduler.setActive(true);
+
+    AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
+              return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
+                  scheduler.scheduledFlowSpecs.containsKey("spec2");
+            } else {
+              return false;
+            }
+          }
+        }, "Waiting all flowSpecs to be scheduled");
+
+    // set scheduler to be inactive and unschedule flows
+    scheduler.setActive(false);
+    Collection<Invocation> invocations = Mockito.mockingDetails(mockOrchestrator).getInvocations();
+
+    for (Invocation invocation: invocations) {
+      // ensure that orchestrator is not calling remove
+      Assert.assertFalse(invocation.getMethod().getName().equals("remove"));
+    }
   }
 
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
