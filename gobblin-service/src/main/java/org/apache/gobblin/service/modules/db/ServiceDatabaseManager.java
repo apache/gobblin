@@ -27,7 +27,11 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
-
+/**
+ * This class initializes and migrates the database schema for Gobblin service.
+ *
+ * We use Flyway to run the migrations that are defined in resources/org/apache/gobblin/service/db/migration
+ * */
 @Singleton
 @Slf4j
 public class ServiceDatabaseManager extends AbstractIdleService {

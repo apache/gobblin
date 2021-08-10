@@ -221,7 +221,8 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bind(MultiContextIssueRepository.class)
         .to(getClassByNameOrAlias(MultiContextIssueRepository.class, serviceConfig.getInnerConfig(),
-                                  ServiceConfigKeys.ISSUE_REPO_CLASS, MySqlMultiContextIssueRepository.class.getName()));
+                                  ServiceConfigKeys.ISSUE_REPO_CLASS,
+                                  InMemoryMultiContextIssueRepository.class.getName()));
 
     binder.bind(MySqlMultiContextIssueRepository.Configuration.class);
     binder.bind(InMemoryMultiContextIssueRepository.Configuration.class);

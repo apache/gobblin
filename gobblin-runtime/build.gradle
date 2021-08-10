@@ -76,7 +76,6 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
-  compile externalDependency.log4j
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.mockito
