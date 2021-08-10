@@ -1,0 +1,25 @@
+[
+  {
+    "id": "1516921356387174",
+    "emailAddress": "11111@domain",
+    "created": "2018-02-12T13:06:53.735-08:00",
+    "active": false,
+    "emailAliases": [
+      "xxxx@domain"
+    ],
+    "firstName": "a",
+    "lastName": "b",
+    "title": "Sr. Sales Process Analyst",
+    "phoneNumber": "999-999-9999",
+    "extension": null,
+    "personalMeetingUrls": [],
+    "settings": {
+      "webConferencesRecorded": false,
+      "preventWebConferenceRecording": false,
+      "telephonyCallsImported": false,
+      "emailsImported": false,
+      "preventEmailImport": false
+    },
+    "managerId": "4050940306263710555"
+  }
+]
