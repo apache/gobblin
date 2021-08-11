@@ -19,6 +19,7 @@ package org.apache.gobblin.util;
 
 import org.apache.avro.Schema;
 
+
 /**
  * Avro schema utility class to perform schema property conversion to the appropriate data types
  */
@@ -30,9 +31,9 @@ public class AvroSchemaUtils {
 
   public static Integer getValueAsInteger(final Schema schema, String prop) {
     Object value = schema.getObjectProp(prop);
-    if(value instanceof Integer) {
+    if (value instanceof Integer) {
       return (Integer) value;
-    } else if(value instanceof String) {
+    } else if (value instanceof String) {
       return Integer.parseInt((String) value);
     }
     return null;
@@ -40,9 +41,9 @@ public class AvroSchemaUtils {
 
   public static Integer getValueAsInteger(final Schema.Field field, String prop) {
     Object value = field.getObjectProp(prop);
-    if(value instanceof Integer) {
+    if (value instanceof Integer) {
       return (Integer) value;
-    } else if(value instanceof String) {
+    } else if (value instanceof String) {
       return Integer.parseInt((String) value);
     }
     return null;
@@ -50,7 +51,7 @@ public class AvroSchemaUtils {
 
   public static String getValueAsString(final Schema schema, String prop) {
     Object value = schema.getObjectProp(prop);
-    if(value instanceof String) {
+    if (value instanceof String) {
       return (String) value;
     }
     return null;
@@ -58,10 +59,9 @@ public class AvroSchemaUtils {
 
   public static String getValueAsString(final Schema.Field field, String prop) {
     Object value = field.getObjectProp(prop);
-    if(value instanceof String) {
+    if (value instanceof String) {
       return (String) value;
     }
     return null;
   }
-
 }
