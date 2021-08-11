@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util.filters;
 
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.Path;
@@ -34,6 +35,11 @@ public class RegexPathFilter implements PathFilter {
 
   private final Pattern regex;
   private final boolean include;
+  public static final String REGEX = "path.filter.regex";
+
+  public RegexPathFilter(Properties props) {
+    this(props.getProperty(REGEX));
+  }
 
   public RegexPathFilter(String regex) {
     this(regex, true);
