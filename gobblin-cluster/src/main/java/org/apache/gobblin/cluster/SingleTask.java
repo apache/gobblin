@@ -112,6 +112,10 @@ public class SingleTask {
   public void run()
       throws IOException, InterruptedException {
 
+    if (_jobState == null) {
+      throw new RuntimeException("jobState is null. Task may have already been cancelled.");
+    }
+
     // Add dynamic configuration to the job state
     _dynamicConfig.entrySet().forEach(e -> _jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
 
