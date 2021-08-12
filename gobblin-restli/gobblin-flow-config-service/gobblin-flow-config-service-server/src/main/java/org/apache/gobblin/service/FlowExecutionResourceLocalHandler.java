@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.time.DurationFormatUtils;
 import org.apache.commons.lang3.ObjectUtils;
 
 import com.google.common.base.Strings;
@@ -143,7 +142,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       JobStatus jobStatus = new JobStatus();
 
-      String timeLeft = estimateCopyTimeLeft(queriedJobStatus.getLastProgressEventTime(), queriedJobStatus.getStartTime(),
+      Long timeLeft = estimateCopyTimeLeft(queriedJobStatus.getLastProgressEventTime(), queriedJobStatus.getStartTime(),
           queriedJobStatus.getProgressPercentage());
 
       jobStatus.setFlowId(flowId)
@@ -155,7 +154,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
               .setExecutionEndTime(queriedJobStatus.getEndTime())
               .setProcessedCount(queriedJobStatus.getProcessedCount())
               .setJobProgress(queriedJobStatus.getProgressPercentage())
-              .setEstimatedTimeToCompletion(timeLeft))
+              .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
@@ -214,11 +213,11 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
    * @param currentTime as an epoch
    * @param startTime as an epoch
    * @param completionPercentage of the job
-   * @return time left in string format
+   * @return time left in seconds
    */
-  public static String estimateCopyTimeLeft(Long currentTime, Long startTime, int completionPercentage) {
+  public static long estimateCopyTimeLeft(Long currentTime, Long startTime, int completionPercentage) {
     if (completionPercentage == 0) {
-      return "Preparing";
+      return 0;
     }
 
     Instant current = Instant.ofEpochMilli(currentTime);
@@ -226,8 +225,6 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
     Long timeElapsed = Duration.between(start, current).getSeconds();
     Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
 
-    Long timeLeftInMilli = Instant.ofEpochSecond(timeLeft).toEpochMilli();
-    String formattedTimeLeft = DurationFormatUtils.formatDurationWords(timeLeftInMilli, true, true);
-    return formattedTimeLeft;
+    return timeLeft;
   }
 }

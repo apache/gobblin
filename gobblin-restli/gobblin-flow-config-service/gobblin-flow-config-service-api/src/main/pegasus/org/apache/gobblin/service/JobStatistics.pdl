@@ -27,7 +27,6 @@ record JobStatistics {
 
   /**
    * estimate of time left until job completion
-   * "X hours Y minutes Z seconds"
    */
-  estimatedTimeToCompletion: string
+  estimatedSecondsToCompletion: long
 }
