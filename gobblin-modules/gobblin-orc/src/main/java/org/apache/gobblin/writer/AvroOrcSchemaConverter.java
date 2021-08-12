@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.avro.Schema;
+import org.apache.gobblin.util.AvroSchemaUtils;
 import org.apache.orc.TypeDescription;
 
 
@@ -102,8 +103,8 @@ public class AvroOrcSchemaConverter {
    */
   private static TypeDescription getTypeDescriptionForBinarySchema(Schema avroSchema) {
     if ("decimal".equalsIgnoreCase(avroSchema.getProp("logicalType"))) {
-      int scale = avroSchema.getJsonProp("scale").asInt(0);
-      int precision = avroSchema.getJsonProp("precision").asInt();
+      int scale = AvroSchemaUtils.getValueAsInteger(avroSchema, "scale");
+      int precision = AvroSchemaUtils.getValueAsInteger(avroSchema, "precision");
 
       return TypeDescription.createDecimal().withScale(scale).withPrecision(precision);
     }

@@ -64,6 +64,8 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
       throws IOException {
     super(jobId, LOGGER);
 
+    addRuntimeProperties(gobblinProps);
+
     Config gobblinConfig = ConfigUtils.propertiesToConfig(gobblinProps);
 
     //Suppress logs from classes that emit Yarn application Id that Azkaban uses to kill the application.
@@ -96,6 +98,12 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
    */
   protected YarnConfiguration initYarnConf(Properties gobblinProps) {
     return new YarnConfiguration();
+  }
+
+  /**
+   * Extended class can override this method to add some runtime properties.
+   */
+  protected void addRuntimeProperties(Properties gobblinProps) {
   }
 
   @Override

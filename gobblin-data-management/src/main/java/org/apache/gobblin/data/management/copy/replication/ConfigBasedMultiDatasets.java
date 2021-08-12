@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.replication;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.gobblin.dataset.Dataset;
 import java.io.IOException;
 import java.net.URI;

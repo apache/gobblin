@@ -22,7 +22,6 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -108,7 +107,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
-    convertFieldToSchemaWithProps(schema.getJsonProps(), newRecord);
+    convertFieldToSchemaWithProps(schema.getObjectProps(), newRecord);
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.
@@ -125,8 +124,9 @@ public class AvroSchemaFieldRemover {
           newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
               field.defaultValue());
         }
-        for (Map.Entry<String, JsonNode> stringJsonNodeEntry : field.getJsonProps().entrySet()) {
-          newField.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+        for (Map.Entry<String, Object> objectEntry : field.getObjectProps().entrySet()) {
+          newField.addProp(objectEntry.getKey(), objectEntry.getValue());
         }
         newFields.add(newField);
       }
