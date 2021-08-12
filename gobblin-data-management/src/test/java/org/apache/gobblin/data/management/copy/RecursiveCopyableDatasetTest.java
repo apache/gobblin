@@ -42,8 +42,8 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
-import avro.shaded.com.google.common.base.Predicate;
-import avro.shaded.com.google.common.collect.Iterables;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import javax.annotation.Nullable;
 import lombok.Data;
 
