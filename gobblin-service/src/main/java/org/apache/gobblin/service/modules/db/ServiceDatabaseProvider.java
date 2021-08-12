@@ -15,34 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.troubleshooter;
+package org.apache.gobblin.service.modules.db;
 
-import java.util.List;
-
-import com.google.common.util.concurrent.Service;
+import javax.sql.DataSource;
 
 
 /**
- * Stores issues from multiple jobs, flows and other contexts.
+ * Provides access to Gobblin service database.
  *
- * For each context, there can only be one issue with a specific code.
- *
- * @see AutomaticTroubleshooter
+ * DB schema is defined using Flyway migrations.
  * */
-public interface MultiContextIssueRepository extends Service {
-
-  /**
-   * Will return issues in the same order as they were put into the repository.
-   * */
-  List<Issue> getAll(String contextId)
-      throws TroubleshooterException;
-
-  void put(String contextId, Issue issue)
-      throws TroubleshooterException;
-
-  void put(String contextId, List<Issue> issues)
-      throws TroubleshooterException;
-
-  void remove(String contextId, String issueCode)
-      throws TroubleshooterException;
+public interface ServiceDatabaseProvider {
+  DataSource getDatasource();
 }

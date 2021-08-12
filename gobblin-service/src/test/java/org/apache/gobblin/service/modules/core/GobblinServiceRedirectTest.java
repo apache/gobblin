@@ -26,6 +26,7 @@ import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MySQLContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -47,6 +48,7 @@ import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.TestServiceDatabaseConfig;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -106,6 +108,8 @@ public class GobblinServiceRedirectTest {
   private Properties node1ServiceCoreProperties;
   private Properties node2ServiceCoreProperties;
 
+  private MySQLContainer mysql;
+
   @BeforeClass
   public void setup() throws Exception {
     port1 = Integer.toString(new PortUtils.ServerSocketPortLocator().random());
@@ -122,6 +126,13 @@ public class GobblinServiceRedirectTest {
     ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Properties commonServiceCoreProperties = new Properties();
+
+    mysql = new MySQLContainer("mysql:" + TestServiceDatabaseConfig.MysqlVersion);
+    mysql.start();
+    commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_URL_KEY, mysql.getJdbcUrl());
+    commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_USERNAME, mysql.getUsername());
+    commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_PASSWORD, mysql.getPassword());
+
     commonServiceCoreProperties.put(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY, testingZKServer.getConnectString());
     commonServiceCoreProperties.put(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY, TEST_HELIX_CLUSTER_NAME);
     commonServiceCoreProperties.put(ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY, "GaaS_" + UUID.randomUUID().toString());
@@ -210,6 +221,8 @@ public class GobblinServiceRedirectTest {
     } catch (Exception e) {
       logger.warn("Could not cleanly stop Testing Zookeeper", e);
     }
+
+    mysql.stop();
   }
 
   @Test

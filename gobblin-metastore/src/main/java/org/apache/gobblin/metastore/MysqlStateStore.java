@@ -54,6 +54,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.io.StreamUtils;
@@ -187,9 +188,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
-    // This query will fail if db is in read-only mode, otherwise read-only connections may continue to fail and not get evicted
-    // See https://stackoverflow.com/questions/39552146/evicting-connections-to-a-read-only-node-in-a-cluster-from-the-connection-pool
-    basicDataSource.setValidationQuery("select case when @@read_only = 0 then 1 else (select table_name from information_schema.tables) end as `1`");
+    basicDataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
     basicDataSource.setTestOnBorrow(true);
     basicDataSource.setDefaultAutoCommit(false);
     basicDataSource.setTimeBetweenEvictionRunsMillis(60000);

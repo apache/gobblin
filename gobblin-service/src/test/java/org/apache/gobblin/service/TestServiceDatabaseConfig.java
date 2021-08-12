@@ -15,34 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.troubleshooter;
+package org.apache.gobblin.service;
 
-import java.util.List;
-
-import com.google.common.util.concurrent.Service;
-
-
-/**
- * Stores issues from multiple jobs, flows and other contexts.
- *
- * For each context, there can only be one issue with a specific code.
- *
- * @see AutomaticTroubleshooter
- * */
-public interface MultiContextIssueRepository extends Service {
-
-  /**
-   * Will return issues in the same order as they were put into the repository.
-   * */
-  List<Issue> getAll(String contextId)
-      throws TroubleshooterException;
-
-  void put(String contextId, Issue issue)
-      throws TroubleshooterException;
-
-  void put(String contextId, List<Issue> issues)
-      throws TroubleshooterException;
-
-  void remove(String contextId, String issueCode)
-      throws TroubleshooterException;
+public class TestServiceDatabaseConfig {
+  public static final String MysqlVersion = "8.0.20";
 }
