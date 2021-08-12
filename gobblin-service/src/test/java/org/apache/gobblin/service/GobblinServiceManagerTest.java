@@ -35,6 +35,7 @@ import org.eclipse.jgit.transport.RefSpec;
 import org.eclipse.jgit.util.FS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MySQLContainer;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -101,6 +102,8 @@ public class GobblinServiceManagerTest {
   private GobblinServiceManager gobblinServiceManager;
   private FlowConfigV2Client flowConfigClient;
 
+  private MySQLContainer mysql;
+
   private Git gitForPush;
   private TestingServer testingServer;
   Properties serviceCoreProperties = new Properties();
@@ -114,6 +117,13 @@ public class GobblinServiceManagerTest {
   public void setup() throws Exception {
     cleanUpDir(SERVICE_WORK_DIR);
     cleanUpDir(SPEC_STORE_PARENT_DIR);
+
+    mysql = new MySQLContainer("mysql:" + TestServiceDatabaseConfig.MysqlVersion);
+    mysql.start();
+    serviceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_URL_KEY, mysql.getJdbcUrl());
+    serviceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_USERNAME, mysql.getUsername());
+    serviceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_PASSWORD, mysql.getPassword());
+
     ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     testingServer = new TestingServer(true);
@@ -212,6 +222,8 @@ public class GobblinServiceManagerTest {
     } catch(Exception e) {
       System.err.println("Failed to close ZK testing server.");
     }
+
+    mysql.stop();
   }
 
   /**

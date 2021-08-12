@@ -45,6 +45,7 @@ import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.TestServiceDatabaseConfig;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
 
@@ -66,7 +67,7 @@ public class MySqlMultiContextIssueRepositoryTest {
 
   @BeforeClass
   public void classSetUp() {
-    mysql = new MySQLContainer("mysql:8.0.20");
+    mysql = new MySQLContainer("mysql:" + TestServiceDatabaseConfig.MysqlVersion);
     mysql.start();
 
     ServiceDatabaseProviderImpl.Configuration dbConfig =
