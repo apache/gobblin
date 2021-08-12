@@ -224,7 +224,6 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
     Instant start = Instant.ofEpochMilli(startTime);
     Long timeElapsed = Duration.between(start, current).getSeconds();
     Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
-
     return timeLeft;
   }
 }
