@@ -38,7 +38,7 @@ import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
 
 
 public class LimiterServerResourceTest {

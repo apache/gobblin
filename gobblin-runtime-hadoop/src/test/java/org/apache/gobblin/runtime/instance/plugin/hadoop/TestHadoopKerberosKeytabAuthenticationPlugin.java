@@ -27,7 +27,7 @@ import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * Unit tests for {@link HadoopKerberosKeytabAuthenticationPlugin}

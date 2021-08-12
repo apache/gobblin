@@ -62,7 +62,6 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
-import org.codehaus.jackson.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,9 +146,10 @@ public class AvroUtils {
    * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
    * object for non-root level.
    */
-  public static void convertFieldToSchemaWithProps(Map<String,JsonNode> fieldProps, Schema targetSchemaObj) {
-    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : fieldProps.entrySet()) {
-      targetSchemaObj.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+  public static void convertFieldToSchemaWithProps(Map<String,Object> fieldProps,
+      Schema targetSchemaObj) {
+    for (Map.Entry<String, Object> objectEntry : fieldProps.entrySet()) {
+      targetSchemaObj.addProp(objectEntry.getKey(), objectEntry.getValue());
     }
   }
 
@@ -830,8 +830,8 @@ public class AvroUtils {
   private static void copyProperties(Schema oldSchema, Schema newSchema) {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
-
-    Map<String, JsonNode> props = oldSchema.getJsonProps();
+    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+    Map<String, Object> props = oldSchema.getObjectProps();
     copyProperties(props, newSchema);
   }
 
@@ -840,12 +840,12 @@ public class AvroUtils {
    * @param props Properties to copy to Avro Schema
    * @param schema Avro Schema to copy properties to
    */
-  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
+  private static void copyProperties(Map<String, Object> props, Schema schema) {
     Preconditions.checkNotNull(schema);
 
     // (if null, don't copy but do not throw exception)
     if (null != props) {
-      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
+      for (Map.Entry<String, Object> prop : props.entrySet()) {
         schema.addProp(prop.getKey(), prop.getValue());
       }
     }
