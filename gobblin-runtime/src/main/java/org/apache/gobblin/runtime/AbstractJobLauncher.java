@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.URI;
@@ -33,13 +32,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
-
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -73,6 +71,7 @@ import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -94,6 +93,7 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -472,6 +472,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           if (workUnitStream.isSafeToMaterialize()) {
             long totalSizeInBytes = sumWorkUnitsSizes(workUnitStream);
             this.jobContext.getJobState().setProp(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE, totalSizeInBytes);
+
+            CountEventBuilder countEventBuilder = new CountEventBuilder(TimingEvent.JOB_SIZE, totalSizeInBytes);
+            this.eventSubmitter.submit(countEventBuilder);
+            LOG.info("Emitting Total Size of Job: " + countEventBuilder.getCount());
           } else {
             LOG.warn("Property " + ConfigurationKeys.REPORT_JOB_PROGRESS + " is turned on, but "
                 + "progress cannot be reported for infinite work unit streams. Turn off property "

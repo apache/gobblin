@@ -29,6 +29,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
@@ -37,7 +38,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
@@ -165,6 +169,16 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         break;
       case TimingEvent.JOB_COMPLETION_PERCENTAGE:
         properties.put(TimingEvent.JOB_LAST_PROGRESS_EVENT_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
+        break;
+      case TimingEvent.JOB_SIZE:
+        Long jobSize = Long.parseLong(properties.getProperty(CountEventBuilder.COUNT_KEY));
+
+        String jobSizeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+            properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
+            properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
+            TimingEvent.JOB_SIZE);
+        ContextAwareGauge guage = this.getMetricContext().newContextAwareGauge(jobSizeName, () -> jobSize);
+        this.getMetricContext().register(jobSizeName, guage);
         break;
       default:
         return null;
