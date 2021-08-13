@@ -26,6 +26,7 @@ import java.util.List;
 
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
+import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,9 +35,8 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
+import org.apache.hadoop.hive.ql.io.orc.TypeDescriptionToObjectInspectorUtil;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -59,6 +59,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.orc.TypeDescription;
 
 /**
  * A derived class of {@link org.apache.gobblin.hive.HiveSerDeManager} that is mainly responsible for adding schema
@@ -270,13 +271,11 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     TypeInfo schema;
-    if(!Strings.isNullOrEmpty(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()))) {
-      try {
-        Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
-        schema = TypeInfoUtils.getTypeInfoFromObjectInspector(new AvroObjectInspectorGenerator(avroSchema).getObjectInspector());
-      } catch (SerDeException e) {
-        throw new IOException(e);
-      }
+    String schemaString = hiveUnit.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    if(!Strings.isNullOrEmpty(schemaString)) {
+      Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+      TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(avroSchema);
+      schema = TypeInfoUtils.getTypeInfoFromObjectInspector(TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
     }  else {
       schema = getSchemaFromLatestFile(path, this.fs);
     }

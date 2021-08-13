@@ -24,6 +24,7 @@ dependencies {
   compile project(":gobblin-utility")
 
   compile externalDependency.avro
+  compile externalDependency.orcCore
   compile externalDependency.datanucleusCore
   compile externalDependency.datanucleusRdbms
   compile externalDependency.guava
