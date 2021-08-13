@@ -61,7 +61,9 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
   @Override
   public void registerNewTask(Task task) {
     try {
-      this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
+      if (GobblinMetrics.isEnabled(task.getTaskState().getWorkunit())) {
+        this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
+      }
     } catch (RejectedExecutionException ree) {
       // Propagate the exception to caller that has full control of the life-cycle of a helix task.
       log.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
