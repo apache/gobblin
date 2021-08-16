@@ -176,7 +176,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
-            TimingEvent.JOB_SIZE);
+            JobEvent.WORK_UNITS_CREATED);
         ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName, () -> numWorkUnits);
         this.getMetricContext().register(workUnitCountName, gauge);
         break;
