@@ -71,7 +71,6 @@ import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -472,10 +471,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           if (workUnitStream.isSafeToMaterialize()) {
             long totalSizeInBytes = sumWorkUnitsSizes(workUnitStream);
             this.jobContext.getJobState().setProp(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE, totalSizeInBytes);
-
-            CountEventBuilder countEventBuilder = new CountEventBuilder(TimingEvent.JOB_SIZE, totalSizeInBytes);
-            this.eventSubmitter.submit(countEventBuilder);
-            LOG.info("Emitting Total Size of Job: " + countEventBuilder.getCount());
           } else {
             LOG.warn("Property " + ConfigurationKeys.REPORT_JOB_PROGRESS + " is turned on, but "
                 + "progress cannot be reported for infinite work unit streams. Turn off property "
