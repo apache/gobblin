@@ -266,6 +266,18 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  /**
+   * Get number of specs from {@link SpecStore}
+   */
+  @Override
+  public int getSize() {
+    try {
+      return specStore.getSize();
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve number of specs from Spec store", e);
+    }
+  }
+
   public boolean exists(URI uri) {
     try {
       return specStore.exists(uri);

@@ -164,6 +164,18 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     }
   }
 
+  @Override
+  public int getSize() throws IOException {
+    if (!instrumentationEnabled) {
+      return getSizeImpl();
+    } else {
+      long startTimeMillis = System.currentTimeMillis();
+      int size = getSizeImpl();
+      Instrumented.updateTimer(this.getAllTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
+      return size;
+    }
+  }
+
   public abstract void addSpecImpl(Spec spec) throws IOException;
   public abstract Spec updateSpecImpl(Spec spec) throws IOException, SpecNotFoundException;
   public abstract boolean existsImpl(URI specUri) throws IOException;
@@ -171,6 +183,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract boolean deleteSpecImpl(URI specUri) throws IOException;
   public abstract Collection<Spec> getSpecsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
+  public abstract int getSizeImpl() throws IOException;
 
   /** child classes can implement this if they want to get specs using {@link SpecSearchObject} */
   public Collection<Spec> getSpecsImpl(SpecSearchObject specUri) throws IOException {

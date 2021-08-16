@@ -149,6 +149,7 @@ public class FSSpecStoreTest {
     }
 
     Assert.assertEquals(count, 3);
+    Assert.assertEquals(fsSpecStore.getSize(), 3);
     Assert.assertTrue(result.contains(specURI0));
     Assert.assertTrue(result.contains(specURI1));
     Assert.assertTrue(result.contains(specURI2));

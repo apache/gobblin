@@ -161,6 +161,7 @@ public class FlowCatalogTest {
       logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should contain 1 Spec after addition");
   }
 
   @Test (dependsOnMethods = "createFlowSpec")
@@ -179,7 +180,7 @@ public class FlowCatalogTest {
       logger.info("[Before Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     Assert.assertTrue(specs.size() == 1, "Spec store should initially have 1 Spec before deletion");
-
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should initially have 1 Spec before deletion");
     this.flowCatalog.remove(flowSpec.getUri());
 
     // List Specs after adding
@@ -191,6 +192,7 @@ public class FlowCatalogTest {
       logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(flowCatalog.getSize(), 0, "Spec store should be empty after deletion");
   }
 
   @Test (dependsOnMethods = "deleteFlowSpec")
@@ -214,6 +216,7 @@ public class FlowCatalogTest {
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
   }
 
   @Test (dependsOnMethods = "testRejectBadFlow")
@@ -235,6 +238,7 @@ public class FlowCatalogTest {
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
   }
 
   public static URI computeFlowSpecURI() {
