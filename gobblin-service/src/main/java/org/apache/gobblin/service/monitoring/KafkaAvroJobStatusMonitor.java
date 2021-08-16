@@ -173,7 +173,6 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         break;
       case JobEvent.WORK_UNITS_CREATED:
         Long numWorkUnits = Long.parseLong(properties.getProperty(CountEventBuilder.COUNT_KEY));
-
         String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
