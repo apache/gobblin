@@ -285,7 +285,7 @@ public class HiveMetadataWriter implements MetadataWriter {
           spec.getTable()
               .getSerDeProps()
               .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), sourceSchema);
-          HiveMetaStoreUtils.updateColumnsInfo(spec);
+          HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
         }
       } catch (IOException e) {
         log.warn(String.format("Cannot get schema from table %s.%s", schemaSourceDb, spec.getTable().getTableName()), e);
@@ -293,10 +293,11 @@ public class HiveMetadataWriter implements MetadataWriter {
       return;
     }
     //Force to set the schema even there is no schema literal defined in the spec
-    spec.getTable()
-        .getSerDeProps()
-        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
-    HiveMetaStoreUtils.updateColumnsInfo(spec);
+    if (latestSchemaMap.containsKey(tableKey)) {
+      spec.getTable().getSerDeProps()
+          .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
+      HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+    }
   }
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {

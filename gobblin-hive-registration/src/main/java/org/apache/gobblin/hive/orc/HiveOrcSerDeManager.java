@@ -204,7 +204,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
       }
       return getSchemaFromLatestFile(files.get(0).getPath(), fs);
     } else {
-       return TypeInfoUtils.getTypeInfoFromObjectInspector(OrcFile.createReader(fs, path).getObjectInspector());
+      return TypeInfoUtils.getTypeInfoFromObjectInspector(OrcFile.createReader(fs, path).getObjectInspector());
     }
   }
 
@@ -271,22 +271,26 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     TypeInfo schema;
-    String schemaString = hiveUnit.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
-    if(!Strings.isNullOrEmpty(schemaString)) {
-      Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    String schemaString = hiveUnit.getSerDeProps()
+        .getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(),
+            props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    if (!Strings.isNullOrEmpty(schemaString)) {
+      Schema avroSchema =
+          new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
       TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(avroSchema);
-      schema = TypeInfoUtils.getTypeInfoFromObjectInspector(TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
-    }  else {
+      schema = TypeInfoUtils.getTypeInfoFromObjectInspector(
+          TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
+    } else {
       schema = getSchemaFromLatestFile(path, this.fs);
     }
     if (schema instanceof StructTypeInfo) {
       StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
-      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,
-          Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
-      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES,
-          Joiner.on(",").join(
-              structTypeInfo.getAllStructFieldTypeInfos().stream().map(x -> x.getTypeName())
-                  .collect(Collectors.toList())));
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS, Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES, Joiner.on(",")
+          .join(structTypeInfo.getAllStructFieldTypeInfos()
+              .stream()
+              .map(x -> x.getTypeName())
+              .collect(Collectors.toList())));
     } else {
       // Hive always uses a struct with a field for each of the top-level columns as the root object type.
       // So for here we assume to-be-registered ORC files follow this pattern.

@@ -425,7 +425,7 @@ public class HiveMetaStoreUtils {
     return deserializer;
   }
 
-  public static void updateColumnsInfo(HiveSpec spec) throws IOException {
+  public static void updateColumnsInfoIfNeeded(HiveSpec spec) throws IOException {
     HiveTable table = spec.getTable();
     if (table.getSerDeProps().contains(serdeConstants.LIST_COLUMNS)) {
       if (table.getSerDeManager().isPresent()) {

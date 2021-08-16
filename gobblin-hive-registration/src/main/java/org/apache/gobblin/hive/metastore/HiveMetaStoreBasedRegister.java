@@ -238,7 +238,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           spec.getTable()
               .getSerDeProps()
               .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
-          HiveMetaStoreUtils.updateColumnsInfo(spec);
+          HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
           table.setSd(HiveMetaStoreUtils.getStorageDescriptor(spec.getTable()));
           return;
         }
@@ -255,7 +255,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             spec.getTable()
                 .getSerDeProps()
                 .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
-            HiveMetaStoreUtils.updateColumnsInfo(spec);
+            HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
             table.setSd(HiveMetaStoreUtils.getStorageDescriptor(spec.getTable()));
           }
         }
