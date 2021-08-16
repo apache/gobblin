@@ -469,6 +469,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // calculation of total bytes to copy in a job used to track a job's copy progress
         if (jobState.getPropAsBoolean(ConfigurationKeys.REPORT_JOB_PROGRESS, ConfigurationKeys.DEFAULT_REPORT_JOB_PROGRESS)) {
+            LOG.info("Report job progress config is turned on");
           if (workUnitStream.isSafeToMaterialize()) {
             long totalSizeInBytes = sumWorkUnitsSizes(workUnitStream);
             this.jobContext.getJobState().setProp(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE, totalSizeInBytes);
