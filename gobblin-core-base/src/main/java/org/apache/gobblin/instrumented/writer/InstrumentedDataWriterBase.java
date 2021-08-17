@@ -54,7 +54,7 @@ import org.apache.gobblin.writer.DataWriter;
  */
 abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumentable, Closeable, FinalState {
 
-  private final Optional<ScheduledThreadPoolExecutor> writerMetricsUpdater;
+  private final Optional<ScheduledThreadPoolExecutor> writerMetricsUpdateExecutor;
   private final boolean instrumentationEnabled;
 
   private MetricContext metricContext;
@@ -80,10 +80,10 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
     this.metricContext = this.closer.register(Instrumented.getMetricContext(state, classTag.or(this.getClass())));
 
     if (this.instrumentationEnabled) {
-      this.writerMetricsUpdater = Optional.of(buildWriterMetricsUpdater());
-      scheduleWriterMetricsUpdater(this.writerMetricsUpdater.get(), getWriterMetricsUpdaterInterval(state));
+      this.writerMetricsUpdateExecutor = Optional.of(buildWriterMetricsUpdateExecutor());
+      scheduleWriterMetricsUpdater(this.writerMetricsUpdateExecutor.get(), getWriterMetricsUpdaterInterval(state));
     } else {
-      this.writerMetricsUpdater = Optional.absent();
+      this.writerMetricsUpdateExecutor = Optional.absent();
     }
 
     regenerateMetrics();
@@ -214,8 +214,8 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
     try {
       this.closer.close();
     } finally {
-      if (this.writerMetricsUpdater.isPresent()) {
-        ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get(), Optional.of(log));
+      if (this.writerMetricsUpdateExecutor.isPresent()) {
+        ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdateExecutor.get(), Optional.of(log));
       }
     }
   }
@@ -262,7 +262,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
   /**
    * Build a {@link ScheduledThreadPoolExecutor} that updates record-level and byte-level metrics.
    */
-  private static ScheduledThreadPoolExecutor buildWriterMetricsUpdater() {
+  private static ScheduledThreadPoolExecutor buildWriterMetricsUpdateExecutor() {
     return new ScheduledThreadPoolExecutor(1,
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("WriterMetricsUpdater-%d")));
   }
