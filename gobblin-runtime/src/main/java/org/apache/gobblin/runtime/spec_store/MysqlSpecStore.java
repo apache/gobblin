@@ -84,6 +84,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri FROM %s WHERE tag = ?";
+  private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
 
   protected final DataSource dataSource;
   protected final String tableName;
@@ -246,6 +247,18 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_URIS_STATEMENT, this.tableName))) {
       return getURIIteratorByQuery(statement);
+    } catch (SQLException e) {
+      throw new IOException(e);
+    }
+  }
+
+  @Override
+  public int getSizeImpl() throws IOException {
+    try (Connection connection = this.dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(String.format(GET_SIZE_STATEMENT, this.tableName));
+        ResultSet resultSet = statement.executeQuery()) {
+      resultSet.next();
+      return resultSet.getInt(1);
     } catch (SQLException e) {
       throw new IOException(e);
     }
