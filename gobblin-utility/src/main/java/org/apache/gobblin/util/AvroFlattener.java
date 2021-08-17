@@ -26,7 +26,6 @@ import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -417,7 +416,8 @@ public class AvroFlattener {
         if (StringUtils.isNotBlank(flattenSource)) {
           field.addProp(FLATTENED_SOURCE_KEY, flattenSource);
         }
-        for (Map.Entry<String, JsonNode> entry : f.getJsonProps().entrySet()) {
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+        for (Map.Entry<String, Object> entry : f.getObjectProps().entrySet()) {
           field.addProp(entry.getKey(), entry.getValue());
         }
         flattenedFields.add(field);
@@ -466,8 +466,8 @@ public class AvroFlattener {
   private static void copyProperties(Schema oldSchema, Schema newSchema) {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
-
-    Map<String, JsonNode> props = oldSchema.getJsonProps();
+    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+    Map<String, Object> props = oldSchema.getObjectProps();
     copyProperties(props, newSchema);
   }
 
@@ -476,12 +476,12 @@ public class AvroFlattener {
    * @param props Properties to copy to Avro Schema
    * @param schema Avro Schema to copy properties to
    */
-  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
+  private static void copyProperties(Map<String, Object> props, Schema schema) {
     Preconditions.checkNotNull(schema);
 
     // (if null, don't copy but do not throw exception)
     if (null != props) {
-      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
+      for (Map.Entry<String, Object> prop : props.entrySet()) {
         schema.addProp(prop.getKey(), prop.getValue());
       }
     }

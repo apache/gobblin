@@ -45,6 +45,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.util.internal.JacksonUtils;
 import org.apache.commons.math3.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -620,10 +621,13 @@ public class AvroUtilsTest {
           .getResourceAsStream("recursive_schemas/recursive_" + scenario + "_solution.avsc"));
 
       // get the answer from the input schema (test author needs to provide this)
-      ArrayNode foo = (ArrayNode) inputSchema.getJsonProp("recursive_fields");
+      // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+      // Use internal JacksonUtils to convert object to the corresponding JsonNode (ArrayNode)
+      ArrayNode foo = (ArrayNode) JacksonUtils.toJsonNode(inputSchema.getObjectProp(
+          "recursive_fields"));
       HashSet<String> answers = new HashSet<>();
       for (JsonNode fieldsWithRecursion: foo) {
-        answers.add(fieldsWithRecursion.getTextValue());
+        answers.add(fieldsWithRecursion.asText());
       }
 
       Pair<Schema, List<AvroUtils.SchemaEntry>> results = AvroUtils.dropRecursiveFields(inputSchema);

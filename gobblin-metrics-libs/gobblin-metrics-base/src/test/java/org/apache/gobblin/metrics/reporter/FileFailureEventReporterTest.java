@@ -27,7 +27,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.annotations.Test;
 
-import avro.shaded.com.google.common.collect.Maps;
+import com.google.common.collect.Maps;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
