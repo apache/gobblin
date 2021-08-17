@@ -88,8 +88,8 @@ public class FSSpecStoreTest {
     // The fail and serDe datasets wouldn't survive
     Assert.assertEquals(specList.size(), 2);
     for (Spec spec: specList) {
-      Assert.assertTrue(!spec.getDescription().contains("spec_fail"));
-      Assert.assertTrue(!spec.getDescription().contains("serDeFail"));
+      Assert.assertFalse(spec.getDescription().contains("spec_fail"));
+      Assert.assertFalse(spec.getDescription().contains("serDeFail"));
     }
   }
 
@@ -109,7 +109,7 @@ public class FSSpecStoreTest {
         SerializationUtils.deserialize(ByteStreams.toByteArray(fis));
 
         // This line should never be reached since we generate SerDe Exception on purpose.
-        Assert.assertTrue(false);
+        Assert.fail();
         return null;
       }
       else return initFlowSpec(Files.createTempDir().getAbsolutePath());

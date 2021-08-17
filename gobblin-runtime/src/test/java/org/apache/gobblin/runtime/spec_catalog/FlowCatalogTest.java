@@ -147,7 +147,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);
@@ -160,7 +160,7 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
     Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should contain 1 Spec after addition");
   }
 
@@ -179,7 +179,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should initially have 1 Spec before deletion");
+    Assert.assertEquals(specs.size(), 1, "Spec store should initially have 1 Spec before deletion");
     Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should initially have 1 Spec before deletion");
     this.flowCatalog.remove(flowSpec.getUri());
 
@@ -191,7 +191,7 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty after deletion");
     Assert.assertEquals(flowCatalog.getSize(), 0, "Spec store should be empty after deletion");
   }
 
@@ -204,7 +204,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
@@ -229,7 +229,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
 
