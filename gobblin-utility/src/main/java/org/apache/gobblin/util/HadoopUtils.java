@@ -629,7 +629,7 @@ public class HadoopUtils {
         }
 
       } catch (IOException ioe) {
-        throw new RuntimeException(ioe);
+        throw new RuntimeException("Failed to rename " + this.from.getPath() + " to " + this.to, ioe);
       }
     }
   }
