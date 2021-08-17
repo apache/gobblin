@@ -131,6 +131,9 @@ public class HiveMaterializerTest {
         new TableLikeStageableTableMetadata(this.dataset.getTable(), this.dbName, destinationTable, tmpDir.getAbsolutePath()), null);
 
     HiveMaterializer hiveMaterializer = new HiveMaterializer(getTaskContextForRun(workUnit));
+    // TODO: FIX this test. Error -
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema$Field.<init>(Ljava/lang/String;Lorg/apache/avro/Schema;Ljava/lang/String;Lorg/codehaus/jackson/JsonNode;)V
+    //	at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.createAvroField(TypeInfoToSchema.java:76)
     hiveMaterializer.run();
     Assert.assertEquals(hiveMaterializer.getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
     hiveMaterializer.commit();
@@ -153,6 +156,9 @@ public class HiveMaterializerTest {
         String.format("%s=part1", this.partitionColumn));
 
     HiveMaterializer hiveMaterializer = new HiveMaterializer(getTaskContextForRun(workUnit));
+    // TODO: Fix this test. Error -
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema$Field.<init>(Ljava/lang/String;Lorg/apache/avro/Schema;Ljava/lang/String;Lorg/codehaus/jackson/JsonNode;)V
+    //	at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.createAvroField(TypeInfoToSchema.java:76)
     hiveMaterializer.run();
     Assert.assertEquals(hiveMaterializer.getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
     hiveMaterializer.commit();
@@ -187,6 +193,9 @@ public class HiveMaterializerTest {
         null);
 
     HiveMaterializer hiveMaterializer = new HiveMaterializer(getTaskContextForRun(workUnit));
+    // TODO: Fix this test. Error -
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema$Field.<init>(Ljava/lang/String;Lorg/apache/avro/Schema;Ljava/lang/String;Lorg/codehaus/jackson/JsonNode;)V
+    //	at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.createAvroField(TypeInfoToSchema.java:76)
     hiveMaterializer.run();
     Assert.assertEquals(hiveMaterializer.getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
     hiveMaterializer.commit();
@@ -211,6 +220,9 @@ public class HiveMaterializerTest {
         new TableLikeStageableTableMetadata(this.dataset.getTable(), this.dbName, destinationTable, tmpDir.getAbsolutePath()));
 
     HiveMaterializer hiveMaterializer = new HiveMaterializer(getTaskContextForRun(workUnit));
+    // TODO: Fix this test
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema$Field.<init>(Ljava/lang/String;Lorg/apache/avro/Schema;Ljava/lang/String;Lorg/codehaus/jackson/JsonNode;)V
+    //	at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.createAvroField(TypeInfoToSchema.java:76)
     hiveMaterializer.run();
     Assert.assertEquals(hiveMaterializer.getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
     hiveMaterializer.commit();

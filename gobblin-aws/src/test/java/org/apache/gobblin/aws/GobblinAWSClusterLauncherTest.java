@@ -192,7 +192,6 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
 
   @Test
   public void testCreateHelixCluster() throws Exception {
-    // This is tested here instead of in HelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
     HelixUtils
         .createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
             this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));

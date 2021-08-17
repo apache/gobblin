@@ -42,11 +42,11 @@ public class AvroSchemaFieldRemoverTest {
     Schema convertedSchema2 =
         convertSchema("/converter/recursive_schema_2.avsc", "FBuKC.wIINqII.lvaerUEKxBQUWg,eFQjDj.TzuYZajb");
     Schema expectedSchema2 = parseSchema("/converter/recursive_schema_2_converted.avsc");
-    Assert.assertEquals(convertedSchema2, expectedSchema2);
 
+    Assert.assertEquals(convertedSchema2.toString(), expectedSchema2.toString());
     Schema convertedSchema3 = convertSchema("/converter/recursive_schema_2.avsc", "field.that.does.not.exist");
     Schema expectedSchema3 = parseSchema("/converter/recursive_schema_2_not_converted.avsc");
-    Assert.assertEquals(convertedSchema3, expectedSchema3);
+    Assert.assertEquals(convertedSchema3.toString(), expectedSchema3.toString());
   }
 
   private Schema parseSchema(String schemaFile) throws IOException {

@@ -37,6 +37,9 @@ public class AvroFieldsPickConverterTest {
   @Test
   public void testFieldsPick() throws Exception {
 
+    // TODO: Fix this test
+    // org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null not a [{"type":"array","items":"string"},"null"]
+    // at org.apache.avro.Schema.validateDefault(Schema.java:1540)
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
 
     WorkUnitState workUnitState = new WorkUnitState();
@@ -53,6 +56,9 @@ public class AvroFieldsPickConverterTest {
   @Test (expectedExceptions=SchemaConversionException.class)
   public void testFieldsPickWrongFieldFailure() throws Exception {
 
+    // TODO: Fix this test.
+    // org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null not a [{"type":"array","items":"string"},"null"]
+    // at org.apache.avro.Schema.validateDefault(Schema.java:1540)
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
 
     WorkUnitState workUnitState = new WorkUnitState();

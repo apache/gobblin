@@ -36,7 +36,7 @@ import org.apache.gobblin.runtime.api.GobblinInstancePluginFactory;
 import org.apache.gobblin.runtime.plugins.email.EmailNotificationPlugin;
 import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

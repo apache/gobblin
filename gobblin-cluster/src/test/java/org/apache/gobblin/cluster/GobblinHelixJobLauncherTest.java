@@ -126,7 +126,6 @@ public class GobblinHelixJobLauncherTest {
 
     String zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-
     HelixUtils.createGobblinHelixCluster(zkConnectingString, helixClusterName);
 
     this.helixManager = HelixManagerFactory

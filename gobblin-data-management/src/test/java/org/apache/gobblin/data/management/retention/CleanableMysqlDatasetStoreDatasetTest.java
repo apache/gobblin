@@ -165,6 +165,8 @@ public class CleanableMysqlDatasetStoreDatasetTest {
     Assert.assertFalse(this.dbJobStateStore.exists(TEST_JOB_NAME1,
         MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX));
 
+    // TODO: Fix this test. Error -
+    // java.lang.AssertionError: expected [true] but found [false]
     // state with recent timestamp is not deleted
     Assert.assertTrue(this.dbJobStateStore.exists(TEST_JOB_NAME2,
         MysqlDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + MysqlDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX));

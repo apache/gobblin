@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+import org.apache.gobblin.util.AvroCompatibilityUtils;
 import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Preconditions;
@@ -108,7 +109,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
-    convertFieldToSchemaWithProps(schema.getJsonProps(), newRecord);
+    convertFieldToSchemaWithProps(schema.getObjectProps(), newRecord);
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.
@@ -119,13 +120,15 @@ public class AvroSchemaFieldRemover {
       if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
-          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap),
-              field.doc(), field.defaultValue());
+          newField = AvroCompatibilityUtils.newField(field.name(),
+            this.children.get(field.name()).removeFields(field.schema(),
+              schemaMap), field.doc(), AvroCompatibilityUtils.fieldDefaultValue(field));
         } else {
-          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
-              field.defaultValue());
+          newField = AvroCompatibilityUtils.newField(field.name(),
+            DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap),
+              field.doc(), AvroCompatibilityUtils.fieldDefaultValue(field));
         }
-        for (Map.Entry<String, JsonNode> stringJsonNodeEntry : field.getJsonProps().entrySet()) {
+        for (Map.Entry<String, Object> stringJsonNodeEntry : field.getObjectProps().entrySet()) {
           newField.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
         }
         newFields.add(newField);

@@ -66,6 +66,7 @@ public class TaskSkipErrRecordsIntegrationTest {
       throws Exception {
     Properties jobProperties = getProperties();
     jobProperties.setProperty(TASK_SKIP_ERROR_RECORDS, ONE);
+    // TODO: Fix this test. Error: org.apache.gobblin.runtime.JobException: Job job_task_skip_err_records.job_1625580267268 failed
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
   }
 

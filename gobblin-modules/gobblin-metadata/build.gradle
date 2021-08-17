@@ -30,6 +30,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
+  compile externalDependency.jacksonMapperAsl
   compile externalDependency.slf4j
 
   testCompile project(":gobblin-test-utils")

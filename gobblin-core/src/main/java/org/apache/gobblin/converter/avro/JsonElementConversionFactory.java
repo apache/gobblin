@@ -35,7 +35,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.json.JsonSchema;
-import org.codehaus.jackson.node.JsonNodeFactory;
+import org.apache.gobblin.util.AvroCompatibilityUtils;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -617,9 +618,12 @@ public class JsonElementConversionFactory {
         } catch (UnsupportedDateTypeException e) {
           throw new UnsupportedOperationException(e);
         }
-
-        Schema.Field fld = new Schema.Field(map.getColumnName(), fldSchema, map.getComment(),
-            map.isNullable() ? JsonNodeFactory.instance.nullNode() : null);
+        // TODO - Fix this. The "map" variable is of type JsonSchema (Gobblin internal
+        // implementation). For map.isNullable, AvroCompatibilityUtils.NULL_VALUE is passed. For
+        // non null, identify the exact change. As curently null is passed,
+        // JsonElementConversionFactoryTest is failing.
+        Schema.Field fld = AvroCompatibilityUtils.newField(map.getColumnName(), fldSchema, map.getComment(),
+            map.isNullable() ? AvroCompatibilityUtils.NULL_VALUE : null);
         fld.addProp(SOURCE_TYPE, sourceType);
         fields.add(fld);
       }

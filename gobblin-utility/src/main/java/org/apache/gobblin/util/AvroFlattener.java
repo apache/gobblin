@@ -412,12 +412,13 @@ public class AvroFlattener {
             }
           }
         }
-        Schema.Field field = new Schema.Field(flattenName, flattenedFieldSchema, f.doc(), f.defaultValue(), f.order());
+        Schema.Field field = AvroCompatibilityUtils.newField(flattenName, flattenedFieldSchema, f.doc(),
+            AvroCompatibilityUtils.fieldDefaultValue(f), f.order());
 
         if (StringUtils.isNotBlank(flattenSource)) {
           field.addProp(FLATTENED_SOURCE_KEY, flattenSource);
         }
-        for (Map.Entry<String, JsonNode> entry : f.getJsonProps().entrySet()) {
+        for (Map.Entry<String, Object> entry : f.getObjectProps().entrySet()) {
           field.addProp(entry.getKey(), entry.getValue());
         }
         flattenedFields.add(field);
@@ -467,7 +468,7 @@ public class AvroFlattener {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
 
-    Map<String, JsonNode> props = oldSchema.getJsonProps();
+    Map<String, Object> props = oldSchema.getObjectProps();
     copyProperties(props, newSchema);
   }
 
@@ -476,12 +477,12 @@ public class AvroFlattener {
    * @param props Properties to copy to Avro Schema
    * @param schema Avro Schema to copy properties to
    */
-  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
+  private static void copyProperties(Map<String, Object> props, Schema schema) {
     Preconditions.checkNotNull(schema);
 
     // (if null, don't copy but do not throw exception)
     if (null != props) {
-      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
+      for (Map.Entry<String, Object> prop : props.entrySet()) {
         schema.addProp(prop.getKey(), prop.getValue());
       }
     }

@@ -19,6 +19,7 @@ package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 
+import java.util.HashMap;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
@@ -27,7 +28,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.annotations.Test;
 
-import avro.shaded.com.google.common.collect.Maps;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
@@ -49,7 +49,7 @@ public class FileFailureEventReporterTest {
     final String eventName = "testEvent";
     final String eventNamespace = "testNamespace";
     GobblinTrackingEvent event =
-        new GobblinTrackingEvent(0L, eventNamespace, eventName, Maps.newHashMap());
+        new GobblinTrackingEvent(0L, eventNamespace, eventName, new HashMap<>());
 
     // Noop on normal event
     testContext.submitEvent(event);

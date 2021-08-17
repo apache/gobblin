@@ -176,6 +176,11 @@ public class HiveConverterUtils {
   }
 
   public static Pair<String, String> getORCSchemaPropsFromAvroSchema(Schema avroSchema) throws SerDeException {
+    // TODO: Fix this code. Error - the below method is deprecated in Schema.Field in avro 1.9
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema.getJsonProp(Ljava/lang/String;)Lorg/codehaus/jackson/JsonNode;
+    //at org.apache.hadoop.hive.serde2.avro.SchemaToTypeInfo.generateTypeInfo(SchemaToTypeInfo.java:116)
+    // SchemaToTypeInfo is from hive-serde-1.0.1 and uses avro 1.7. The latest version 3.1.2
+    // still uses avro 1.7
     AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(avroSchema);
     String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
     String columnTypes = Joiner.on(",").join(
