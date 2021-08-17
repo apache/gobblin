@@ -48,6 +48,7 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
+  compile externalDependency.jacksonMapperAsl
 
   runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
 
