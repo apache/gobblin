@@ -42,11 +42,11 @@ import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.AvroUtils;
 
@@ -197,7 +197,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   public void addFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap, String dbName,
-      String tableName, String topicName) throws SchemaRegistryException {
+      String tableName, String topicName) throws IOException {
     String tableKey = tableNameJoiner.join(dbName, tableName);
     for (Collection<HiveSpec> specs : newSpecsMap.values()) {
       for (HiveSpec spec : specs) {
@@ -243,7 +243,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   private void schemaUpdateHelper(GobblinMetadataChangeEvent gmce, HiveSpec spec, String topicName, String tableKey)
-      throws SchemaRegistryException {
+      throws IOException {
     if (gmce.getSchemaSource() != SchemaSource.NONE) {
       String newSchemaString =
           spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
@@ -285,6 +285,7 @@ public class HiveMetadataWriter implements MetadataWriter {
           spec.getTable()
               .getSerDeProps()
               .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), sourceSchema);
+          HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
         }
       } catch (IOException e) {
         log.warn(String.format("Cannot get schema from table %s.%s", schemaSourceDb, spec.getTable().getTableName()), e);
@@ -292,9 +293,11 @@ public class HiveMetadataWriter implements MetadataWriter {
       return;
     }
     //Force to set the schema even there is no schema literal defined in the spec
-    spec.getTable()
-        .getSerDeProps()
-        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
+    if (latestSchemaMap.containsKey(tableKey)) {
+      spec.getTable().getSerDeProps()
+          .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
+      HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+    }
   }
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
