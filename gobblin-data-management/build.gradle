@@ -45,6 +45,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng
   compile externalDependency.junit
+  compile externalDependency.jacksonMapperAsl
 
   testCompile project(":gobblin-test-utils")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
