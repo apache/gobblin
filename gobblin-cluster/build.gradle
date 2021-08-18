@@ -47,6 +47,7 @@ dependencies {
   compile externalDependency.hadoopCommon
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.jacksonMapperAsl
   compile (externalDependency.helix) {
     exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
   }
