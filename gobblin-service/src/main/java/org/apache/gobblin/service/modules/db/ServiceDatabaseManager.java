@@ -49,7 +49,13 @@ public class ServiceDatabaseManager extends AbstractIdleService {
 
     Flyway flyway =
         Flyway.configure().locations("classpath:org/apache/gobblin/service/db/migration").failOnMissingLocations(true)
-            .dataSource(databaseProvider.getDatasource()).load();
+            .dataSource(databaseProvider.getDatasource())
+            // Existing GaaS DBs have state store tables.
+            // Flyway will refuse to use such non-empty DBs by default. With baselineOnMigrate(true), it should
+            // create new tables, while keeping old ones intact.
+            .baselineOnMigrate(true)
+            .baselineVersion("0")
+            .load();
 
     log.info("Ensuring service database is migrated to latest schema");
     // Start the migration
