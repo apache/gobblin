@@ -93,7 +93,7 @@ public class AvroUtils {
 
   public static final String FIELD_LOCATION_DELIMITER = ".";
 
-  private static final String AVRO_SUFFIX = ".avro";
+  public static final String AVRO_SUFFIX = ".avro";
 
   private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
 

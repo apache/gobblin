@@ -44,8 +44,10 @@ import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filters.AndPathFilter;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
 
@@ -82,7 +84,8 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
     List<Pair<SpecExecutor.Verb, Spec>> specList = new ArrayList<>();
     FileStatus[] fileStatuses;
     try {
-      fileStatuses = this.fs.listStatus(this.specDirPath, new HiddenFilter());
+      fileStatuses = this.fs.listStatus(this.specDirPath,
+          new AndPathFilter(new HiddenFilter(), new AvroUtils.AvroPathFilter()));
     } catch (IOException e) {
       log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
       return null;

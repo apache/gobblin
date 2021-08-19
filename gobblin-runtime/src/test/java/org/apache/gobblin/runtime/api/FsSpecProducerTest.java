@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
@@ -40,6 +41,7 @@ import org.apache.gobblin.util.ConfigUtils;
 public class FsSpecProducerTest {
   private FsSpecProducer _fsSpecProducer;
   private FsSpecConsumer _fsSpecConsumer;
+  private Config _config;
 
   @BeforeMethod
   public void setUp()
@@ -49,9 +51,14 @@ public class FsSpecProducerTest {
         tmpDir.getAbsolutePath()));
     this._fsSpecProducer = new FsSpecProducer(config);
     this._fsSpecConsumer = new FsSpecConsumer(config);
+    this._config = config;
   }
 
   private JobSpec createTestJobSpec() throws URISyntaxException {
+    return createTestJobSpec("testJob");
+  }
+
+  private JobSpec createTestJobSpec(String jobSpecUri) throws URISyntaxException {
     Properties properties = new Properties();
     properties.put("key1", "val1");
     properties.put("key2", "val2");
@@ -59,7 +66,7 @@ public class FsSpecProducerTest {
     properties.put("key3.1", "val3");
     properties.put("key3.1.1", "val4");
 
-    JobSpec jobSpec = JobSpec.builder("testJob")
+    JobSpec jobSpec = JobSpec.builder(jobSpecUri)
         .withConfig(ConfigUtils.propertiesToConfig(properties))
         .withVersion("1")
         .withDescription("")
@@ -72,6 +79,10 @@ public class FsSpecProducerTest {
       throws URISyntaxException, ExecutionException, InterruptedException {
     this._fsSpecProducer.addSpec(createTestJobSpec());
 
+    // Add some random files(with non-avro extension name) into the folder observed by consumer, they shall not be picked up.
+    FsSpecProducer testSpecProducer = new TestingFsSpecProducer(_config);
+    testSpecProducer.addSpec(createTestJobSpec());
+
     List<Pair<SpecExecutor.Verb, Spec>> jobSpecs = this._fsSpecConsumer.changedSpecs().get();
     Assert.assertEquals(jobSpecs.size(), 1);
     Assert.assertEquals(jobSpecs.get(0).getLeft(), SpecExecutor.Verb.ADD);
@@ -80,6 +91,20 @@ public class FsSpecProducerTest {
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key2"), "val2");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1" + ConfigUtils.STRIP_SUFFIX), "val3");
     Assert.assertEquals(((JobSpec) jobSpecs.get(0).getRight()).getConfig().getString("key3.1.1"), "val4");
+    jobSpecs.clear();
+
+    // If there are other jobSpec in .avro files added by testSpecProducer, they shall still be found.
+    testSpecProducer = new TestingFsSpecProducer(
+        _config.withValue(TestingFsSpecProducer.EXTENSION, ConfigValueFactory.fromAnyRef(".avro")));
+    testSpecProducer.addSpec(createTestJobSpec("newTestJob"));
+    jobSpecs = this._fsSpecConsumer.changedSpecs().get();
+    Assert.assertEquals(jobSpecs.size(), 2);
+    Assert.assertEquals(jobSpecs.get(0).getLeft(), SpecExecutor.Verb.ADD);
+    Assert.assertEquals(jobSpecs.get(1).getLeft(), SpecExecutor.Verb.ADD);
+
+    List<String> uriList = jobSpecs.stream().map(s -> s.getRight().getUri().toString()).collect(Collectors.toList());
+    Assert.assertTrue(uriList.contains( "testJob"));
+    Assert.assertTrue(uriList.contains( "newTestJob"));
   }
 
   @Test (dependsOnMethods = "testAddSpec")
@@ -105,5 +130,20 @@ public class FsSpecProducerTest {
     Assert.assertEquals(jobSpecs.size(), 1);
     Assert.assertEquals(jobSpecs.get(0).getLeft(), SpecExecutor.Verb.DELETE);
     Assert.assertEquals(jobSpecs.get(0).getRight().getUri().toString(), "testDeleteJob");
+  }
+
+  class TestingFsSpecProducer extends FsSpecProducer {
+    static final String EXTENSION = "testFile.extension";
+    private String ext;
+
+    public TestingFsSpecProducer(Config config) {
+      super(config);
+      ext = config.hasPath(EXTENSION) ? config.getString(EXTENSION) : "_random";
+    }
+
+    @Override
+    String annotateSpecFileName(String rawName) {
+      return rawName + ext;
+    }
   }
 }
