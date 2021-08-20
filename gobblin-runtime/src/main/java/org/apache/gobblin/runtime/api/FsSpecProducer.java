@@ -168,8 +168,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
     fs.delete(tmpJobSpecPath.getParent(), true);
   }
 
-  @VisibleForTesting
-  String annotateSpecFileName(String rawName) {
+  private String annotateSpecFileName(String rawName) {
     return rawName + AvroUtils.AVRO_SUFFIX;
   }
 }
