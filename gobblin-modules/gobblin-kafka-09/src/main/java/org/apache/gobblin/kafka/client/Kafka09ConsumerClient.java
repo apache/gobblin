@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -144,18 +146,36 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   public long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
     TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
     this.consumer.assign(Collections.singletonList(topicPartition));
+    long previousPosition = this.consumer.position(topicPartition);
     this.consumer.seekToBeginning(topicPartition);
+    long earliestOffset = this.consumer.position(topicPartition);
+    this.consumer.seek(topicPartition, previousPosition);
 
-    return this.consumer.position(topicPartition);
+    return earliestOffset;
   }
 
   @Override
   public long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
     TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
     this.consumer.assign(Collections.singletonList(topicPartition));
+    long previousPosition = this.consumer.position(topicPartition);
     this.consumer.seekToEnd(topicPartition);
+    long latestOffset = this.consumer.position(topicPartition);
+    this.consumer.seek(topicPartition, previousPosition);
 
-    return this.consumer.position(topicPartition);
+    return latestOffset;
+  }
+
+  @Override
+  public void assignAndSeek(List<KafkaPartition> topicPartitions,
+      Map<KafkaPartition, LongWatermark> topicWatermarksMap) {
+    HashSet<KafkaPartition> topicPartitionSet = new HashSet(topicPartitions);
+    topicWatermarksMap.entrySet().stream().filter(entry -> topicPartitionSet.contains(entry.getKey()))
+        .forEach(entry -> {
+          TopicPartition topicPartition = new TopicPartition(entry.getKey().getTopicName(), entry.getKey().getId());
+          this.consumer.assign(Collections.singletonList(topicPartition));
+          this.consumer.seek(topicPartition, entry.getValue().getValue());
+        });
   }
 
   @Override

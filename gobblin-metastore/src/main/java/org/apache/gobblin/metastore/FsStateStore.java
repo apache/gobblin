@@ -217,7 +217,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   }
 
   protected void renamePath(Path tmpTablePath, Path tablePath) throws IOException {
-    HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+    HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath, true);
   }
 
   @Override
