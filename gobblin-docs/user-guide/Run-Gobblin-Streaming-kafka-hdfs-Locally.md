@@ -26,5 +26,5 @@ Under your kafka dir, you can run following command to produce data into your ka
 The job will continually consume from testEvents and write out data as txt file onto your local fileSystem (/tmp/gobblin/kafka/publish). It will write put data every 60 seconds, and will never end until
 you manually kill it.
 
-If you want the job ingest data as avro/orc, you will need to have schema registry as schema source and change the job configuration to control the behavior
+If you want the job ingest data as avro/orc, you will need to have schema registry as schema source and change the job configuration to control the behavior, a sample configuration can be found [here](https://github.com/apache/gobblin/blob/master/gobblin-modules/gobblin-azkaban/src/main/resources/conf/gobblin_jobs/kafka-hdfs-streaming-avro.conf)
 
