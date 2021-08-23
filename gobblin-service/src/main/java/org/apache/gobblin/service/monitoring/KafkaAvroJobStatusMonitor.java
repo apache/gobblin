@@ -21,14 +21,19 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.Properties;
+import java.util.SortedMap;
 
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
@@ -69,6 +74,8 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   @Getter
   private Meter messageParseFailures;
 
+  private final HashMap<String, Long> flowNameGroupToWorkUnitCount;
+
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
       JobIssueEventHandler jobIssueEventHandler)
       throws IOException, ReflectiveOperationException {
@@ -86,6 +93,8 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
       return DecoderFactory.get().binaryDecoder(dummyInputStream, null);
     });
     this.reader = ThreadLocal.withInitial(() -> new SpecificDatumReader<>(GobblinTrackingEvent.SCHEMA$));
+
+    this.flowNameGroupToWorkUnitCount = new HashMap<>();
   }
 
   @Override
@@ -177,8 +186,23 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
             JobEvent.WORK_UNITS_CREATED);
-        ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName, () -> numWorkUnits);
-        this.getMetricContext().register(workUnitCountName, gauge);
+
+        MetricFilter filter = new MetricFilter() {
+          @Override public boolean matches(String name, Metric metric) {
+            return name.equals(workUnitCountName);
+          }
+        };
+        SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(filter);
+
+        // If gauge for this flow name and group exists, then value will be updated by reference. Otherwise create
+        // a new gauge and save a reference to the value in the HashMap
+        this.flowNameGroupToWorkUnitCount.put(workUnitCountName, numWorkUnits);
+        if (existingGauges.isEmpty()) {
+          ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName,
+              () -> this.flowNameGroupToWorkUnitCount.get(workUnitCountName));
+          this.getMetricContext().register(workUnitCountName, gauge);
+        }
+
         break;
       default:
         return null;
