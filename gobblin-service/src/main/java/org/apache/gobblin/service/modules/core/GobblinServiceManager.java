@@ -394,7 +394,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   private void ensureInjected() {
-    if (resourceHandler == null) {
+    if (v2ResourceHandler == null) {
       throw new IllegalStateException("GobblinServiceManager should be constructed through Guice dependency injection "
           + "or through a static factory method");
     }
@@ -514,7 +514,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.helixManager.get()
             .getMessagingService()
             .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
-                new ControllerUserDefinedMessageHandlerFactory(flowCatalogLocalCommit, scheduler, resourceHandler,
+                new ControllerUserDefinedMessageHandlerFactory(flowCatalogLocalCommit, scheduler, v2ResourceHandler,
                     configuration.getServiceName()));
       }
     } catch (Exception e) {
