@@ -32,8 +32,6 @@ import org.apache.avro.specific.SpecificDatumReader;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
@@ -187,12 +185,8 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
             properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
             JobEvent.WORK_UNITS_CREATED);
 
-        MetricFilter filter = new MetricFilter() {
-          @Override public boolean matches(String name, Metric metric) {
-            return name.equals(workUnitCountName);
-          }
-        };
-        SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(filter);
+        SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(
+            (name, metric) -> name.equals(workUnitCountName));
 
         // If gauge for this flow name and group exists, then value will be updated by reference. Otherwise create
         // a new gauge and save a reference to the value in the HashMap
