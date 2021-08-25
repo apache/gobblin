@@ -21,18 +21,14 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
 import java.util.Properties;
-import java.util.SortedMap;
 
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
@@ -41,11 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.event.CountEventBuilder;
-import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
@@ -72,8 +64,6 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   @Getter
   private Meter messageParseFailures;
 
-  private final HashMap<String, Long> flowNameGroupToWorkUnitCount;
-
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
       JobIssueEventHandler jobIssueEventHandler)
       throws IOException, ReflectiveOperationException {
@@ -91,8 +81,6 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
       return DecoderFactory.get().binaryDecoder(dummyInputStream, null);
     });
     this.reader = ThreadLocal.withInitial(() -> new SpecificDatumReader<>(GobblinTrackingEvent.SCHEMA$));
-
-    this.flowNameGroupToWorkUnitCount = new HashMap<>();
   }
 
   @Override
@@ -177,26 +165,6 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         break;
       case TimingEvent.JOB_COMPLETION_PERCENTAGE:
         properties.put(TimingEvent.JOB_LAST_PROGRESS_EVENT_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
-        break;
-      case JobEvent.WORK_UNITS_CREATED:
-        Long numWorkUnits = Long.parseLong(properties.getProperty(CountEventBuilder.COUNT_KEY));
-        String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-            properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
-            properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
-            JobEvent.WORK_UNITS_CREATED);
-
-        SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(
-            (name, metric) -> name.equals(workUnitCountName));
-
-        // If gauge for this flow name and group exists, then value will be updated by reference. Otherwise create
-        // a new gauge and save a reference to the value in the HashMap
-        this.flowNameGroupToWorkUnitCount.put(workUnitCountName, numWorkUnits);
-        if (existingGauges.isEmpty()) {
-          ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName,
-              () -> this.flowNameGroupToWorkUnitCount.get(workUnitCountName));
-          this.getMetricContext().register(workUnitCountName, gauge);
-        }
-
         break;
       default:
         return null;
