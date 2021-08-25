@@ -4,20 +4,21 @@
 
 # Introduction
 
-Gobblin streaming enable user to ingest data from Kafka to HDFS in streaming manner. Normally it's running on yarn, to get the full function, 
-you need have helix cluster, yarn cluster, kafka server and schema registry set up. But we also have one local mode of streaming task using EmbeddedGobblin
-for user to easily start and test out the job. Here is the steps:
+Gobblin supports streaming mode that allows continuous ingestion of data from Kafka to HDFS. The streaming mode has been deployed in production at LinkedIn as a Gobblin cluster that uses Yarn for container allocation and Helix for task coordination.
+
+Here, we describe how to set up a Kafka -> HDFS pipeline in local mode for users to easily start and test out a streaming ingestion pipeline. 
+
 
 # Setup local kafka cluster 
 
-Just follow [kafka quick start](https://kafka.apache.org/quickstart) to set up your kafka cluster, and create test topic "testEvents"
+Follow [kafka quick start](https://kafka.apache.org/quickstart) to set up your kafka cluster, and create test topic "testEvents"
 
 # Run EmbeddedGobblin to start the job
 
-We are using configuration: /gobblin-modules/gobblin-kafka-09/src/test/resources/kafkaHDFSStreaming.conf to execute the job.
+We use the configuration: /gobblin-modules/gobblin-kafka-09/src/test/resources/kafkaHDFSStreaming.conf to execute the job.
 
 To run the job, in your intellij, you can run the test in /gobblin-modules/gobblin-kafka-09/src/test/java/org/apache/gobblin/kafka/KafkaStreamingLocalTest
-by remove the line '(enabled=false)'. In order to run the test in IDE, you may need to manually delete log4j-over-slf4j jar in IDE 
+by removing the line '(enabled=false)'. In order to run the test in IDE, you may need to manually delete log4j-over-slf4j jar in IDE 
 
 Under your kafka dir, you can run following command to produce data into your kafka topic
 
