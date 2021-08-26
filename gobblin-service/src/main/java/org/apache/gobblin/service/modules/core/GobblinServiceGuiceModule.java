@@ -133,7 +133,7 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
-        .to(serviceConfig.getServiceName());
+        .to(serviceConfig.isFlowCatalogLocalCommit());
 
     binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
     binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);

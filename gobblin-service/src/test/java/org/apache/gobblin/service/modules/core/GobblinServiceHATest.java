@@ -154,6 +154,7 @@ public class GobblinServiceHATest {
     commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlJobStatusStateStoreFactory.class.getName());
     commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
     commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
+    commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT, false);
 
     Properties node1ServiceCoreProperties = new Properties();
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);
