@@ -131,4 +131,8 @@ public class GobblinYarnConfigurationKeys {
   //Container classpaths properties
   public static final String GOBBLIN_YARN_ADDITIONAL_CLASSPATHS = GOBBLIN_YARN_PREFIX + "additional.classpaths";
   public static final String GOBBLIN_YARN_CLASSPATHS = GOBBLIN_YARN_PREFIX + "classpaths";
+
+  //Config to control Heartbeat interval for Yarn AMRM client.
+  public static final String AMRM_HEARTBEAT_INTERVAL_SECS = GOBBLIN_YARN_PREFIX + "amRmHeartbeatIntervalSecs";
+  public static final Integer DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS = 15;
 }

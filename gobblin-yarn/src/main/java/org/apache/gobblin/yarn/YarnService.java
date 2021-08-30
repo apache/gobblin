@@ -221,8 +221,11 @@ public class YarnService extends AbstractIdleService {
     this.yarnConfiguration = yarnConfiguration;
     this.fs = fs;
 
+    int amRmHeartbeatIntervalMillis = Long.valueOf(TimeUnit.SECONDS.toMillis(
+        ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.AMRM_HEARTBEAT_INTERVAL_SECS,
+            GobblinYarnConfigurationKeys.DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS))).intValue();
     this.amrmClientAsync = closer.register(
-        AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
+        AMRMClientAsync.createAMRMClientAsync(amRmHeartbeatIntervalMillis, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
     this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
