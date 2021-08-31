@@ -175,7 +175,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         this.scheduledFlowSpecs.clear();
         unscheduleAllJobs();
       } catch (SchedulerException e) {
-        _log.error(String.format("Not all jobs were unscheduled", e));
+        _log.error(String.format("Not all jobs were unscheduled"), e);
         // We want to avoid duplicate flow execution, so fail loudly
         throw new RuntimeException(e);
       }
