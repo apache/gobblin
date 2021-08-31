@@ -67,6 +67,7 @@ import org.quartz.InterruptableJob;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.SchedulerException;
 import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,13 +171,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     } else {
       // Since we are going to change status to isActive=false, unschedule all flows
-      List<Spec> specs = new ArrayList<>(this.scheduledFlowSpecs.values());
-      for (Spec spec : specs) {
-        try {
-          unscheduleSpec(spec.getUri(), spec.getVersion());
-        } catch (JobException e) {
-          _log.warn(String.format("Spec with URI: %s was not unscheduled during shutdown", spec.getUri()), e);
-        }
+      try {
+        this.scheduledFlowSpecs.clear();
+        unscheduleAllJobs();
+      } catch (SchedulerException e) {
+        _log.error(String.format("Not all jobs were unscheduled", e));
+        // We want to avoid duplicate flow execution, so fail loudly
+        throw new RuntimeException(e);
       }
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
@@ -348,7 +349,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   /**
-   * Remove a flowSpec from schedule due to another leader being elected
+   * Remove a flowSpec from schedule
    * Unlike onDeleteSpec, we want to avoid deleting the flowSpec on the executor
    * and we still want to unschedule if we cannot connect to zookeeper as the current node cannot be the master
    * @param specURI
