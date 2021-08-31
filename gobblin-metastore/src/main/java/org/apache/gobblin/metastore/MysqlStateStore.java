@@ -277,16 +277,15 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         OutputStream os = compressedValues ? new GZIPOutputStream(byteArrayOs) : byteArrayOs;
         DataOutputStream dataOutput = new DataOutputStream(os)) {
 
-      int index = 0;
-      insertStatement.setString(++index, storeName);
-      insertStatement.setString(++index, tableName);
+      insertStatement.setString(1, storeName);
+      insertStatement.setString(2, tableName);
 
       for (T state : states) {
         addStateToDataOutputStream(dataOutput, state);
       }
 
       dataOutput.close();
-      insertStatement.setBlob(++index, new ByteArrayInputStream(byteArrayOs.toByteArray()));
+      insertStatement.setBlob(3, new ByteArrayInputStream(byteArrayOs.toByteArray()));
 
       insertStatement.executeUpdate();
       connection.commit();
@@ -299,9 +298,8 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   public T get(String storeName, String tableName, String stateId) throws IOException {
     try (Connection connection = dataSource.getConnection();
         PreparedStatement queryStatement = connection.prepareStatement(SELECT_JOB_STATE_SQL)) {
-      int index = 0;
-      queryStatement.setString(++index, storeName);
-      queryStatement.setString(++index, tableName);
+      queryStatement.setString(1, storeName);
+      queryStatement.setString(2, tableName);
 
       try (ResultSet rs = queryStatement.executeQuery()) {
         if (rs.next()) {
@@ -345,12 +343,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       queryStatement.setString(1, storeName);
       queryStatement.setString(2, tableName);
       execGetAllStatement(queryStatement, states);
+      return states;
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
       throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
-    return states;
   }
 
   /**
