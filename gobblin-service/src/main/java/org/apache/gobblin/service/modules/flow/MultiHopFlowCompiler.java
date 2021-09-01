@@ -190,6 +190,11 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     String destination = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
 
     DataNode sourceNode = this.flowGraph.getNode(source);
+    if (sourceNode == null) {
+      flowSpec.getCompilationErrors()
+          .add(String.format("Flowgraph does not have a node with id %s", source));
+      return null;
+    }
     List<String> destNodeIds = ConfigUtils.getStringList(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     List<DataNode> destNodes = destNodeIds.stream().map(this.flowGraph::getNode).collect(Collectors.toList());
 

@@ -671,6 +671,17 @@ public class MultiHopFlowCompilerTest {
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")
+  public void testMissingSourceNodeError() throws Exception {
+    FlowSpec spec = createFlowSpec("flow/flow5.conf", "HDFS-NULL", "HDFS-3", false, false);
+
+    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+
+    Assert.assertEquals(dag, null);
+    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
+    spec.getCompilationErrors().stream().anyMatch(s -> s.contains("Flowgraph does not have a node with id"));
+  }
+
+  @Test (dependsOnMethods = "testUnresolvedFlow")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     File remoteDir = new File(TESTDIR + "/remote");
