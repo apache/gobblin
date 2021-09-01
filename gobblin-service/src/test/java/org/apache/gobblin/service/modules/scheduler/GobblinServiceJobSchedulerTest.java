@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -226,8 +227,7 @@ public class GobblinServiceJobSchedulerTest {
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
-    FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"),
-        MockedSpecCompiler.UNCOMPILABLE_FLOW);
+    FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"));
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"));
     FlowSpec flowSpec2 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec2"));
 
@@ -239,11 +239,13 @@ public class GobblinServiceJobSchedulerTest {
     Assert.assertEquals(flowCatalog.getSpecs().size(), 3);
 
     Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
-
+    SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, null);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService );
 
+    schedulerService.startAsync().awaitRunning();
+    scheduler.startUp();
     SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
     Mockito.doAnswer((Answer<Void>) a -> {
@@ -258,8 +260,9 @@ public class GobblinServiceJobSchedulerTest {
           @Override
           public boolean apply(Void input) {
             Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
-            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
-              return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
+            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 3) {
+              return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
+                  scheduler.scheduledFlowSpecs.containsKey("spec1") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec2");
             } else {
               return false;
@@ -275,15 +278,22 @@ public class GobblinServiceJobSchedulerTest {
       // ensure that orchestrator is not calling remove
       Assert.assertFalse(invocation.getMethod().getName().equals("remove"));
     }
+
+    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
+    Assert.assertEquals(schedulerService.getScheduler().getJobGroupNames().size(), 0);
   }
 
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
     public boolean isCompilerHealthy = false;
+    private boolean hasScheduler = false;
 
     public TestGobblinServiceJobScheduler(String serviceName, Config config,
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
         SchedulerService schedulerService) throws Exception {
       super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, Optional.absent());
+      if (schedulerService != null) {
+        hasScheduler = true;
+      }
     }
 
     /**
@@ -296,6 +306,13 @@ public class GobblinServiceJobSchedulerTest {
         throw new RuntimeException("Could not compile flow");
       }
       super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+      if (hasScheduler) {
+        try {
+          scheduleJob(((FlowSpec) addedSpec).getConfigAsProperties(), null);
+        } catch (JobException e) {
+          throw new RuntimeException(e);
+        }
+      }
       // Check that compiler is healthy at time of scheduling flows
       Assert.assertTrue(isCompilerHealthy);
       return new AddSpecResponse(addedSpec.getDescription());

@@ -111,8 +111,11 @@ public class FlowCatalogTest {
   public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put("job.name", flowName);
+    properties.put("job.group", flowName);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put("job.schedule", "0 0 0 ? * * 2050");
     Config config = ConfigUtils.propertiesToConfig(properties);
 
     SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);

@@ -425,6 +425,10 @@ public class JobScheduler extends AbstractIdleService {
     }
   }
 
+  public void unscheduleAllJobs() throws SchedulerException {
+    this.scheduler.getScheduler().clear();
+  }
+
   /**
    * Run a job.
    *
