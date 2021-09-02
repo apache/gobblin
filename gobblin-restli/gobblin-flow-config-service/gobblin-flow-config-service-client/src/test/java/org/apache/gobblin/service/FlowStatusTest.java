@@ -86,6 +86,12 @@ public class FlowStatusTest {
       Collections.reverse(flowExecutionIds);
       return flowExecutionIds;
     }
+
+    @Override
+    public List<org.apache.gobblin.service.monitoring.FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup,
+        int countJobStatusesPerFlowName) {
+      return Lists.newArrayList(); // (as this method not exercised within `FlowStatusResource`)
+    }
   }
 
   @BeforeClass

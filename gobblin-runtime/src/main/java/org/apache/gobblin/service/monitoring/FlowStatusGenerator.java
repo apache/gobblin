@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
+import java.util.stream.Stream;
 import javax.inject.Inject;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -130,6 +131,27 @@ public class FlowStatusGenerator {
         jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag);
 
     return jobStatusIterator.hasNext() ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator) : null;
+  }
+
+  /**
+   * Get the flow status for executions of every flow within the flow group.
+   * @param flowGroup
+   * @param countPerFlowName (maximum) number of flow statuses per named flow in group
+   * @param tag String to filter the returned job statuses
+   * @return the latest (up to <code>countPerFlowName</code>, per flow) {@link FlowStatus}es. null is returned if there is no
+   * flow or no flow execution found.
+   * If tag is not null, the job status list only contains jobs matching the tag.
+   *
+   * NOTE: filtering by flow `executionStatus` not presently offered, until use case justified.
+   */
+  public List<FlowStatus> getFlowStatusesAcrossGroup(String flowGroup, int countPerFlowName, String tag) {
+    List<FlowStatus> flowStatuses = jobStatusRetriever.getFlowStatusesForFlowGroupExecutions(flowGroup, countPerFlowName);
+    return flowStatuses.stream().flatMap(fs -> {
+      Iterator<JobStatus> filteredJobStatuses = retainStatusOfAnyFlowOrJobMatchingTag(fs.getJobStatusIterator(), tag);
+      return filteredJobStatuses.hasNext() ?
+          Stream.of(new FlowStatus(fs.getFlowName(), fs.getFlowGroup(), fs.getFlowExecutionId(), filteredJobStatuses)) :
+          Stream.empty();
+    }).collect(Collectors.toList());
   }
 
   /**

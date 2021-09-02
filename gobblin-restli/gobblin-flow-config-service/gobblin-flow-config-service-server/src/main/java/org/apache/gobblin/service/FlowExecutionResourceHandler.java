@@ -37,6 +37,14 @@ public interface FlowExecutionResourceHandler {
   public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus);
 
   /**
+   * Get latest {@link FlowExecution} for every flow in `flowGroup`
+   *
+   * NOTE: `executionStatus` param not provided yet, without justifying use case, due to complexity of interaction with `count`
+   * and resulting efficiency concern of performing across many flows sharing the single named group.
+   */
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer count, String tag);
+
+  /**
    * Resume a failed {@link FlowExecution} from the point before failure
    */
   public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);

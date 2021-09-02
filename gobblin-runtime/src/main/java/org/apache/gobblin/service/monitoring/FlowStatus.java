@@ -23,6 +23,7 @@ import org.apache.gobblin.annotation.Alpha;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 
 /**
@@ -31,9 +32,11 @@ import lombok.Getter;
 @Alpha
 @AllArgsConstructor
 @Getter
+@ToString
 public class FlowStatus {
   private final String flowName;
   private final String flowGroup;
   private final long flowExecutionId;
+  @ToString.Exclude // (to avoid side-effecting exhaustion of `Iterator`)
   private final Iterator<JobStatus> jobStatusIterator;
 }

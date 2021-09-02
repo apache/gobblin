@@ -36,6 +36,20 @@
         "type" : "string",
         "optional" : true
       } ]
+    }, {
+      "name" : "latestFlowGroupExecutions",
+      "parameters" : [ {
+        "name" : "flowGroup",
+        "type" : "string"
+      }, {
+        "name" : "count",
+        "type" : "int",
+        "optional" : true
+      }, {
+        "name" : "tag",
+        "type" : "string",
+        "optional" : true
+      } ]
     } ],
     "entity" : {
       "path" : "/flowexecutions/{id}",

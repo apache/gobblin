@@ -53,6 +53,8 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestJobStatus");
   public static final String GET_LATEST_FLOW_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestFlowStatus");
+  public static final String GET_LATEST_FLOW_GROUP_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+      MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestFlowGroupStatus");
   public static final String GET_ALL_FLOW_STATUSES_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getAllFlowStatuses");
 
@@ -71,7 +73,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName, flowExecutionId),
         GET_LATEST_FLOW_STATUS_METRIC);
-    return getJobStatuses(jobStatusStates);
+    return asJobStatuses(jobStatusStates);
   }
 
   @Override
@@ -81,7 +83,16 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
     List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName, tableName),
         GET_LATEST_JOB_STATUS_METRIC);
-    return getJobStatuses(jobStatusStates);
+    return asJobStatuses(jobStatusStates);
+  }
+
+  @Override
+  public List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName) {
+    String storeNamePrefix = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, "");
+    // TODO: optimize as needed: returned `List<State>` may be large, since encompassing every execution of every flow (in group)!
+    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAllWithPrefix(storeNamePrefix),
+        GET_LATEST_FLOW_GROUP_STATUS_METRIC);
+    return asFlowStatuses(groupByFlowExecutionAndRetainLatest(flowGroup, jobStatusStates, countJobStatusesPerFlowName));
   }
 
   @Override
@@ -98,10 +109,6 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private Iterator<JobStatus> getJobStatuses(List<State> jobStatusStates) {
-    return jobStatusStates.stream().map(this::getJobStatus).iterator();
   }
 
   private List<Long> getLatestExecutionIds(List<State> jobStatusStates, int count) {

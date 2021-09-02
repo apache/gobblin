@@ -22,6 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import com.google.common.collect.ImmutableList;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -29,11 +31,21 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.test.matchers.service.monitoring.FlowStatusMatch;
+import org.apache.gobblin.test.matchers.service.monitoring.JobStatusMatch;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 
 public abstract class JobStatusRetrieverTest {
+
   protected static final String FLOW_GROUP = "myFlowGroup";
   protected static final String FLOW_NAME = "myFlowName";
+  protected static final String FLOW_GROUP_ALT_A = "myFlowGroup-alt-A";
+  protected static final String FLOW_GROUP_ALT_B = "myFlowGroup-alt-B";
+  protected static final String FLOW_NAME_ALT_1 = "myFlowName-alt-1";
+  protected static final String FLOW_NAME_ALT_2 = "myFlowName-alt-2";
+  protected static final String FLOW_NAME_ALT_3 = "myFlowName-alt-3";
   protected String jobGroup;
   private static final String MY_JOB_GROUP = "myJobGroup";
   protected static final String MY_JOB_NAME_1 = "myJobName1";
@@ -47,14 +59,22 @@ public abstract class JobStatusRetrieverTest {
 
   abstract void setUp() throws Exception;
 
-  protected void addJobStatusToStateStore(Long flowExecutionId, String jobName, String status) throws IOException {
-    addJobStatusToStateStore(flowExecutionId, jobName, status, 0, 0);
+  protected void addJobStatusToStateStore(long flowExecutionId, String jobName, String status) throws IOException {
+    addFlowIdJobStatusToStateStore(FLOW_GROUP, FLOW_NAME, flowExecutionId, jobName, status, 0, 0);
   }
 
-  protected void addJobStatusToStateStore(Long flowExecutionId, String jobName, String status, long startTime, long endTime) throws IOException {
+  protected void addFlowIdJobStatusToStateStore(String flowGroup, String flowName, long flowExecutionId, String jobName, String status) throws IOException {
+    addFlowIdJobStatusToStateStore(flowGroup, flowName, flowExecutionId, jobName, status, 0, 0);
+  }
+
+  protected void addJobStatusToStateStore(long flowExecutionId, String jobName, String status, long startTime, long endTime) throws IOException {
+    addFlowIdJobStatusToStateStore(FLOW_GROUP, FLOW_NAME, flowExecutionId, jobName, status, startTime, endTime);
+  }
+
+  protected void addFlowIdJobStatusToStateStore(String flowGroup, String flowName, long flowExecutionId, String jobName, String status, long startTime, long endTime) throws IOException {
     Properties properties = new Properties();
-    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, FLOW_GROUP);
-    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, FLOW_NAME);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     if (!jobName.equals(JobStatusRetriever.NA_KEY)) {
@@ -196,6 +216,59 @@ public abstract class JobStatusRetrieverTest {
     cleanUpDir();
     Assert.assertEquals(this.jobStatusRetriever.getLatestExecutionIdsForFlow(FLOW_NAME, FLOW_GROUP, 1).size(), 0);
     Assert.assertEquals(this.jobStatusRetriever.getLatestExecutionIdForFlow(FLOW_NAME, FLOW_GROUP), -1L);
+  }
+
+  @Test
+  public void testGetFlowStatusesForFlowGroupExecutions() throws IOException {
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
+
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_1, 111L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_2, 121L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_2, 122L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 131L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 132L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 133L, JobStatusRetriever.NA_KEY, ExecutionStatus.PENDING_RESUME.name());
+
+
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
+
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 231L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 231L, MY_JOB_NAME_1, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 231L, MY_JOB_NAME_2, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 232L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 233L, JobStatusRetriever.NA_KEY, ExecutionStatus.ORCHESTRATED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 233L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 233L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
+
+    List<FlowStatus> flowStatusesForGroupAltA = this.jobStatusRetriever.getFlowStatusesForFlowGroupExecutions(FLOW_GROUP_ALT_A, 2);
+    Assert.assertEquals(flowStatusesForGroupAltA.size(), 2 + 1 + 2 + 2);
+
+    assertThat(flowStatusesForGroupAltA.get(0), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, ExecutionStatus.RUNNING));
+    assertThat(flowStatusesForGroupAltA.get(1), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, ExecutionStatus.COMPILED));
+
+    assertThat(flowStatusesForGroupAltA.get(2), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_1, 111L, ExecutionStatus.COMPILED));
+
+    assertThat(flowStatusesForGroupAltA.get(3), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_2, 122L, ExecutionStatus.COMPILED));
+    assertThat(flowStatusesForGroupAltA.get(4), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_2, 121L, ExecutionStatus.COMPLETE));
+
+    assertThat(flowStatusesForGroupAltA.get(5), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 133L, ExecutionStatus.PENDING_RESUME));
+    assertThat(flowStatusesForGroupAltA.get(6), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 132L, ExecutionStatus.COMPLETE));
+
+
+    List<FlowStatus> flowStatusesForGroupAltB = this.jobStatusRetriever.getFlowStatusesForFlowGroupExecutions(FLOW_GROUP_ALT_B, 1);
+    Assert.assertEquals(flowStatusesForGroupAltB.size(), 1 + 1);
+
+    assertThat(flowStatusesForGroupAltB.get(0), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, ExecutionStatus.FAILED,
+        ImmutableList.of(JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.ORCHESTRATED.name()))));
+
+    assertThat(flowStatusesForGroupAltB.get(1), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_3, 233L, ExecutionStatus.ORCHESTRATED,
+        ImmutableList.of(
+            JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_1, 1111L, ExecutionStatus.COMPLETE.name()),
+            JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.ORCHESTRATED.name()))));
   }
 
   abstract void cleanUpDir() throws Exception;

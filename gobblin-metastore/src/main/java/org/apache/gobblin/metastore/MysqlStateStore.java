@@ -76,6 +76,13 @@ import org.apache.gobblin.util.io.StreamUtils;
  **/
 public class MysqlStateStore<T extends State> implements StateStore<T> {
 
+  /** Specifies which 'Job State' query columns receive search evaluation (with SQL `LIKE` operator). */
+  protected enum JobStateSearchColumns {
+    NONE,
+    TABLE_NAME_ONLY,
+    STORE_NAME_AND_TABLE_NAME;
+  }
+
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
   protected final DataSource dataSource;
@@ -90,6 +97,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   private static final String SELECT_JOB_STATE_WITH_LIKE_TEMPLATE =
       "SELECT state FROM $TABLE$ WHERE store_name = ? and table_name like ?";
+
+  private static final String SELECT_JOB_STATE_WITH_BOTH_LIKES_TEMPLATE =
+      "SELECT state FROM $TABLE$ WHERE store_name like ? and table_name like ?";
 
   private static final String SELECT_ALL_JOBS_STATE = "SELECT state FROM $TABLE$";
 
@@ -128,6 +138,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String SELECT_JOB_STATE_SQL;
   private final String SELECT_ALL_JOBS_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
+  private final String SELECT_JOB_STATE_WITH_BOTH_LIKES_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
   private final String SELECT_JOB_STATE_NAMES_SQL;
   private final String DELETE_JOB_STORE_SQL;
@@ -153,6 +164,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_JOB_STATE_WITH_BOTH_LIKES_SQL = SELECT_JOB_STATE_WITH_BOTH_LIKES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_ALL_JOBS_STATE_SQL = SELECT_ALL_JOBS_STATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -334,12 +346,16 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     return null;
   }
 
-  protected List<T> getAll(String storeName, String tableName, boolean useLike) throws IOException {
+  protected List<T> getAll(String storeName, String tableName, JobStateSearchColumns searchColumns) throws IOException {
     List<T> states = Lists.newArrayList();
 
     try (Connection connection = dataSource.getConnection();
-        PreparedStatement queryStatement = connection.prepareStatement(useLike ?
-            SELECT_JOB_STATE_WITH_LIKE_SQL : SELECT_JOB_STATE_SQL)) {
+        PreparedStatement queryStatement = connection.prepareStatement(
+            searchColumns == JobStateSearchColumns.TABLE_NAME_ONLY ?
+                SELECT_JOB_STATE_WITH_LIKE_SQL :
+                searchColumns == JobStateSearchColumns.STORE_NAME_AND_TABLE_NAME ?
+                    SELECT_JOB_STATE_WITH_BOTH_LIKES_SQL :
+                    SELECT_JOB_STATE_SQL)) {
       queryStatement.setString(1, storeName);
       queryStatement.setString(2, tableName);
       execGetAllStatement(queryStatement, states);
@@ -371,12 +387,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   @Override
   public List<T> getAll(String storeName, String tableName) throws IOException {
-    return getAll(storeName, tableName, false);
+    return getAll(storeName, tableName, JobStateSearchColumns.NONE);
   }
 
   @Override
   public List<T> getAll(String storeName) throws IOException {
-    return getAll(storeName, "%", true);
+    return getAll(storeName, "%", JobStateSearchColumns.TABLE_NAME_ONLY);
   }
 
   /**

@@ -68,7 +68,17 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
    * @throws IOException in case of failures
    */
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
-    return getAll(storeName, flowExecutionId + "%", true);
+    return getAll(storeName, flowExecutionId + "%", JobStateSearchColumns.TABLE_NAME_ONLY);
+  }
+
+  /**
+   * Returns all the job statuses for a flow group (across all flows)
+   * @param storeNamePrefix initial substring (flow group portion) for store name in the state store
+   * @return list of states
+   * @throws IOException in case of failures
+   */
+  public List<T> getAllWithPrefix(String storeNamePrefix) throws IOException {
+    return getAll(storeNamePrefix + "%", "%", JobStateSearchColumns.STORE_NAME_AND_TABLE_NAME);
   }
 
   @Override
