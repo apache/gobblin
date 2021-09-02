@@ -276,7 +276,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
             props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     if (!Strings.isNullOrEmpty(schemaString)) {
       Schema avroSchema =
-          new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+          new Schema.Parser().parse(schemaString);
       TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(avroSchema);
       schema = TypeInfoUtils.getTypeInfoFromObjectInspector(
           TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
