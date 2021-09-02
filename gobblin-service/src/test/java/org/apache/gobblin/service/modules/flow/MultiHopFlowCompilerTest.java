@@ -665,7 +665,7 @@ public class MultiHopFlowCompilerTest {
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    Assert.assertEquals(dag, null);
+    Assert.assertNull(dag);
     Assert.assertEquals(spec.getCompilationErrors().size(), 2);
     spec.getCompilationErrors().stream().anyMatch(s -> s.contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
@@ -687,12 +687,12 @@ public class MultiHopFlowCompilerTest {
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    Assert.assertEquals(dag, null);
+    Assert.assertNull(dag);
     Assert.assertEquals(spec.getCompilationErrors().size(), 1);
     spec.getCompilationErrors().stream().anyMatch(s -> s.contains("Flowgraph does not have a node with id"));
   }
 
-  @Test (dependsOnMethods = "testUnresolvedFlow")
+  @Test (dependsOnMethods = "testMissingDestinationNodeError")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     File remoteDir = new File(TESTDIR + "/remote");
