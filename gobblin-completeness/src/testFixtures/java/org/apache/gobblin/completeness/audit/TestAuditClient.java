@@ -15,16 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.gobblin.configuration.State;
 
-/**
- * A factory class responsible for creating {@link AuditCountClient}
- * @Deprecated {@link org.apache.gobblin.completeness.audit.AuditCountClientFactory}
- */
-@Deprecated
-public interface AuditCountClientFactory {
-  String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
-  AuditCountClient createAuditCountClient (State state);
+
+public class TestAuditClient implements AuditCountClient {
+  Map<String, Long> tierCounts;
+
+  public TestAuditClient(State state) {
+    tierCounts = new HashMap<>();
+  }
+
+  public void setTierCounts(Map<String, Long> tierCounts) {
+    this.tierCounts = tierCounts;
+  }
+
+  @Override
+  public Map<String, Long> fetch(String topic, long start, long end) {
+    return tierCounts;
+  }
 }

@@ -22,8 +22,10 @@ import org.apache.gobblin.configuration.State;
 
 /**
  * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
+ * @Deprecated {@link org.apache.gobblin.completeness.audit.KafkaAuditCountHttpClientFactory}
  */
 @Alias("KafkaAuditCountHttpClientFactory")
+@Deprecated
 public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
 
   public KafkaAuditCountHttpClient createAuditCountClient (State state)  {

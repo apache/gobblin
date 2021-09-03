@@ -18,6 +18,11 @@
 package org.apache.gobblin.iceberg.writer;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -39,6 +45,7 @@ import java.util.stream.Stream;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -64,11 +71,13 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.hive.HiveCatalogs;
+import org.apache.iceberg.types.Types;
 import org.joda.time.DateTime;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -85,6 +94,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.completeness.verifier.KafkaAuditCountVerifier;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
@@ -148,6 +158,28 @@ public class IcebergMetadataWriter implements MetadataWriter {
   /* one of the fields in DataFile entry to describe the location URI of a data file with FS Scheme */
   private static final String ICEBERG_FILE_PATH_COLUMN = DataFile.FILE_PATH.name();
 
+  public static final String ICEBERG_COMPLETENESS_ENABLED = "iceberg.completeness.enabled";
+  private static final boolean DEFAULT_ICEBERG_COMPLETENESS = false;
+  private final boolean completenessEnabled;
+  public static final String ICEBERG_COMPLETENESS_WHITELIST = "iceberg.completeness.whitelist";
+  public static final String ICEBERG_COMPLETENESS_BLACKLIST = "iceberg.completeness.blacklist";
+  private final WhitelistBlacklist completenessWhitelistBlacklist;
+  public static final String COMPLETION_WATERMARK_KEY = "completion.watermark";
+  public static final String COMPLETION_WATERMARK_TIMEZONE_KEY = "completion.watermark.timezone";
+  public static final long DEFAULT_COMPLETION_WATERMARK = -1L;
+  public static final String TIME_ZONE_KEY = "iceberg.completeness.timezone";
+  private static final String DEFAULT_TIME_ZONE = "America/Los_Angeles";
+  private final String timeZone;
+  private static final String DATEPARTITION_FORMAT = "yyyy-MM-dd-HH";
+  private final DateTimeFormatter HOURLY_DATEPARTITION_FORMAT;
+  public static final String NEW_PARTITION_KEY = "iceberg.completeness.add.partition";
+  public static final String DEFAULT_NEW_PARTITION = "late";
+  private final String newPartitionColumn;
+  public static final String NEW_PARTITION_TYPE_KEY = "iceberg.completeness.add.partition.type";
+  public static final String DEFAULT_PARTITION_COLUMN_TYPE = "string";
+  private final String newPartitionColumnType;
+  private Optional<KafkaAuditCountVerifier> auditCountVerifier;
+
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
   private final WhitelistBlacklist whitelistBlacklist;
@@ -198,6 +230,20 @@ public class IcebergMetadataWriter implements MetadataWriter {
           HadoopUtils.deserializeFsPermission(state, ICEBERG_METADATA_FILE_PERMISSION,
               FsPermission.getDefault());
     }
+    this.completenessEnabled = state.getPropAsBoolean(ICEBERG_COMPLETENESS_ENABLED, DEFAULT_ICEBERG_COMPLETENESS);
+    this.completenessWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_COMPLETENESS_WHITELIST, ""),
+        state.getProp(ICEBERG_COMPLETENESS_BLACKLIST, ""));
+    this.timeZone = state.getProp(TIME_ZONE_KEY, DEFAULT_TIME_ZONE);
+    this.HOURLY_DATEPARTITION_FORMAT = DateTimeFormatter.ofPattern(DATEPARTITION_FORMAT)
+        .withZone(ZoneId.of(this.timeZone));
+    this.auditCountVerifier = Optional.fromNullable(this.completenessEnabled ? new KafkaAuditCountVerifier(state) : null);
+    this.newPartitionColumn = state.getProp(NEW_PARTITION_KEY, DEFAULT_NEW_PARTITION);
+    this.newPartitionColumnType = state.getProp(NEW_PARTITION_TYPE_KEY, DEFAULT_NEW_PARTITION);
+  }
+
+  @VisibleForTesting
+  protected void setAuditCountVerifier(KafkaAuditCountVerifier verifier) {
+    this.auditCountVerifier = Optional.of(verifier);
   }
 
   protected void initializeCatalog() {
@@ -243,6 +289,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * The write method will be responsible for processing gmce and aggregating the metadata.
    * The logic of this function will be:
    * 1. Check whether a table exists, if not then create a iceberg table
+   *    - If completeness is enabled, Add new parititon column to
+   *      table {#NEW_PARTITION_KEY}
    * 2. Compute schema from the gmce and update the cache for candidate schemas
    * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile, dropFile or change_property.
    *
@@ -265,6 +313,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
           return;
         }
         table = createTable(gmce, tableSpec);
+        if(tableMetadata.completenessEnabled) {
+          table = addPartitionToIcebergTable(table, newPartitionColumn, newPartitionColumnType);
+        }
         tableMetadata.table = Optional.of(table);
       } catch (Exception e1) {
         log.error("skip processing {} for table {}.{} due to error when creating table", gmce.toString(),
@@ -422,6 +473,21 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  /**
+   * Add a partition column to the schema and partition spec
+   * @param table incoming iceberg table
+   * @param fieldName name of partition column
+   * @param type datatype of partition column
+   * @return table with updated schema and partition spec
+   */
+  private Table addPartitionToIcebergTable(Table table, String fieldName, String type) {
+    if(!table.schema().columns().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
+      table.updateSchema().addColumn(fieldName, Types.fromPrimitiveString(type)).commit();
+      table.updateSpec().addField(fieldName).commit();
+    }
+    return table;
+  }
+
   protected Table createTable(GobblinMetadataChangeEvent gmce, HiveSpec spec) throws IOException {
     String schema = gmce.getTableSchema();
     org.apache.hadoop.hive.metastore.api.Table table = HiveMetaStoreUtils.getTable(spec.getTable());
@@ -572,7 +638,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table,
       Map<String, Collection<HiveSpec>> newSpecsMap,
       TableMetadata tableMetadata) {
-    return getIcebergDataFilesToBeAdded(gmce.getNewFiles(), table.spec(), newSpecsMap,
+    return getIcebergDataFilesToBeAdded(table, tableMetadata, gmce, gmce.getNewFiles(), table.spec(), newSpecsMap,
         IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
         .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null);
   }
@@ -616,22 +682,74 @@ public class IcebergMetadataWriter implements MetadataWriter {
   /**
    * Method to get dataFiles with metrics information
    * This method is used to get files to be added to iceberg
+   * if completeness is enabled a new field (late) is added to table schema and partition spec
+   * computed based on datepartition and completion watermark
    * This method will call method {IcebergUtils.getIcebergDataFileWithMetric} to get DataFile for specific file path
    */
-  private Set<DataFile> getIcebergDataFilesToBeAdded(List<org.apache.gobblin.metadata.DataFile> files,
+  private Set<DataFile> getIcebergDataFilesToBeAdded(Table table, TableMetadata tableMetadata, GobblinMetadataChangeEvent gmce, List<org.apache.gobblin.metadata.DataFile> files,
       PartitionSpec partitionSpec, Map<String, Collection<HiveSpec>> newSpecsMap, Map<Integer, Integer> schemaIdMap) {
     Set<DataFile> dataFiles = new HashSet<>();
     for (org.apache.gobblin.metadata.DataFile file : files) {
       try {
-        StructLike partition = getIcebergPartitionVal(newSpecsMap.get(new Path(file.getFilePath()).getParent().toString()),
-            file.getFilePath(), partitionSpec);
-        dataFiles.add(IcebergUtils.getIcebergDataFileWithMetric(file, partitionSpec, partition, conf, schemaIdMap));
+        Collection<HiveSpec> hiveSpecs = newSpecsMap.get(new Path(file.getFilePath()).getParent().toString());
+        StructLike partition = getIcebergPartitionVal(hiveSpecs, file.getFilePath(), partitionSpec);
+
+        if(tableMetadata.completenessEnabled && gmce.getOperationType() == OperationType.add_files) {
+          // Assumes first partition value to be partitioned by date
+          // TODO Find better way to determine a partition value
+          String datepartition = partition.get(0, null);
+          partition = addLatePartitionValueToIcebergTable(table, tableMetadata,
+              hiveSpecs.iterator().next().getPartition().get(), datepartition);
+          tableMetadata.datePartitions.add(getEpochMillisFromDatepartitionString(datepartition));
+        }
+        dataFiles.add(IcebergUtils.getIcebergDataFileWithMetric(file, table.spec(), partition, conf, schemaIdMap));
       } catch (Exception e) {
         log.warn("Cannot get DataFile for {} dur to {}", file.getFilePath(), e);
       }
     }
     return dataFiles;
   }
+
+  /**
+   * 1. Add "late" partition column to iceberg table if not exists
+   * 2. compute "late" partition value based on datepartition and completion watermark
+   * @param table
+   * @param tableMetadata
+   * @param hivePartition
+   * @param datepartition
+   * @return new iceberg partition value for file
+   */
+  private StructLike addLatePartitionValueToIcebergTable(Table table, TableMetadata tableMetadata, HivePartition hivePartition, String datepartition) {
+    table = addPartitionToIcebergTable(table, newPartitionColumn, newPartitionColumnType);
+    table.refresh();
+    PartitionSpec partitionSpec = table.spec();
+    long prevCompletenessWatermark = tableMetadata.prevCompletenessWatermark;
+    int late = isLate(datepartition, prevCompletenessWatermark);
+    List<String> partitionValues = new ArrayList<>(hivePartition.getValues());
+    partitionValues.add(String.valueOf(late));
+    return IcebergUtils.getPartition(partitionSpec.partitionType(), partitionValues);
+  }
+
+  private int isLate(String datepartition, long previousWatermark) {
+    ZonedDateTime partitionDateTime = ZonedDateTime.parse(datepartition, HOURLY_DATEPARTITION_FORMAT);
+    long partitionEpochTime = partitionDateTime.toInstant().toEpochMilli();
+    if(partitionEpochTime > previousWatermark) {
+      return 0;
+    } else if(partitionEpochTime <= previousWatermark && partitionDateTime.toLocalDate().equals(getDateFromEpochMillis(previousWatermark))) {
+      return 1;
+    } else {
+      return 2;
+    }
+  }
+
+  private LocalDate getDateFromEpochMillis(long epochMillis) {
+    return ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.of(timeZone)).toLocalDate();
+  }
+
+  private long getEpochMillisFromDatepartitionString(String datepartition) {
+    return ZonedDateTime.parse(datepartition, HOURLY_DATEPARTITION_FORMAT).toInstant().toEpochMilli();
+  }
+
 
   /**
    * Obtain Iceberg partition value with a collection of {@link HiveSpec}.
@@ -671,14 +789,23 @@ public class IcebergMetadataWriter implements MetadataWriter {
       TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata());
       if (tableMetadata.transaction.isPresent()) {
         Transaction transaction = tableMetadata.transaction.get();
+        Map<String, String> props = tableMetadata.newProperties.or(
+            Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties())));
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
+          if(tableMetadata.completenessEnabled) {
+            long newCompletenessWatermark =
+                computeCompletenessWatermark(tableName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
+            if(newCompletenessWatermark != tableMetadata.prevCompletenessWatermark) {
+              props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
+              props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
+              tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
+            }
+          }
         }
         if (tableMetadata.deleteFiles.isPresent()) {
           tableMetadata.deleteFiles.get().commit();
         }
-        Map<String, String> props = tableMetadata.newProperties.or(
-            Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties())));
         //Set high waterMark
         Long highWatermark = tableCurrentWatermarkMap.get(tid);
         props.put(String.format(GMCE_HIGH_WATERMARK_KEY, tableTopicPartitionMap.get(tid)), highWatermark.toString());
@@ -717,7 +844,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
 
         //Reset the table metadata for next accumulation period
-        tableMetadata.reset(currentProps, highWatermark);
+        tableMetadata.reset(currentProps, highWatermark, tableMetadata.newCompletenessWatermark);
         log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid.toString()));
       } else {
         log.info("There's no transaction initiated for the table {}", tid.toString());
@@ -729,6 +856,33 @@ public class IcebergMetadataWriter implements MetadataWriter {
     } finally {
       writeLock.unlock();
     }
+  }
+
+  /**
+   * For a sorted collection of timestamps greater than an existitng watermark, check audit counts for completeness between
+   * a source and reference tier with a granularit if 1 hour
+   * If the audit count matches update the watermark to the timestamp
+   * @param table
+   * @param timestamps
+   * @param previousWatermark
+   * @return updated completion watermark
+   */
+  private long computeCompletenessWatermark(String table, Collection<Long> timestamps, long previousWatermark) {
+    long completionWatermark = previousWatermark;
+    try {
+      for(long timestamp : timestamps) {
+        if (timestamp > previousWatermark) {
+          if(auditCountVerifier.get().isComplete(table, timestamp, timestamp + TimeUnit.HOURS.toMillis(1))) {
+            completionWatermark = timestamp;
+          }
+        } else {
+          break;
+        }
+      }
+    } catch (IOException e) {
+      log.error(ExceptionUtils.getFullStackTrace(e));
+    }
+    return completionWatermark;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
@@ -840,6 +994,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
                 Optional.of(currentOffset - 1);
           }
           tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
+          if(this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
+            tableMetadataMap.get(tid).setCompletenessEnabled(true);
+          }
+
           write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
           tableCurrentWatermarkMap.put(tid, currentOffset);
         } else {
@@ -885,9 +1043,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<Map<String, List<Range>>> dataOffsetRange = Optional.absent();
     Optional<String> lastSchemaVersion = Optional.absent();
     Optional<Long> lowWatermark = Optional.absent();
+    long prevCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
+    long newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
+    Set<Long> datePartitions = new TreeSet<>();
 
     @Setter
     String datasetName;
+    @Setter
+    boolean completenessEnabled;
 
     Cache<CharSequence, String> addedFiles = CacheBuilder.newBuilder()
         .expireAfterAccess(conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
@@ -926,7 +1089,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       }
     }
 
-    void reset(Map<String, String> props, Long lowWaterMark) {
+    void reset(Map<String, String> props, Long lowWaterMark, long newCompletionWatermark) {
       this.lastProperties = Optional.of(props);
       this.lastSchemaVersion = Optional.of(props.get(SCHEMA_CREATION_TIME_KEY));
       this.transaction = Optional.absent();
@@ -943,6 +1106,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
       this.newProperties = Optional.absent();
       this.lowestGMCEEmittedTime = Long.MAX_VALUE;
       this.lowWatermark = Optional.of(lowWaterMark);
+      this.prevCompletenessWatermark = newCompletionWatermark;
+      this.newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
     }
   }
 }

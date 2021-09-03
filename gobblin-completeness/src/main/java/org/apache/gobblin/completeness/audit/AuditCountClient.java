@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
-import org.apache.gobblin.configuration.State;
+import java.io.IOException;
+import java.util.Map;
+
 
 /**
- * A factory class responsible for creating {@link AuditCountClient}
- * @Deprecated {@link org.apache.gobblin.completeness.audit.AuditCountClientFactory}
+ * A type of client used to query the audit counts from Pinot backend
  */
-@Deprecated
-public interface AuditCountClientFactory {
-  String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
-  AuditCountClient createAuditCountClient (State state);
+public interface AuditCountClient {
+  Map<String, Long> fetch(String topic, long start, long end) throws IOException;
 }

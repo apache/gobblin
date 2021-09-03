@@ -15,16 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.State;
 
+
 /**
- * A factory class responsible for creating {@link AuditCountClient}
- * @Deprecated {@link org.apache.gobblin.completeness.audit.AuditCountClientFactory}
+ * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
  */
-@Deprecated
-public interface AuditCountClientFactory {
-  String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
-  AuditCountClient createAuditCountClient (State state);
+@Alias("KafkaAuditCountHttpClientFactory")
+public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
+
+  public KafkaAuditCountHttpClient createAuditCountClient (State state)  {
+    return new KafkaAuditCountHttpClient(state);
+  }
 }

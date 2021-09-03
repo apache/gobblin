@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
@@ -29,26 +30,35 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveMetastoreTest;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
+import org.apache.gobblin.completeness.audit.AuditCountClient;
+import org.apache.gobblin.completeness.audit.AuditCountClientFactory;
+import org.apache.gobblin.completeness.audit.TestAuditClientFactory;
+import org.apache.gobblin.completeness.verifier.KafkaAuditCountVerifier;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.metadata.DataFile;
@@ -67,7 +77,6 @@ import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
 
-
 public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
   org.apache.avro.Schema avroDataSchema = SchemaBuilder.record("test")
@@ -85,6 +94,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   private String dbName = "hivedb";
 
   private GobblinMCEWriter gobblinMCEWriter;
+  private GobblinMCEWriter gobblinMCEWriterWithCompletness;
   private GobblinMCEWriter gobblinMCEWriterWithAcceptClusters;
 
   GobblinMetadataChangeEvent gmce;
@@ -104,7 +114,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   public void setUp() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
     startMetastore();
-    State state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
+
     tmpDir = Files.createTempDir();
     hourlyDataFile_1 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/08/data.avro");
     Files.createParentDirs(hourlyDataFile_1);
@@ -138,18 +148,43 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         .setRegistrationPolicy(TestHiveRegistrationPolicyForIceberg.class.getName())
         .setRegistrationProperties(ImmutableMap.<String, String>builder().put("hive.database.name", dbName).build())
         .build();
+
+    State state = getState();
+    gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
+    ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
+        HiveMetastoreTest.catalog);
+
+    State stateWithCompletenessConfig = getStateWithCompletenessConfig();
+    gobblinMCEWriterWithCompletness = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), stateWithCompletenessConfig);
+    ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.getMetadataWriters().iterator().next()).setCatalog(
+        HiveMetastoreTest.catalog);
+
+    state.setProp(GobblinMCEWriter.ACCEPTED_CLUSTER_NAMES, "randomCluster");
+    gobblinMCEWriterWithAcceptClusters = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
+
+    _avroPartitionSchema =
+        SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
+  }
+
+  private State getState() {
+    State state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
     state.setProp(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS,
         KafkaStreamTestUtils.MockSchemaRegistry.class.getName());
     state.setProp("default.hive.registration.policy",
         TestHiveRegistrationPolicyForIceberg.class.getName());
     state.setProp("use.data.path.as.table.location", true);
-    gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
-    state.setProp(GobblinMCEWriter.ACCEPTED_CLUSTER_NAMES, "randomCluster");
-    gobblinMCEWriterWithAcceptClusters = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
-    ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
-        HiveMetastoreTest.catalog);
-    _avroPartitionSchema =
-        SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
+    return state;
+  }
+
+  private State getStateWithCompletenessConfig() {
+    State state = getState();
+    state.setProp(IcebergMetadataWriter.ICEBERG_COMPLETENESS_ENABLED, true);
+    state.setProp(IcebergMetadataWriter.NEW_PARTITION_KEY, "late");
+    state.setProp(IcebergMetadataWriter.NEW_PARTITION_TYPE_KEY, "int");
+    state.setProp(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY, TestAuditClientFactory.class.getName());
+    state.setProp(KafkaAuditCountVerifier.SOURCE_TIER, "gobblin");
+    state.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, "producer");
+    return state;
   }
 
   @Test ( priority = 0 )
@@ -240,7 +275,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath_1)).collect().iterator();
     Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
     Assert.assertTrue(result.hasNext());
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(40L))));
@@ -273,7 +309,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gmce.setNewFiles(Lists.newArrayList(dailyFile));
     gmce.setOperationType(OperationType.change_property);
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "2000-4000").build());
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+    GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(45L))));
@@ -285,6 +322,96 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Assert low watermark and high watermark set properly
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "40");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "45");
+  }
+
+  @Test ( priority = 3 )
+  public void testWriteAddFileGMCECompleteness() throws IOException {
+    // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
+    // without risking running into type cast runtime error.
+    gmce.setOperationType(OperationType.add_files);
+    File hourlyFile = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/10/data.avro");
+    long timestampMillis = 1584464400000L;
+    Files.createParentDirs(hourlyFile);
+    writeRecord(hourlyFile);
+    gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
+        .setFilePath(hourlyFile.toString())
+        .setFileFormat("avro")
+        .setFileMetrics(DataMetrics.newBuilder().setRecordCount(10L).build())
+        .build()));
+    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "3000-4000").build());
+    GenericRecord genericGmce_3000_4000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriterWithCompletness.writeEnvelope(new RecordEnvelope<>(genericGmce_3000_4000,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(50L))));
+    Assert.assertTrue(catalog != null);
+    System.out.println(catalog.listTables(Namespace.of(dbName)));
+    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-4000");
+    Assert.assertTrue(table.spec().fields().size() == 2);
+    Assert.assertEquals(table.spec().fields().get(1).name(), "late");
+
+    // Test when completeness watermark < "2020-03-17-10"
+    KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
+    Mockito.when(verifier.isComplete("testIcebergTable", timestampMillis, timestampMillis + TimeUnit.HOURS.toMillis(1))).thenReturn(true);
+    ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
+    gobblinMCEWriterWithCompletness.flush();
+    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    //completeness watermark = "2020-03-17-10"
+    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+
+    Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
+    Assert.assertTrue(dfl.hasNext());
+
+    // Test when completeness watermark is still "2020-03-17-10" but have a late file for "2020-03-17-10"
+    File hourlyFile1 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/10/data1.avro");
+    Files.createParentDirs(hourlyFile1);
+    writeRecord(hourlyFile1);
+    gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
+        .setFilePath(hourlyFile1.toString())
+        .setFileFormat("avro")
+        .setFileMetrics(DataMetrics.newBuilder().setRecordCount(10L).build())
+        .build()));
+    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "4000-5000").build());
+    GenericRecord genericGmce_4000_5000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriterWithCompletness.writeEnvelope(new RecordEnvelope<>(genericGmce_4000_5000,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(55L))));
+    gobblinMCEWriterWithCompletness.flush();
+    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+
+    dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile1.getAbsolutePath())).collect().iterator();
+    Assert.assertTrue(dfl.hasNext());
+    Assert.assertTrue(dfl.next().partition().get(1, Integer.class) == 1);
+
+    // Test when completeness watermark will advance to "2020-03-17-11"
+    File hourlyFile2 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/11/data.avro");
+    long timestampMillis1 = timestampMillis + TimeUnit.HOURS.toMillis(1);
+    Files.createParentDirs(hourlyFile2);
+    writeRecord(hourlyFile2);
+    gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
+        .setFilePath(hourlyFile2.toString())
+        .setFileFormat("avro")
+        .setFileMetrics(DataMetrics.newBuilder().setRecordCount(10L).build())
+        .build()));
+    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "5000-6000").build());
+    GenericRecord genericGmce_5000_6000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriterWithCompletness.writeEnvelope(new RecordEnvelope<>(genericGmce_5000_6000,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(60L))));
+
+    Mockito.when(verifier.isComplete("testIcebergTable", timestampMillis1, timestampMillis1 + TimeUnit.HOURS.toMillis(1))).thenReturn(true);
+    gobblinMCEWriterWithCompletness.flush();
+    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
+
+    dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile2.getAbsolutePath())).collect().iterator();
+    Assert.assertTrue(dfl.hasNext());
+    Assert.assertTrue(dfl.next().partition().get(1, Integer.class) == 0);
+
   }
 
   private String writeRecord(File file) throws IOException {
@@ -311,17 +438,44 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         partitionValue = "2020-03-17-08";
       } else if (path.toString().contains("hourly/2020/03/17/09")) {
         partitionValue = "2020-03-17-09";
+      } else if (path.toString().contains("hourly/2020/03/17/10")) {
+        partitionValue = "2020-03-17-10";
+      }  else if (path.toString().contains("hourly/2020/03/17/11")) {
+        partitionValue = "2020-03-17-11";
+      } else if (path.toString().contains("hourly/2020/03/17/12")) {
+        partitionValue = "2020-03-17-12";
       } else if (path.toString().contains("daily/2020/03/17")) {
         partitionValue = "2020-03-17-00";
       }
       return Optional.of(new HivePartition.Builder().withPartitionValues(Lists.newArrayList(partitionValue))
           .withDbName("hivedb").withTableName("testIcebergTable").build());
     }
+    @Override
+    protected List<HiveTable> getTables(Path path) throws IOException {
+      List<HiveTable> tables = super.getTables(path);
+      for (HiveTable table : tables) {
+        table.setPartitionKeys(ImmutableList.<HiveRegistrationUnit.Column>of(
+            new HiveRegistrationUnit.Column("datepartition", serdeConstants.STRING_TYPE_NAME, StringUtils.EMPTY)));
+        //table.setLocation(tmpDir.getAbsolutePath());
+      }
+      return tables;
+    }
     protected Iterable<String> getDatabaseNames(Path path) {
       return Lists.newArrayList("hivedb");
     }
     protected List<String> getTableNames(Optional<String> dbPrefix, Path path) {
       return Lists.newArrayList("testIcebergTable");
+    }
+  }
+
+  static class TestAuditCountVerifier extends KafkaAuditCountVerifier {
+
+    public TestAuditCountVerifier(State state) {
+      super(state);
+    }
+
+    public TestAuditCountVerifier(State state, AuditCountClient client) {
+      super(state, client);
     }
   }
 }

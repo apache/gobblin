@@ -15,16 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+apply plugin: 'java'
+apply plugin: 'java-test-fixtures'
 
-import org.apache.gobblin.configuration.State;
+dependencies {
+  compile project(":gobblin-api")
+  compile externalDependency.httpclient
 
-/**
- * A factory class responsible for creating {@link AuditCountClient}
- * @Deprecated {@link org.apache.gobblin.completeness.audit.AuditCountClientFactory}
- */
-@Deprecated
-public interface AuditCountClientFactory {
-  String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
-  AuditCountClient createAuditCountClient (State state);
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
+
 }
+
+configurations {
+  compile { transitive = true }
+}
+
+ext.classification="library"

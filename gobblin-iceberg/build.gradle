@@ -19,6 +19,7 @@ apply plugin: 'java'
 
 dependencies {
     compile project(":gobblin-api")
+    compile project(":gobblin-completeness")
     compile project(":gobblin-core")
     compile project(":gobblin-hive-registration")
     compile project(":gobblin-metrics-libs:gobblin-metrics")
@@ -47,9 +48,11 @@ dependencies {
     compile externalDependency.findBugsAnnotations
     compile externalDependency.avroMapredH2
 
-    testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '0.10.0', classifier: 'tests') {
+    testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '0.11.1', classifier: 'tests') {
         transitive = false
     }
+    testCompile('org.apache.hadoop:hadoop-common:2.6.0')
+    testImplementation(testFixtures(project(":gobblin-completeness")))
     testCompile project(path: ':gobblin-modules:gobblin-kafka-common', configuration: 'tests')
     testCompile externalDependency.testng
     testCompile externalDependency.mockito

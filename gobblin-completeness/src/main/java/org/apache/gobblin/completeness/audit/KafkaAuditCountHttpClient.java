@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
 import java.io.IOException;
 import java.util.Map;
@@ -42,14 +42,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 
+
 /**
  * A {@link AuditCountClient} which uses {@link org.apache.http.client.HttpClient}
  * to perform audit count query.
- * @Deprecated {@link org.apache.gobblin.completeness.audit.KafkaAuditCountHttpClient}
  */
 @Slf4j
 @ThreadSafe
-@Deprecated
 public class KafkaAuditCountHttpClient implements AuditCountClient {
 
   // Keys
