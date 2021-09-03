@@ -29,7 +29,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("confluentVersion", "2.0.1", "confluent dependencies version"))
     .register(new BuildProperty("doNotSignArtifacts", false, "Do not sight Maven artifacts"))
     .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
-    .register(new BuildProperty("hadoopVersion", "2.3.0", "Hadoop dependencies version"))
+    .register(new BuildProperty("hadoopVersion", "2.10.1", "Hadoop dependencies version"))
     .register(new BuildProperty("hiveVersion", "1.0.1", "Hive dependencies version"))
     .register(new BuildProperty("icebergVersion", "0.10.0", "Iceberg dependencies version"))
     .register(new BuildProperty("jdkVersion", JavaVersion.VERSION_1_8.toString(),
