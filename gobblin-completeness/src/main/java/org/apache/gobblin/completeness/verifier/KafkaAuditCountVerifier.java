@@ -116,6 +116,8 @@ public class KafkaAuditCountVerifier {
    */
   private double getCompletenessPercentage(String datasetName, long beginInMillis, long endInMillis) throws IOException {
     Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
+    log.info(String.format("Audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
+    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
     double percent = -1;
     if (!countsByTier.containsKey(this.srcTier)) {
       throw new IOException("Failed to get source audit count for topic " + datasetName + " at tier " + this.srcTier);

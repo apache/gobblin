@@ -179,6 +179,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   public static final String DEFAULT_PARTITION_COLUMN_TYPE = "string";
   private final String newPartitionColumnType;
   private Optional<KafkaAuditCountVerifier> auditCountVerifier;
+  public static final String TOPIC_NAME_KEY = "topic.name";
 
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
@@ -197,8 +198,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   protected final Configuration conf;
   protected final ReadWriteLock readWriteLock;
   private final HiveLock locks;
-  private final ParallelRunner parallelRunner;
   private final boolean useDataLocationAsTableLocation;
+  private final ParallelRunner parallelRunner;
   private FsPermission permission;
 
   public IcebergMetadataWriter(State state) throws IOException {
@@ -334,6 +335,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (gmce.getTopicPartitionOffsetsRange() != null) {
           mergeOffsets(gmce, tid);
         }
+        //compute topic name
+        if(!tableMetadata.newProperties.get().containsKey(TOPIC_NAME_KEY) &&
+            tableMetadata.dataOffsetRange.isPresent() && !tableMetadata.dataOffsetRange.get().isEmpty()) {
+          String topicPartition = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
+          tableMetadata.newProperties.get().put(TOPIC_NAME_KEY, topicPartition.substring(0, topicPartition.lastIndexOf("-")));
+        }
         break;
       }
       case rewrite_files: {
@@ -415,8 +422,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   private void updateTableProperty(HiveSpec tableSpec, TableIdentifier tid) {
     org.apache.hadoop.hive.metastore.api.Table table = HiveMetaStoreUtils.getTable(tableSpec.getTable());
-    tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).newProperties =
-        Optional.of(IcebergUtils.getTableProperties(table));
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    tableMetadata.newProperties = Optional.of(IcebergUtils.getTableProperties(table));
   }
 
   /**
@@ -794,12 +801,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
           if(tableMetadata.completenessEnabled) {
-            long newCompletenessWatermark =
-                computeCompletenessWatermark(tableName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
-            if(newCompletenessWatermark != tableMetadata.prevCompletenessWatermark) {
-              props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-              props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
-              tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
+            String topicName = props.get(TOPIC_NAME_KEY);
+            if(topicName == null) {
+              log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s.%s",
+                  TOPIC_NAME_KEY, dbName, tableName));
+            } else {
+              long newCompletenessWatermark =
+                  computeCompletenessWatermark(topicName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
+              if(newCompletenessWatermark != tableMetadata.prevCompletenessWatermark) {
+                props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
+                props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
+                tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
+              }
             }
           }
         }
@@ -868,6 +881,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * @return updated completion watermark
    */
   private long computeCompletenessWatermark(String table, Collection<Long> timestamps, long previousWatermark) {
+    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", table, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
     try {
       for(long timestamp : timestamps) {

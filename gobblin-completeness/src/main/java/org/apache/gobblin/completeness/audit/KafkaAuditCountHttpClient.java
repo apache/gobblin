@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -75,6 +74,7 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
   private final String baseUrl;
   private final String startQueryString;
   private final String endQueryString;
+  private String topicQueryString = "topic";
   private final int maxNumTries;
   /**
    * Constructor
@@ -97,13 +97,13 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
   }
 
 
-  public Map<String, Long> fetch (String datasetName, long start, long end)  throws IOException {
-    String fullUrl =
-            (this.baseUrl.endsWith("/") ? this.baseUrl : this.baseUrl + "/") + StringUtils.replaceChars(datasetName, '/', '.')
-                    + "?" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
+  public Map<String, Long> fetch (String topic, long start, long end)  throws IOException {
+    String fullUrl = (this.baseUrl.endsWith("/") ? this.baseUrl.substring(0, this.baseUrl.length() - 1)
+        : this.baseUrl) + "?" + this.topicQueryString + "=" + topic
+        + "&" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
     log.info("Full URL is " + fullUrl);
     String response = getHttpResponse(fullUrl);
-   return parseResponse (fullUrl, response, datasetName);
+   return parseResponse (fullUrl, response, topic);
   }
 
 
@@ -147,8 +147,6 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
 
     return result;
   }
-
-
 
   private String getHttpResponse(String fullUrl) throws IOException {
     HttpUriRequest req = new HttpGet(fullUrl);
