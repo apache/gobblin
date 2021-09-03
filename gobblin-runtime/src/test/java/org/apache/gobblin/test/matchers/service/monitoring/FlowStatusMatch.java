@@ -59,7 +59,7 @@ public class FlowStatusMatch extends TypeSafeMatcher<FlowStatus> {
 
   @Override
   public boolean matchesSafely(FlowStatus flowStatus) {
-    JobStatusMatch flowJobStatusMatch = JobStatusMatch.ofFlowStatus(flowGroup, flowName, flowExecutionId, execStatus.name());
+    JobStatusMatch flowJobStatusMatch = JobStatusMatch.ofFlowLevelStatus(flowGroup, flowName, flowExecutionId, execStatus.name());
     List<Matcher<? super JobStatus>> matchers = new java.util.ArrayList<>();
     matchers.add(flowJobStatusMatch);
     if (jsmDependents != null) {

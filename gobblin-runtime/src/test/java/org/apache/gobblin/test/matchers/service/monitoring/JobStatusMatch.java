@@ -61,8 +61,8 @@ public class JobStatusMatch extends TypeSafeMatcher<JobStatus> {
     }
   }
 
-  /** factory to supplement all-args {@link #of} factory, to support matching against "flow-level" `JobStatus` */
-  public static JobStatusMatch ofFlowStatus(String flowGroup, String flowName, long flowExecutionId, String eventName) {
+  /** supplements {@link #of} and {@link #ofTagged} factories, to simplify matching of "flow-level" `JobStatus` */
+  public static JobStatusMatch ofFlowLevelStatus(String flowGroup, String flowName, long flowExecutionId, String eventName) {
     return of(flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, 0L, eventName);
   }
 

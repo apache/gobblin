@@ -220,6 +220,7 @@ public abstract class JobStatusRetrieverTest {
 
   @Test
   public void testGetFlowStatusesForFlowGroupExecutions() throws IOException {
+    // a.) simplify to begin, in `FLOW_GROUP_ALT_A`, leaving out job-level status
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
 
@@ -232,7 +233,7 @@ public abstract class JobStatusRetrieverTest {
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 132L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME_ALT_3, 133L, JobStatusRetriever.NA_KEY, ExecutionStatus.PENDING_RESUME.name());
 
-
+    // b.) include job-level status, in `FLOW_GROUP_ALT_B`
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
 
