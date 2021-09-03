@@ -238,7 +238,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         .withZone(ZoneId.of(this.timeZone));
     this.auditCountVerifier = Optional.fromNullable(this.completenessEnabled ? new KafkaAuditCountVerifier(state) : null);
     this.newPartitionColumn = state.getProp(NEW_PARTITION_KEY, DEFAULT_NEW_PARTITION);
-    this.newPartitionColumnType = state.getProp(NEW_PARTITION_TYPE_KEY, DEFAULT_NEW_PARTITION);
+    this.newPartitionColumnType = state.getProp(NEW_PARTITION_TYPE_KEY, DEFAULT_PARTITION_COLUMN_TYPE);
   }
 
   @VisibleForTesting
