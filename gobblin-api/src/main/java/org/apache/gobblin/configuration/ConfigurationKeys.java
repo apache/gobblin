@@ -752,6 +752,10 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_METRICS_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.metrics.enabled";
+  public static final String METRICS_REPORTING_KAFKA_EVENTS_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.events.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS =
       "org.apache.gobblin.metrics.kafka.KafkaMetricReporterFactory";
   public static final String DEFAULT_EVENTS_REPORTING_KAFKA_REPORTER_CLASS =
