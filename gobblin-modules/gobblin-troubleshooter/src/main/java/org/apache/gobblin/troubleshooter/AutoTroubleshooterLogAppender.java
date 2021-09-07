@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang.text.StrBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.log4j.AppenderSkeleton;
@@ -142,7 +143,21 @@ public class AutoTroubleshooterLogAppender extends AppenderSkeleton {
      * multiple application versions.
      * */
 
-    return getHash(throwable.getClass().toString() + ExceptionUtils.getStackTrace(throwable));
+    return getHash(getStackTraceWithoutExceptionMessage(throwable));
+  }
+
+  private String getStackTraceWithoutExceptionMessage(Throwable throwable) {
+    StrBuilder sb = new StrBuilder();
+
+    for (Throwable currentThrowable : ExceptionUtils.getThrowableList(throwable)) {
+      sb.appendln(currentThrowable.getClass().getName());
+      for (StackTraceElement stackTraceElement : currentThrowable.getStackTrace()) {
+        sb.appendln(stackTraceElement);
+      }
+      sb.appendln("---");
+    }
+
+    return sb.toString();
   }
 
   private IssueSeverity convert(Level level) {
