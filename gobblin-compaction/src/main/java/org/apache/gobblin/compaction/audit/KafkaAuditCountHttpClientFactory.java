@@ -18,11 +18,12 @@
 package org.apache.gobblin.compaction.audit;
 
 import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.completeness.audit.AuditCountHttpClientFactory;
 import org.apache.gobblin.configuration.State;
 
 /**
  * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
- * @Deprecated {@link org.apache.gobblin.completeness.audit.KafkaAuditCountHttpClientFactory}
+ * @Deprecated {@link AuditCountHttpClientFactory}
  */
 @Alias("KafkaAuditCountHttpClientFactory")
 @Deprecated

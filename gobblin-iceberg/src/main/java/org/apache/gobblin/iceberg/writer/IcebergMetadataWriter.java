@@ -121,7 +121,7 @@ import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
-
+import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 /**
  * This writer is used to calculate iceberg metadata from GMCE and register to iceberg
@@ -158,28 +158,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
   /* one of the fields in DataFile entry to describe the location URI of a data file with FS Scheme */
   private static final String ICEBERG_FILE_PATH_COLUMN = DataFile.FILE_PATH.name();
 
-  public static final String ICEBERG_COMPLETENESS_ENABLED = "iceberg.completeness.enabled";
-  private static final boolean DEFAULT_ICEBERG_COMPLETENESS = false;
   private final boolean completenessEnabled;
-  public static final String ICEBERG_COMPLETENESS_WHITELIST = "iceberg.completeness.whitelist";
-  public static final String ICEBERG_COMPLETENESS_BLACKLIST = "iceberg.completeness.blacklist";
   private final WhitelistBlacklist completenessWhitelistBlacklist;
-  public static final String COMPLETION_WATERMARK_KEY = "completion.watermark";
-  public static final String COMPLETION_WATERMARK_TIMEZONE_KEY = "completion.watermark.timezone";
-  public static final long DEFAULT_COMPLETION_WATERMARK = -1L;
-  public static final String TIME_ZONE_KEY = "iceberg.completeness.timezone";
-  private static final String DEFAULT_TIME_ZONE = "America/Los_Angeles";
   private final String timeZone;
-  private static final String DATEPARTITION_FORMAT = "yyyy-MM-dd-HH";
   private final DateTimeFormatter HOURLY_DATEPARTITION_FORMAT;
-  public static final String NEW_PARTITION_KEY = "iceberg.completeness.add.partition";
-  public static final String DEFAULT_NEW_PARTITION = "late";
   private final String newPartitionColumn;
-  public static final String NEW_PARTITION_TYPE_KEY = "iceberg.completeness.add.partition.type";
-  public static final String DEFAULT_PARTITION_COLUMN_TYPE = "string";
   private final String newPartitionColumnType;
   private Optional<KafkaAuditCountVerifier> auditCountVerifier;
-  public static final String TOPIC_NAME_KEY = "topic.name";
 
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
@@ -314,9 +299,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
           return;
         }
         table = createTable(gmce, tableSpec);
-        if(tableMetadata.completenessEnabled) {
-          table = addPartitionToIcebergTable(table, newPartitionColumn, newPartitionColumnType);
-        }
         tableMetadata.table = Optional.of(table);
       } catch (Exception e1) {
         log.error("skip processing {} for table {}.{} due to error when creating table", gmce.toString(),
@@ -808,7 +790,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
             } else {
               long newCompletenessWatermark =
                   computeCompletenessWatermark(topicName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
-              if(newCompletenessWatermark != tableMetadata.prevCompletenessWatermark) {
+              if(newCompletenessWatermark > tableMetadata.prevCompletenessWatermark) {
                 props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
                 props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
                 tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
@@ -873,7 +855,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   /**
    * For a sorted collection of timestamps greater than an existitng watermark, check audit counts for completeness between
-   * a source and reference tier with a granularit if 1 hour
+   * a source and reference tier with a granularity if 1 hour
    * If the audit count matches update the watermark to the timestamp
    * @param table
    * @param timestamps

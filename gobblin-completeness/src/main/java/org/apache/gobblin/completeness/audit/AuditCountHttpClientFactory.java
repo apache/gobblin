@@ -22,12 +22,12 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
+ * Factory to create an instance of type {@link AuditCountHttpClient}
  */
-@Alias("KafkaAuditCountHttpClientFactory")
-public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
+@Alias("AuditCountHttpClientFactory")
+public class AuditCountHttpClientFactory implements AuditCountClientFactory {
 
-  public KafkaAuditCountHttpClient createAuditCountClient (State state)  {
-    return new KafkaAuditCountHttpClient(state);
+  public AuditCountHttpClient createAuditCountClient (State state)  {
+    return new AuditCountHttpClient(state);
   }
 }

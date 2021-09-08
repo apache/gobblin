@@ -22,8 +22,16 @@ import java.util.Map;
 
 
 /**
- * A type of client used to query the audit counts from Pinot backend
+ * A type of client used to query audit counts
  */
 public interface AuditCountClient {
-  Map<String, Long> fetch(String topic, long start, long end) throws IOException;
+  /**
+   *
+   * @param datasetName query dataset
+   * @param start start timestamp in millis from epoch
+   * @param end end timestamp in millis from epoch
+   * @return a map of <tier, counts>
+   * @throws IOException
+   */
+  Map<String, Long> fetch(String datasetName, long start, long end) throws IOException;
 }

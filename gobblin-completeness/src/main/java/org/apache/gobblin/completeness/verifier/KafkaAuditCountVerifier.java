@@ -68,6 +68,7 @@ public class KafkaAuditCountVerifier {
     this.srcTier = state.getProp(SOURCE_TIER);
     this.refTiers = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(state.getProp(REFERENCE_TIERS));
   }
+
   /**
    * Obtain an {@link AuditCountClient} using a {@link AuditCountClientFactory}
    * @param state job state
@@ -120,14 +121,17 @@ public class KafkaAuditCountVerifier {
     countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
     double percent = -1;
     if (!countsByTier.containsKey(this.srcTier)) {
-      throw new IOException("Failed to get source audit count for topic " + datasetName + " at tier " + this.srcTier);
+      throw new IOException(String.format("Source tier %s audit count cannot be retrieved for dataset %s between %s and %s", this.srcTier, datasetName, beginInMillis, endInMillis));
     }
 
     for (String refTier: this.refTiers) {
       if (!countsByTier.containsKey(refTier)) {
-        log.error("Reference tier {} audit count cannot be retrieved for dataset {} between {} and {}", refTier, datasetName, beginInMillis, endInMillis);
+        throw new IOException(String.format("Reference tier %s audit count cannot be retrieved for dataset %s between %s and %s", refTier, datasetName, beginInMillis, endInMillis));
       }
       long refCount = countsByTier.get(refTier);
+      if(refCount <= 0) {
+        throw new IOException(String.format("Reference tier %s count cannot be less than or equal to zero", refTier));
+      }
       long srcCount = countsByTier.get(this.srcTier);
 
       percent = Double.max(percent, (double) srcCount / (double) refCount);

@@ -76,6 +76,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
+import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
@@ -178,9 +179,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
   private State getStateWithCompletenessConfig() {
     State state = getState();
-    state.setProp(IcebergMetadataWriter.ICEBERG_COMPLETENESS_ENABLED, true);
-    state.setProp(IcebergMetadataWriter.NEW_PARTITION_KEY, "late");
-    state.setProp(IcebergMetadataWriter.NEW_PARTITION_TYPE_KEY, "int");
+    state.setProp(ICEBERG_COMPLETENESS_ENABLED, true);
+    state.setProp(NEW_PARTITION_KEY, "late");
+    state.setProp(NEW_PARTITION_TYPE_KEY, "int");
     state.setProp(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY, TestAuditClientFactory.class.getName());
     state.setProp(KafkaAuditCountVerifier.SOURCE_TIER, "gobblin");
     state.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, "producer");
@@ -357,9 +358,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     //completeness watermark = "2020-03-17-10"
-    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.TOPIC_NAME_KEY), "testTopic");
-    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
-    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+    Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
+    Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
+    Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
 
     Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -381,7 +382,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new LongWatermark(55L))));
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+    Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile1.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -407,7 +408,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Mockito.when(verifier.isComplete("testTopic", timestampMillis1, timestampMillis1 + TimeUnit.HOURS.toMillis(1))).thenReturn(true);
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertEquals(table.properties().get(IcebergMetadataWriter.COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
+    Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile2.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
