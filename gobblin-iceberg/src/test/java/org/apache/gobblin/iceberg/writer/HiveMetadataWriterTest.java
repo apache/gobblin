@@ -178,7 +178,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
   }
 
-  @Test( priority = 4 )
+  @Test(dependsOnGroups={"icebergMetadataWriterTest"})
   public void testHiveWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(

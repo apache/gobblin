@@ -188,7 +188,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     return state;
   }
 
-  @Test ( priority = 0 )
+  @Test
   public void testWriteAddFileGMCE() throws IOException {
     // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
     // without risking running into type cast runtime error.
@@ -257,7 +257,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   }
 
   //Make sure hive test execute later and close the metastore
-  @Test( priority = 1 )
+  @Test(dependsOnMethods={"testWriteAddFileGMCE"}, groups={"icebergMetadataWriterTest"})
   public void testWriteRewriteFileGMCE() throws IOException {
     gmce.setTopicPartitionOffsetsRange(null);
     FileSystem fs = FileSystem.get(new Configuration());
@@ -293,7 +293,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertFalse(result.hasNext());
   }
 
-  @Test( priority = 2 )
+  @Test(dependsOnMethods={"testWriteRewriteFileGMCE"}, groups={"icebergMetadataWriterTest"} )
   public void testChangeProperty() throws IOException {
     Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
@@ -325,7 +325,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "45");
   }
 
-  @Test ( priority = 3 )
+  @Test(dependsOnMethods={"testChangeProperty"}, groups={"icebergMetadataWriterTest"})
   public void testWriteAddFileGMCECompleteness() throws IOException {
     // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
     // without risking running into type cast runtime error.

@@ -21,6 +21,8 @@ import java.time.ZonedDateTime;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import lombok.Getter;
+
 
 /**
  * A {@link TimeIterator} iterates over time points within [{@code startTime}, {@code endTime}]. It
@@ -32,6 +34,7 @@ public class TimeIterator implements Iterator {
     MINUTE, HOUR, DAY, MONTH
   }
 
+  @Getter
   private ZonedDateTime startTime;
   private ZonedDateTime endTime;
   private Granularity granularity;

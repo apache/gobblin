@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -116,6 +117,7 @@ import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor.KafkaWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
@@ -165,6 +167,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final String newPartitionColumn;
   private final String newPartitionColumnType;
   private Optional<KafkaAuditCountVerifier> auditCountVerifier;
+  private final String auditCheckGranularity;
 
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
@@ -225,6 +228,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     this.auditCountVerifier = Optional.fromNullable(this.completenessEnabled ? new KafkaAuditCountVerifier(state) : null);
     this.newPartitionColumn = state.getProp(NEW_PARTITION_KEY, DEFAULT_NEW_PARTITION);
     this.newPartitionColumnType = state.getProp(NEW_PARTITION_TYPE_KEY, DEFAULT_PARTITION_COLUMN_TYPE);
+    this.auditCheckGranularity = state.getProp(AUDIT_CHECK_GRANULARITY, DEFAULT_AUDIT_CHECK_GRANULARITY);
   }
 
   @VisibleForTesting
@@ -854,22 +858,35 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   * For a sorted collection of timestamps greater than an existitng watermark, check audit counts for completeness between
-   * a source and reference tier with a granularity if 1 hour
+   * For a sorted collection of timestamps greater than an existing watermark, check audit counts for completeness between
+   * a source and reference tier with 1 unit of granularity
    * If the audit count matches update the watermark to the timestamp
+   * Using a {@link TimeIterator} that operates over a range of time in 1 unit
+   * given the start, end and granularity
    * @param table
-   * @param timestamps
-   * @param previousWatermark
+   * @param timestamps a sorted set of timestamps in increasing order
+   * @param previousWatermark previous completion watermark for the table
    * @return updated completion watermark
    */
-  private long computeCompletenessWatermark(String table, Collection<Long> timestamps, long previousWatermark) {
+  private long computeCompletenessWatermark(String table, SortedSet<Long> timestamps, long previousWatermark) {
     log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", table, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
     try {
-      for(long timestamp : timestamps) {
-        if (timestamp > previousWatermark) {
-          if(auditCountVerifier.get().isComplete(table, timestamp, timestamp + TimeUnit.HOURS.toMillis(1))) {
-            completionWatermark = timestamp;
+      if(timestamps == null || timestamps.size() <= 0) {
+        log.error("Cannot create time iterator. Empty for null timestamps");
+        return previousWatermark;
+      }
+
+      ZonedDateTime startDT = Instant.ofEpochMilli(timestamps.first())
+          .atZone(ZoneId.of(this.timeZone));
+      ZonedDateTime endDT = Instant.ofEpochMilli(timestamps.last())
+          .atZone(ZoneId.of(this.timeZone));
+      TimeIterator iterator = new TimeIterator(startDT, endDT, TimeIterator.Granularity.valueOf(this.auditCheckGranularity));
+      while (iterator.hasNext()) {
+        long start = iterator.next().toInstant().toEpochMilli();
+        if (start > previousWatermark) {
+          if(auditCountVerifier.get().isComplete(table, start, iterator.getStartTime().toInstant().toEpochMilli())) {
+            completionWatermark = start;
           }
         } else {
           break;
@@ -1041,7 +1058,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<Long> lowWatermark = Optional.absent();
     long prevCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
     long newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
-    Set<Long> datePartitions = new TreeSet<>();
+    SortedSet<Long> datePartitions = new TreeSet<>();
 
     @Setter
     String datasetName;

@@ -34,5 +34,7 @@ public class IcebergMetadataWriterConfigKeys {
   public static final String NEW_PARTITION_TYPE_KEY = "iceberg.completeness.add.partition.type";
   public static final String DEFAULT_PARTITION_COLUMN_TYPE = "string";
   public static final String TOPIC_NAME_KEY = "topic.name";
+  public static final String AUDIT_CHECK_GRANULARITY = "iceberg.completeness.audit.check.granularity";
+  public static final String DEFAULT_AUDIT_CHECK_GRANULARITY = "HOUR";
 
 }
