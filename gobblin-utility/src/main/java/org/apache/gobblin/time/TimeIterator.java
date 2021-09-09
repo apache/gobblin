@@ -38,25 +38,31 @@ public class TimeIterator implements Iterator {
   private ZonedDateTime startTime;
   private ZonedDateTime endTime;
   private Granularity granularity;
+  private boolean reverse;
 
   public TimeIterator(ZonedDateTime startTime, ZonedDateTime endTime, Granularity granularity) {
+    this(startTime, endTime, granularity, false);
+  }
+
+  public TimeIterator(ZonedDateTime startTime, ZonedDateTime endTime, Granularity granularity, boolean reverse) {
     this.startTime = startTime;
     this.endTime = endTime;
     this.granularity = granularity;
+    this.reverse = reverse;
   }
 
   @Override
   public boolean hasNext() {
-    return !startTime.isAfter(endTime);
+    return (reverse) ? !endTime.isAfter(startTime) : !startTime.isAfter(endTime);
   }
 
   @Override
   public ZonedDateTime next() {
-    if (startTime.isAfter(endTime)) {
+    if (startTime.isAfter(endTime) || (reverse && endTime.isAfter(startTime))) {
       throw new NoSuchElementException();
     }
     ZonedDateTime dateTime = startTime;
-    startTime = inc(startTime, granularity, 1);
+    startTime = (reverse) ? dec(startTime, granularity, 1) : inc(startTime, granularity, 1);
     return dateTime;
   }
 

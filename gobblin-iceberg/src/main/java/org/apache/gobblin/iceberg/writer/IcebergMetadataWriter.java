@@ -46,7 +46,6 @@ import java.util.stream.Stream;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -688,12 +687,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
         StructLike partition = getIcebergPartitionVal(hiveSpecs, file.getFilePath(), partitionSpec);
 
         if(tableMetadata.completenessEnabled && gmce.getOperationType() == OperationType.add_files) {
+          tableMetadata.prevCompletenessWatermark = Long.parseLong(table.properties().getOrDefault(COMPLETION_WATERMARK_KEY,
+              String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
           // Assumes first partition value to be partitioned by date
           // TODO Find better way to determine a partition value
           String datepartition = partition.get(0, null);
           partition = addLatePartitionValueToIcebergTable(table, tableMetadata,
               hiveSpecs.iterator().next().getPartition().get(), datepartition);
-          tableMetadata.datePartitions.add(getEpochMillisFromDatepartitionString(datepartition));
+          tableMetadata.datePartitions.add(getDateTimeFromDatepartitionString(datepartition));
         }
         dataFiles.add(IcebergUtils.getIcebergDataFileWithMetric(file, table.spec(), partition, conf, schemaIdMap));
       } catch (Exception e) {
@@ -739,10 +740,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
     return ZonedDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.of(timeZone)).toLocalDate();
   }
 
-  private long getEpochMillisFromDatepartitionString(String datepartition) {
-    return ZonedDateTime.parse(datepartition, HOURLY_DATEPARTITION_FORMAT).toInstant().toEpochMilli();
+  private ZonedDateTime getDateTimeFromDatepartitionString(String datepartition) {
+    return ZonedDateTime.parse(datepartition, HOURLY_DATEPARTITION_FORMAT);
   }
-
 
   /**
    * Obtain Iceberg partition value with a collection of {@link HiveSpec}.
@@ -858,44 +858,57 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   * For a sorted collection of timestamps greater than an existing watermark, check audit counts for completeness between
-   * a source and reference tier with 1 unit of granularity
-   * If the audit count matches update the watermark to the timestamp
+   * For each timestamp in sorted collection of timestamps in descending order
+   * if timestamp is greater than previousWatermark
+   * and hour(now) > hour(prevWatermark) + 1
+   *    check audit counts for completeness between
+   *    a source and reference tier for [timestamp, timstamp + 1 unit of granularity]
+   *    If the audit count matches update the watermark to the timestamp
+   *    else continue
+   * else
+   *  break
    * Using a {@link TimeIterator} that operates over a range of time in 1 unit
    * given the start, end and granularity
    * @param table
-   * @param timestamps a sorted set of timestamps in increasing order
+   * @param timestamps a sorted set of timestamps in decreasing order
    * @param previousWatermark previous completion watermark for the table
    * @return updated completion watermark
    */
-  private long computeCompletenessWatermark(String table, SortedSet<Long> timestamps, long previousWatermark) {
+  private long computeCompletenessWatermark(String table, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
     log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", table, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
+    ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
     try {
       if(timestamps == null || timestamps.size() <= 0) {
         log.error("Cannot create time iterator. Empty for null timestamps");
         return previousWatermark;
       }
-
-      ZonedDateTime startDT = Instant.ofEpochMilli(timestamps.first())
+      TimeIterator.Granularity granularity = TimeIterator.Granularity.valueOf(this.auditCheckGranularity);
+      ZonedDateTime prevWatermarkDT = Instant.ofEpochMilli(previousWatermark)
           .atZone(ZoneId.of(this.timeZone));
-      ZonedDateTime endDT = Instant.ofEpochMilli(timestamps.last())
-          .atZone(ZoneId.of(this.timeZone));
-      TimeIterator iterator = new TimeIterator(startDT, endDT, TimeIterator.Granularity.valueOf(this.auditCheckGranularity));
+      ZonedDateTime startDT = timestamps.first();
+      ZonedDateTime endDT = timestamps.last();
+      TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
       while (iterator.hasNext()) {
-        long start = iterator.next().toInstant().toEpochMilli();
-        if (start > previousWatermark) {
-          if(auditCountVerifier.get().isComplete(table, start, iterator.getStartTime().toInstant().toEpochMilli())) {
-            completionWatermark = start;
+        ZonedDateTime timestampDT = iterator.next();
+        long timestampMillis = timestampDT.toInstant().toEpochMilli();
+        if (timestampDT.isAfter(prevWatermarkDT)
+            && getHoursFromEpoch(now) > (getHoursFromEpoch(prevWatermarkDT) + 1)) {
+          if(auditCountVerifier.get().isComplete(table, timestampMillis, TimeIterator.inc(timestampDT, granularity, 1).toInstant().toEpochMilli())) {
+            completionWatermark = timestampMillis;
           }
         } else {
           break;
         }
       }
     } catch (IOException e) {
-      log.error(ExceptionUtils.getFullStackTrace(e));
+      log.warn("Exception during audit count check: ", e);
     }
     return completionWatermark;
+  }
+
+  private int getHoursFromEpoch(ZonedDateTime dateTime) {
+    return (int) dateTime.toEpochSecond() / 3600;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
@@ -1058,7 +1071,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<Long> lowWatermark = Optional.absent();
     long prevCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
     long newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
-    SortedSet<Long> datePartitions = new TreeSet<>();
+    SortedSet<ZonedDateTime> datePartitions = new TreeSet<>(Collections.reverseOrder());
 
     @Setter
     String datasetName;
@@ -1121,6 +1134,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       this.lowWatermark = Optional.of(lowWaterMark);
       this.prevCompletenessWatermark = newCompletionWatermark;
       this.newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
+      this.datePartitions.clear();
     }
   }
 }
