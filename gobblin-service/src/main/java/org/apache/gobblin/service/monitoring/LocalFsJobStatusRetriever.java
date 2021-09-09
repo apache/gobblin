@@ -57,7 +57,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
-  private Boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
+  private boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
     try {
@@ -116,6 +116,18 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     //TODO: implement this
 
     return null;
+  }
+
+  /**
+   * @param flowGroup
+   * @return the last <code>countJobStatusesPerFlowName</code> flow statuses within the given flowGroup.
+   */
+  @Override
+  public List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName) {
+    Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(countJobStatusesPerFlowName > 0,
+        "Number of job statuses per flow name must be at least 1 (was: %s).", countJobStatusesPerFlowName);
+    throw new UnsupportedOperationException("Not yet implemented");
   }
 
   public StateStore<State> getStateStore() {

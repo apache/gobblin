@@ -73,7 +73,22 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
     }
 
     throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowId " + flowId
-        + ". The flowId may be incorrect, or the flow execution may have been cleaned up.");
+        + ". The flowId may be incorrect, the flow execution may have been cleaned up, or not matching tag (" + tag
+        + ") and/or execution status (" + executionStatus + ").");
+  }
+
+  @Override
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow, String tag) {
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
+        getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
+
+    if (flowStatuses != null) {
+      return flowStatuses.stream().map(FlowExecutionResourceLocalHandler::convertFlowStatus).collect(Collectors.toList());
+    }
+
+    throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow executions found for flowGroup " + flowGroup
+        + ". The group name may be incorrect, the flow execution may have been cleaned up, or not matching tag (" + tag
+        + ").");
   }
 
   @Override
@@ -105,6 +120,16 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
     log.info("get latest called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName() + " count " + count);
 
     return flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count, tag, executionStatus);
+  }
+
+  public static List<FlowStatus> getLatestFlowGroupStatusesFromGenerator(String flowGroup,
+      Integer countPerFlowName, String tag, FlowStatusGenerator flowStatusGenerator) {
+    if (countPerFlowName == null) {
+      countPerFlowName = 1;
+    }
+    log.info("get latest (for group) called with flowGroup " + flowGroup + " count " + countPerFlowName);
+
+    return flowStatusGenerator.getFlowStatusesAcrossGroup(flowGroup, countPerFlowName, tag);
   }
 
   /**
