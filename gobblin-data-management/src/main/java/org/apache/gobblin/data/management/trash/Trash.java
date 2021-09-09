@@ -24,9 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.destination.DestinationDatasetHandlerService;
-import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -52,6 +50,7 @@ public class Trash implements GobblinTrash {
   private static final Logger LOG = LoggerFactory.getLogger(Trash.class);
   private static final FsPermission PERM = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
   private static final FsPermission ALL_PERM = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+  public static final String TRASH_CLASS_KEY = "trash.class";
 
   /**
    * Location of trash directory in file system. The location can include a token $USER that will be automatically
@@ -97,8 +96,6 @@ public class Trash implements GobblinTrash {
    */
   protected Path createTrashLocation(FileSystem fs, Properties props, String user) throws IOException {
     Path trashLocation;
-    new DestinationDatasetHandlerService(new State(props), false, null)
-        .executeHandlers(new BasicWorkUnitStream.Builder(Collections.EMPTY_LIST).build());
     if (props.containsKey(TRASH_LOCATION_KEY)) {
       trashLocation = new Path(props.getProperty(TRASH_LOCATION_KEY).replaceAll("\\$USER", user));
     } else {
@@ -169,6 +166,14 @@ public class Trash implements GobblinTrash {
       throw new IllegalArgumentException("Could not create snapshot cleanup policy with class " + props
           .getProperty(SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TimeBasedSnapshotCleanupPolicy.class.getCanonicalName()),
           exception);
+    }
+  }
+
+  public static Trash getTrash(FileSystem fs, Properties props, String user) throws IOException {
+    if (props.contains(TRASH_CLASS_KEY)) {
+      return GobblinConstructorUtils.invokeConstructor(Trash.class, props.getProperty(TRASH_CLASS_KEY), fs, props, user);
+    } else {
+      return new Trash(fs, props, user);
     }
   }
 

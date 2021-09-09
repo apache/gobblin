@@ -17,14 +17,14 @@
 
 package org.apache.gobblin.destination;
 
-import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 public class DestinationDatasetHandlerFactory  {
 
-  public static DestinationDatasetHandler newInstance(String handlerTypeName, State state, Boolean canCleanUp) {
+  public static DestinationDatasetHandler newInstance(String handlerTypeName, SourceState state, Boolean canCleanUp) {
     try {
       ClassAliasResolver<DestinationDatasetHandler> aliasResolver = new ClassAliasResolver<>(DestinationDatasetHandler.class);
       DestinationDatasetHandler handler = GobblinConstructorUtils.invokeLongestConstructor(

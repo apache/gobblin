@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
@@ -38,7 +38,7 @@ import org.apache.gobblin.util.JobLauncherUtils;
 public class DestinationDatasetHandlerService implements Closeable {
   List<DestinationDatasetHandler> handlers;
 
-  public DestinationDatasetHandlerService(State jobState, Boolean canCleanUp, EventSubmitter eventSubmitter) {
+  public DestinationDatasetHandlerService(SourceState jobState, Boolean canCleanUp, EventSubmitter eventSubmitter) {
     this.handlers = new ArrayList<>();
     if (jobState.contains(ConfigurationKeys.DESTINATION_DATASET_HANDLER_CLASS)) {
       List<String> handlerList = jobState.getPropAsList(ConfigurationKeys.DESTINATION_DATASET_HANDLER_CLASS);
