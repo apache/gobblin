@@ -25,8 +25,6 @@ import org.apache.orc.StripeInformation;
 import org.apache.orc.Writer;
 import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 
-import com.google.common.base.Joiner;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
