@@ -59,19 +59,12 @@ public class TrashFactory {
    */
   public static Trash createTrash(FileSystem fs, Properties props, String user)
       throws IOException {
-    if(props.containsKey(TRASH_TEST) && Boolean.parseBoolean(props.getProperty(TRASH_TEST))) {
-      LOG.info("Creating a test trash. Nothing will actually be deleted.");
-      return new TestTrash(fs, props, user);
+    Trash trash = createTestMockOrImmediateDeletionTrash(fs, props, user);
+    if (null != trash) {
+      return trash;
+    } else {
+      return Trash.getTrash(fs, props, user);
     }
-    if(props.containsKey(SIMULATE) && Boolean.parseBoolean(props.getProperty(SIMULATE))) {
-      LOG.info("Creating a simulate trash. Nothing will actually be deleted.");
-      return new MockTrash(fs, props, user);
-    }
-    if(props.containsKey(SKIP_TRASH) && Boolean.parseBoolean(props.getProperty(SKIP_TRASH))) {
-      LOG.info("Creating an immediate deletion trash. Files will be deleted immediately instead of moved to trash.");
-      return new ImmediateDeletionTrash(fs, props, user);
-    }
-    return new Trash(fs, props, user);
   }
 
   public static ProxiedTrash createProxiedTrash(FileSystem fs) throws IOException {
@@ -92,6 +85,24 @@ public class TrashFactory {
    */
   public static ProxiedTrash createProxiedTrash(FileSystem fs, Properties props, String user)
     throws IOException {
+    ProxiedTrash trash = createTestMockOrImmediateDeletionTrash(fs, props, user);
+    if (null != trash) {
+      return trash;
+    } else {
+      return ProxiedTrash.getProxiedTrash(fs, props, user);
+    }
+  }
+
+  /**
+   * This creates {@link TestTrash}, {@link MockTrash} or {@link ImmediateDeletionTrash according to the properties set.
+   * @param fs file system object
+   * @param props properties
+   * @param user user to create trash as
+   * @return {@link TestTrash}, {@link MockTrash} or {@link ImmediateDeletionTrash or null if none of these trashes are
+   * requested
+   * @throws IOException
+   */
+  private static ProxiedTrash createTestMockOrImmediateDeletionTrash(FileSystem fs, Properties props, String user) throws IOException {
     if(props.containsKey(TRASH_TEST) && Boolean.parseBoolean(props.getProperty(TRASH_TEST))) {
       LOG.info("Creating a test trash. Nothing will actually be deleted.");
       return new TestTrash(fs, props, user);
@@ -104,7 +115,6 @@ public class TrashFactory {
       LOG.info("Creating an immediate deletion trash. Files will be deleted immediately instead of moved to trash.");
       return new ImmediateDeletionTrash(fs, props, user);
     }
-    return new ProxiedTrash(fs, props, user);
+    return null;
   }
-
 }
