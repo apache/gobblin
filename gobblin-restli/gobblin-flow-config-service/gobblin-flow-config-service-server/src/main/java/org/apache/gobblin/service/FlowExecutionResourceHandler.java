@@ -42,7 +42,7 @@ public interface FlowExecutionResourceHandler {
    * NOTE: `executionStatus` param not provided yet, without justifying use case, due to complexity of interaction with `count`
    * and resulting efficiency concern of performing across many flows sharing the single named group.
    */
-  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer count, String tag);
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFLow, String tag);
 
   /**
    * Resume a failed {@link FlowExecution} from the point before failure

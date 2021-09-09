@@ -65,8 +65,8 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
 
   @Finder("latestFlowGroupExecutions")
   public List<FlowExecution> getLatestFlowGroupExecutions(@Context PagingContext context, @QueryParam("flowGroup") String flowGroup,
-      @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag) {
-    return this.flowExecutionResourceHandler.getLatestFlowGroupExecutions(context, flowGroup, count, tag);
+      @Optional @QueryParam("countPerFlow") Integer countPerFlow, @Optional @QueryParam("tag") String tag) {
+    return this.flowExecutionResourceHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag);
   }
 
   /**

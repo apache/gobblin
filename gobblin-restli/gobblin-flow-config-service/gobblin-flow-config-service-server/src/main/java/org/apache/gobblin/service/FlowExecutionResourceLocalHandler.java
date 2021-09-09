@@ -78,8 +78,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer count, String tag) {
-    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = getLatestFlowGroupStatusesFromGenerator(flowGroup, count, tag, this.flowStatusGenerator);
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow, String tag) {
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
+        getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
       return flowStatuses.stream().map(FlowExecutionResourceLocalHandler::convertFlowStatus).collect(Collectors.toList());
