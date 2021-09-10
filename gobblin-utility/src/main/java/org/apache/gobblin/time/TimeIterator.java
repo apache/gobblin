@@ -58,7 +58,7 @@ public class TimeIterator implements Iterator {
 
   @Override
   public ZonedDateTime next() {
-    if (startTime.isAfter(endTime) || (reverse && endTime.isAfter(startTime))) {
+    if ((!reverse && startTime.isAfter(endTime) || (reverse && endTime.isAfter(startTime)))) {
       throw new NoSuchElementException();
     }
     ZonedDateTime dateTime = startTime;

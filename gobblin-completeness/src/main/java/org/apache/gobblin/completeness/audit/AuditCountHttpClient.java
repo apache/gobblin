@@ -126,7 +126,7 @@ public class AuditCountHttpClient implements AuditCountClient {
     try {
       JsonObject jsonObj = PARSER.parse(response).getAsJsonObject();
 
-      countsPerTier = jsonObj.getAsJsonObject("result");
+      countsPerTier = jsonObj.getAsJsonObject("totalsPerTier");
     } catch (Exception e) {
       throw new IOException(String.format("Unable to parse JSON response: %s for request url: %s ", response,
               fullUrl), e);

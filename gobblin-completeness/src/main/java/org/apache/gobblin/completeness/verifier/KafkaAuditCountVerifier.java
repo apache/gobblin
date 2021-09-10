@@ -44,7 +44,7 @@ public class KafkaAuditCountVerifier {
   public static final String SOURCE_TIER = COMPLETENESS_PREFIX + "source.tier";
   public static final String REFERENCE_TIERS = COMPLETENESS_PREFIX + "reference.tiers";
   public static final String THRESHOLD = COMPLETENESS_PREFIX + "threshold";
-  private static final double DEFAULT_THRESHOLD = 0.99;
+  private static final double DEFAULT_THRESHOLD = 0.999;
 
   private final AuditCountClient auditCountClient;
   private final String srcTier;

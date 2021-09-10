@@ -794,6 +794,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
             } else {
               long newCompletenessWatermark =
                   computeCompletenessWatermark(topicName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
+              log.info(String.format("Updating %s for %s.%s to %s", COMPLETION_WATERMARK_KEY, dbName, tableName, newCompletenessWatermark));
               if(newCompletenessWatermark > tableMetadata.prevCompletenessWatermark) {
                 props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
                 props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
@@ -863,7 +864,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * and hour(now) > hour(prevWatermark) + 1
    *    check audit counts for completeness between
    *    a source and reference tier for [timestamp, timstamp + 1 unit of granularity]
-   *    If the audit count matches update the watermark to the timestamp
+   *    If the audit count matches update the watermark to the timestamp and break
    *    else continue
    * else
    *  break
@@ -891,11 +892,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
       TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
-        long timestampMillis = timestampDT.toInstant().toEpochMilli();
         if (timestampDT.isAfter(prevWatermarkDT)
             && getHoursFromEpoch(now) > (getHoursFromEpoch(prevWatermarkDT) + 1)) {
+          long timestampMillis = timestampDT.toInstant().toEpochMilli();
           if(auditCountVerifier.get().isComplete(table, timestampMillis, TimeIterator.inc(timestampDT, granularity, 1).toInstant().toEpochMilli())) {
             completionWatermark = timestampMillis;
+            break;
           }
         } else {
           break;
