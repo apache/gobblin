@@ -794,8 +794,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
             } else {
               long newCompletenessWatermark =
                   computeCompletenessWatermark(topicName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
-              log.info(String.format("Updating %s for %s.%s to %s", COMPLETION_WATERMARK_KEY, dbName, tableName, newCompletenessWatermark));
               if(newCompletenessWatermark > tableMetadata.prevCompletenessWatermark) {
+                log.info(String.format("Updating %s for %s.%s to %s", COMPLETION_WATERMARK_KEY, dbName, tableName, newCompletenessWatermark));
                 props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
                 props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
                 tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
