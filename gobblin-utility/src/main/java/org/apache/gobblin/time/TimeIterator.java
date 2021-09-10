@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.time;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+
+import lombok.Getter;
 
 
 /**
@@ -32,28 +36,35 @@ public class TimeIterator implements Iterator {
     MINUTE, HOUR, DAY, MONTH
   }
 
+  @Getter
   private ZonedDateTime startTime;
   private ZonedDateTime endTime;
   private Granularity granularity;
+  private boolean reverse;
 
   public TimeIterator(ZonedDateTime startTime, ZonedDateTime endTime, Granularity granularity) {
+    this(startTime, endTime, granularity, false);
+  }
+
+  public TimeIterator(ZonedDateTime startTime, ZonedDateTime endTime, Granularity granularity, boolean reverse) {
     this.startTime = startTime;
     this.endTime = endTime;
     this.granularity = granularity;
+    this.reverse = reverse;
   }
 
   @Override
   public boolean hasNext() {
-    return !startTime.isAfter(endTime);
+    return (reverse) ? !endTime.isAfter(startTime) : !startTime.isAfter(endTime);
   }
 
   @Override
   public ZonedDateTime next() {
-    if (startTime.isAfter(endTime)) {
+    if ((!reverse && startTime.isAfter(endTime) || (reverse && endTime.isAfter(startTime)))) {
       throw new NoSuchElementException();
     }
     ZonedDateTime dateTime = startTime;
-    startTime = inc(startTime, granularity, 1);
+    startTime = (reverse) ? dec(startTime, granularity, 1) : inc(startTime, granularity, 1);
     return dateTime;
   }
 
@@ -95,4 +106,26 @@ public class TimeIterator implements Iterator {
     }
     throw new RuntimeException("Unsupported granularity: " + granularity);
   }
+
+  /**
+   * Return duration as long between 2 datetime objects based on granularity
+   * @param d1
+   * @param d2
+   * @param granularity
+   * @return a long representing the duration
+   */
+  public static long durationBetween(ZonedDateTime d1, ZonedDateTime d2, Granularity granularity) {
+    switch (granularity) {
+      case HOUR:
+        return Duration.between(d1, d2).toHours();
+      case MINUTE:
+        return Duration.between(d1, d2).toMinutes();
+      case DAY:
+        return Duration.between(d1, d2).toDays();
+      case MONTH:
+        return ChronoUnit.MONTHS.between(d1, d2);
+    }
+    throw new RuntimeException("Unsupported granularity: " + granularity);
+  }
+
 }

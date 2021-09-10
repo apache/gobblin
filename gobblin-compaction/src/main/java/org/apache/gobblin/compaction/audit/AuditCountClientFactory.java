@@ -21,7 +21,9 @@ import org.apache.gobblin.configuration.State;
 
 /**
  * A factory class responsible for creating {@link AuditCountClient}
+ * @Deprecated {@link org.apache.gobblin.completeness.audit.AuditCountClientFactory}
  */
+@Deprecated
 public interface AuditCountClientFactory {
   String AUDIT_COUNT_CLIENT_FACTORY = "audit.count.client.factory";
   AuditCountClient createAuditCountClient (State state);

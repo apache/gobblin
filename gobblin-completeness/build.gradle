@@ -15,21 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+apply plugin: 'java'
+apply plugin: 'java-test-fixtures'
 
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.completeness.audit.AuditCountHttpClientFactory;
-import org.apache.gobblin.configuration.State;
+dependencies {
+  compile project(":gobblin-api")
+  compile externalDependency.httpclient
 
-/**
- * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
- * @Deprecated {@link AuditCountHttpClientFactory}
- */
-@Alias("KafkaAuditCountHttpClientFactory")
-@Deprecated
-public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
 
-  public KafkaAuditCountHttpClient createAuditCountClient (State state)  {
-    return new KafkaAuditCountHttpClient(state);
-  }
 }
+
+configurations {
+  compile { transitive = true }
+}
+
+ext.classification="library"

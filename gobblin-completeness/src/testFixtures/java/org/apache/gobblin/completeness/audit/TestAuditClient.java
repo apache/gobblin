@@ -15,21 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.completeness.audit.AuditCountHttpClientFactory;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.gobblin.configuration.State;
 
-/**
- * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
- * @Deprecated {@link AuditCountHttpClientFactory}
- */
-@Alias("KafkaAuditCountHttpClientFactory")
-@Deprecated
-public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
 
-  public KafkaAuditCountHttpClient createAuditCountClient (State state)  {
-    return new KafkaAuditCountHttpClient(state);
+public class TestAuditClient implements AuditCountClient {
+  Map<String, Long> tierCounts;
+
+  public TestAuditClient(State state) {
+    tierCounts = new HashMap<>();
+  }
+
+  public void setTierCounts(Map<String, Long> tierCounts) {
+    this.tierCounts = tierCounts;
+  }
+
+  @Override
+  public Map<String, Long> fetch(String topic, long start, long end) {
+    return tierCounts;
   }
 }

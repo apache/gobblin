@@ -15,14 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -40,33 +38,31 @@ import com.google.gson.JsonParser;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.completeness.audit.AuditCountHttpClient;
 import org.apache.gobblin.configuration.State;
+
 
 /**
  * A {@link AuditCountClient} which uses {@link org.apache.http.client.HttpClient}
  * to perform audit count query.
- * @Deprecated {@link AuditCountHttpClient}
  */
 @Slf4j
 @ThreadSafe
-@Deprecated
-public class KafkaAuditCountHttpClient implements AuditCountClient {
+public class AuditCountHttpClient implements AuditCountClient {
 
   // Keys
-  public static final String KAFKA_AUDIT_HTTP = "kafka.audit.http";
-  public static final String CONNECTION_MAX_TOTAL = KAFKA_AUDIT_HTTP + "max.total";
+  public static final String AUDIT_HTTP_PREFIX = "audit.http";
+  public static final String CONNECTION_MAX_TOTAL = AUDIT_HTTP_PREFIX + "max.total";
   public static final int DEFAULT_CONNECTION_MAX_TOTAL = 10;
-  public static final String MAX_PER_ROUTE = KAFKA_AUDIT_HTTP + "max.per.route";
+  public static final String MAX_PER_ROUTE = AUDIT_HTTP_PREFIX + "max.per.route";
   public static final int DEFAULT_MAX_PER_ROUTE = 10;
 
 
-  public static final String KAFKA_AUDIT_REST_BASE_URL = "kafka.audit.rest.base.url";
-  public static final String KAFKA_AUDIT_REST_MAX_TRIES = "kafka.audit.rest.max.tries";
-  public static final String KAFKA_AUDIT_REST_START_QUERYSTRING_KEY = "kafka.audit.rest.querystring.start";
-  public static final String KAFKA_AUDIT_REST_END_QUERYSTRING_KEY = "kafka.audit.rest.querystring.end";
-  public static final String KAFKA_AUDIT_REST_START_QUERYSTRING_DEFAULT = "begin";
-  public static final String KAFKA_AUDIT_REST_END_QUERYSTRING_DEFAULT = "end";
+  public static final String AUDIT_REST_BASE_URL = "audit.rest.base.url";
+  public static final String AUDIT_REST_MAX_TRIES = "audit.rest.max.tries";
+  public static final String AUDIT_REST_START_QUERYSTRING_KEY = "audit.rest.querystring.start";
+  public static final String AUDIT_REST_END_QUERYSTRING_KEY = "audit.rest.querystring.end";
+  public static final String AUDIT_REST_START_QUERYSTRING_DEFAULT = "start";
+  public static final String AUDIT_REST_END_QUERYSTRING_DEFAULT = "end";
 
 
   // Http Client
@@ -77,11 +73,12 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
   private final String baseUrl;
   private final String startQueryString;
   private final String endQueryString;
+  private String topicQueryString = "topic";
   private final int maxNumTries;
   /**
    * Constructor
    */
-  public KafkaAuditCountHttpClient (State state) {
+  public AuditCountHttpClient(State state) {
     int maxTotal = state.getPropAsInt(CONNECTION_MAX_TOTAL, DEFAULT_CONNECTION_MAX_TOTAL);
     int maxPerRoute = state.getPropAsInt(MAX_PER_ROUTE, DEFAULT_MAX_PER_ROUTE);
 
@@ -92,20 +89,20 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
             .setConnectionManager(cm)
             .build();
 
-    this.baseUrl = state.getProp(KAFKA_AUDIT_REST_BASE_URL);
-    this.maxNumTries = state.getPropAsInt(KAFKA_AUDIT_REST_MAX_TRIES, 5);
-    this.startQueryString = state.getProp(KAFKA_AUDIT_REST_START_QUERYSTRING_KEY, KAFKA_AUDIT_REST_START_QUERYSTRING_DEFAULT);
-    this.endQueryString = state.getProp(KAFKA_AUDIT_REST_END_QUERYSTRING_KEY, KAFKA_AUDIT_REST_END_QUERYSTRING_DEFAULT);
+    this.baseUrl = state.getProp(AUDIT_REST_BASE_URL);
+    this.maxNumTries = state.getPropAsInt(AUDIT_REST_MAX_TRIES, 5);
+    this.startQueryString = state.getProp(AUDIT_REST_START_QUERYSTRING_KEY, AUDIT_REST_START_QUERYSTRING_DEFAULT);
+    this.endQueryString = state.getProp(AUDIT_REST_END_QUERYSTRING_KEY, AUDIT_REST_END_QUERYSTRING_DEFAULT);
   }
 
 
-  public Map<String, Long> fetch (String datasetName, long start, long end)  throws IOException {
-    String fullUrl =
-            (this.baseUrl.endsWith("/") ? this.baseUrl : this.baseUrl + "/") + StringUtils.replaceChars(datasetName, '/', '.')
-                    + "?" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
+  public Map<String, Long> fetch (String topic, long start, long end)  throws IOException {
+    String fullUrl = (this.baseUrl.endsWith("/") ? this.baseUrl.substring(0, this.baseUrl.length() - 1)
+        : this.baseUrl) + "?" + this.topicQueryString + "=" + topic
+        + "&" + this.startQueryString + "=" + start + "&" + this.endQueryString + "=" + end;
     log.info("Full URL is " + fullUrl);
     String response = getHttpResponse(fullUrl);
-   return parseResponse (fullUrl, response, datasetName);
+   return parseResponse (fullUrl, response, topic);
   }
 
 
@@ -116,12 +113,8 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
    * <pre>
    * {
    *  "result": {
-   *     "hadoop-tracking-lva1tarock-08": 79341895,
-   *     "hadoop-tracking-uno-08": 79341892,
-   *     "kafka-08-tracking-local": 79341968,
-   *     "kafka-corp-lca1-tracking-agg": 79341968,
-   *     "kafka-corp-ltx1-tracking-agg": 79341968,
-   *     "producer": 69483513
+   *     "tier1": 79341895,
+   *     "tier2": 79341892,
    *   }
    * }
    * </pre>
@@ -133,15 +126,13 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
     try {
       JsonObject jsonObj = PARSER.parse(response).getAsJsonObject();
 
-      countsPerTier = jsonObj.getAsJsonObject("result");
+      countsPerTier = jsonObj.getAsJsonObject("totalsPerTier");
     } catch (Exception e) {
       throw new IOException(String.format("Unable to parse JSON response: %s for request url: %s ", response,
               fullUrl), e);
     }
 
-    Set<Map.Entry<String, JsonElement>> entrySet = countsPerTier.entrySet();
-
-    for(Map.Entry<String, JsonElement> entry : entrySet) {
+    for(Map.Entry<String, JsonElement> entry : countsPerTier.entrySet()) {
       String tier = entry.getKey();
       long count = Long.parseLong(entry.getValue().getAsString());
       result.put(tier, count);
@@ -149,8 +140,6 @@ public class KafkaAuditCountHttpClient implements AuditCountClient {
 
     return result;
   }
-
-
 
   private String getHttpResponse(String fullUrl) throws IOException {
     HttpUriRequest req = new HttpGet(fullUrl);

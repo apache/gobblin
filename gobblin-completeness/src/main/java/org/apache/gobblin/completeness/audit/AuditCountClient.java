@@ -15,21 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.audit;
+package org.apache.gobblin.completeness.audit;
 
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.completeness.audit.AuditCountHttpClientFactory;
-import org.apache.gobblin.configuration.State;
+import java.io.IOException;
+import java.util.Map;
+
 
 /**
- * Factory to create an instance of type {@link KafkaAuditCountHttpClient}
- * @Deprecated {@link AuditCountHttpClientFactory}
+ * A type of client used to query audit counts
  */
-@Alias("KafkaAuditCountHttpClientFactory")
-@Deprecated
-public class KafkaAuditCountHttpClientFactory implements AuditCountClientFactory {
-
-  public KafkaAuditCountHttpClient createAuditCountClient (State state)  {
-    return new KafkaAuditCountHttpClient(state);
-  }
+public interface AuditCountClient {
+  /**
+   *
+   * @param datasetName query dataset
+   * @param start start timestamp in millis from epoch
+   * @param end end timestamp in millis from epoch
+   * @return a map of <tier, counts>
+   * @throws IOException
+   */
+  Map<String, Long> fetch(String datasetName, long start, long end) throws IOException;
 }
