@@ -475,6 +475,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private Table addPartitionToIcebergTable(Table table, String fieldName, String type) {
     if(!table.schema().columns().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
       table.updateSchema().addColumn(fieldName, Types.fromPrimitiveString(type)).commit();
+    }
+    if(!table.spec().fields().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
       table.updateSpec().addField(fieldName).commit();
     }
     return table;
