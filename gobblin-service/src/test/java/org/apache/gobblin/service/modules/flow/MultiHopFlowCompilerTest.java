@@ -550,25 +550,6 @@ public class MultiHopFlowCompilerTest {
 
 
   @Test (dependsOnMethods = "testCompileFlowSingleHop")
-  public void testCompileFlowSingleHopGridFS() throws IOException, URISyntaxException {
-    FlowSpec spec = createFlowSpec("flow/flow6.conf", "HDFS-1", "GRIDFS-1", false, false);
-    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
-    Assert.assertEquals(jobDag.getNodes().size(), 1);
-    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
-    Assert.assertEquals(jobDag.getStartNodes().get(0), jobDag.getEndNodes().get(0));
-
-    //Ensure hop is from HDFS-1 to GRIDFS-1 i.e. jobName == "testFlowGroup_testFlowName_DistcpToGridFS_HDFS-1_GRIDFS-1.
-    DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
-    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    String expectedJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "DistcpToGridFS", "HDFS-1", "GRIDFS-1", "hdfsToGridFs");
-    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-    Assert.assertTrue(jobName.startsWith(expectedJobName));
-  }
-
-
-  @Test (dependsOnMethods = "testCompileFlowSingleHopGridFS")
   public void testMulticastPath() throws IOException, URISyntaxException {
     FlowSpec spec = createFlowSpec("flow/flow2.conf", "LocalFS-1", "HDFS-3,HDFS-4", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
