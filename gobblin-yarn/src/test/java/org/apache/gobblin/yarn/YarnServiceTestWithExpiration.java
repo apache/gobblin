@@ -65,7 +65,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 /**
  * Tests for {@link YarnService}.
  */
-@Test(groups = {"gobblin.yarn", "disabledOnCI"})
+@Test(groups = {"gobblin.yarn"}, singleThreaded=true)
 public class YarnServiceTestWithExpiration {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
 

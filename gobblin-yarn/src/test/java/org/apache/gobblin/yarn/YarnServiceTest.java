@@ -76,7 +76,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 /**
  * Tests for {@link YarnService}.
  */
-@Test(groups = {"gobblin.yarn", "disabledOnCI"}, singleThreaded=true)
+@Test(groups = {"gobblin.yarn"}, singleThreaded=true)
 public class YarnServiceTest {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
 
