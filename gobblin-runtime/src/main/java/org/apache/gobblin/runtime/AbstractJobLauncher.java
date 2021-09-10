@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.URI;
@@ -32,6 +33,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.source.extractor.extract.kafka.WorkUnitChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -92,7 +96,6 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -258,6 +261,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       Authenticator.setDefault(authenticator);
     }
   }
+
+  /**
+   * Handle {@link WorkUnitChangeEvent}, by default it will donothing
+   */
+  @Subscribe
+  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent) throws IOException{
+    LOG.info("start to handle workunit change event");
+    this.removeTaskFromRunningHelixJob(workUnitChangeEvent.getOldTaskIds());
+    this.addTaskToRunningHelixJob(workUnitChangeEvent.getNewWorkUnits());
+  }
+
+  protected void removeTaskFromRunningHelixJob(List<String> taskIdsToRemove) throws IOException {}
+  protected void addTaskToRunningHelixJob(List<WorkUnit> workUnitsToAdd) throws IOException {}
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
@@ -427,6 +443,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         TimingEvent workUnitsCreationTimer =
             this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
         Source<?, ?> source = this.jobContext.getSource();
+        if (source instanceof KafkaSource) {
+          ((KafkaSource)source).setEventBus(eventBus);
+           eventBus.register(this);
+        } else if (source instanceof SourceDecorator && ((SourceDecorator<?, ?>) source).getDecoratedObject() instanceof KafkaSource) {
+          ((KafkaSource)((SourceDecorator<?, ?>) source).getDecoratedObject()).setEventBus(eventBus);
+          eventBus.register(this);
+        }
         WorkUnitStream workUnitStream;
         if (source instanceof WorkUnitStreamSource) {
           workUnitStream = ((WorkUnitStreamSource) source).getWorkunitStream(jobState);

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.source.extractor.extract.kafka;
 
+import com.google.common.eventbus.EventBus;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -168,6 +169,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private MetricContext metricContext;
 
   protected Optional<LineageInfo> lineageInfo;
+  @Setter
+  protected EventBus eventBus;
 
   private List<String> getLimiterExtractorReportKeys() {
     List<String> keyNames = new ArrayList<>();
@@ -375,6 +378,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
   }
 
+  private void onWorkUnitUpdate (List<String> oldTaskIds, List<WorkUnit> newWorkUnits) {
+    if (this.eventBus != null) {
+      LOG.info("post workunit change event");
+      this.eventBus.post(new WorkUnitChangeEvent(oldTaskIds, newWorkUnits));
+    }
+  }
   /*
    * This function need to be thread safe since it is called in the Runnable
    */

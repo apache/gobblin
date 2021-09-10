@@ -291,7 +291,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     return longWatermarkMap;
   }
 
-  private List<KafkaPartition> getTopicPartitionsFromWorkUnit(WorkUnitState state) {
+  public static List<KafkaPartition> getTopicPartitionsFromWorkUnit(WorkUnitState state) {
     // what topic partitions are we responsible for?
     List<KafkaPartition> topicPartitions = new ArrayList<>();
 
@@ -302,7 +302,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
 
     for (int i = 0; i < numOfPartitions; ++i) {
       if (workUnit.getProp(topicNameProp, null) == null) {
-        log.warn("There's no topic.name property being set in workunt which could be an illegal state");
+        //log.warn("There's no topic.name property being set in workunt which could be an illegal state");
         break;
       }
       String topicName = workUnit.getProp(topicNameProp);

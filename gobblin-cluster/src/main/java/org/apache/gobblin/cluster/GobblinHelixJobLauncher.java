@@ -269,6 +269,55 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
+  protected void removeTaskFromRunningHelixJob(List<String> taskIdsToRemove) throws IOException {
+    String jobName = this.jobContext.getJobName();
+    for(String taskId: taskIdsToRemove) {
+      int helixOperationRetryTime = 3;
+      while (helixOperationRetryTime > 0) {
+        boolean remove =
+            HelixUtils.deleteTaskFromHelixJob(this.helixWorkFlowName, jobName, taskId,
+                this.helixTaskDriver);
+        if (remove) {
+          log.info(String.format("Removed task %s from helix job %s:%s ",
+              taskId, this.helixWorkFlowName, jobName));
+          break;
+        } else {
+          helixOperationRetryTime--;
+          if (helixOperationRetryTime == 0) {
+            log.error(String.format("Failed to remove task %s from helix job %s:%s ",
+                taskId, this.helixWorkFlowName, jobName));
+            throw new IOException(String.format("Cannot remove task %s from helix job %s:%s after 3 times",
+                taskId, this.helixWorkFlowName, jobName));
+          }
+        }
+      }
+    }
+  }
+
+  protected void addTaskToRunningHelixJob(List<WorkUnit> workUnitsToAdd) throws IOException {
+    String jobName = this.jobContext.getJobName();
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
+      for (WorkUnit workunit : workUnitsToAdd) {
+        int helixOperationRetryTime = 3;
+        while (helixOperationRetryTime > 0) {
+          boolean added = HelixUtils.addTaskToHelixJob(this.helixWorkFlowName, jobName, getTaskConfig(workunit, stateSerDeRunner), this.helixTaskDriver);
+          if (added) {
+            log.info(String.format("Added task %s to helix job %s:%s ", workunit.getId(), this.helixWorkFlowName,
+                jobName));
+            break;
+          } else {
+            helixOperationRetryTime--;
+            if (helixOperationRetryTime == 0) {
+              throw new IOException(
+                  String.format("Cannot add task %s to helix job %s:%s after 3 times", workunit.getId(),
+                      this.helixWorkFlowName, jobName));
+            }
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Create a job from a given batch of {@link WorkUnit}s.
    */
@@ -396,13 +445,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       }
     }
   }
-
-  /**
-   * Add a single {@link WorkUnit} (flattened) to persistent storage so that worker can fetch that based on information
-   * fetched in Helix task.
-   */
-  private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner,
-      Map<String, TaskConfig> taskConfigMap) throws IOException {
+  private TaskConfig getTaskConfig(WorkUnit workUnit, ParallelRunner stateSerDeRunner) throws IOException {
     String workUnitFilePath = persistWorkUnit(
         new Path(this.inputWorkUnitDir, this.jobContext.getJobId()), workUnit, stateSerDeRunner);
 
@@ -412,8 +455,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     rawConfigMap.put(ConfigurationKeys.JOB_ID_KEY, this.jobContext.getJobId());
     rawConfigMap.put(ConfigurationKeys.TASK_ID_KEY, workUnit.getId());
     rawConfigMap.put(GobblinClusterConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
+    return TaskConfig.Builder.from(rawConfigMap);
 
-    taskConfigMap.put(workUnit.getId(), TaskConfig.Builder.from(rawConfigMap));
+  }
+  /**
+   * Add a single {@link WorkUnit} (flattened) to persistent storage so that worker can fetch that based on information
+   * fetched in Helix task.
+   */
+  private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner,
+      Map<String, TaskConfig> taskConfigMap) throws IOException {
+    taskConfigMap.put(workUnit.getId(), getTaskConfig(workUnit, stateSerDeRunner));
   }
 
   /**

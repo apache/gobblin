@@ -67,7 +67,7 @@ ext.externalDependency = [
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
     "hdrHistogram": "org.hdrhistogram:HdrHistogram:2.1.11",
-    "helix": "org.apache.helix:helix-core:0.9.4",
+    "helix": "org.apache.helix:helix-core:1.0.2",
     "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
     "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
