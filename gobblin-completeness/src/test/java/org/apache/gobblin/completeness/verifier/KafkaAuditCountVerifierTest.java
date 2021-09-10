@@ -38,6 +38,7 @@ public class KafkaAuditCountVerifierTest {
     State props = new State();
     props.setProp(KafkaAuditCountVerifier.SOURCE_TIER, SOURCE_TIER);
     props.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.THRESHOLD, ".99");
     TestAuditClient client = new TestAuditClient(props);
     KafkaAuditCountVerifier verifier = new KafkaAuditCountVerifier(props, client);
 
@@ -56,7 +57,7 @@ public class KafkaAuditCountVerifierTest {
     ));
     Assert.assertTrue(verifier.isComplete(topic, 0L, 0L));
 
-    // < 99.9$ complete
+    // <= 99% complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 990L,
         REFERENCE_TIERS,   1000L
