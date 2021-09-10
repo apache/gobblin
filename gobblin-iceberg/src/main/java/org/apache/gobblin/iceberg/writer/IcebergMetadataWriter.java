@@ -893,7 +893,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
         if (timestampDT.isAfter(prevWatermarkDT)
-            && getHoursFromEpoch(now) > (getHoursFromEpoch(prevWatermarkDT) + 1)) {
+            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 1) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
           if(auditCountVerifier.get().isComplete(table, timestampMillis, TimeIterator.inc(timestampDT, granularity, 1).toInstant().toEpochMilli())) {
             completionWatermark = timestampMillis;
@@ -907,10 +907,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
       log.warn("Exception during audit count check: ", e);
     }
     return completionWatermark;
-  }
-
-  private int getHoursFromEpoch(ZonedDateTime dateTime) {
-    return (int) dateTime.toEpochSecond() / 3600;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,

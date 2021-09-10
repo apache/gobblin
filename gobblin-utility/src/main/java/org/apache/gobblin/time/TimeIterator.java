@@ -17,7 +17,9 @@
 
 package org.apache.gobblin.time;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
@@ -104,4 +106,26 @@ public class TimeIterator implements Iterator {
     }
     throw new RuntimeException("Unsupported granularity: " + granularity);
   }
+
+  /**
+   * Return duration as long between 2 datetime objects based on granularity
+   * @param d1
+   * @param d2
+   * @param granularity
+   * @return a long representing the duration
+   */
+  public static long durationBetween(ZonedDateTime d1, ZonedDateTime d2, Granularity granularity) {
+    switch (granularity) {
+      case HOUR:
+        return Duration.between(d1, d2).toHours();
+      case MINUTE:
+        return Duration.between(d1, d2).toMinutes();
+      case DAY:
+        return Duration.between(d1, d2).toDays();
+      case MONTH:
+        return ChronoUnit.MONTHS.between(d1, d2);
+    }
+    throw new RuntimeException("Unsupported granularity: " + granularity);
+  }
+
 }
