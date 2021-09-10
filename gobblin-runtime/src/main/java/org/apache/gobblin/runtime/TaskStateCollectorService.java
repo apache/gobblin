@@ -285,6 +285,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     if (this.totalSizeToCopy == 0) {
       this.totalNumWorkUnits = this.jobState.getPropAsLong(AbstractJobLauncher.NUM_WORKUNITS);
       this.workUnitsCompletedSoFar += 1;
+
+      if (this.totalNumWorkUnits == 0) {
+        LOGGER.warn("Expected to report job progress but work units are not countable");
+        return;
+      }
       newPercentageCopied = this.workUnitsCompletedSoFar / this.totalNumWorkUnits;
     } else {
       this.bytesCopiedSoFar += taskByteSize;
