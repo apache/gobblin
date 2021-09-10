@@ -90,6 +90,10 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   private double bytesCopiedSoFar;
 
+  private double totalNumWorkUnits;
+
+  private double workUnitsCompletedSoFar;
+
   private double lastPercentageReported;
 
   /**
@@ -269,17 +273,26 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
     Long taskByteSize = Long.parseLong(stringSize);
 
-    // if progress reporting is enabled, value should be present
+    // If progress reporting is enabled, value should be present
     if (!this.jobState.contains(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE)) {
       LOGGER.warn("Expected to report job progress but total bytes to copy property null");
       return;
     }
     this.totalSizeToCopy = this.jobState.getPropAsLong(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE);
 
-    // avoid flooding Kafka message queue by sending GobblinTrackingEvents only when threshold is passed
-    this.bytesCopiedSoFar += taskByteSize;
-    Double newPercentageCopied = this.bytesCopiedSoFar / this.totalSizeToCopy;
+    // If total size in bytes cannot be calculated, then default to progress reporting in terms of workunits
+    Double newPercentageCopied;
+    if (this.totalSizeToCopy == 0) {
+      this.totalNumWorkUnits = this.jobState.getPropAsLong(AbstractJobLauncher.NUM_WORKUNITS);
+      this.workUnitsCompletedSoFar += 1;
+      newPercentageCopied = this.workUnitsCompletedSoFar / this.totalNumWorkUnits;
+    } else {
+      this.bytesCopiedSoFar += taskByteSize;
+      newPercentageCopied = this.bytesCopiedSoFar / this.totalSizeToCopy;
+    }
 
+
+    // Avoid flooding Kafka message queue by sending GobblinTrackingEvents only when threshold is passed
     // Report progress when it reaches 100% regardless of difference from lastPercentageReported
     if (newPercentageCopied - this.lastPercentageReported >= ConfigurationKeys.DEFAULT_PROGRESS_REPORTING_THRESHOLD ||
         (Math.abs(newPercentageCopied - 1.0) < 0.001)) {
