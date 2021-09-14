@@ -862,9 +862,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   /**
    * For each timestamp in sorted collection of timestamps in descending order
-   * if timestamp is greater than previousWatermark
-   * and hour(now) > hour(prevWatermark) + 1
-   * and hour(now) > hour(timestamp)
+   * if {@link #checkAudit}
    *    check audit counts for completeness between
    *    a source and reference tier for [timestamp, timstamp + 1 unit of granularity]
    *    If the audit count matches update the watermark to the timestamp and break
@@ -895,9 +893,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
-        if (timestampDT.isAfter(prevWatermarkDT)
-            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 1
-            && TimeIterator.durationBetween(timestampDT, now, granularity) > 0) {
+        if (checkAudit(prevWatermarkDT, timestampDT, now, granularity)) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
           if(auditCountVerifier.get().isComplete(table, timestampMillis, TimeIterator.inc(timestampDT, granularity, 1).toInstant().toEpochMilli())) {
             completionWatermark = timestampMillis;
@@ -911,6 +907,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
       log.warn("Exception during audit count check: ", e);
     }
     return completionWatermark;
+  }
+
+  /**
+   *  if datepartition is greater than previousWatermark
+   *  and hour(now) > hour(prevWatermark) + 1
+   *  and hour(now) > hour(datepartition)
+   *    check audit counts for completeness
+   */
+  private boolean checkAudit(ZonedDateTime previousWatermark, ZonedDateTime datepartition, ZonedDateTime now, TimeIterator.Granularity granularity) {
+    return datepartition.isAfter(previousWatermark)
+        && TimeIterator.durationBetween(previousWatermark, now, granularity) > 1
+        && TimeIterator.durationBetween(datepartition, now, granularity) > 0;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
