@@ -285,6 +285,29 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       addTopicSpecificPropsToWorkUnits(workUnits, topicSpecificStateMap);
       List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
+      new Thread(() -> {
+        WorkUnit pickedWorkUnit = workUnitList.get(0);
+        List<KafkaPartition> partitions = KafkaStreamingExtractor.getTopicPartitionsFromWorkUnit(new WorkUnitState(pickedWorkUnit));
+        LOG.info("$$$ picked topic partition:" );
+        partitions.stream().forEach(p -> LOG.info(p.getTopicName() + " : " + p.getId()));
+        try {
+          LOG.info("source get workunits and start to sleep for 10 mins");
+          Thread.sleep(300000);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+        LOG.info("start to call change event to delete workunit " + pickedWorkUnit.getId());
+        this.onWorkUnitUpdate(Lists.newArrayList(pickedWorkUnit.getId()), Lists.newArrayList());
+        try {
+          LOG.info("source get workunits and start to sleep for 10 mins");
+          Thread.sleep(300000);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+        pickedWorkUnit.setId(pickedWorkUnit.getId()+ "_test");
+        LOG.info("start to call change event to add workunit " + pickedWorkUnit.getId());
+        this.onWorkUnitUpdate(Lists.newArrayList(), Lists.newArrayList(pickedWorkUnit));
+      }).start();
       return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       throw new RuntimeException("Checked exception caught", e);

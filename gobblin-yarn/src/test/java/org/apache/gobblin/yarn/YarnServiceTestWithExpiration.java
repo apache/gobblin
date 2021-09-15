@@ -204,7 +204,7 @@ public class YarnServiceTestWithExpiration {
     Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
     try {
-      Thread.sleep(20000);
+      Thread.sleep(60000);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -235,7 +235,7 @@ public class YarnServiceTestWithExpiration {
     protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
         throws IOException {
       try {
-        Thread.sleep(1000);
+        Thread.sleep(2000);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }

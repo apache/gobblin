@@ -89,8 +89,8 @@ public class ClusterIntegrationTest {
         IntegrationJobCancelSuite.TASK_STATE_FILE)
         .withValue(SleepingTask.SLEEP_TIME_IN_SECONDS, ConfigValueFactory.fromAnyRef(100));
     this.suite = new IntegrationJobCancelSuite(jobConfigOverrides);
-    HelixManager helixManager = getHelixManager();
     suite.startCluster();
+    HelixManager helixManager = getHelixManager();
     helixManager.connect();
 
     ExecutorService executor = Executors.newSingleThreadExecutor();
