@@ -550,25 +550,6 @@ public class MultiHopFlowCompilerTest {
 
 
   @Test (dependsOnMethods = "testCompileFlowSingleHop")
-  public void testCompileFlowSingleHopGridFS() throws IOException, URISyntaxException {
-    FlowSpec spec = createFlowSpec("flow/flow6.conf", "HDFS-1", "GRIDFS-1", false, false);
-    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
-    Assert.assertEquals(jobDag.getNodes().size(), 1);
-    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
-    Assert.assertEquals(jobDag.getStartNodes().get(0), jobDag.getEndNodes().get(0));
-
-    //Ensure hop is from HDFS-1 to GRIDFS-1 i.e. jobName == "testFlowGroup_testFlowName_DistcpToGridFS_HDFS-1_GRIDFS-1.
-    DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
-    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    String expectedJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "DistcpToGridFS", "HDFS-1", "GRIDFS-1", "hdfsToGridFs");
-    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-    Assert.assertTrue(jobName.startsWith(expectedJobName));
-  }
-
-
-  @Test (dependsOnMethods = "testCompileFlowSingleHopGridFS")
   public void testMulticastPath() throws IOException, URISyntaxException {
     FlowSpec spec = createFlowSpec("flow/flow2.conf", "LocalFS-1", "HDFS-3,HDFS-4", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -665,12 +646,34 @@ public class MultiHopFlowCompilerTest {
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    Assert.assertEquals(dag, null);
+    Assert.assertNull(dag);
     Assert.assertEquals(spec.getCompilationErrors().size(), 2);
     spec.getCompilationErrors().stream().anyMatch(s -> s.contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")
+  public void testMissingSourceNodeError() throws Exception {
+    FlowSpec spec = createFlowSpec("flow/flow5.conf", "HDFS-NULL", "HDFS-3", false, false);
+
+    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+
+    Assert.assertEquals(dag, null);
+    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
+    spec.getCompilationErrors().stream().anyMatch(s -> s.contains("Flowgraph does not have a node with id"));
+  }
+
+  @Test (dependsOnMethods = "testMissingSourceNodeError")
+  public void testMissingDestinationNodeError() throws Exception {
+    FlowSpec spec = createFlowSpec("flow/flow5.conf", "HDFS-1", "HDFS-NULL", false, false);
+
+    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+
+    Assert.assertNull(dag);
+    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
+    spec.getCompilationErrors().stream().anyMatch(s -> s.contains("Flowgraph does not have a node with id"));
+  }
+
+  @Test (dependsOnMethods = "testMissingDestinationNodeError")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     File remoteDir = new File(TESTDIR + "/remote");

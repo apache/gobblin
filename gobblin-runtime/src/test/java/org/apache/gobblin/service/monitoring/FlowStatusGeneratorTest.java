@@ -16,13 +16,22 @@
  */
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Arrays;
 import java.util.Iterator;
-
-import org.junit.Assert;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
+import java.util.List;
+import java.util.function.Supplier;
 
 import com.google.common.collect.Lists;
+
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.test.matchers.service.monitoring.FlowStatusMatch;
+import org.apache.gobblin.test.matchers.service.monitoring.JobStatusMatch;
+
+import static org.hamcrest.MatcherAssert.assertThat;
 
 
 public class FlowStatusGeneratorTest {
@@ -68,5 +77,76 @@ public class FlowStatusGeneratorTest {
     jobStatusIterator = Lists.newArrayList(jobStatus1, jobStatus2, jobStatus3, flowStatus).iterator();
     Mockito.when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(jobStatusIterator);
     Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
+  }
+
+  @Test
+  public void testGetFlowStatusesAcrossGroup() {
+    final long JOB_EXEC_ID = 987L;
+
+    JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
+    // setup: one flow...
+    String flowGroup = "myFlowGroup";
+    int countPerFlowName = 2;
+    String flowName1 = "flowName1";
+    long flowExecutionId1 = 111L;
+    ExecutionStatus flowStatus1 = ExecutionStatus.ORCHESTRATED;
+    // ...with two jobs, each (differently) tagged.
+    String f0Js1Status = ExecutionStatus.COMPLETE.name();
+    String f0Js1Tag = "step-1";
+    String f0Js1JobGroup1 = "job-group-x";
+    String f0Js1JobName1 = "job-name-a";
+    JobStatus f1Js0 = createFlowJobStatus(flowGroup, flowName1, flowExecutionId1, flowStatus1);
+    JobStatus f1Js1 = createJobStatus(flowGroup, flowName1, flowExecutionId1,
+        f0Js1Status, f0Js1Tag, f0Js1JobGroup1, f0Js1JobName1, JOB_EXEC_ID);
+    String f0Js2Status = ExecutionStatus.FAILED.name();
+    String f0Js2Tag = "step-2";
+    String f0Js2JobGroup1 = "job-group-y";
+    String f0Js2JobName1 = "job-name-b";
+    JobStatus f1Js2 = createJobStatus(flowGroup, flowName1, flowExecutionId1,
+        f0Js2Status, f0Js2Tag, f0Js2JobGroup1, f0Js2JobName1, JOB_EXEC_ID);
+
+    // IMPORTANT: result invariants to honor - ordered by ascending flowName, all of same flowName adjacent, therein descending flowExecutionId
+    // NOTE: `Supplier`/thunk needed for repeated use, due to mutable, non-rewinding `Iterator FlowStatus.getJobStatusIterator`
+    Supplier<FlowStatus> createFs1 = () -> createFlowStatus(flowGroup, flowName1, flowExecutionId1, Arrays.asList(f1Js0, f1Js1, f1Js2));
+    Mockito.when(jobStatusRetriever.getFlowStatusesForFlowGroupExecutions(flowGroup, countPerFlowName)).thenReturn(
+        Arrays.asList(createFs1.get()), Arrays.asList(createFs1.get()), Arrays.asList(createFs1.get())); // (for three invocations)
+
+    FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
+
+    JobStatusMatch.Dependent f0jsmDep1 = JobStatusMatch.Dependent.ofTagged(f0Js1JobGroup1, f0Js1JobName1, JOB_EXEC_ID, f0Js1Status, f0Js1Tag);
+    JobStatusMatch.Dependent f0jsmDep2 = JobStatusMatch.Dependent.ofTagged(f0Js2JobGroup1, f0Js2JobName1, JOB_EXEC_ID, f0Js2Status, f0Js2Tag);
+    // verify all jobs returned when no tag constraint
+    List<FlowStatus> flowStatusesResult = flowStatusGenerator.getFlowStatusesAcrossGroup(flowGroup, countPerFlowName, null);
+    Assert.assertEquals(flowStatusesResult.size(), 1);
+    assertThat(flowStatusesResult.get(0), FlowStatusMatch.withDependentJobStatuses(flowGroup, flowName1, flowExecutionId1, flowStatus1,
+        Arrays.asList(f0jsmDep1, f0jsmDep2)));
+
+    // verify 'flow pseudo status' plus first job returned against first job's tag
+    List<FlowStatus> flowStatusesResult2 = flowStatusGenerator.getFlowStatusesAcrossGroup(flowGroup, countPerFlowName, f0Js1Tag);
+    Assert.assertEquals(flowStatusesResult2.size(), 1);
+    assertThat(flowStatusesResult2.get(0), FlowStatusMatch.withDependentJobStatuses(flowGroup, flowName1, flowExecutionId1, flowStatus1,
+        Arrays.asList(f0jsmDep1)));
+
+    // verify 'flow pseudo status' plus second job returned against second job's tag
+    List<FlowStatus> flowStatusesResult3 = flowStatusGenerator.getFlowStatusesAcrossGroup(flowGroup, countPerFlowName, f0Js2Tag);
+    Assert.assertEquals(flowStatusesResult3.size(), 1);
+    assertThat(flowStatusesResult3.get(0), FlowStatusMatch.withDependentJobStatuses(flowGroup, flowName1, flowExecutionId1, flowStatus1,
+        Arrays.asList(f0jsmDep2)));
+  }
+
+  private FlowStatus createFlowStatus(String flowGroup, String flowName, long flowExecutionId, List<JobStatus> jobStatuses) {
+    return new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatuses.iterator());
+  }
+
+  private JobStatus createFlowJobStatus(String flowGroup, String flowName, long flowExecutionId, ExecutionStatus status) {
+    return createJobStatus(flowGroup, flowName, flowExecutionId, status.name(), null,
+        JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, 0L);
+  }
+
+  private JobStatus createJobStatus(String flowGroup, String flowName, long flowExecutionId, String eventName,
+      String jobTag, String jobGroup, String jobName, long jobExecutionId) {
+    return JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
+        .eventName(eventName).jobTag(jobTag)
+        .jobGroup(jobGroup).jobName(jobName).jobExecutionId(jobExecutionId).build();
   }
 }

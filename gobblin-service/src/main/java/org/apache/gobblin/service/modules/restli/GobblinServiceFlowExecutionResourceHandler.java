@@ -78,6 +78,11 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   }
 
   @Override
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow, String tag) {
+    return this.localHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag);
+  }
+
+  @Override
   public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();

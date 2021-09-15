@@ -53,6 +53,8 @@ public class FsCleanableHelper {
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.retention.";
 
+  public static final String RETENTION_DATASET_ROOT = CONFIGURATION_KEY_PREFIX + "dataset.root";
+
   public static final String SIMULATE_KEY = CONFIGURATION_KEY_PREFIX + "simulate";
   public static final String SIMULATE_DEFAULT = Boolean.toString(false);
 

@@ -22,6 +22,7 @@ import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 
@@ -31,6 +32,7 @@ import org.apache.gobblin.runtime.troubleshooter.Issue;
  */
 @Builder
 @Getter
+@ToString
 public class JobStatus {
   private final String jobName;
   private final String jobGroup;

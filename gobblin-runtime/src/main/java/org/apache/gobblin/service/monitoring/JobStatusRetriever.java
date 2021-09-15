@@ -18,13 +18,18 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Ordering;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,6 +69,15 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId, String jobName, String jobGroup);
 
+  /**
+   * Get the latest {@link FlowStatus}es of executions of flows belonging to this flow group.  Currently, latest flow execution
+   * is decided by comparing {@link JobStatus#getFlowExecutionId()}.
+   * @return `FlowStatus`es of `flowGroup`, ordered by ascending flowName, with all of each name adjacent and by descending flowExecutionId.
+   *
+   * NOTE: return `List`, not `Iterator` for non-side-effecting access.
+   */
+  public abstract List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName);
+
   public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
     List<Long> lastKExecutionIds = getLatestExecutionIdsForFlow(flowName, flowGroup, 1);
     return lastKExecutionIds != null && !lastKExecutionIds.isEmpty() ? lastKExecutionIds.get(0) : -1L;
@@ -89,10 +103,10 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     String flowGroup = getFlowGroup(jobState);
     String flowName = getFlowName(jobState);
     long flowExecutionId = getFlowExecutionId(jobState);
-    String jobName = jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
-    String jobGroup = jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+    String jobName = getJobName(jobState);
+    String jobGroup = getJobGroup(jobState);
     String jobTag = jobState.getProp(TimingEvent.FlowEventConstants.JOB_TAG_FIELD);
-    long jobExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+    long jobExecutionId = getJobExecutionId(jobState);
     String eventName = jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
     long orchestratedTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_ORCHESTRATED_TIME, "0"));
     long startTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_START_TIME, "0"));
@@ -134,6 +148,58 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   protected final long getFlowExecutionId(State jobState) {
     return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
+  }
+
+  protected final String getJobGroup(State jobState) {
+    return jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+  }
+
+  protected final String getJobName(State jobState) {
+    return jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+  }
+
+  protected final long getJobExecutionId(State jobState) {
+    return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+  }
+
+  protected Iterator<JobStatus> asJobStatuses(List<State> jobStatusStates) {
+    return jobStatusStates.stream().map(this::getJobStatus).iterator();
+  }
+
+  protected List<FlowStatus> asFlowStatuses(List<FlowExecutionJobStateGrouping> flowExecutionGroupings) {
+    return flowExecutionGroupings.stream().map(exec ->
+        new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(),
+            asJobStatuses(exec.getJobStates().stream().sorted(
+                // rationalized order, to facilitate test assertions
+                Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
+            ).collect(Collectors.toList()))))
+        .collect(Collectors.toList());
+  }
+
+  @AllArgsConstructor
+  @Getter
+  protected static class FlowExecutionJobStateGrouping {
+    private final String flowGroup;
+    private final String flowName;
+    private final long flowExecutionId;
+    private final List<State> jobStates;
+  }
+
+  protected List<FlowExecutionJobStateGrouping> groupByFlowExecutionAndRetainLatest(
+      String flowGroup, List<State> jobStatusStates, int maxCountPerFlowName) {
+    Map<String, Map<Long, List<State>>> statesByFlowExecutionIdByName =
+        jobStatusStates.stream().collect(Collectors.groupingBy(
+            this::getFlowName,
+            Collectors.groupingBy(this::getFlowExecutionId)));
+
+    return statesByFlowExecutionIdByName.entrySet().stream().sorted(Map.Entry.comparingByKey()).flatMap(flowNameEntry -> {
+      String flowName = flowNameEntry.getKey();
+      Map<Long, List<State>> statesByFlowExecutionIdForName = flowNameEntry.getValue();
+
+      List<Long> executionIds = Ordering.<Long>natural().greatestOf(statesByFlowExecutionIdForName.keySet(), maxCountPerFlowName);
+      return executionIds.stream().map(executionId ->
+          new FlowExecutionJobStateGrouping(flowGroup, flowName, executionId, statesByFlowExecutionIdForName.get(executionId)));
+    }).collect(Collectors.toList());
   }
 
   public abstract StateStore<State> getStateStore();

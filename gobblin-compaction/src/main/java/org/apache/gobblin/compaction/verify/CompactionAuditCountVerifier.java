@@ -44,6 +44,7 @@ import org.apache.gobblin.util.ClassAliasResolver;
  * Use {@link AuditCountClient} to retrieve all record count across different tiers
  * Compare one specific tier (gobblin-tier) with all other refernce tiers and determine
  * if verification should be passed based on a pre-defined threshold.
+ * @TODO: 8/31/21 "Use @{@link org.apache.gobblin.completeness.verifier.KafkaAuditCountVerifier}"
  */
 @Slf4j
 public class CompactionAuditCountVerifier implements CompactionVerifier<FileSystemDataset> {
