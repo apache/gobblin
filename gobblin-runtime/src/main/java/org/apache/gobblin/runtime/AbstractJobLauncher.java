@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime;
 
 import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -266,10 +267,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Handle {@link WorkUnitChangeEvent}, by default it will donothing
    */
   @Subscribe
-  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent) throws IOException{
+  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent)
+      throws InvocationTargetException {
     LOG.info("start to handle workunit change event");
-    this.removeTaskFromRunningHelixJob(workUnitChangeEvent.getOldTaskIds());
-    this.addTaskToRunningHelixJob(workUnitChangeEvent.getNewWorkUnits());
+    try {
+      this.removeTaskFromRunningHelixJob(workUnitChangeEvent.getOldTaskIds());
+      this.addTaskToRunningHelixJob(workUnitChangeEvent.getNewWorkUnits());
+    } catch (Exception e) {
+      //todo: emit some event to indicate there is an error handling this event that may cause starvation
+      throw new InvocationTargetException(e);
+    }
   }
 
   protected void removeTaskFromRunningHelixJob(List<String> taskIdsToRemove) throws IOException {}

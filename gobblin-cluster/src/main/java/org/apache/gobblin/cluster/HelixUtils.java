@@ -151,7 +151,7 @@ public class HelixUtils {
     try {
       log.info(String.format("try to delete task %s from workflow %s, job %s", taskID, workFlowName, jobName));
       helixTaskDriver.deleteTask(workFlowName, jobName, taskID);
-    } catch (InterruptedException | TimeoutException e) {
+    } catch (Exception e) {
       e.printStackTrace();
     }
     return !helixTaskDriver.getJobConfig(TaskUtil.getNamespacedJobName(workFlowName, jobName)).getMapConfigs().containsKey(taskID);
@@ -159,15 +159,16 @@ public class HelixUtils {
 
   public static boolean addTaskToHelixJob(String workFlowName,
       String jobName, TaskConfig taskConfig, TaskDriver helixTaskDriver) {
+    String taskId = taskConfig.getId();
     try {
+      log.info(String.format("try to add task %s to workflow %s, job %s", taskId, workFlowName, jobName));
       helixTaskDriver.addTask(workFlowName, jobName, taskConfig);
-    } catch (TimeoutException | InterruptedException e) {
+    } catch (Exception e) {
       e.printStackTrace();
     }
     JobContext jobContext =
         helixTaskDriver.getJobContext(TaskUtil.getNamespacedJobName(workFlowName, jobName));
-    return jobContext.getTaskIdPartitionMap().containsKey(taskConfig.getId())
-        && jobContext.getAssignedParticipant(jobContext.getTaskIdPartitionMap().get(taskConfig.getId())) != null;
+    return jobContext.getTaskIdPartitionMap().containsKey(taskId);
   }
 
   public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,
