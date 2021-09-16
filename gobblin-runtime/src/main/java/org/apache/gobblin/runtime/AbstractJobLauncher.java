@@ -663,7 +663,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   @VisibleForTesting
   public static long sumWorkUnitsSizes (WorkUnitStream workUnitStream) {
     Collection<WorkUnit> workUnits = JobLauncherUtils.flattenWorkUnits(workUnitStream.getMaterializedWorkUnitCollection());
-    long totalSizeInBytes = workUnits.stream().mapToLong(wu -> wu.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE)).sum();
+    long totalSizeInBytes = workUnits.stream().mapToLong(wu -> wu.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE, 0)).sum();
     return totalSizeInBytes;
   }
 
