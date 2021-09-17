@@ -729,9 +729,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private int isLate(String datepartition, long previousWatermark) {
     ZonedDateTime partitionDateTime = ZonedDateTime.parse(datepartition, HOURLY_DATEPARTITION_FORMAT);
     long partitionEpochTime = partitionDateTime.toInstant().toEpochMilli();
-    if(partitionEpochTime > previousWatermark) {
+    if(partitionEpochTime >= previousWatermark) {
       return 0;
-    } else if(partitionEpochTime <= previousWatermark && partitionDateTime.toLocalDate().equals(getDateFromEpochMillis(previousWatermark))) {
+    } else if(partitionEpochTime < previousWatermark && partitionDateTime.toLocalDate().equals(getDateFromEpochMillis(previousWatermark))) {
       return 1;
     } else {
       return 2;
@@ -861,11 +861,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
+   * NOTE: cw for a window [t1, t2] is marked as t2 if audit counts match
+   * for that window (aka cw is marked at the beginning of next window)
    * For each timestamp in sorted collection of timestamps in descending order
    * if timestamp is greater than previousWatermark
-   * and hour(now) > hour(prevWatermark) + 1
+   * and hour(now) > hour(prevWatermark)
    *    check audit counts for completeness between
-   *    a source and reference tier for [timestamp, timstamp + 1 unit of granularity]
+   *    a source and reference tier for [timestamp -1 , timstamp unit of granularity]
    *    If the audit count matches update the watermark to the timestamp and break
    *    else continue
    * else
@@ -895,9 +897,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
         if (timestampDT.isAfter(prevWatermarkDT)
-            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 1) {
+            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
-          if(auditCountVerifier.get().isComplete(table, timestampMillis, TimeIterator.inc(timestampDT, granularity, 1).toInstant().toEpochMilli())) {
+          if(auditCountVerifier.get().isComplete(table, TimeIterator.dec(timestampDT, granularity, 1).toInstant().toEpochMilli(), timestampMillis)) {
             completionWatermark = timestampMillis;
             break;
           }

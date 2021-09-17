@@ -330,8 +330,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
     // without risking running into type cast runtime error.
     gmce.setOperationType(OperationType.add_files);
-    File hourlyFile = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/10/data.avro");
-    long timestampMillis = 1584464400000L;
+    File hourlyFile = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2021/09/16/10/data.avro");
+    long timestampMillis = 1631811600000L;
     Files.createParentDirs(hourlyFile);
     writeRecord(hourlyFile);
     gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
@@ -351,13 +351,13 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertTrue(table.spec().fields().size() == 2);
     Assert.assertEquals(table.spec().fields().get(1).name(), "late");
 
-    // Test when completeness watermark < "2020-03-17-10"
+    // Test when completeness watermark = -1 bootstrap case
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
-    Mockito.when(verifier.isComplete("testTopic", timestampMillis, timestampMillis + TimeUnit.HOURS.toMillis(1))).thenReturn(true);
+    Mockito.when(verifier.isComplete("testTopic", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis)).thenReturn(true);
     ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    //completeness watermark = "2020-03-17-10"
+    //completeness watermark = "2020-09-16-10"
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
@@ -365,8 +365,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
 
-    // Test when completeness watermark is still "2020-03-17-10" but have a late file for "2020-03-17-10"
-    File hourlyFile1 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/10/data1.avro");
+    // Test when completeness watermark is still "2021-09-16-10" but have a late file for "2021-09-16-09"
+    File hourlyFile1 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2021/09/16/09/data1.avro");
     Files.createParentDirs(hourlyFile1);
     writeRecord(hourlyFile1);
     gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
@@ -386,10 +386,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile1.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
-    Assert.assertTrue(dfl.next().partition().get(1, Integer.class) == 1);
+    Assert.assertEquals((int) dfl.next().partition().get(1, Integer.class), 1);
 
-    // Test when completeness watermark will advance to "2020-03-17-11"
-    File hourlyFile2 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2020/03/17/11/data.avro");
+    // Test when completeness watermark will advance to "2021-09-16-11"
+    File hourlyFile2 = new File(tmpDir, "data/tracking/testIcebergTable/hourly/2021/09/16/11/data.avro");
     long timestampMillis1 = timestampMillis + TimeUnit.HOURS.toMillis(1);
     Files.createParentDirs(hourlyFile2);
     writeRecord(hourlyFile2);
@@ -405,7 +405,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(60L))));
 
-    Mockito.when(verifier.isComplete("testTopic", timestampMillis1, timestampMillis1 + TimeUnit.HOURS.toMillis(1))).thenReturn(true);
+    Mockito.when(verifier.isComplete("testTopic", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1)).thenReturn(true);
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
@@ -440,13 +440,13 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         partitionValue = "2020-03-17-08";
       } else if (path.toString().contains("hourly/2020/03/17/09")) {
         partitionValue = "2020-03-17-09";
-      } else if (path.toString().contains("hourly/2020/03/17/10")) {
-        partitionValue = "2020-03-17-10";
-      }  else if (path.toString().contains("hourly/2020/03/17/11")) {
-        partitionValue = "2020-03-17-11";
-      } else if (path.toString().contains("hourly/2020/03/17/12")) {
-        partitionValue = "2020-03-17-12";
-      } else if (path.toString().contains("daily/2020/03/17")) {
+      } else if (path.toString().contains("hourly/2021/09/16/09")) {
+        partitionValue = "2021-09-16-09";
+      } else if (path.toString().contains("hourly/2021/09/16/10")) {
+        partitionValue = "2021-09-16-10";
+      } else if (path.toString().contains("hourly/2021/09/16/11")) {
+        partitionValue = "2021-09-16-11";
+      }  else if (path.toString().contains("daily/2020/03/17")) {
         partitionValue = "2020-03-17-00";
       }
       return Optional.of(new HivePartition.Builder().withPartitionValues(Lists.newArrayList(partitionValue))
