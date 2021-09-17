@@ -18,10 +18,13 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +32,10 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
+import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.RetryListener;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -61,6 +68,9 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.retry.RetryerFactory;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
 
 /**
@@ -90,6 +100,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @Getter
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
+  private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
+      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
+      RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
+      RETRY_TYPE, RetryType.EXPONENTIAL.name()));
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
@@ -101,6 +115,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final JobIssueEventHandler jobIssueEventHandler;
 
   private final ConcurrentHashMap<String, Long> flowNameGroupToWorkUnitCount;
+
+  private final Retryer<Void> persistJobStatusRetryer;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
       throws ReflectiveOperationException {
@@ -114,6 +130,22 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.jobIssueEventHandler = jobIssueEventHandler;
 
     this.flowNameGroupToWorkUnitCount = new ConcurrentHashMap<>();
+
+    Config retryerOverridesConfig = config.hasPath(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES)
+        ? ConfigFactory.parseMap(ImmutableMap.of(RETRY_TIME_OUT_MS, config.getDuration(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES)))
+        : ConfigFactory.empty();
+    // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+    this.persistJobStatusRetryer =
+        RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
+          @Override
+          public <V> void onRetry(Attempt<V> attempt) {
+            if (attempt.hasException()) {
+              String msg = String.format("(Likely retryable) failure adding job status to state store [attempt: %d; %s after start]",
+                  attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+              log.warn(msg, attempt.getExceptionCause());
+            }
+          }
+        }));
   }
 
   @Override
@@ -147,33 +179,49 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
+    GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
+
+    if (gobblinTrackingEvent == null) {
+      return;
+    }
+
+    if (IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
+      try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
+        jobIssueEventHandler.processEvent(gobblinTrackingEvent);
+      }
+    }
+
+    if (gobblinTrackingEvent.getName().equals(JobEvent.WORK_UNITS_CREATED)) {
+      emitWorkUnitCountMetric(gobblinTrackingEvent);
+      return;
+    }
+
     try {
-      GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
-
-      if (gobblinTrackingEvent == null) {
-        return;
-      }
-
-      if (IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
-        try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
-          jobIssueEventHandler.processEvent(gobblinTrackingEvent);
+      persistJobStatusRetryer.call(() -> {
+        // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
+        org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
+        if (jobStatus != null) {
+          try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
+            addJobStatusToStateStore(jobStatus, this.stateStore);
+          }
         }
-      }
-
-      if (gobblinTrackingEvent.getName().equals(JobEvent.WORK_UNITS_CREATED)) {
-        emitWorkUnitCountMetric(gobblinTrackingEvent);
-        return;
-      }
-
-      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
-      if (jobStatus != null) {
-        try(Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-          addJobStatusToStateStore(jobStatus, this.stateStore);
-        }
-      }
-    } catch (IOException ioe) {
+        return null;
+      });
+    } catch (ExecutionException ee) {
+      String msg = String.format("Failed to add job status to state store for kafka offset %d", message.getOffset());
+      log.warn(msg, ee.getCause());
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
-      throw new RuntimeException("Failed to add job status to state store for kafka offset " + message.getOffset(), ioe);
+      throw new RuntimeException(msg, ee.getCause());
+    } catch (RetryException re) {
+      String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
+      String msg = String.format("Failed to add job status to state store for kafka offset %d (retried %d times%s)",
+          message.getOffset(), re.getNumberOfFailedAttempts(), interruptedNote);
+      Throwable informativeException = re.getLastFailedAttempt().hasException()
+          ? re.getLastFailedAttempt().getExceptionCause()
+          : re;
+      log.warn(msg, informativeException);
+      // Throw RuntimeException to avoid advancing kafka offsets without updating state store
+      throw new RuntimeException(msg, informativeException);
     }
   }
 
