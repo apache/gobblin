@@ -731,7 +731,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
     long partitionEpochTime = partitionDateTime.toInstant().toEpochMilli();
     if(partitionEpochTime >= previousWatermark) {
       return 0;
-    } else if(partitionEpochTime < previousWatermark && partitionDateTime.toLocalDate().equals(getDateFromEpochMillis(previousWatermark))) {
+    } else if(partitionEpochTime < previousWatermark
+        && partitionDateTime.toLocalDate().equals(getDateFromEpochMillis(previousWatermark))) {
       return 1;
     } else {
       return 2;
@@ -861,8 +862,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   * NOTE: cw for a window [t1, t2] is marked as t2 if audit counts match
-   * for that window (aka cw is marked at the beginning of next window)
+   * NOTE: completion watermark for a window [t1, t2] is marked as t2 if audit counts match
+   * for that window (aka its is set to the beginning of next window)
    * For each timestamp in sorted collection of timestamps in descending order
    * if timestamp is greater than previousWatermark
    * and hour(now) > hour(prevWatermark)
@@ -899,7 +900,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (timestampDT.isAfter(prevWatermarkDT)
             && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
-          if(auditCountVerifier.get().isComplete(table, TimeIterator.dec(timestampDT, granularity, 1).toInstant().toEpochMilli(), timestampMillis)) {
+          if (auditCountVerifier.get().isComplete(table,
+              TimeIterator.dec(timestampDT, granularity, 1).toInstant().toEpochMilli(), timestampMillis)) {
             completionWatermark = timestampMillis;
             break;
           }
