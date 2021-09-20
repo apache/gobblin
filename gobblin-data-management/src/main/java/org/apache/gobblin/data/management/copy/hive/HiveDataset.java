@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -25,11 +24,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,16 +34,22 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueType;
-import com.google.common.collect.ImmutableSet;
+
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
@@ -59,6 +59,7 @@ import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder.DbAndTable;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -67,8 +68,6 @@ import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
-
-import static org.apache.gobblin.data.management.copy.hive.HiveTargetPathHelper.*;
 
 /**
  * Hive dataset implementing {@link CopyableDataset}.
@@ -130,6 +129,10 @@ public class HiveDataset implements PrioritizedCopyableDataset {
 
     this.tableRootPath = PathUtils.isGlob(this.table.getDataLocation()) ? Optional.<Path> absent() :
         Optional.fromNullable(this.table.getDataLocation());
+    if (this.tableRootPath.isPresent()) {
+      this.properties.setProperty(FsCleanableHelper.RETENTION_DATASET_ROOT,
+          PathUtils.getPathWithoutSchemeAndAuthority(this.tableRootPath.get()).toString());
+    }
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
 
