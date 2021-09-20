@@ -132,7 +132,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.flowNameGroupToWorkUnitCount = new ConcurrentHashMap<>();
 
     Config retryerOverridesConfig = config.hasPath(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES)
-        ? ConfigFactory.parseMap(ImmutableMap.of(RETRY_TIME_OUT_MS, config.getDuration(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES)))
+        ? ConfigFactory.parseMap(ImmutableMap.of(
+                RETRY_TIME_OUT_MS,
+                config.getDuration(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES, TimeUnit.MINUTES)))
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
     this.persistJobStatusRetryer =
