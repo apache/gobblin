@@ -42,4 +42,8 @@ public class NoopSchemaVersionWriter implements SchemaVersionWriter<Void> {
       throws IOException {
     return null;
   }
+
+  @Override
+  public void advanceInputStreamToRecord(DataInputStream inputStream) throws IOException {
+  }
 }

@@ -94,7 +94,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   public GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
       InputStream is = new ByteArrayInputStream(message.getValue());
-      schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+      schemaVersionWriter.advanceInputStreamToRecord(new DataInputStream(is));
       Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
 
       return this.reader.get().read(null, decoder);
