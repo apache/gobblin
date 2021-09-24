@@ -24,7 +24,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +38,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -148,12 +146,12 @@ public class DagManagerTest {
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
+  static List<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
     return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false);
   }
 
-  private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
-    return Iterators.singletonIterator(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
+  private static List<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
+    return Lists.newArrayList(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
         message("Test message").eventName(eventName).startTime(flowExecutionId + 10).shouldRetry(shouldRetry).build());
   }
 
@@ -172,23 +170,23 @@ public class DagManagerTest {
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
-    Iterator<JobStatus> jobStatusIterator1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
 
     Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
         Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-        thenReturn(jobStatusIterator1).
-        thenReturn(jobStatusIterator2).
-        thenReturn(jobStatusIterator3).
-        thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5).
-        thenReturn(jobStatusIterator6).
-        thenReturn(jobStatusIterator7);
+        thenReturn(jobStatuses1).
+        thenReturn(jobStatuses2).
+        thenReturn(jobStatuses3).
+        thenReturn(jobStatuses4).
+        thenReturn(jobStatuses5).
+        thenReturn(jobStatuses6).
+        thenReturn(jobStatuses7);
 
     //Run the thread once. Ensure the first job is running
     this._dagManagerThread.run();
@@ -253,37 +251,37 @@ public class DagManagerTest {
 
       //Add a dag to the queue of dags
       this.queue.offer(dag);
-      Iterator<JobStatus> jobStatusIterator1 =
+      List<JobStatus> jobStatuses1 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-      Iterator<JobStatus> jobStatusIterator2 =
+      List<JobStatus> jobStatuses2 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-      Iterator<JobStatus> jobStatusIterator3 =
+      List<JobStatus> jobStatuses3 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-      Iterator<JobStatus> jobStatusIterator4 =
+      List<JobStatus> jobStatuses4 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-      Iterator<JobStatus> jobStatusIterator5 =
+      List<JobStatus> jobStatuses5 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-      Iterator<JobStatus> jobStatusIterator6 =
+      List<JobStatus> jobStatuses6 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.FAILED));
-      Iterator<JobStatus> jobStatusIterator7 =
+      List<JobStatus> jobStatuses7 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-      Iterator<JobStatus> jobStatusIterator8 =
+      List<JobStatus> jobStatuses8 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-      Iterator<JobStatus> jobStatusIterator9 =
+      List<JobStatus> jobStatuses9 =
           getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
 
 
       Mockito.when(_jobStatusRetriever
           .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-          thenReturn(jobStatusIterator1).
-          thenReturn(jobStatusIterator2).
-          thenReturn(jobStatusIterator3).
-          thenReturn(jobStatusIterator4).
-          thenReturn(jobStatusIterator5).
-          thenReturn(jobStatusIterator6).
-          thenReturn(jobStatusIterator7).
-          thenReturn(jobStatusIterator8).
-          thenReturn(jobStatusIterator9);
+          thenReturn(jobStatuses1).
+          thenReturn(jobStatuses2).
+          thenReturn(jobStatuses3).
+          thenReturn(jobStatuses4).
+          thenReturn(jobStatuses5).
+          thenReturn(jobStatuses6).
+          thenReturn(jobStatuses7).
+          thenReturn(jobStatuses8).
+          thenReturn(jobStatuses9);
 
       //Run the thread once. Ensure the first job is running
       this._dagManagerThread.run();
@@ -357,45 +355,45 @@ public class DagManagerTest {
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
-    Iterator<JobStatus> jobStatusIterator1 =
+    List<JobStatus> jobStatuses1 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator2 =
+    List<JobStatus> jobStatuses2 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator3 =
+    List<JobStatus> jobStatuses3 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator4 =
+    List<JobStatus> jobStatuses4 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator5 =
+    List<JobStatus> jobStatuses5 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator6 =
+    List<JobStatus> jobStatuses6 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.FAILED));
-    Iterator<JobStatus> jobStatusIterator7 =
+    List<JobStatus> jobStatuses7 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, "NA_KEY", "NA_KEY", String.valueOf(ExecutionStatus.PENDING_RESUME));
-    Iterator<JobStatus> jobStatusIterator8 =
+    List<JobStatus> jobStatuses8 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator9 =
+    List<JobStatus> jobStatuses9 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator10 =
+    List<JobStatus> jobStatuses10 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.PENDING_RESUME));
-    Iterator<JobStatus> jobStatusIterator11 =
+    List<JobStatus> jobStatuses11 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator12 =
+    List<JobStatus> jobStatuses12 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
 
     Mockito.when(_jobStatusRetriever
         .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-        thenReturn(jobStatusIterator1).
-        thenReturn(jobStatusIterator2).
-        thenReturn(jobStatusIterator3).
-        thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5).
-        thenReturn(jobStatusIterator6).
-        thenReturn(jobStatusIterator7).
-        thenReturn(jobStatusIterator8).
-        thenReturn(jobStatusIterator9).
-        thenReturn(jobStatusIterator10).
-        thenReturn(jobStatusIterator11).
-        thenReturn(jobStatusIterator12);
+        thenReturn(jobStatuses1).
+        thenReturn(jobStatuses2).
+        thenReturn(jobStatuses3).
+        thenReturn(jobStatuses4).
+        thenReturn(jobStatuses5).
+        thenReturn(jobStatuses6).
+        thenReturn(jobStatuses7).
+        thenReturn(jobStatuses8).
+        thenReturn(jobStatuses9).
+        thenReturn(jobStatuses10).
+        thenReturn(jobStatuses11).
+        thenReturn(jobStatuses12);
 
     // Run thread until job2 fails
     for (int i = 0; i < 4; i++) {
@@ -436,23 +434,23 @@ public class DagManagerTest {
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
-    Iterator<JobStatus> jobStatusIterator1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
-    Iterator<JobStatus> jobStatusIterator3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    List<JobStatus> jobStatuses3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    List<JobStatus> jobStatuses7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
 
     Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
         Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-        thenReturn(jobStatusIterator1).
-        thenReturn(jobStatusIterator2).
-        thenReturn(jobStatusIterator3).
-        thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5).
-        thenReturn(jobStatusIterator6).
-        thenReturn(jobStatusIterator7);
+        thenReturn(jobStatuses1).
+        thenReturn(jobStatuses2).
+        thenReturn(jobStatuses3).
+        thenReturn(jobStatuses4).
+        thenReturn(jobStatuses5).
+        thenReturn(jobStatuses6).
+        thenReturn(jobStatuses7);
 
     //Run the thread once. Ensure the first job is running
     this._dagManagerThread.run();
@@ -515,24 +513,24 @@ public class DagManagerTest {
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
-    Iterator<JobStatus> jobStatusIterator1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
-    Iterator<JobStatus> jobStatusIterator3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
-    Iterator<JobStatus> jobStatusIterator4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
-    Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.PENDING_RETRY), true);
-    Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.FAILED));
+    List<JobStatus> jobStatuses1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    List<JobStatus> jobStatuses3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    List<JobStatus> jobStatuses4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    List<JobStatus> jobStatuses5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.PENDING_RETRY), true);
+    List<JobStatus> jobStatuses6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    List<JobStatus> jobStatuses7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.FAILED));
 
 
     Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
         Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-        thenReturn(jobStatusIterator1).
-        thenReturn(jobStatusIterator2).
-        thenReturn(jobStatusIterator3).
-        thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5).
-        thenReturn(jobStatusIterator6).
-        thenReturn(jobStatusIterator7);
+        thenReturn(jobStatuses1).
+        thenReturn(jobStatuses2).
+        thenReturn(jobStatuses3).
+        thenReturn(jobStatuses4).
+        thenReturn(jobStatuses5).
+        thenReturn(jobStatuses6).
+        thenReturn(jobStatuses7);
 
     // Run 4 times, first job fails every time and is retried
     for (int i = 0; i < 4; i++) {
@@ -580,45 +578,45 @@ public class DagManagerTest {
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
-    Iterator<JobStatus> jobStatusIterator1 =
+    List<JobStatus> jobStatuses1 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator2 =
+    List<JobStatus> jobStatuses2 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator3 =
+    List<JobStatus> jobStatuses3 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator4 =
+    List<JobStatus> jobStatuses4 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator5 =
+    List<JobStatus> jobStatuses5 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator6 =
+    List<JobStatus> jobStatuses6 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.CANCELLED));
-    Iterator<JobStatus> jobStatusIterator7 =
+    List<JobStatus> jobStatuses7 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, "NA_KEY", "NA_KEY", String.valueOf(ExecutionStatus.PENDING_RESUME));
-        Iterator<JobStatus> jobStatusIterator8 =
+    List<JobStatus> jobStatuses8 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator9 =
+    List<JobStatus> jobStatuses9 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
-    Iterator<JobStatus> jobStatusIterator10 =
+    List<JobStatus> jobStatuses10 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.PENDING_RESUME));
-    Iterator<JobStatus> jobStatusIterator11 =
+    List<JobStatus> jobStatuses11 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
-    Iterator<JobStatus> jobStatusIterator12 =
+    List<JobStatus> jobStatuses12 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
 
     Mockito.when(_jobStatusRetriever
         .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
-        thenReturn(jobStatusIterator1).
-        thenReturn(jobStatusIterator2).
-        thenReturn(jobStatusIterator3).
-        thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5).
-        thenReturn(jobStatusIterator6).
-        thenReturn(jobStatusIterator7).
-        thenReturn(jobStatusIterator8).
-        thenReturn(jobStatusIterator9).
-        thenReturn(jobStatusIterator10).
-        thenReturn(jobStatusIterator11).
-        thenReturn(jobStatusIterator12);
+        thenReturn(jobStatuses1).
+        thenReturn(jobStatuses2).
+        thenReturn(jobStatuses3).
+        thenReturn(jobStatuses4).
+        thenReturn(jobStatuses5).
+        thenReturn(jobStatuses6).
+        thenReturn(jobStatuses7).
+        thenReturn(jobStatuses8).
+        thenReturn(jobStatuses9).
+        thenReturn(jobStatuses10).
+        thenReturn(jobStatuses11).
+        thenReturn(jobStatuses12);
 
     // Run until job2 cancelled
     for (int i = 0; i < 3; i++) {

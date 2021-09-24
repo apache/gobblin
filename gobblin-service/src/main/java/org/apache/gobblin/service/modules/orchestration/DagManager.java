@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -869,12 +868,12 @@ public class DagManager extends AbstractIdleService {
 
     private JobStatus pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
       long pollStartTime = System.nanoTime();
-      Iterator<JobStatus> jobStatusIterator =
+      List<JobStatus> jobStatuses =
           this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
       Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
 
-      if (jobStatusIterator.hasNext()) {
-        return jobStatusIterator.next();
+      if (!jobStatuses.isEmpty()) {
+        return jobStatuses.get(0);
       } else {
         return null;
       }

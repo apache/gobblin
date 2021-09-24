@@ -18,7 +18,6 @@
 package org.apache.gobblin.service;
 
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -28,13 +27,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.linkedin.restli.server.resources.BaseResource;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
@@ -55,19 +53,19 @@ public class FlowStatusTest {
   class TestJobStatusRetriever extends JobStatusRetriever {
 
     protected TestJobStatusRetriever(MultiContextIssueRepository issueRepository) {
-      super(issueRepository);
+      super(ConfigFactory.empty(), issueRepository);
     }
 
     @Override
-    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
+    public List<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId) {
-      return _listOfJobStatusLists.get((int) flowExecutionId).iterator();
+      return _listOfJobStatusLists.get((int) flowExecutionId);
     }
 
     @Override
-    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
+    public List<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId, String jobGroup, String jobName) {
-      return Iterators.emptyIterator();
+      return Collections.emptyList();
     }
 
     @Override
@@ -108,7 +106,7 @@ public class FlowStatusTest {
     });
 
     _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowStatusResource.class)).injector(injector).build();
+        Lists.newArrayList(FlowStatusResource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();

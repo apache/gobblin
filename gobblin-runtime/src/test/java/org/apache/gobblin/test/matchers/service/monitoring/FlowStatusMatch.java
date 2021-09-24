@@ -19,6 +19,12 @@ package org.apache.gobblin.test.matchers.service.monitoring;
 
 import java.util.List;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.TypeSafeMatcher;
+import org.hamcrest.collection.IsIterableContainingInOrder;
+
 import com.google.api.client.util.Lists;
 import com.google.common.collect.Iterables;
 
@@ -26,12 +32,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
-
-import org.hamcrest.Description;
-import org.hamcrest.Matcher;
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.TypeSafeMatcher;
-import org.hamcrest.collection.IsIterableContainingInOrder;
 
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.monitoring.FlowStatus;
@@ -73,7 +73,7 @@ public class FlowStatusMatch extends TypeSafeMatcher<FlowStatus> {
 
   @SafeVarargs
   private static boolean assertOrderedJobStatuses(FlowStatus flowStatus, Matcher<? super JobStatus>... matchers) {
-    MatcherAssert.assertThat(Lists.newArrayList(flowStatus.getJobStatusIterator()),
+    MatcherAssert.assertThat(Lists.newArrayList(flowStatus.getJobStatuses()),
         IsIterableContainingInOrder.contains(matchers));
     return true; // NOTE: exception thrown in case of error
   }

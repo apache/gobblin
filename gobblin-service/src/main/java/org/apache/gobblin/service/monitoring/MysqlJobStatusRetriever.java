@@ -59,17 +59,17 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getAllFlowStatuses");
 
   @Getter
-  private MysqlJobStatusStateStore<State> stateStore;
+  private final MysqlJobStatusStateStore<State> stateStore;
 
   @Inject
   public MysqlJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) throws ReflectiveOperationException {
-    super(issueRepository);
+    super(config, issueRepository);
     config = config.getConfig(MYSQL_JOB_STATUS_RETRIEVER_PREFIX).withFallback(config);
     this.stateStore = (MysqlJobStatusStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName, flowExecutionId),
         GET_LATEST_FLOW_STATUS_METRIC);
@@ -77,7 +77,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
       String jobName, String jobGroup) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
