@@ -882,6 +882,8 @@ public class ConfigurationKeys {
   public static final String KAFKA_SOURCE_AVG_FETCH_TIME_CAP = "kakfa.source.avgFetchTimeCap";
   public static final int DEFAULT_KAFKA_SOURCE_AVG_FETCH_TIME_CAP = 100;
   public static final String SHARED_KAFKA_CONFIG_PREFIX = "gobblin.kafka.sharedConfig";
+  public static final String KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES =
+      "gobblin.kafka.jobStatusMonitor.retry.timeOut.minutes";
 
   /**
    * Kafka schema registry HTTP client configuration
