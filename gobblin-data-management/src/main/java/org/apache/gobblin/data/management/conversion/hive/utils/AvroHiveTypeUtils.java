@@ -48,8 +48,8 @@ public class AvroHiveTypeUtils {
   public static String generateAvroToHiveColumnMapping(Schema schema, Optional<Map<String, String>> hiveColumns,
       boolean topLevel, String datasetName) {
     if (topLevel && !schema.getType().equals(Schema.Type.RECORD)) {
-      throw new IllegalArgumentException(
-          String.format("Schema for table must be of type RECORD. Received type: %s for dataset %s", schema.getType(),
+      throw new IllegalArgumentException(String
+          .format("Schema for table must be of type RECORD. Received type: %s for dataset %s", schema.getType(),
               datasetName));
     }
 
@@ -73,8 +73,8 @@ public class AvroHiveTypeUtils {
             if (StringUtils.isBlank(flattenSource)) {
               flattenSource = field.name();
             }
-            columns.append(
-                String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type, flattenSource));
+            columns
+                .append(String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type, flattenSource));
           }
         } else {
           columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
@@ -169,7 +169,7 @@ public class AvroHiveTypeUtils {
               isLogicalTypeSet = true;
               break;
             default:
-              log.error("Unsupported logical type" + schema.getLogicalType().getName() +  ", fallback to physical type");
+              log.error("Unsupported logical type" + schema.getLogicalType().getName() + ", fallback to physical type");
           }
         }
 
@@ -196,7 +196,8 @@ public class AvroHiveTypeUtils {
    * @return
    * @throws AvroSerdeException
    */
-  public static String generateHiveSpecificLogicalType(Schema schema) throws AvroSerdeException {
+  public static String generateHiveSpecificLogicalType(Schema schema)
+      throws AvroSerdeException {
     // For bytes type, it can be mapped to decimal.
     Schema.Type type = schema.getType();
 
