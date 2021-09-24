@@ -21,16 +21,17 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 
-import java.util.stream.Stream;
 import javax.inject.Inject;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**
@@ -63,11 +64,8 @@ public class FlowStatusGenerator {
     if (flowExecutionIds == null || flowExecutionIds.isEmpty()) {
       return null;
     }
-    List<FlowStatus> flowStatuses =
-        flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId, tag))
+    return flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId, tag))
             .collect(Collectors.toList());
-
-    return flowStatuses;
   }
 
   /**
@@ -97,24 +95,13 @@ public class FlowStatusGenerator {
           return matchingFlowStatuses;
         }
 
-        // defensively materialize, since `getExecutionStatus` advances `Iterator` arg; else a match would require re-loading from store, re-filtering by tag
-        List<JobStatus> jobStatuses = Lists.newArrayList(flowStatus.getJobStatusIterator());
-        if (getExecutionStatus(jobStatuses.iterator()).equals(executionStatus)) {
-          matchingFlowStatuses.add(new FlowStatus(flowName, flowGroup, flowStatus.getFlowExecutionId(), jobStatuses.iterator()));
+        if (flowStatus.getFlowExecutionStatus().name().equals(executionStatus)) {
+          matchingFlowStatuses.add(flowStatus);
         }
       }
 
       return matchingFlowStatuses;
     }
-  }
-
-  /**
-   * Return the (flow-level) {@link JobStatus} execution status.  Note that the `Iterator` advances internally.
-   */
-  private String getExecutionStatus(Iterator<JobStatus> jobStatusIterator) {
-    // lazily elaborate since no need to create collection when only non-emptiness of interest
-    Iterator<JobStatus> jobFlowStatuses = Iterators.filter(jobStatusIterator, JobStatusRetriever::isFlowStatus);
-    return jobFlowStatuses.hasNext() ? jobFlowStatuses.next().getEventName() : "";
   }
 
   /**
@@ -129,8 +116,11 @@ public class FlowStatusGenerator {
   public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId, String tag) {
     Iterator<JobStatus> jobStatusIterator = retainStatusOfAnyFlowOrJobMatchingTag(
         jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag);
-
-    return jobStatusIterator.hasNext() ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator) : null;
+    // duplicate copy of the iterator is required due to un re-parsing nature of the Iterator
+    Iterator<JobStatus> jobStatusIterator2 = retainStatusOfAnyFlowOrJobMatchingTag(
+        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag);
+    ExecutionStatus flowExecutionStatus = jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusIterator2);
+    return jobStatusIterator.hasNext() ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, flowExecutionStatus) : null;
   }
 
   /**
@@ -149,7 +139,8 @@ public class FlowStatusGenerator {
     return flowStatuses.stream().flatMap(fs -> {
       Iterator<JobStatus> filteredJobStatuses = retainStatusOfAnyFlowOrJobMatchingTag(fs.getJobStatusIterator(), tag);
       return filteredJobStatuses.hasNext() ?
-          Stream.of(new FlowStatus(fs.getFlowName(), fs.getFlowGroup(), fs.getFlowExecutionId(), filteredJobStatuses)) :
+          Stream.of(new FlowStatus(fs.getFlowName(), fs.getFlowGroup(), fs.getFlowExecutionId(), filteredJobStatuses,
+              fs.getFlowExecutionStatus())) :
           Stream.empty();
     }).collect(Collectors.toList());
   }
@@ -167,25 +158,9 @@ public class FlowStatusGenerator {
       return false;
     } else {
       FlowStatus flowStatus = flowStatusList.get(0);
-      Iterator<JobStatus> jobStatusIterator = flowStatus.getJobStatusIterator();
-
-      while (jobStatusIterator.hasNext()) {
-        JobStatus jobStatus = jobStatusIterator.next();
-        if (JobStatusRetriever.isFlowStatus(jobStatus)) {
-          return isJobRunning(jobStatus);
-        }
-      }
-      return false;
+      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+      return !FINISHED_STATUSES.contains(flowExecutionStatus.name());
     }
-  }
-
-  /**
-   * @param jobStatus
-   * @return true if the job associated with the {@link JobStatus} is RUNNING
-   */
-  private boolean isJobRunning(JobStatus jobStatus) {
-    String status = jobStatus.getEventName().toUpperCase();
-    return !FINISHED_STATUSES.contains(status);
   }
 
   /** @return only `jobStatuses` that represent a flow or, when `tag != null`, represent a job tagged as `tag` */

@@ -42,7 +42,7 @@ import static org.mockito.Mockito.mock;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
-  private MysqlJobStatusStateStore dbJobStateStore;
+  private MysqlJobStatusStateStore<State> dbJobStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
 
@@ -58,6 +58,9 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     configBuilder.addPrimitive(MysqlJobStatusRetriever.MYSQL_JOB_STATUS_RETRIEVER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
 
     this.jobStatusRetriever =
+        new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
+    configBuilder.addPrimitive(ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, "true");
+    this.jobStatusRetrieverWithDagManagerEnabled =
         new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
     cleanUpDir();
@@ -86,6 +89,11 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
   public void testGetLatestExecutionIdsForFlow() throws Exception {
     super.testGetLatestExecutionIdsForFlow();
+  }
+
+  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
+  public void testGetJobStatusesForFlowExecutionWithDagManager() throws Exception {
+    super.testGetJobStatusesForFlowExecutionWithDagManager();
   }
 
   @Test

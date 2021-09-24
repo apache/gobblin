@@ -27,6 +27,7 @@ import java.util.List;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -47,13 +48,12 @@ import org.apache.gobblin.service.ExecutionStatus;
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
   public static final String CONF_PREFIX = "localFsJobStatusRetriever.";
-  private String JOB_DONE_SUFFIX = ".done";
-  private String specProducerPath;
+  private final String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   @Inject
   public LocalFsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(ConfigFactory.empty(), issueRepository);
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
@@ -88,6 +88,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     List<JobStatus> jobStatuses = new ArrayList<>();
     JobStatus jobStatus;
 
+    String JOB_DONE_SUFFIX = ".done";
     if (this.doesJobExist(flowName, flowGroup, flowExecutionId, JOB_DONE_SUFFIX)) {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();

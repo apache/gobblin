@@ -60,7 +60,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
 
   @Inject
   public FsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(config, issueRepository);
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }
@@ -70,7 +70,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
-    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
+    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(flowExecutionId + ".");
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
       List<String> tableNames = this.stateStore.getTableNames(storeName, flowExecutionIdPredicate);

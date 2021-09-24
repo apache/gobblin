@@ -59,11 +59,11 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getAllFlowStatuses");
 
   @Getter
-  private MysqlJobStatusStateStore<State> stateStore;
+  private final MysqlJobStatusStateStore<State> stateStore;
 
   @Inject
   public MysqlJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) throws ReflectiveOperationException {
-    super(issueRepository);
+    super(config, issueRepository);
     config = config.getConfig(MYSQL_JOB_STATUS_RETRIEVER_PREFIX).withFallback(config);
     this.stateStore = (MysqlJobStatusStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
   }

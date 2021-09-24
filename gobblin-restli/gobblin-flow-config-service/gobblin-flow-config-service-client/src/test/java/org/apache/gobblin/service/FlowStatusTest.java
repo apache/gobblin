@@ -35,7 +35,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.linkedin.restli.server.resources.BaseResource;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
@@ -56,7 +56,7 @@ public class FlowStatusTest {
   class TestJobStatusRetriever extends JobStatusRetriever {
 
     protected TestJobStatusRetriever(MultiContextIssueRepository issueRepository) {
-      super(issueRepository);
+      super(ConfigFactory.empty(), issueRepository);
     }
 
     @Override
@@ -109,7 +109,7 @@ public class FlowStatusTest {
     });
 
     _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowStatusResource.class)).injector(injector).build();
+        Lists.newArrayList(FlowStatusResource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();

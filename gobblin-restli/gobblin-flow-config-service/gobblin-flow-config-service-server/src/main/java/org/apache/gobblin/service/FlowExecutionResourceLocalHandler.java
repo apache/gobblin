@@ -155,8 +155,6 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
 
     long flowEndTime = 0L;
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
-
     String flowMessage = "";
 
     while (jobStatusIter.hasNext()) {
@@ -164,8 +162,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       // Check if this is the flow status instead of a single job status
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
+        // todo: flow end time will be incorrect when dag manager is not used
+        //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
         flowEndTime = queriedJobStatus.getEndTime();
-        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();
         }
@@ -178,7 +177,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           queriedJobStatus.getProgressPercentage());
 
       jobStatus.setFlowId(flowId)
-          .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
+          .setJobId(new JobId()
+              .setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
           .setJobTag(queriedJobStatus.getJobTag(), SetMode.IGNORE_NULL)
           .setExecutionStatistics(new JobStatistics()
@@ -189,7 +189,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
               .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
-          .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
+          .setJobState(new JobState()
+              .setLowWatermark(queriedJobStatus.getLowWatermark()).
               setHighWatermark(queriedJobStatus.getHighWatermark()));
 
       if (includeIssues) {
@@ -215,7 +216,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
-        .setExecutionStatus(flowExecutionStatus)
+        .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
         .setJobStatuses(jobStatusArray);
   }
 
@@ -260,8 +261,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
     Instant current = Instant.ofEpochMilli(currentTime);
     Instant start = Instant.ofEpochMilli(startTime);
-    Long timeElapsed = Duration.between(start, current).getSeconds();
-    Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
-    return timeLeft;
+    long timeElapsed = Duration.between(start, current).getSeconds();
+    return (long) (timeElapsed * (100.0 / (double) completionPercentage - 1));
   }
 }

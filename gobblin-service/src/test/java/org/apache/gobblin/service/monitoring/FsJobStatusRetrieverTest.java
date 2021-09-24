@@ -30,6 +30,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.service.ServiceConfigKeys;
 
 import static org.mockito.Mockito.mock;
 
@@ -44,6 +45,8 @@ public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
     Config config = ConfigFactory.empty().withValue(FsJobStatusRetriever.CONF_PREFIX + "." + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
         ConfigValueFactory.fromAnyRef(stateStoreDir));
     this.jobStatusRetriever = new FsJobStatusRetriever(config, mock(MultiContextIssueRepository.class));
+    config = config.withValue(ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, ConfigValueFactory.fromAnyRef("true"));
+    this.jobStatusRetrieverWithDagManagerEnabled = new FsJobStatusRetriever(config, mock(MultiContextIssueRepository.class));
   }
 
   @Test
@@ -69,6 +72,11 @@ public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
   public void testGetLatestExecutionIdsForFlow() throws Exception {
     super.testGetLatestExecutionIdsForFlow();
+  }
+
+  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
+  public void testGetJobStatusesForFlowExecutionWithDagManager() throws Exception {
+    super.testGetJobStatusesForFlowExecutionWithDagManager();
   }
 
   @Override
