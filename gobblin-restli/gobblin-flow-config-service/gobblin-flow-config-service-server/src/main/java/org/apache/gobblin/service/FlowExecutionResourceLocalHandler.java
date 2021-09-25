@@ -19,7 +19,6 @@ package org.apache.gobblin.service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -142,23 +141,20 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
       return null;
     }
 
-    Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIter = monitoringFlowStatus.getJobStatusIterator();
+    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatuses = monitoringFlowStatus.getJobStatuses();
     JobStatusArray jobStatusArray = new JobStatusArray();
     FlowId flowId = new FlowId().setFlowName(monitoringFlowStatus.getFlowName())
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
 
     long flowEndTime = 0L;
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
-
     String flowMessage = "";
 
-    while (jobStatusIter.hasNext()) {
-      org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
-
+    for (org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus : jobStatuses) {
       // Check if this is the flow status instead of a single job status
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
+        // todo: flow end time will be incorrect when dag manager is not used
+        //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
         flowEndTime = queriedJobStatus.getEndTime();
-        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();
         }
@@ -171,7 +167,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           queriedJobStatus.getProgressPercentage());
 
       jobStatus.setFlowId(flowId)
-          .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
+          .setJobId(new JobId()
+              .setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
           .setJobTag(queriedJobStatus.getJobTag(), SetMode.IGNORE_NULL)
           .setExecutionStatistics(new JobStatistics()
@@ -182,8 +179,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
               .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
-          .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
-              setHighWatermark(queriedJobStatus.getHighWatermark()))
+          .setJobState(new JobState()
+              .setLowWatermark(queriedJobStatus.getLowWatermark())
+              .setHighWatermark(queriedJobStatus.getHighWatermark()))
           .setIssues(new IssueArray(queriedJobStatus.getIssues().stream()
               .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject).collect(Collectors.toList())));
 
@@ -202,7 +200,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
-        .setExecutionStatus(flowExecutionStatus)
+        .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
         .setJobStatuses(jobStatusArray);
   }
 
@@ -247,8 +245,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
     Instant current = Instant.ofEpochMilli(currentTime);
     Instant start = Instant.ofEpochMilli(startTime);
-    Long timeElapsed = Duration.between(start, current).getSeconds();
-    Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
-    return timeLeft;
+    long timeElapsed = Duration.between(start, current).getSeconds();
+    return (long) (timeElapsed * (100.0 / (double) completionPercentage - 1));
   }
 }

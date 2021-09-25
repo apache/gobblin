@@ -19,14 +19,13 @@ package org.apache.gobblin.service.monitoring;
 
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.AllArgsConstructor;
@@ -42,6 +41,8 @@ import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -55,18 +56,21 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   @Getter
   protected final MetricContext metricContext;
+  protected final boolean dagManagerEnabled;
 
   private final MultiContextIssueRepository issueRepository;
 
-  protected JobStatusRetriever(MultiContextIssueRepository issueRepository) {
+  protected JobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.issueRepository = Objects.requireNonNull(issueRepository);
+    this.dagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY,
+        ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED);
   }
 
-  public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
+  public abstract List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
 
-  public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
+  public abstract List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId, String jobName, String jobGroup);
 
   /**
@@ -87,10 +91,10 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    * Get the latest {@link JobStatus}es that belongs to the same latest flow execution. Currently, latest flow execution
    * is decided by comparing {@link JobStatus#getFlowExecutionId()}.
    */
-  public Iterator<JobStatus> getLatestJobStatusByFlowNameAndGroup(String flowName, String flowGroup) {
+  public List<JobStatus> getLatestJobStatusByFlowNameAndGroup(String flowName, String flowGroup) {
     long latestExecutionId = getLatestExecutionIdForFlow(flowName, flowGroup);
 
-    return latestExecutionId == -1L ? Iterators.<JobStatus>emptyIterator()
+    return latestExecutionId == -1L ? Collections.emptyList()
         : getJobStatusesForFlowExecution(flowName, flowGroup, latestExecutionId);
   }
 
@@ -162,18 +166,19 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
   }
 
-  protected Iterator<JobStatus> asJobStatuses(List<State> jobStatusStates) {
-    return jobStatusStates.stream().map(this::getJobStatus).iterator();
+  protected List<JobStatus> asJobStatuses(List<State> jobStatusStates) {
+    return jobStatusStates.stream().map(this::getJobStatus).collect(Collectors.toList());
   }
 
   protected List<FlowStatus> asFlowStatuses(List<FlowExecutionJobStateGrouping> flowExecutionGroupings) {
-    return flowExecutionGroupings.stream().map(exec ->
-        new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(),
-            asJobStatuses(exec.getJobStates().stream().sorted(
-                // rationalized order, to facilitate test assertions
-                Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
-            ).collect(Collectors.toList()))))
-        .collect(Collectors.toList());
+    return flowExecutionGroupings.stream().map(exec -> {
+      List<JobStatus> jobStatuses = asJobStatuses(exec.getJobStates().stream().sorted(
+          // rationalized order, to facilitate test assertions
+          Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
+      ).collect(Collectors.toList()));
+      return new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(), jobStatuses,
+            getFlowStatusFromJobStatuses(jobStatuses));
+    }).collect(Collectors.toList());
   }
 
   @AllArgsConstructor
@@ -211,5 +216,59 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public static boolean isFlowStatus(org.apache.gobblin.service.monitoring.JobStatus jobStatus) {
     return jobStatus.getJobName() != null && jobStatus.getJobGroup() != null
         && jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
+  }
+
+  public ExecutionStatus getFlowStatusFromJobStatuses(List<JobStatus> jobStatuses) {
+    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
+
+    if (dagManagerEnabled) {
+      for (JobStatus jobStatus : jobStatuses) {
+        // Check if this is the flow status instead of a single job status
+        if (JobStatusRetriever.isFlowStatus(jobStatus)) {
+          flowExecutionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
+        }
+      }
+    } else {
+      for (JobStatus jobStatus : jobStatuses) {
+        if (!JobStatusRetriever.isFlowStatus(jobStatus)) {
+          flowExecutionStatus = updatedFlowExecutionStatus(ExecutionStatus.valueOf(jobStatus.getEventName()), flowExecutionStatus);
+        }
+      }
+    }
+    return flowExecutionStatus;
+  }
+
+  static ExecutionStatus updatedFlowExecutionStatus(ExecutionStatus jobExecutionStatus,
+      ExecutionStatus currentFlowExecutionStatus) {
+    if (currentFlowExecutionStatus == ExecutionStatus.$UNKNOWN) {
+      return jobExecutionStatus;
+    }
+
+    // if any job failed or flow has failed then return failed status
+    if (currentFlowExecutionStatus == ExecutionStatus.FAILED ||
+        jobExecutionStatus == ExecutionStatus.FAILED) {
+      return ExecutionStatus.FAILED;
+    }
+
+    // if any job is cancelled or flow has failed then return failed status
+    if (currentFlowExecutionStatus == ExecutionStatus.CANCELLED ||
+        jobExecutionStatus == ExecutionStatus.CANCELLED) {
+      return ExecutionStatus.CANCELLED;
+    }
+
+    if (currentFlowExecutionStatus == ExecutionStatus.COMPLETE &&
+        jobExecutionStatus == ExecutionStatus.PENDING) {
+      return ExecutionStatus.PENDING;
+    }
+
+    if (currentFlowExecutionStatus == ExecutionStatus.RUNNING ||
+        jobExecutionStatus == ExecutionStatus.RUNNING ||
+        jobExecutionStatus == ExecutionStatus.ORCHESTRATED ||
+        jobExecutionStatus == ExecutionStatus.COMPILED ||
+        jobExecutionStatus == ExecutionStatus.PENDING) {
+      return ExecutionStatus.RUNNING;
+    }
+
+    return currentFlowExecutionStatus;
   }
 }

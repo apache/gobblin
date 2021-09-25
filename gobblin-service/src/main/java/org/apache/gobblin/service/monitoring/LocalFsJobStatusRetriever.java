@@ -21,12 +21,12 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -47,13 +47,12 @@ import org.apache.gobblin.service.ExecutionStatus;
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
   public static final String CONF_PREFIX = "localFsJobStatusRetriever.";
-  private String JOB_DONE_SUFFIX = ".done";
-  private String specProducerPath;
+  private final String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   @Inject
   public LocalFsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(ConfigFactory.empty(), issueRepository);
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
@@ -70,7 +69,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
@@ -79,7 +78,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
       String jobName, String jobGroup) {
     Preconditions.checkArgument(flowName != null, "flowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
@@ -88,6 +87,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     List<JobStatus> jobStatuses = new ArrayList<>();
     JobStatus jobStatus;
 
+    String JOB_DONE_SUFFIX = ".done";
     if (this.doesJobExist(flowName, flowGroup, flowExecutionId, JOB_DONE_SUFFIX)) {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();
@@ -95,11 +95,11 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.PENDING.name()).build();
     } else {
-      return Iterators.emptyIterator();
+      return Collections.emptyList();
     }
 
     jobStatuses.add(jobStatus);
-    return jobStatuses.iterator();
+    return jobStatuses;
   }
 
   /**

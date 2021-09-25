@@ -19,7 +19,7 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,7 +29,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
@@ -60,17 +60,17 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
 
   @Inject
   public FsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(config, issueRepository);
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
-    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
+    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(flowExecutionId + ".");
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
       List<String> tableNames = this.stateStore.getTableNames(storeName, flowExecutionIdPredicate);
@@ -78,19 +78,19 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
       for (String tableName: tableNames) {
         List<State> jobStates = this.stateStore.getAll(storeName, tableName);
         if (jobStates.isEmpty()) {
-          return Iterators.emptyIterator();
+          return Collections.emptyList();
         }
         jobStatuses.add(getJobStatus(jobStates.get(0)));
       }
-      return jobStatuses.iterator();
+      return jobStatuses;
     } catch (IOException e) {
       log.error(String.format("IOException encountered when retrieving job statuses for flow: %s,%s,%s", flowGroup, flowName, flowExecutionId), e);
-      return Iterators.emptyIterator();
+      return Collections.emptyList();
     }
   }
 
   @Override
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
+  public List<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
       String jobName, String jobGroup) {
     Preconditions.checkArgument(flowName != null, "flowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
@@ -102,13 +102,13 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
       String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
       List<State> jobStates = this.stateStore.getAll(storeName, tableName);
       if (jobStates.isEmpty()) {
-        return Iterators.emptyIterator();
+        return Collections.emptyList();
       } else {
-        return Iterators.singletonIterator(getJobStatus(jobStates.get(0)));
+        return Lists.newArrayList(getJobStatus(jobStates.get(0)));
       }
     } catch (IOException e) {
       log.error(String.format("Exception encountered when listing files for flow: %s,%s,%s;%s,%s", flowGroup, flowName, flowExecutionId, jobGroup, jobName), e);
-      return Iterators.emptyIterator();
+      return Collections.emptyList();
     }
   }
 

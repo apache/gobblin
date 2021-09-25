@@ -18,7 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 import org.testng.Assert;
@@ -42,7 +42,7 @@ import static org.mockito.Mockito.mock;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
-  private MysqlJobStatusStateStore dbJobStateStore;
+  private MysqlJobStatusStateStore<State> dbJobStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
 
@@ -58,6 +58,9 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     configBuilder.addPrimitive(MysqlJobStatusRetriever.MYSQL_JOB_STATUS_RETRIEVER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD);
 
     this.jobStatusRetriever =
+        new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
+    configBuilder.addPrimitive(ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, "true");
+    this.jobStatusRetrieverWithDagManagerEnabled =
         new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
     cleanUpDir();
@@ -88,6 +91,11 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     super.testGetLatestExecutionIdsForFlow();
   }
 
+  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
+  public void testGetJobStatusesForFlowExecutionWithDagManager() throws Exception {
+    super.testGetJobStatusesForFlowExecutionWithDagManager();
+  }
+
   @Test
   public void testMaxColumnName() throws Exception {
     Properties properties = new Properties();
@@ -103,10 +111,10 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     State jobStatus = new State(properties);
 
     KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
-    Assert.assertTrue(jobStatusIterator.hasNext());
-    Assert.assertEquals(jobStatusIterator.next().getFlowGroup(), flowGroup);
+    List<JobStatus>
+        jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+    Assert.assertFalse(jobStatuses.isEmpty());
+    Assert.assertEquals(jobStatuses.get(0).getFlowGroup(), flowGroup);
   }
 
   @Test

@@ -18,15 +18,14 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-
-import com.google.common.collect.ImmutableList;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -56,6 +55,7 @@ public abstract class JobStatusRetrieverTest {
   protected static final long JOB_START_TIME = 5;
   protected static final long JOB_END_TIME = 15;
   JobStatusRetriever jobStatusRetriever;
+  JobStatusRetriever jobStatusRetrieverWithDagManagerEnabled;
 
   abstract void setUp() throws Exception;
 
@@ -103,44 +103,42 @@ public abstract class JobStatusRetrieverTest {
     long flowExecutionId = 1234L;
     addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
 
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
-    Assert.assertTrue(jobStatusIterator.hasNext());
-    JobStatus jobStatus = jobStatusIterator.next();
+    List<JobStatus>
+        jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    JobStatus jobStatus = jobStatuses.get(0);
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPILED.name());
     Assert.assertEquals(jobStatus.getJobName(), JobStatusRetriever.NA_KEY);
     Assert.assertEquals(jobStatus.getJobGroup(), JobStatusRetriever.NA_KEY);
     Assert.assertEquals(jobStatus.getProcessedCount(), 0);
     Assert.assertEquals(jobStatus.getLowWatermark(), "");
     Assert.assertEquals(jobStatus.getHighWatermark(), "");
+    Assert.assertEquals(ExecutionStatus.$UNKNOWN, this.jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatuses));
 
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
-    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
-    jobStatus = jobStatusIterator.next();
+    jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    Assert.assertEquals(jobStatuses.size(), 1);
+    jobStatus = jobStatuses.get(0);
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.RUNNING.name());
     Assert.assertEquals(jobStatus.getJobName(), MY_JOB_NAME_1);
     Assert.assertEquals(jobStatus.getJobGroup(), jobGroup);
-    Assert.assertFalse(jobStatusIterator.hasNext());
+    Assert.assertEquals(ExecutionStatus.RUNNING, this.jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatuses));
 
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_2, ExecutionStatus.RUNNING.name());
-    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
-    Assert.assertTrue(jobStatusIterator.hasNext());
-    jobStatus = jobStatusIterator.next();
+    jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    int nextJob = 0;
+    jobStatus = jobStatuses.get(nextJob++);
     if (JobStatusRetriever.isFlowStatus(jobStatus)) {
-      jobStatus = jobStatusIterator.next();
+      jobStatus = jobStatuses.get(nextJob++);
     }
-    Assert.assertTrue(jobStatus.getJobName().equals(MY_JOB_NAME_1) || jobStatus.getJobName().equals(MY_JOB_NAME_2));
+    Assert.assertEquals(jobStatus.getJobName(), MY_JOB_NAME_1);
 
-    String jobName = jobStatus.getJobName();
-    String nextExpectedJobName = (MY_JOB_NAME_1.equals(jobName)) ? MY_JOB_NAME_2 : MY_JOB_NAME_1;
-    Assert.assertTrue(jobStatusIterator.hasNext());
-    jobStatus = jobStatusIterator.next();
+    jobStatus = jobStatuses.get(nextJob++);
     if (JobStatusRetriever.isFlowStatus(jobStatus)) {
-      Assert.assertTrue(jobStatusIterator.hasNext());
-      jobStatus = jobStatusIterator.next();
+      jobStatus = jobStatuses.get(nextJob++);
     }
 
-    Assert.assertEquals(jobStatus.getJobName(), nextExpectedJobName);
+    Assert.assertEquals(jobStatus.getJobName(), MY_JOB_NAME_2);
+    Assert.assertEquals(ExecutionStatus.RUNNING, this.jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatuses));
   }
 
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution")
@@ -150,9 +148,9 @@ public abstract class JobStatusRetrieverTest {
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
-    JobStatus jobStatus = jobStatusIterator.next();
+    List<JobStatus>
+        jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    JobStatus jobStatus = jobStatuses.get(0);
 
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
     Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
@@ -166,11 +164,11 @@ public abstract class JobStatusRetrieverTest {
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
-    JobStatus jobStatus = jobStatusIterator.next();
+    List<JobStatus>
+        jobStatuses = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    JobStatus jobStatus = jobStatuses.get(0);
     if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
-      jobStatus = jobStatusIterator.next();
+      jobStatus = jobStatuses.get(1);
     }
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
     Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
@@ -181,11 +179,10 @@ public abstract class JobStatusRetrieverTest {
   @Test (dependsOnMethods = "testJobTiming")
   public void testGetJobStatusesForFlowExecution1() {
     long flowExecutionId = 1234L;
-    Iterator<JobStatus> jobStatusIterator = this.jobStatusRetriever.
+    List<JobStatus> jobStatuses = this.jobStatusRetriever.
         getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
 
-    Assert.assertTrue(jobStatusIterator.hasNext());
-    JobStatus jobStatus = jobStatusIterator.next();
+    JobStatus jobStatus = jobStatuses.get(0);
     Assert.assertEquals(jobStatus.getJobName(), MY_JOB_NAME_1);
     Assert.assertEquals(jobStatus.getJobGroup(), MY_JOB_GROUP);
     Assert.assertEquals(jobStatus.getJobExecutionId(), JOB_EXECUTION_ID);
@@ -216,6 +213,40 @@ public abstract class JobStatusRetrieverTest {
     cleanUpDir();
     Assert.assertEquals(this.jobStatusRetriever.getLatestExecutionIdsForFlow(FLOW_NAME, FLOW_GROUP, 1).size(), 0);
     Assert.assertEquals(this.jobStatusRetriever.getLatestExecutionIdForFlow(FLOW_NAME, FLOW_GROUP), -1L);
+  }
+
+  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
+  public void testGetJobStatusesForFlowExecutionWithDagManager() throws Exception {
+    this.jobStatusRetriever = jobStatusRetrieverWithDagManagerEnabled;
+    long flowExecutionId = 1237L;
+
+    addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+    Assert.assertEquals(ExecutionStatus.COMPILED,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(ExecutionStatus.COMPILED,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.ORCHESTRATED.name());
+    Assert.assertEquals(ExecutionStatus.ORCHESTRATED,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(ExecutionStatus.ORCHESTRATED,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
+    Assert.assertEquals(ExecutionStatus.RUNNING,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
+    Assert.assertEquals(ExecutionStatus.RUNNING,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+
+    addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(ExecutionStatus.COMPLETE,
+        jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
   }
 
   @Test
