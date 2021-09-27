@@ -82,7 +82,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     if (monitoringFlowStatus == null) {
       return null;
     }
-    FlowExecution flowExecution = FlowExecutionResourceLocalHandler.convertFlowStatus(monitoringFlowStatus);
+    FlowExecution flowExecution = FlowExecutionResourceLocalHandler.convertFlowStatus(monitoringFlowStatus, false);
     return new FlowStatus()
         .setId(flowExecution.getId())
         .setExecutionStatistics(flowExecution.getExecutionStatistics())
