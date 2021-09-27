@@ -73,13 +73,15 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus) {
-    return this.localHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus);
+  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
+      String executionStatus, Boolean includeIssues) {
+    return this.localHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus, includeIssues);
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow, String tag) {
-    return this.localHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag);
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow,
+      String tag, Boolean includeIssues) {
+    return this.localHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag, includeIssues);
   }
 
   @Override

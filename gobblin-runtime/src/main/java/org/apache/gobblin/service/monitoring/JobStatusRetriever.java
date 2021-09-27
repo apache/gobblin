@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
 import com.typesafe.config.ConfigFactory;
@@ -121,21 +123,25 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     int progressPercentage = jobState.getPropAsInt(TimingEvent.JOB_COMPLETION_PERCENTAGE, 0);
     long lastProgressEventTime = jobState.getPropAsLong(TimingEvent.JOB_LAST_PROGRESS_EVENT_TIME, 0);
 
+    String contextId = TroubleshooterUtils.getContextIdForJob(jobState.getProperties());
 
-    List<Issue> issues;
-    try {
-      String contextId = TroubleshooterUtils.getContextIdForJob(jobState.getProperties());
-      issues = issueRepository.getAll(contextId);
-    } catch (TroubleshooterException e) {
-      log.warn("Cannot retrieve job issues", e);
-      issues = Collections.emptyList();
-    }
+    Supplier<List<Issue>> jobIssues = Suppliers.memoize(() -> {
+      List<Issue> issues;
+      try {
+        issues = issueRepository.getAll(contextId);
+      } catch (TroubleshooterException e) {
+        log.warn("Cannot retrieve job issues", e);
+        issues = Collections.emptyList();
+      }
+      return issues;
+    });
 
     return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
         jobName(jobName).jobGroup(jobGroup).jobTag(jobTag).jobExecutionId(jobExecutionId).eventName(eventName).
         lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime).
         message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts).
-        shouldRetry(shouldRetry).progressPercentage(progressPercentage).lastProgressEventTime(lastProgressEventTime).issues(issues).build();
+        shouldRetry(shouldRetry).progressPercentage(progressPercentage).lastProgressEventTime(lastProgressEventTime).
+        issues(jobIssues).build();
   }
 
   protected final String getFlowGroup(State jobState) {

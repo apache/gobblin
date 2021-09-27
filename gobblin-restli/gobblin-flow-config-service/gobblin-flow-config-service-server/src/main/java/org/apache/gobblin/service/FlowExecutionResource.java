@@ -59,14 +59,16 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
 
   @Finder("latestFlowExecution")
   public List<FlowExecution> getLatestFlowExecution(@Context PagingContext context, @QueryParam("flowId") FlowId flowId,
-      @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag, @Optional @QueryParam("executionStatus") String executionStatus) {
-    return this.flowExecutionResourceHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus);
+      @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag, @Optional @QueryParam("executionStatus") String executionStatus,
+      @Optional("false") @QueryParam("includeIssues") Boolean includeIssues) {
+    return this.flowExecutionResourceHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus,includeIssues);
   }
 
   @Finder("latestFlowGroupExecutions")
   public List<FlowExecution> getLatestFlowGroupExecutions(@Context PagingContext context, @QueryParam("flowGroup") String flowGroup,
-      @Optional @QueryParam("countPerFlow") Integer countPerFlow, @Optional @QueryParam("tag") String tag) {
-    return this.flowExecutionResourceHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag);
+      @Optional @QueryParam("countPerFlow") Integer countPerFlow, @Optional @QueryParam("tag") String tag,
+      @Optional("false") @QueryParam("includeIssues") Boolean includeIssues) {
+    return this.flowExecutionResourceHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag, includeIssues);
   }
 
   /**

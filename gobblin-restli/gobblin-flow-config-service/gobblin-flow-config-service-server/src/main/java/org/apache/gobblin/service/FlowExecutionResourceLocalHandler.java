@@ -56,7 +56,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
   @Override
   public FlowExecution get(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
-    FlowExecution flowExecution = convertFlowStatus(getFlowStatusFromGenerator(key, this.flowStatusGenerator));
+    FlowExecution flowExecution = convertFlowStatus(getFlowStatusFromGenerator(key, this.flowStatusGenerator), true);
     if (flowExecution == null) {
       throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowStatusId " + key.getKey()
           + ". The flowStatusId may be incorrect, or the flow execution may have been cleaned up.");
@@ -65,11 +65,14 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus) {
+  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
+      String executionStatus, Boolean includeIssues) {
     List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = getLatestFlowStatusesFromGenerator(flowId, count, tag, executionStatus, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
-      return flowStatuses.stream().map(FlowExecutionResourceLocalHandler::convertFlowStatus).collect(Collectors.toList());
+      return flowStatuses.stream()
+          .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
+          .collect(Collectors.toList());
     }
 
     throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowId " + flowId
@@ -78,12 +81,15 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow, String tag) {
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow,
+      String tag, Boolean includeIssues) {
     List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
         getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
-      return flowStatuses.stream().map(FlowExecutionResourceLocalHandler::convertFlowStatus).collect(Collectors.toList());
+      return flowStatuses.stream()
+          .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
+          .collect(Collectors.toList());
     }
 
     throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow executions found for flowGroup " + flowGroup
@@ -137,7 +143,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
    * @param monitoringFlowStatus
    * @return a {@link FlowExecution} converted from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    */
-  public static FlowExecution convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus) {
+  public static FlowExecution convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus,
+      boolean includeIssues) {
     if (monitoringFlowStatus == null) {
       return null;
     }
@@ -183,9 +190,15 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
-              setHighWatermark(queriedJobStatus.getHighWatermark()))
-          .setIssues(new IssueArray(queriedJobStatus.getIssues().stream()
-              .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject).collect(Collectors.toList())));
+              setHighWatermark(queriedJobStatus.getHighWatermark()));
+
+      if (includeIssues) {
+        jobStatus.setIssues(new IssueArray(queriedJobStatus.getIssues().get().stream()
+                                               .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject)
+                                               .collect(Collectors.toList())));
+      } else {
+        jobStatus.setIssues(new IssueArray());
+      }
 
       if (!Strings.isNullOrEmpty(queriedJobStatus.getMetrics())) {
         jobStatus.setMetrics(queriedJobStatus.getMetrics());
