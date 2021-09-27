@@ -198,7 +198,12 @@ public class GobblinMCEPublisher extends DataPublisher {
           //This means the table is not compatible with iceberg, so return a dummy metric
           return new Metrics(100000000L, null, null, null);
         }
-        return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
+        try {
+          return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
+        } catch (Exception e) {
+          //This means the table is not compatible with iceberg, so return a dummy metric
+          return new Metrics(100000000L, null, null, null);
+        }
       }
       case AVRO: {
         try {
