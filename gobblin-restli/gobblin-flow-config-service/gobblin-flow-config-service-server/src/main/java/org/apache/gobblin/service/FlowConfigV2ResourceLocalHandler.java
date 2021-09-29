@@ -70,8 +70,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     // Return conflict and take no action if flowSpec has already been created
     if (this.flowCatalog.exists(flowSpec.getUri())) {
       log.warn("FlowSpec with URI {} already exists, no action will be taken", flowSpec.getUri());
-      throw new RestLiServiceException(HttpStatus.S_409_CONFLICT,
-          "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken");
+      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
+          "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
     }
 
     Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
@@ -93,10 +93,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       if (!flowSpec.getCompilationErrors().isEmpty()) {
         message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
       }
-      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, message);
+      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, message));
     }
 
-    return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
+    return new CreateKVResponse<>(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 
   /**

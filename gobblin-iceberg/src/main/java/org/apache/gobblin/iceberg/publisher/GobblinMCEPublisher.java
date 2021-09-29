@@ -76,6 +76,7 @@ public class GobblinMCEPublisher extends DataPublisher {
   private final Closer closer = Closer.create();
   private final Configuration conf;
   private static final PathFilter HIDDEN_FILES_FILTER = new HiddenFilter();
+  private static final Metrics DUMMY_METRICS = new Metrics(100000000L, null, null, null, null);
 
   public GobblinMCEPublisher(State state) throws IOException {
 
@@ -196,9 +197,14 @@ public class GobblinMCEPublisher extends DataPublisher {
       case ORC: {
         if (mapping == null) {
           //This means the table is not compatible with iceberg, so return a dummy metric
-          return new Metrics(100000000L, null, null, null);
+          return DUMMY_METRICS;
         }
-        return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
+        try {
+          return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
+        } catch (Exception e) {
+          //This means the table is not compatible with iceberg, so return a dummy metric
+          return DUMMY_METRICS;
+        }
       }
       case AVRO: {
         try {

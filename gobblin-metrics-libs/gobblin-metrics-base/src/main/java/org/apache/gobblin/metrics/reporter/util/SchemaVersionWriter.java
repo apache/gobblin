@@ -54,4 +54,10 @@ public interface SchemaVersionWriter<S> {
    */
   public S readSchemaVersioningInformation(DataInputStream inputStream) throws IOException;
 
+  /**
+   * Advance inputStream to the location where actual record starts, but ignore the schema information.
+   * @param inputStream {@link java.io.DataInputStream} containing schema information and serialized record.
+   * @throws IOException
+   */
+  public void advanceInputStreamToRecord(DataInputStream inputStream) throws IOException;
 }

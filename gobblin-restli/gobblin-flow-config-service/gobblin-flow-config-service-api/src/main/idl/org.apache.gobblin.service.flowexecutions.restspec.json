@@ -20,9 +20,9 @@
     } ],
     "finders" : [ {
       "name" : "latestFlowExecution",
+      "doc" : "Retrieve the most recent matching FlowExecution(s) of the identified FlowId",
       "parameters" : [ {
         "name" : "flowId",
-        "doc" : "Retrieve the most recent matching FlowExecution(s) of the identified FlowId",
         "type" : "org.apache.gobblin.service.FlowId"
       }, {
         "name" : "count",
@@ -36,6 +36,11 @@
         "name" : "executionStatus",
         "type" : "string",
         "optional" : true
+      }, {
+        "name" : "includeIssues",
+        "type" : "boolean",
+        "default" : "false",
+        "doc" : "include job issues in the response. Otherwise empty array of issues will be returned."
       } ]
     }, {
       "name" : "latestFlowGroupExecutions",
@@ -45,13 +50,18 @@
         "type" : "string"
       }, {
         "name" : "countPerFlow",
-        "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup",
         "type" : "int",
-        "optional" : true
+        "optional" : true,
+        "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup   *"
       }, {
         "name" : "tag",
         "type" : "string",
         "optional" : true
+      }, {
+        "name" : "includeIssues",
+        "type" : "boolean",
+        "default" : "false",
+        "doc" : "include job issues in the response. Otherwise empty array of issues will be returned."
       } ]
     } ],
     "entity" : {

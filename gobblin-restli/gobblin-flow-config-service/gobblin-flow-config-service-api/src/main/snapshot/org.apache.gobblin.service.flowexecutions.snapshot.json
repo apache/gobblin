@@ -298,6 +298,11 @@
           "name" : "executionStatus",
           "type" : "string",
           "optional" : true
+        }, {
+          "name" : "includeIssues",
+          "type" : "boolean",
+          "default" : "false",
+          "doc" : "include job issues in the response. Otherwise empty array of issues will be returned."
         } ]
       }, {
         "name" : "latestFlowGroupExecutions",
@@ -308,12 +313,17 @@
         }, {
           "name" : "countPerFlow",
           "type" : "int",
-          "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup",
-          "optional" : true
+          "optional" : true,
+          "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup   *"
         }, {
           "name" : "tag",
           "type" : "string",
           "optional" : true
+        }, {
+          "name" : "includeIssues",
+          "type" : "boolean",
+          "default" : "false",
+          "doc" : "include job issues in the response. Otherwise empty array of issues will be returned."
         } ]
       } ],
       "entity" : {

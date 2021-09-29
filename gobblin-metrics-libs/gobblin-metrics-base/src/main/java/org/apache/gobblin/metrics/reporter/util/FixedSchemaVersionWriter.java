@@ -44,4 +44,9 @@ public class FixedSchemaVersionWriter implements SchemaVersionWriter<Integer> {
       throws IOException {
     return inputStream.readInt();
   }
+
+  @Override
+  public void advanceInputStreamToRecord(DataInputStream inputStream) throws IOException {
+    inputStream.readInt();
+  }
 }

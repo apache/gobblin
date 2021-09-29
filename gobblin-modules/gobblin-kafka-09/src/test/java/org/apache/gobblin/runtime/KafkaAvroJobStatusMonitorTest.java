@@ -16,13 +16,21 @@
  */
 package org.apache.gobblin.runtime;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterators;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.FileUtils;
+
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.testng.Assert;
@@ -41,6 +49,8 @@ import com.typesafe.config.ConfigValueFactory;
 
 import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
+
+import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -103,29 +113,17 @@ public class KafkaAvroJobStatusMonitorTest {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic1");
 
     //Submit GobblinTrackingEvents to Kafka
-    GobblinTrackingEvent event1 = createFlowCompiledEvent();
-    context.submitEvent(event1);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event2 = createJobOrchestratedEvent(1);
-    context.submitEvent(event2);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event3 = createJobStartEvent();
-    context.submitEvent(event3);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event4 = createJobSucceededEvent();
-    context.submitEvent(event4);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event5 = createDummyEvent();
-    context.submitEvent(event5);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event6 = createJobStartEvent();
-    context.submitEvent(event6);
-    kafkaReporter.report();
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobOrchestratedEvent(1),
+        createJobStartEvent(),
+        createJobSucceededEvent(),
+        createDummyEvent(), // note position
+        createJobStartEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
 
     try {
       Thread.sleep(1000);
@@ -140,10 +138,11 @@ public class KafkaAvroJobStatusMonitorTest {
     MockKafkaAvroJobStatusMonitor jobStatusMonitor =  new MockKafkaAvroJobStatusMonitor("test",config, 1);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
-    ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
 
-    MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
@@ -153,8 +152,7 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
     stateList  = stateStore.getAll(storeName, tableName);
@@ -162,29 +160,26 @@ public class KafkaAvroJobStatusMonitorTest {
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
-    messageAndMetadata = iterator.next();
+    // (per above, is a 'dummy' event)
     Assert.assertNull(jobStatusMonitor.parseJobStatus(
-        jobStatusMonitor.deserializeEvent(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata))));
+        jobStatusMonitor.deserializeEvent(recordIterator.next())));
 
     // Check that state didn't get set to running since it was already complete
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -199,38 +194,22 @@ public class KafkaAvroJobStatusMonitorTest {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
-    GobblinTrackingEvent event1 = createFlowCompiledEvent();
-    context.submitEvent(event1);
-    kafkaReporter.report();
-
-    //set maximum attempt to 2, and current attempt to 1
-    GobblinTrackingEvent event2 = createJobOrchestratedEvent(1);
-    context.submitEvent(event2);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event3 = createJobStartEvent();
-    context.submitEvent(event3);
-    kafkaReporter.report();
-
-    GobblinTrackingEvent event4 = createJobFailedEvent();
-    context.submitEvent(event4);
-    kafkaReporter.report();
-
-    //Mimic retrying - job orchestration
-    //set maximum attempt to 2, and current attempt to 2
-    GobblinTrackingEvent event5 = createJobOrchestratedEvent(2);
-    context.submitEvent(event5);
-    kafkaReporter.report();
-
-    //Mimic retrying - job start (current attempt = 2)
-    GobblinTrackingEvent event6 = createJobStartEvent();
-    context.submitEvent(event6);
-    kafkaReporter.report();
-
-    //Mimic retrying - job failed again (current attempt = 2)
-    GobblinTrackingEvent event7 = createJobFailedEvent();
-    context.submitEvent(event7);
-    kafkaReporter.report();
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobOrchestratedEvent(1),
+        createJobStartEvent(),
+        createJobFailedEvent(),
+        // Mimic retrying - job orchestration
+        // set maximum attempt to 2, and current attempt to 2
+        createJobOrchestratedEvent(2),
+        // Mimic retrying - job start (current attempt = 2)
+        createJobStartEvent(),
+        // Mimic retrying - job failed again (current attempt = 2)
+        createJobFailedEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
 
     try {
       Thread.sleep(1000);
@@ -256,7 +235,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 0L);
     jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord(undecodeableRecord));
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 1L);
-    // Test an normal event
+    // Re-test when properly encoded, as expected for a normal event
     jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
@@ -267,8 +246,11 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        iterator,
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
     stateList  = stateStore.getAll(storeName, tableName);
@@ -276,16 +258,14 @@ public class KafkaAvroJobStatusMonitorTest {
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -294,8 +274,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -303,8 +282,7 @@ public class KafkaAvroJobStatusMonitorTest {
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -312,8 +290,7 @@ public class KafkaAvroJobStatusMonitorTest {
     //Because the maximum attempt is set to 2, so the state is set to PENDING_RETRY after the first failure
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
-    messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+    jobStatusMonitor.processMessage(recordIterator.next());
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -322,6 +299,77 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
 
+    jobStatusMonitor.shutDown();
+  }
+
+  @Test
+  public void testProcessingRetriedForApparentlyTransientErrors() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic3");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobOrchestratedEvent(1)
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
+        .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
+        .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
+        .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
+
+    AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle = new AtomicBoolean(false);
+    int minNumFakeExceptionsExpected = 10;
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = new MockKafkaAvroJobStatusMonitor(
+        "test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    jobStatusMonitor.processMessage(recordIterator.next());
+
+    StateStore stateStore = jobStatusMonitor.getStateStore();
+    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+    String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, "NA", "NA");
+    List<State> stateList = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    State state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    shouldThrowFakeExceptionInParseJobStatusToggle.set(true);
+    // since `processMessage` hereafter effectively hangs, launch eventual re-toggling before calling again
+    ScheduledExecutorService toggleManagementExecutor = Executors.newScheduledThreadPool(2);
+    toggleManagementExecutor.scheduleAtFixedRate(() -> {
+      if (jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus() > minNumFakeExceptionsExpected) { // curtail faking: simulate resolution
+        shouldThrowFakeExceptionInParseJobStatusToggle.set(false);
+      }
+    }, 2, 2, TimeUnit.SECONDS);
+    Thread mainThread = Thread.currentThread();
+    // guardrail against excessive retries (befitting this unit test):
+    toggleManagementExecutor.scheduleAtFixedRate(mainThread::interrupt, 60, 5, TimeUnit.SECONDS);
+    jobStatusMonitor.processMessage(recordIterator.next());
+
+    Assert.assertTrue(jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus() > minNumFakeExceptionsExpected,
+        String.format("processMessage returned with only %d (faked) exceptions",
+            jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus()));
+
+    tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
+    stateList = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+
+    toggleManagementExecutor.shutdownNow();
     jobStatusMonitor.shutDown();
   }
 
@@ -466,10 +514,23 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   class MockKafkaAvroJobStatusMonitor extends KafkaAvroJobStatusMonitor {
+    private final AtomicBoolean shouldThrowFakeExceptionInParseJobStatus;
+    @Getter
+    private volatile int numFakeExceptionsFromParseJobStatus = 0;
 
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads)
         throws IOException, ReflectiveOperationException {
+      this(topic, config, numThreads, new AtomicBoolean(false));
+    }
+
+    /**
+     * @param shouldThrowFakeExceptionInParseJobStatusToggle - pass (and retain) to dial whether `parseJobStatus` throws
+     */
+    public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
+        AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle)
+        throws IOException, ReflectiveOperationException {
       super(topic, config, numThreads, mock(JobIssueEventHandler.class));
+      shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 
     @Override
@@ -480,6 +541,23 @@ public class KafkaAvroJobStatusMonitorTest {
     @Override
     protected void buildMetricsContextAndMetrics() {
       super.buildMetricsContextAndMetrics();
+    }
+
+    /**
+     * Overridden to stub potential exception within core processing of `processMessage` (specifically retried portion).
+     * Although truly plausible (IO)Exceptions would originate from `KafkaJobStatusMonitor.addJobStatusToStateStore`,
+     * that is `static`, so unavailable for override.  The approach here is a pragmatic compromise, being simpler than
+     * the alternative of writing a mock `StateStore.Factory` that the `KafkaJobStatusMonitor` ctor could reflect,
+     * instantiate, and finally create a mock `StateStore` from.
+     */
+    @Override
+    public org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event) {
+      if (shouldThrowFakeExceptionInParseJobStatus.get()) {
+        int n = ++numFakeExceptionsFromParseJobStatus;
+        throw new RuntimeException(String.format("BOOM! Failure [%d] w/ event at %d", n, event.getTimestamp()));
+      } else {
+        return super.parseJobStatus(event);
+      }
     }
   }
 }
