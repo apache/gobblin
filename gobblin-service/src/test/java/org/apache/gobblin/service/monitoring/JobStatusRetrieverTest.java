@@ -204,13 +204,14 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(latestExecutionIdForFlow, flowExecutionId1);
 
     long flowExecutionId2 = 1236L;
-    addJobStatusToStateStore(flowExecutionId2, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name());
+    //IMPORTANT: multiple jobs for latest flow verifies that flow executions counted exactly once, not once per constituent job
+    addJobStatusToStateStore(flowExecutionId2, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name());
+    addJobStatusToStateStore(flowExecutionId2, MY_JOB_NAME_2, ExecutionStatus.RUNNING.name());
 
     //State store now has 3 flow executions - 1234, 1235, 1236. Get the latest 2 executions i.e. 1235 and 1236.
     List<Long> latestFlowExecutionIds = this.jobStatusRetriever.getLatestExecutionIdsForFlow(FLOW_NAME, FLOW_GROUP, 2);
     Assert.assertEquals(latestFlowExecutionIds.size(), 2);
-    Assert.assertEquals(latestFlowExecutionIds.get(0), (Long) flowExecutionId2);
-    Assert.assertEquals(latestFlowExecutionIds.get(1), (Long) flowExecutionId1);
+    Assert.assertEquals(latestFlowExecutionIds, ImmutableList.of(flowExecutionId2, flowExecutionId1));
 
     //Remove all flow executions from state store
     cleanUpDir();
