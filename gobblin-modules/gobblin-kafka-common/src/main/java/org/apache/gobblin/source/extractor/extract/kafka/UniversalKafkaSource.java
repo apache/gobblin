@@ -17,13 +17,11 @@
 
 package org.apache.gobblin.source.extractor.extract.kafka;
 
-import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import java.io.IOException;
 
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.source.extractor.Extractor;
