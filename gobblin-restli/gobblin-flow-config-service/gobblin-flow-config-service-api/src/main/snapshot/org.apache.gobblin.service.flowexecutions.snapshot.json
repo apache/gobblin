@@ -282,6 +282,7 @@
       } ],
       "finders" : [ {
         "name" : "latestFlowExecution",
+        "doc" : "Retrieve the most recent matching FlowExecution(s) of the identified FlowId",
         "parameters" : [ {
           "name" : "flowId",
           "type" : "org.apache.gobblin.service.FlowId"
@@ -300,12 +301,14 @@
         } ]
       }, {
         "name" : "latestFlowGroupExecutions",
+        "doc" : "Retrieve the most recent matching FlowExecution(s) for each flow in the identified flowGroup",
         "parameters" : [ {
           "name" : "flowGroup",
           "type" : "string"
         }, {
           "name" : "countPerFlow",
           "type" : "int",
+          "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup",
           "optional" : true
         }, {
           "name" : "tag",

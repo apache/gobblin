@@ -22,6 +22,7 @@
       "name" : "latestFlowExecution",
       "parameters" : [ {
         "name" : "flowId",
+        "doc" : "Retrieve the most recent matching FlowExecution(s) of the identified FlowId",
         "type" : "org.apache.gobblin.service.FlowId"
       }, {
         "name" : "count",
@@ -38,11 +39,13 @@
       } ]
     }, {
       "name" : "latestFlowGroupExecutions",
+      "doc" : "Retrieve the most recent matching FlowExecution(s) for each flow in the identified flowGroup",
       "parameters" : [ {
         "name" : "flowGroup",
         "type" : "string"
       }, {
         "name" : "countPerFlow",
+        "doc" : "(maximum) number of FlowExecutions for each flow in flowGroup",
         "type" : "int",
         "optional" : true
       }, {

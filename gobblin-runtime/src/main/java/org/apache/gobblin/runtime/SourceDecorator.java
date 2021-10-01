@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.common.eventbus.EventBus;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.gobblin.source.InfiniteSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,6 +72,15 @@ public class SourceDecorator<S, D> implements WorkUnitStreamSource<S, D>, Decora
       // Return null in case of errors
       return null;
     }
+  }
+
+  public EventBus getEventBus() {
+    if (this.getDecoratedObject() instanceof InfiniteSource) {
+      return ((InfiniteSource) this.getDecoratedObject()).getEventBus();
+    } else if (this.getDecoratedObject() instanceof SourceDecorator) {
+      return ((SourceDecorator) this.getDecoratedObject()).getEventBus();
+    }
+    return null;
   }
 
   @Override
