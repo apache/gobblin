@@ -87,6 +87,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
+      // todo: flow end time will be incorrect when dag manager is not used
+      //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
       return flowStatuses.stream()
           .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
           .collect(Collectors.toList());
@@ -162,8 +164,6 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       // Check if this is the flow status instead of a single job status
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
-        // todo: flow end time will be incorrect when dag manager is not used
-        //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
         flowEndTime = queriedJobStatus.getEndTime();
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();

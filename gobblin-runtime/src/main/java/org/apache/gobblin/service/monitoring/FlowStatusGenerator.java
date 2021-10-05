@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
@@ -114,13 +115,15 @@ public class FlowStatusGenerator {
    * list only contains jobs matching the tag.
    */
   public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId, String tag) {
-    Iterator<JobStatus> jobStatusIterator = retainStatusOfAnyFlowOrJobMatchingTag(
-        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag);
-    // duplicate copy of the iterator is required due to un re-parsing nature of the Iterator
-    Iterator<JobStatus> jobStatusIterator2 = retainStatusOfAnyFlowOrJobMatchingTag(
-        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag);
-    ExecutionStatus flowExecutionStatus = jobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusIterator2);
-    return jobStatusIterator.hasNext() ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, flowExecutionStatus) : null;
+    List<JobStatus> jobStatuses = ImmutableList.copyOf(retainStatusOfAnyFlowOrJobMatchingTag(
+        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag));
+    Iterator<JobStatus> jobStatusIterator = jobStatuses.iterator();
+        // duplicate copy of the iterator is required due to un re-parsing nature of the Iterator
+    Iterator<JobStatus> jobStatusIterator2 = jobStatuses.iterator();
+    ExecutionStatus flowExecutionStatus =
+        JobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.dagManagerEnabled, jobStatusIterator2);
+    return jobStatusIterator.hasNext()
+        ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, flowExecutionStatus) : null;
   }
 
   /**
