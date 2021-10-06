@@ -89,6 +89,12 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   protected boolean isPathContaining(DatasetDescriptor other) {
     String otherPath = other.getPath();
     String otherSubPaths = ((FSDatasetDescriptor) other).getSubPaths();
+
+    // Covers special case where input path is a glob pattern
+    if (getPath().equals(otherPath)) {
+      return true;
+    }
+
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
