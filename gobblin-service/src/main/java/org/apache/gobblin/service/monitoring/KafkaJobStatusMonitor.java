@@ -19,6 +19,7 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -27,15 +28,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
-import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.Retryer;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -55,6 +57,7 @@ import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -70,7 +73,10 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.*;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 
 /**
@@ -97,6 +103,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private static final String KAFKA_AUTO_OFFSET_RESET_KEY = "auto.offset.reset";
   private static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
 
+  private static final int EXPECTED_TIME_FOR_METRICS_REPORTING = 90;
+
   @Getter
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
@@ -117,6 +125,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final ConcurrentHashMap<String, Long> flowNameGroupToWorkUnitCount;
 
   private final Retryer<Void> persistJobStatusRetryer;
+
+  private final ScheduledExecutorService scheduler;
+
+  private final ArrayList<ScheduledFuture> futuresList;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
       throws ReflectiveOperationException {
@@ -148,6 +160,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
+
+    // Used to remove gauges in the background
+    this.scheduler = Executors.newScheduledThreadPool(1);
+    this.futuresList = new ArrayList<>();
   }
 
   @Override
@@ -169,6 +185,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
      this.scheduledExecutorService.shutdown();
      try {
        this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
+
+       // Upon shutdown, cancel any pending removals of gauges
+       for (ScheduledFuture futureToTerminate : this.futuresList) {
+         futureToTerminate.cancel(true);
+       }
      } catch (InterruptedException e) {
        log.error("Exception encountered when shutting down state store cleaner", e);
      }
@@ -323,6 +344,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           () -> this.flowNameGroupToWorkUnitCount.get(workUnitCountName));
       this.getMetricContext().register(workUnitCountName, gauge);
     }
+
+   // Schedule this gauge to be removed after emission
+    Runnable task = new RunnableWithMetricContext(this.getMetricContext(), workUnitCountName);
+    ScheduledFuture<?> future = this.scheduler.schedule(task, EXPECTED_TIME_FOR_METRICS_REPORTING, TimeUnit.SECONDS);
+    this.futuresList.add(future);;
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {
@@ -345,4 +371,19 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
+}
+
+@Slf4j
+class RunnableWithMetricContext implements Runnable {
+  private MetricContext _metricContext;
+  private String gaugeToRemove;
+
+  public RunnableWithMetricContext(MetricContext providedContext, String gaugeName) {
+    this._metricContext = providedContext;
+    this.gaugeToRemove = gaugeName;
+  }
+
+  public void run() {
+    this._metricContext.remove(this.gaugeToRemove);
+  }
 }
