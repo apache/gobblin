@@ -18,7 +18,9 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
+import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
@@ -44,6 +46,23 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
   /**
    * This method needs to be overridden for TimePartitionedDataPublisher, since the output folder structure
+   * contains timestamp, we need to move the files recursively to correctly record detailed publish folders.
+   *
+   * For example, move {writerOutput}/2015/04/08/15/output.avro to {publisherOutput}/2015/04/08/15/output.avro
+   */
+  @Override
+  protected void addWriterOutputToNewDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
+                                         int branchId, ParallelRunner parallelRunner) throws IOException {
+
+    // Create the final output directory
+    WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
+            publisherOutput, this.permissions.get(branchId), retrierConfig);
+    // Now that the parent folder has been created, use addWriterOutputToExistingDir
+    this.addWriterOutputToExistingDir(writerOutput, publisherOutput, workUnitState, branchId, parallelRunner);
+  }
+
+  /**
+   * This method needs to be overridden for TimePartitionedDataPublisher, since the output folder structure
    * contains timestamp, we have to move the files recursively.
    *
    * For example, move {writerOutput}/2015/04/08/15/output.avro to {publisherOutput}/2015/04/08/15/output.avro
@@ -64,5 +83,10 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
       movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
+  }
+
+  @VisibleForTesting
+  Set<Path> getPublishOutputDirs() {
+    return this.publisherOutputDirs;
   }
 }
