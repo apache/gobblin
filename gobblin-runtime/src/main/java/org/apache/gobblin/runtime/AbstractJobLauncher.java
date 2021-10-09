@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.InfiniteSource;
-import org.apache.gobblin.source.extractor.extract.kafka.WorkUnitChangeEvent;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -273,18 +273,18 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throws InvocationTargetException {
     LOG.info("start to handle workunit change event");
     try {
-      this.removeTasksFromHelixJob(workUnitChangeEvent.getOldTaskIds());
-      this.addTasksToHelixJob(workUnitChangeEvent.getNewWorkUnits());
+      this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
+      this.addTasksToCurrentJob(workUnitChangeEvent.getNewWorkUnits());
     } catch (Exception e) {
       //todo: emit some event to indicate there is an error handling this event that may cause starvation
       throw new InvocationTargetException(e);
     }
   }
 
-  protected void removeTasksFromHelixJob(List<String> taskIdsToRemove) throws IOException, ExecutionException,
-                                                                              RetryException {}
-  protected void addTasksToHelixJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
-                                                                          RetryException {}
+  protected void removeTasksFromCurrentJob(List<String> taskIdsToRemove) throws IOException, ExecutionException,
+                                                                                RetryException {}
+  protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
+                                                                            RetryException {}
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method

@@ -17,20 +17,23 @@
 package org.apache.gobblin.source;
 
 import com.google.common.eventbus.EventBus;
+import org.apache.gobblin.annotation.Alpha;
+
 
 /**
  * An interface for infinite source, where source should be able to detect the work unit change
  * and post the change through eventBus
  *
- * @author kgoodhop
+ * @author Zihan Li
  *
  * @param <S> output schema type
  * @param <D> output record type
  */
+@Alpha
 public interface InfiniteSource<S, D> extends Source<S, D>{
 
   /**
-   * Return the eventBus where it will post {@link WorkUnitChangeEVent} when workUnit change
+   * Return the eventBus where it will post {@link org.apache.gobblin.stream.WorkUnitChangeEvent} when workUnit change
    */
   EventBus getEventBus();
 

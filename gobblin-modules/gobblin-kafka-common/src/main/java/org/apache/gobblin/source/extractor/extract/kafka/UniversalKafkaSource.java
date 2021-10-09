@@ -27,6 +27,7 @@ import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.EventBasedExtractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 

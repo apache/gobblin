@@ -15,19 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.source.extractor.extract.kafka;
+package org.apache.gobblin.stream;
 
 import java.util.List;
 import lombok.Getter;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-
+/**
+ * The event for {@link org.apache.gobblin.source.InfiniteSource} to indicate there is a change in work units
+ * Job launcher should then be able to handle this event
+ */
 public class WorkUnitChangeEvent {
   @Getter
   private final List<String> oldTaskIds;
   @Getter
   private final List<WorkUnit> newWorkUnits;
-  WorkUnitChangeEvent(List<String> oldTaskIds, List<WorkUnit> newWorkUnits) {
+  public WorkUnitChangeEvent(List<String> oldTaskIds, List<WorkUnit> newWorkUnits) {
     this.oldTaskIds = oldTaskIds;
     this.newWorkUnits = newWorkUnits;
   }

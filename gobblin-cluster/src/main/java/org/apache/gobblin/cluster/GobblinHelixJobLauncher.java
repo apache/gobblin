@@ -274,8 +274,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
-  protected void removeTasksFromHelixJob(List<String> workUnitIdsToRemove) throws IOException, ExecutionException,
-                                                                                  RetryException {
+  protected void removeTasksFromCurrentJob(List<String> workUnitIdsToRemove) throws IOException, ExecutionException,
+                                                                                    RetryException {
     String jobName = this.jobContext.getJobId();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       for (String workUnitId : workUnitIdsToRemove) {
@@ -303,8 +303,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
-  protected void addTasksToHelixJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
-                                                                          RetryException {
+  protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
+                                                                            RetryException {
     String jobName = this.jobContext.getJobId();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       for (WorkUnit workunit : workUnitsToAdd) {
