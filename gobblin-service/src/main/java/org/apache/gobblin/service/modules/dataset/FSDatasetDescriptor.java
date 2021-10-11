@@ -94,6 +94,11 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
       return true;
     }
 
+    // This allows the special case where "other" is a glob, but is also an exact match with "this" path.
+    if (getPath().equals(otherPath)) {
+      return true;
+    }
+
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
