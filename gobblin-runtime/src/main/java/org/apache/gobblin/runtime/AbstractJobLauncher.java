@@ -17,7 +17,10 @@
 
 package org.apache.gobblin.runtime;
 
+import com.github.rholder.retry.RetryException;
+import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,11 +30,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.source.InfiniteSource;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -92,7 +99,6 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -258,6 +264,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       Authenticator.setDefault(authenticator);
     }
   }
+
+  /**
+   * Handle {@link WorkUnitChangeEvent}, by default it will do nothing
+   */
+  @Subscribe
+  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent)
+      throws InvocationTargetException {
+    LOG.info("start to handle workunit change event");
+    try {
+      this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
+      this.addTasksToCurrentJob(workUnitChangeEvent.getNewWorkUnits());
+    } catch (Exception e) {
+      //todo: emit some event to indicate there is an error handling this event that may cause starvation
+      throw new InvocationTargetException(e);
+    }
+  }
+
+  protected void removeTasksFromCurrentJob(List<String> taskIdsToRemove) throws IOException, ExecutionException,
+                                                                                RetryException {}
+  protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
+                                                                            RetryException {}
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
@@ -427,6 +454,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         TimingEvent workUnitsCreationTimer =
             this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
         Source<?, ?> source = this.jobContext.getSource();
+        if (source instanceof InfiniteSource) {
+          ((InfiniteSource) source).getEventBus().register(this);
+        } else if (source instanceof SourceDecorator) {
+          if (((SourceDecorator<?, ?>) source).getEventBus() != null) {
+            ((SourceDecorator<?, ?>) source).getEventBus().register(this);
+          }
+        }
         WorkUnitStream workUnitStream;
         if (source instanceof WorkUnitStreamSource) {
           workUnitStream = ((WorkUnitStreamSource) source).getWorkunitStream(jobState);

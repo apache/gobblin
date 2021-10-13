@@ -17,11 +17,17 @@
 
 package org.apache.gobblin.source.extractor.extract.kafka;
 
+import com.google.common.eventbus.EventBus;
 import java.io.IOException;
 
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.EventBasedExtractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -32,9 +38,11 @@ import com.google.common.base.Preconditions;
  * A {@link KafkaSource} to use with arbitrary {@link EventBasedExtractor}. Specify the extractor to use with key
  * {@link #EXTRACTOR_TYPE}.
  */
-public class UniversalKafkaSource<S, D> extends KafkaSource<S, D> {
+@Slf4j
+public class UniversalKafkaSource<S, D> extends KafkaSource<S, D> implements InfiniteSource<S, D> {
 
   public static final String EXTRACTOR_TYPE = "gobblin.source.kafka.extractorType";
+  private final EventBus eventBus = new EventBus(this.getClass().getSimpleName());
 
   @Override
   public Extractor<S, D> getExtractor(WorkUnitState state)
@@ -49,5 +57,17 @@ public class UniversalKafkaSource<S, D> extends KafkaSource<S, D> {
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public void onWorkUnitUpdate(List<String> oldTaskIds, List<WorkUnit> newWorkUnits) {
+    if (this.eventBus != null) {
+      log.info("post workunit change event");
+      this.eventBus.post(new WorkUnitChangeEvent(oldTaskIds, newWorkUnits));
+    }
+  }
+
+  @Override
+  public EventBus getEventBus() {
+    return this.eventBus;
   }
 }

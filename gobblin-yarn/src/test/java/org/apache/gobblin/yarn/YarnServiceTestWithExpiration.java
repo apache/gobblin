@@ -203,14 +203,16 @@ public class YarnServiceTestWithExpiration {
     Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(64, 1).isEmpty());
     Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
-    try {
-      Thread.sleep(20000);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    //Since it may retry to request the container and start again, so the number may lager than 10
-    Assert.assertTrue(this.expiredYarnService.completedContainers.size() >= 10);
-    Assert.assertTrue(this.expiredYarnService.startErrorContainers.size() >= 10);
+    AssertWithBackoff.create().logger(LOG).timeoutMs(60000).maxSleepMs(2000).backoffFactor(1.5)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            //Since it may retry to request the container and start again, so the number may lager than 10
+            return expiredYarnService.completedContainers.size() >= 10
+                && expiredYarnService.startErrorContainers.size() >= 10;
+          }
+        }, "Waiting for container completed");
+
   }
 
   private static class TestExpiredYarnService extends YarnServiceTest.TestYarnService {
@@ -240,7 +242,7 @@ public class YarnServiceTestWithExpiration {
         Thread.currentThread().interrupt();
       }
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
-          Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
+          Arrays.asList("sleep", "600"), Collections.emptyMap(), null, Collections.emptyMap());
     }
     private class TestNMClientCallbackHandler extends YarnService.NMClientCallbackHandler {
       @Override
