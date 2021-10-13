@@ -50,16 +50,16 @@ public class HelixAssignedParticipantCheckTest {
     suite = new IntegrationBasicSuite(jobConfigOverrides);
 
     helixConfig = suite.getManagerConfig();
-    String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager",
-        InstanceType.SPECTATOR, zkConnectString);
   }
 
   @Test (groups = {"disabledOnCI"})
   //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
   public void testExecute() throws Exception {
     suite.startCluster();
+    String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager",
+        InstanceType.SPECTATOR, zkConnectString);
 
     //Connect to the previously started Helix cluster
     helixManager.connect();

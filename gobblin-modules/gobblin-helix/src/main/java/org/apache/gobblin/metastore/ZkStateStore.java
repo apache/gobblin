@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import org.I0Itec.zkclient.serialize.ZkSerializer;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.io.Text;
 import org.apache.helix.AccessOption;
@@ -47,6 +46,7 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.io.StreamUtils;
+import org.apache.helix.zookeeper.zkclient.serialize.ZkSerializer;
 
 
 /**
