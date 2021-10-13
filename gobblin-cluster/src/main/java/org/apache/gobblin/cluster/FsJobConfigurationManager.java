@@ -88,6 +88,12 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
   }
 
+  @Override
+  protected void shutDown() throws Exception {
+    ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor, Optional.of(log));
+    super.shutDown();
+  }
+
   void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutor.Verb, JobSpec>> jobSpecs =
         (List<Pair<SpecExecutor.Verb, JobSpec>>) this.specConsumer.changedSpecs().get();
