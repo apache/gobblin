@@ -240,7 +240,10 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         Instrumented.markMeter(flowCompilationFailedMeter);
         String message = String.format("No path found from source: %s and destination: %s", source, destination);
         log.info(message);
-        flowSpec.getCompilationErrors().add(flowSpec.getCompilationError(source, destination, message));
+
+        if (!flowSpec.getCompilationErrors().stream().anyMatch(compilationError -> compilationError.errorPriority == 0)) {
+          flowSpec.getCompilationErrors().add(flowSpec.getCompilationError(source, destination, message));
+        }
         return null;
       }
     } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
