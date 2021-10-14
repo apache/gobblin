@@ -16,8 +16,12 @@
  */
 package org.apache.gobblin.service;
 
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Map;
 
+import java.util.Set;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
@@ -89,16 +93,32 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
-      String message = "Flow was not compiled successfully.";
-      if (!flowSpec.getCompilationErrors().isEmpty()) {
-        message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
-      }
-      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, message));
+      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }
 
     return new CreateKVResponse<>(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 
+  private String getErrorMessage(FlowSpec flowSpec) {
+    StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
+    if (!flowSpec.getCompilationErrors().isEmpty()) {
+      message.append(" Compilation errors encountered (Sorted by relevance): ");
+      Object[] errors = flowSpec.getCompilationErrors().toArray();
+      Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
+      // This is to avoid we print same error multi times.
+      Set<String> errorSet = new HashSet<>();
+      int errorId = 0;
+      for (Object er: errors) {
+        FlowSpec.CompilationError error = (FlowSpec.CompilationError)er;
+        if (!errorSet.contains(error.errorMessage)) {
+          message.append("\n").append(String.format("ERROR[%s]", errorId)).append(error.errorMessage);
+          errorSet.add(error.errorMessage);
+          errorId++;
+        }
+      }
+    }
+    return message.toString();
+  }
   /**
    * Note: this method is only implemented for testing, normally partial update would be called in
    * GobblinServiceFlowConfigResourceHandler.partialUpdateFlowConfig
