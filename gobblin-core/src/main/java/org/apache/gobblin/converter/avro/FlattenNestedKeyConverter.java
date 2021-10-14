@@ -25,6 +25,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Optional;
@@ -75,7 +76,8 @@ public class FlattenNestedKeyConverter extends Converter<Schema, Schema, Generic
     List<Field> fields = new ArrayList<>();
     // Clone the existing fields
     for (Field field : inputSchema.getFields()) {
-      fields.add(new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()));
+      fields.add(AvroCompatibilityHelper.createSchemaField(field.name(), field.schema(), field.doc(),
+          AvroUtils.getCompatibleDefaultValue(field), field.order()));
     }
 
     // Convert each of nested keys into a top level field
@@ -102,7 +104,8 @@ public class FlattenNestedKeyConverter extends Converter<Schema, Schema, Generic
       Field field = optional.get();
 
       // Make a copy under a new name
-      Field copy = new Field(name, field.schema(), field.doc(), field.defaultValue(), field.order());
+      Field copy = AvroCompatibilityHelper.createSchemaField(name, field.schema(), field.doc(),
+          AvroUtils.getCompatibleDefaultValue(field), field.order());
       fields.add(copy);
     }
 

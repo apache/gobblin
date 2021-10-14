@@ -22,11 +22,14 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import org.apache.gobblin.util.AvroUtils;
 
 import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
 
@@ -118,11 +121,13 @@ public class AvroSchemaFieldRemover {
       if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
-          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap),
-              field.doc(), field.defaultValue());
+          newField = AvroCompatibilityHelper.createSchemaField(field.name(),
+              this.children.get(field.name()).removeFields(field.schema(), schemaMap),
+              field.doc(), AvroUtils.getCompatibleDefaultValue(field));
         } else {
-          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
-              field.defaultValue());
+          newField = AvroCompatibilityHelper.createSchemaField(field.name(),
+              DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
+              AvroUtils.getCompatibleDefaultValue(field));
         }
         // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
         for (Map.Entry<String, Object> objectEntry : field.getObjectProps().entrySet()) {

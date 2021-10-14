@@ -51,6 +51,7 @@ import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.math3.util.Pair;
 import org.apache.hadoop.conf.Configuration;
@@ -77,6 +78,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -134,8 +136,9 @@ public class AvroUtils {
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
-          Field f = new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
-          field.getProps().forEach((key, value) -> f.addProp(key, value));
+          Field f = AvroCompatibilityHelper.createSchemaField(field.name(), field.schema(), field.doc(),
+              getCompatibleDefaultValue(field), field.order());
+          field.getObjectProps().forEach((key, value) -> f.addProp(key, value));
           return f;
         })
         .collect(Collectors.toList());
@@ -604,7 +607,8 @@ public class AvroUtils {
 
     List<Field> combinedFields = Lists.newArrayList();
     for (Field newFld : newSchema.getFields()) {
-      combinedFields.add(new Field(newFld.name(), newFld.schema(), newFld.doc(), newFld.defaultValue()));
+      combinedFields.add(AvroCompatibilityHelper.createSchemaField(newFld.name(), newFld.schema(), newFld.doc(),
+          getCompatibleDefaultValue(newFld)));
     }
 
     for (Field oldFld : oldSchema.getFields()) {
@@ -619,12 +623,15 @@ public class AvroUtils {
             }
           }
           Schema newFldSchema = Schema.createUnion(union);
-          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+          combinedFields.add(AvroCompatibilityHelper.createSchemaField(oldFld.name(), newFldSchema, oldFld.doc(),
+              getCompatibleDefaultValue(oldFld)));
         } else {
           union.add(Schema.create(Type.NULL));
           union.add(oldFldSchema);
           Schema newFldSchema = Schema.createUnion(union);
-          combinedFields.add(new Field(oldFld.name(), newFldSchema, oldFld.doc(), oldFld.defaultValue()));
+          Object obj = getCompatibleDefaultValue(oldFld);
+          combinedFields.add(AvroCompatibilityHelper.createSchemaField(oldFld.name(), newFldSchema, oldFld.doc(),
+              getCompatibleDefaultValue(oldFld)));
         }
       }
     }
@@ -673,7 +680,8 @@ public class AvroUtils {
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = removeUncomparableFields(field.schema(), processed);
       if (newFieldSchema.isPresent()) {
-        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+        fields.add(AvroCompatibilityHelper.createSchemaField(field.name(), newFieldSchema.get(), field.doc(),
+            getCompatibleDefaultValue(field)));
       }
     }
 
@@ -733,7 +741,8 @@ public class AvroUtils {
         if (null == input) {
           return null;
         }
-        Field field = new Field(input.name(), input.schema(), input.doc(), input.defaultValue(), input.order());
+        Field field = AvroCompatibilityHelper.createSchemaField(input.name(), input.schema(), input.doc(),
+            getCompatibleDefaultValue(input), input.order());
         return field;
       }
     });
@@ -776,8 +785,8 @@ public class AvroUtils {
         List<Schema.Field> newFields = new ArrayList<>();
         if (schema.getFields().size() > 0) {
           for (Schema.Field oldField : schema.getFields()) {
-            Field newField = new Field(oldField.name(), switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
-                oldField.defaultValue(), oldField.order());
+            Field newField = AvroCompatibilityHelper.createSchemaField(oldField.name(), switchNamespace(oldField.schema(),
+                namespaceOverride), oldField.doc(), getCompatibleDefaultValue(oldField), oldField.order());
             // Copy field level properties
             copyFieldProperties(oldField, newField);
             newFields.add(newField);
@@ -1088,8 +1097,8 @@ public class AvroUtils {
           Schema copiedFieldSchema = dropRecursive(fieldSchemaEntry, newParents, fieldsWithRecursion);
           if (copiedFieldSchema == null) {
           } else {
-            Schema.Field copiedField =
-                new Schema.Field(field.name(), copiedFieldSchema, field.doc(), field.defaultValue(), field.order());
+            Schema.Field copiedField = AvroCompatibilityHelper.createSchemaField(field.name(), copiedFieldSchema,
+                field.doc(), getCompatibleDefaultValue(field), field.order());
             copyFieldProperties(field, copiedField);
             copiedSchemaFields.add(copiedField);
           }
@@ -1142,7 +1151,16 @@ public class AvroUtils {
    * @param copiedField
    */
   private static void copyFieldProperties(Schema.Field sourceField, Schema.Field copiedField) {
-    sourceField.getProps().forEach((key, value) -> copiedField.addProp(key, value));
+    sourceField.getObjectProps().forEach((key, value) -> copiedField.addProp(key, value));
   }
+
+  @Nullable
+  public static Object getCompatibleDefaultValue(Schema.Field field) {
+    return AvroCompatibilityHelper.fieldHasDefault(field)
+        ? AvroCompatibilityHelper.getGenericDefaultValue(field)
+        : null;
+  }
+
+
 
 }
