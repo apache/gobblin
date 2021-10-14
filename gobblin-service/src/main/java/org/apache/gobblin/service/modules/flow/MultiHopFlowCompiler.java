@@ -192,14 +192,14 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     DataNode sourceNode = this.flowGraph.getNode(source);
     if (sourceNode == null) {
       flowSpec.getCompilationErrors()
-          .add(String.format("Flowgraph does not have a node with id %s", source));
+          .add(flowSpec.getCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", source)));
       return null;
     }
     List<String> destNodeIds = ConfigUtils.getStringList(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     List<DataNode> destNodes = destNodeIds.stream().map(this.flowGraph::getNode).collect(Collectors.toList());
     if (destNodes.contains(null)) {
       flowSpec.getCompilationErrors()
-          .add(String.format("Flowgraph does not have a node with id %s", destNodeIds.get(destNodes.indexOf(null))));
+          .add(flowSpec.getCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", destNodeIds.get(destNodes.indexOf(null)))));
       return null;
     }
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
@@ -218,12 +218,12 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
               String message = String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
                   flowSpec.getUri().toString(), source, destination);
               log.error(message);
-              datasetFlowSpec.getCompilationErrors().add(message);
+              datasetFlowSpec.getCompilationErrors().add(datasetFlowSpec.getCompilationError(source, destination, message));
               return null;
             }
           } catch (Exception e) {
             Instrumented.markMeter(flowCompilationFailedMeter);
-            datasetFlowSpec.getCompilationErrors().add(Throwables.getStackTraceAsString(e));
+            datasetFlowSpec.getCompilationErrors().add(datasetFlowSpec.getCompilationError(source, destination, Throwables.getStackTraceAsString(e)));
             return null;
           }
         }
@@ -240,14 +240,14 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         Instrumented.markMeter(flowCompilationFailedMeter);
         String message = String.format("No path found from source: %s and destination: %s", source, destination);
         log.info(message);
-        flowSpec.getCompilationErrors().add(message);
+        flowSpec.getCompilationErrors().add(flowSpec.getCompilationError(source, destination, message));
         return null;
       }
     } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
       Instrumented.markMeter(flowCompilationFailedMeter);
       String message = String.format("Exception encountered while compiling flow for source: %s and destination: %s, %s", source, destination, Throwables.getStackTraceAsString(e));
       log.error(message, e);
-      flowSpec.getCompilationErrors().add(message);
+      flowSpec.getCompilationErrors().add(flowSpec.getCompilationError(source, destination, message));
       return null;
     } finally {
       this.rwLock.readLock().unlock();
