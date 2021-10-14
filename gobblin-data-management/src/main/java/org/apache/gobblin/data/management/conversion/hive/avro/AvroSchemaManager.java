@@ -161,6 +161,14 @@ public class AvroSchemaManager {
         List<TypeInfo> typeInfos = fields.stream().map(fs -> TypeInfoUtils.getTypeInfoFromTypeString(fs.getType()))
             .collect(Collectors.toList());
         List<String> comments = fields.stream().map(fs -> fs.getComment()).collect(Collectors.toList());
+        // TODO: Fix this code. Error - the below method is deprecated in Schema.Field in avro 1.9
+        // java.lang.NoSuchMethodError: org.apache.avro.Schema$Field.<init>(Ljava/lang/String;Lorg/apache/avro/Schema;Ljava/lang/String;Lorg/codehaus/jackson/JsonNode;)V
+        // at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.createAvroField(TypeInfoToSchema.java:76)
+        // at org.apache.hadoop.hive.serde2.avro.TypeInfoToSchema.convert(TypeInfoToSchema.java:61)
+        // TypeInfoToSchema is from hive-serde-1.0.1 and uses avro 1.7. The latest version 3.1.2
+        // still uses avro 1.7
+        // TODO: Explore the option suggested by @srramach. Copy TypeInfoToSchema class and customize it so that it
+        // uses the compat helper.
         Schema schema = new TypeInfoToSchema().convert(colNames, typeInfos, comments, null, null, null);
         return getOrGenerateSchemaFile(schema);
       }

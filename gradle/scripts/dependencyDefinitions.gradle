@@ -25,6 +25,8 @@ ext.externalDependency = [
     "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
     "avro": "org.apache.avro:avro:" + avroVersion,
     "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
+    "avroCompatHelper": "com.linkedin.avroutil1:helper-all:0.2.44",
+    "avroCompiler": "org.apache.avro:avro-compiler:" + avroVersion,
     "awsCore": "com.amazonaws:aws-java-sdk-core:" + awsVersion,
     "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:" + awsVersion,
     "awsAppAsg": "com.amazonaws:aws-java-sdk-applicationautoscaling:" + awsVersion,

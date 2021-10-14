@@ -55,6 +55,9 @@ public class HiveAvroORCQueryGeneratorTest {
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
         "schemaWithLogicalField.json");
 
+    // TODO: Fix this test. Error -
+    // java.lang.NoSuchMethodError: org.apache.avro.Schema.getJsonProp(Ljava/lang/String;)Lorg/codehaus/jackson/JsonNode;
+    //	at org.apache.hadoop.hive.serde2.avro.SchemaToTypeInfo.generateTypeInfo(SchemaToTypeInfo.java:116)
     String q = HiveAvroORCQueryGenerator
         .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
             Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
