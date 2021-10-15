@@ -38,8 +38,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.service.ServiceConfigKeys.*;
-
 
 public class MysqlNonFlowSpecStoreTest {
   private static final String USER = "testUser";
@@ -59,7 +57,7 @@ public class MysqlNonFlowSpecStoreTest {
   public void setUp() throws Exception {
     ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
 
-    // prefix keys to demonstrate use of that disambiguation mechanism, preferred to intentially-sabatoged fallback
+    // prefix keys to demonstrate disambiguation mechanism used to side-step intentially-sabatoged non-prefixed, 'fallback'
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, " SABATOGE! !" + testDb.getJdbcUrl())
         .addPrimitive(MysqlNonFlowSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
@@ -74,25 +72,17 @@ public class MysqlNonFlowSpecStoreTest {
         .withConfig(ConfigBuilder.create()
             .addPrimitive("key", "value")
             .addPrimitive("key3", "value3")
-            .addPrimitive("config.with.dot", "value4")
-            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
-            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
-            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg1")
-            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn1").build())
-        .withDescription("Test flow spec")
+            .addPrimitive("config.with.dot", "value4").build())
+        .withDescription("Test1")
         .withVersion("Test version")
-        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("jobA")))
+        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execA")))
         .build();
     topoSpec2 = new TopologySpec.Builder(this.uri2)
         .withConfig(ConfigBuilder.create().addPrimitive("converter", "value1,value2,value3")
-            .addPrimitive("key3", "value3")
-            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
-            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
-            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg2")
-            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn2").build())
-        .withDescription("Test flow spec 2")
+            .addPrimitive("key3", "value3").build())
+        .withDescription("Test2")
         .withVersion("Test version 2")
-        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("jobB")))
+        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execB")))
         .build();
   }
 
@@ -134,27 +124,19 @@ public class MysqlNonFlowSpecStoreTest {
     URI uri5 = URI.create("topospec5");
     TopologySpec topoSpec5 = new TopologySpec.Builder(uri5)
         .withConfig(ConfigBuilder.create()
-            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
-            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
-            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg5")
-            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn5")
             .addPrimitive("key5", "value5").build())
-        .withDescription("Test flow spec 5")
+        .withDescription("Test5")
         .withVersion("Test version 5")
-        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("jobE")))
+        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execE")))
         .build();
 
     URI uri6 = URI.create("topospec6");
     TopologySpec topoSpec6 = new TopologySpec.Builder(uri6)
         .withConfig(ConfigBuilder.create()
-            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
-            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
-            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg6")
-            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn6")
             .addPrimitive("key6", "value6").build())
-        .withDescription("Test flow spec 6")
+        .withDescription("Test6")
         .withVersion("Test version 6")
-        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("jobF")))
+        .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execF")))
         .build();
 
     this.specStore.addSpec(topoSpec5, "dr");
