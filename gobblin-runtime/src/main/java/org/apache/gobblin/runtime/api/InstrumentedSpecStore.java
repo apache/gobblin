@@ -91,6 +91,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   private OptionallyTimingInvoker getAllTimer;
   private OptionallyTimingInvoker getSizeTimer;
   private OptionallyTimingInvoker getURIsTimer;
+  private OptionallyTimingInvoker getURIsWithTagTimer;
   private MetricContext metricContext;
   private final boolean instrumentationEnabled;
 
@@ -105,6 +106,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     this.getAllTimer = createTimingInvoker("-GETALL");
     this.getSizeTimer = createTimingInvoker("-GETCOUNT");
     this.getURIsTimer = createTimingInvoker("-GETURIS");
+    this.getURIsWithTagTimer = createTimingInvoker("-GETURISWITHTAG");
   }
 
   private OptionallyTimingInvoker createTimingInvoker(String suffix) {
@@ -159,6 +161,11 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
+  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+    return this.getURIsWithTagTimer.invokeMayThrowIO(() -> getSpecURIsWithTagImpl(tag));
+  }
+
+  @Override
   public int getSize() throws IOException {
     return this.getSizeTimer.invokeMayThrowIO(() -> getSizeImpl());
   }
@@ -170,6 +177,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract boolean deleteSpecImpl(URI specUri) throws IOException;
   public abstract Collection<Spec> getSpecsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
+  public abstract Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException;
   public abstract int getSizeImpl() throws IOException;
 
   /** child classes can implement this if they want to get specs using {@link SpecSearchObject} */
