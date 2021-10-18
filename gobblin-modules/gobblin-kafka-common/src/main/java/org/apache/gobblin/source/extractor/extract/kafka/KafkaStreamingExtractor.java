@@ -323,8 +323,10 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
   @Override
   public S getSchema() {
     try {
-      Schema schema = (Schema) this._schemaRegistry.get().getLatestSchemaByTopic(this.topicPartitions.get(0).getTopicName());
-      return (S) schema;
+      if(this._schemaRegistry.isPresent()) {
+        return (S)(Schema) this._schemaRegistry.get().getLatestSchemaByTopic(this.topicPartitions.get(0).getTopicName());
+      }
+      return (S) this.topicPartitions.iterator().next().getTopicName();
     } catch (SchemaRegistryException e) {
       e.printStackTrace();
     }
