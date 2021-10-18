@@ -25,6 +25,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.reporter.EventReporter;
@@ -36,6 +37,7 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 /**
  * Reports {@link GobblinTrackingEvent} to a Kafka topic serialized as JSON.
  */
+@Slf4j
 public class KafkaEventReporter extends EventReporter {
 
   protected final AvroSerializer<GobblinTrackingEvent> serializer;
@@ -66,6 +68,7 @@ public class KafkaEventReporter extends EventReporter {
     }
 
     if (!events.isEmpty()) {
+      log.info("Pushing events to Kafka");
       this.kafkaPusher.pushMessages(events);
     }
 

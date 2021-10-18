@@ -84,6 +84,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   public static final int DEFAULT_QUEUE_OFFER_TIMEOUT_SECS = 10;
   public static final String QUEUE_OFFER_TIMOUT_SECS_KEY = ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".queue.offer.timeout.secs";
   private static final String NULL_STRING = "null";
+  public static final int REPORT_TIMEOUT_SECS = 60;
 
   private final MetricContext metricContext;
   private final BlockingQueue<GobblinTrackingEvent> reportingQueue;
@@ -144,9 +145,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
     if (this.reportingQueue.size() > this.queueCapacity * 2 / 3) {
+      log.info("Trigger immediate run to report the event since queue is almost full");
       immediatelyScheduleReport();
     }
     try {
+      log.debug("Offering one event to the metrics queue");
       if (!this.reportingQueue.offer(sanitizeEvent(event), this.queueOfferTimeoutSecs, TimeUnit.SECONDS)) {
         log.error("Enqueuing of event {} at reporter with class {} timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
@@ -235,7 +238,10 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   @Override
   public void close() {
     try {
+      LOGGER.info(String.format("Closing event reporter %s", this.getClass().getCanonicalName()));
       this.metricContext.removeNotificationTarget(this.notificationTargetKey);
+      this.immediateReportExecutor.awaitTermination(REPORT_TIMEOUT_SECS, TimeUnit.SECONDS);
+      LOGGER.info(String.format("Flush out %s events before closing the reporter", this.reportingQueue.size()));
       report();
       this.closer.close();
     } catch (Exception e) {
