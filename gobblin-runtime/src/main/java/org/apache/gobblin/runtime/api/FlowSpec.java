@@ -129,7 +129,7 @@ public class FlowSpec implements Configurable, Spec {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
   }
 
-
+  @EqualsAndHashCode
   public static class CompilationError {
     public int errorPriority;
     public String errorMessage;
@@ -143,20 +143,6 @@ public class FlowSpec implements Configurable, Spec {
         errorPriority++;
       }
       this.errorMessage = errorMessage;
-    }
-
-    @Override
-    public int hashCode() {
-      return errorPriority + errorMessage.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj instanceof CompilationError) {
-        return ((CompilationError) obj).errorPriority == this.errorPriority
-            && ((CompilationError) obj).errorMessage.equals(this.errorMessage);
-      }
-      return false;
     }
   }
 

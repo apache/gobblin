@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
 
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
@@ -102,7 +101,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
     if (!flowSpec.getCompilationErrors().isEmpty()) {
       message.append(" Compilation errors encountered (Sorted by relevance): ");
-      Object[] errors = flowSpec.getCompilationErrors().stream().distinct().collect(Collectors.toList()).toArray();
+      Object[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
       Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
       int errorId = 0;
       for (Object er: errors) {
