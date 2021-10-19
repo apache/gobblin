@@ -24,7 +24,6 @@ import com.typesafe.config.Config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -139,12 +138,9 @@ public class MysqlSpecStore extends MysqlNonFlowSpecStore {
   /** Support search, unlike base class (presumably via a {@link org.apache.gobblin.runtime.api.FlowSpecSearchObject}). */
   @Override
   public Collection<Spec> getSpecsImpl(SpecSearchObject specSearchObject) throws IOException {
-    try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getStatementBase))) {
+    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getStatementBase), statement -> {
       specSearchObject.completePreparedStatement(statement);
       return retrieveSpecs(statement);
-    } catch (SQLException e) {
-      throw new IOException(e);
-    }
+    });
   }
 }
