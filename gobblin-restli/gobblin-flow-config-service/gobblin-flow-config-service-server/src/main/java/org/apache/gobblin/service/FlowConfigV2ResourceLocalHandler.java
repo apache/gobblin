@@ -18,10 +18,9 @@ package org.apache.gobblin.service;
 
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Map;
 
-import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
@@ -103,18 +102,13 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
     if (!flowSpec.getCompilationErrors().isEmpty()) {
       message.append(" Compilation errors encountered (Sorted by relevance): ");
-      Object[] errors = flowSpec.getCompilationErrors().toArray();
+      Object[] errors = flowSpec.getCompilationErrors().stream().distinct().collect(Collectors.toList()).toArray();
       Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
-      // This is to avoid we print same error multi times.
-      Set<String> errorSet = new HashSet<>();
       int errorId = 0;
       for (Object er: errors) {
         FlowSpec.CompilationError error = (FlowSpec.CompilationError)er;
-        if (!errorSet.contains(error.errorMessage)) {
-          message.append("\n").append(String.format("ERROR[%s]", errorId)).append(error.errorMessage);
-          errorSet.add(error.errorMessage);
-          errorId++;
-        }
+        message.append("\n").append(String.format("ERROR[%s]", errorId)).append(error.errorMessage);
+        errorId++;
       }
     }
     return message.toString();

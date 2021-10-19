@@ -125,24 +125,38 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
-  public CompilationError getCompilationError(String src, String dst, String errorMessage) {
-    return new CompilationError(src, dst, errorMessage);
+  public void addCompilationError(String src, String dst, String errorMessage) {
+    this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
   }
 
 
-  public class CompilationError {
+  public static class CompilationError {
     public int errorPriority;
     public String errorMessage;
-    CompilationError(String src, String dst, String errorMessage) {
+    CompilationError(Config config, String src, String dst, String errorMessage) {
       errorPriority = 0;
-      if (!src.equals(ConfigUtils.getString(getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))){
+      if (!src.equals(ConfigUtils.getString(config, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))){
         errorPriority++;
       }
-      if (!ConfigUtils.getStringList(getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY)
+      if (!ConfigUtils.getStringList(config, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY)
           .containsAll(Arrays.asList(StringUtils.split(dst, ",")))){
         errorPriority++;
       }
       this.errorMessage = errorMessage;
+    }
+
+    @Override
+    public int hashCode() {
+      return errorPriority + errorMessage.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof CompilationError) {
+        return ((CompilationError) obj).errorPriority == this.errorPriority
+            && ((CompilationError) obj).errorMessage.equals(this.errorMessage);
+      }
+      return false;
     }
   }
 
