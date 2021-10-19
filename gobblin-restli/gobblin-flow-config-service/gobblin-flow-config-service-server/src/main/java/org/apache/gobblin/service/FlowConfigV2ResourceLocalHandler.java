@@ -101,11 +101,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
     if (!flowSpec.getCompilationErrors().isEmpty()) {
       message.append(" Compilation errors encountered (Sorted by relevance): ");
-      Object[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
+      FlowSpec.CompilationError[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
       Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
       int errorId = 0;
-      for (Object er: errors) {
-        FlowSpec.CompilationError error = (FlowSpec.CompilationError)er;
+      for (FlowSpec.CompilationError error: errors) {
         message.append("\n").append(String.format("ERROR[%s]", errorId)).append(error.errorMessage);
         errorId++;
       }
