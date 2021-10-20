@@ -50,8 +50,7 @@ import org.apache.gobblin.runtime.api.SpecStore;
 
 
 /**
- * Implementation of {@link SpecStore} that stores specs (other than {@link FlowSpec}) in MySQL as a serialized BLOB, per the provided
- * {@link SpecSerDe}.
+ * Implementation of {@link SpecStore} that stores specs in MySQL as a serialized BLOB, per the provided {@link SpecSerDe}.
  * Note: versions are unsupported, so the version parameter is ignored in methods that have it.
  *
  * A tag column is added into implementation to serve certain filtering purposes in MySQL-based SpecStore.
@@ -62,7 +61,7 @@ import org.apache.gobblin.runtime.api.SpecStore;
  * The {@link MysqlSpecStore} is a specialization enhanced for {@link FlowSpec} search and retrieval.
  */
 @Slf4j
-public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
+public class MysqlBaseSpecStore extends InstrumentedSpecStore {
 
   /** `j.u.Function` variant for an operation that may @throw IOException or SQLException: preserves method signature checked exceptions */
   @FunctionalInterface
@@ -70,7 +69,7 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
     R apply(T t) throws IOException, SQLException;
   }
 
-  public static final String CONFIG_PREFIX = "mysqlNonFlowSpecStore";
+  public static final String CONFIG_PREFIX = "mysqlBaseSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
 
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
@@ -91,15 +90,15 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
    * between statements, collect them within this inner class that enables selective, per-statement override, and delivers them as a unit.
    */
   protected class SqlStatements {
-    public final String existsStatement = String.format(getTablelessExistsStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String insertStatement = String.format(getTablelessInsertStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String deleteStatement = String.format(getTablelessDeleteStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String getStatementBase = String.format(getTablelessGetStatementBase(), MysqlNonFlowSpecStore.this.tableName);
-    public final String getAllStatement = String.format(getTablelessGetAllStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String getAllURIsStatement = String.format(getTablelessGetAllURIsStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlNonFlowSpecStore.this.tableName);
-    public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlNonFlowSpecStore.this.tableName);
+    public final String existsStatement = String.format(getTablelessExistsStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String insertStatement = String.format(getTablelessInsertStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String deleteStatement = String.format(getTablelessDeleteStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getStatementBase = String.format(getTablelessGetStatementBase(), MysqlBaseSpecStore.this.tableName);
+    public final String getAllStatement = String.format(getTablelessGetAllStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getAllURIsStatement = String.format(getTablelessGetAllURIsStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlBaseSpecStore.this.tableName);
 
     public void completeInsertPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
       URI specUri = spec.getUri();
@@ -107,22 +106,22 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
       int i = 0;
       statement.setString(++i, specUri.toString());
       statement.setString(++i, tagValue);
-      statement.setBlob(++i, new ByteArrayInputStream(MysqlNonFlowSpecStore.this.specSerDe.serialize(spec)));
+      statement.setBlob(++i, new ByteArrayInputStream(MysqlBaseSpecStore.this.specSerDe.serialize(spec)));
     }
 
     public Spec extractSpec(ResultSet rs) throws SQLException, IOException {
-      return MysqlNonFlowSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
+      return MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
     }
 
-    protected String getTablelessExistsStatement() { return MysqlNonFlowSpecStore.EXISTS_STATEMENT; }
-    protected String getTablelessInsertStatement() { return MysqlNonFlowSpecStore.INSERT_STATEMENT; }
-    protected String getTablelessDeleteStatement() { return MysqlNonFlowSpecStore.DELETE_STATEMENT; }
-    protected String getTablelessGetStatementBase() { return MysqlNonFlowSpecStore.GET_STATEMENT_BASE; }
-    protected String getTablelessGetAllStatement() { return MysqlNonFlowSpecStore.GET_ALL_STATEMENT; }
-    protected String getTablelessGetAllURIsStatement() { return MysqlNonFlowSpecStore.GET_ALL_URIS_STATEMENT; }
-    protected String getTablelessGetAllURIsWithTagStatement() { return MysqlNonFlowSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
-    protected String getTablelessGetSizeStatement() { return MysqlNonFlowSpecStore.GET_SIZE_STATEMENT; }
-    protected String getTablelessCreateTableStatement() { return MysqlNonFlowSpecStore.CREATE_TABLE_STATEMENT; }
+    protected String getTablelessExistsStatement() { return MysqlBaseSpecStore.EXISTS_STATEMENT; }
+    protected String getTablelessInsertStatement() { return MysqlBaseSpecStore.INSERT_STATEMENT; }
+    protected String getTablelessDeleteStatement() { return MysqlBaseSpecStore.DELETE_STATEMENT; }
+    protected String getTablelessGetStatementBase() { return MysqlBaseSpecStore.GET_STATEMENT_BASE; }
+    protected String getTablelessGetAllStatement() { return MysqlBaseSpecStore.GET_ALL_STATEMENT; }
+    protected String getTablelessGetAllURIsStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_STATEMENT; }
+    protected String getTablelessGetAllURIsWithTagStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
+    protected String getTablelessGetSizeStatement() { return MysqlBaseSpecStore.GET_SIZE_STATEMENT; }
+    protected String getTablelessCreateTableStatement() { return MysqlBaseSpecStore.CREATE_TABLE_STATEMENT; }
   }
 
 
@@ -132,7 +131,7 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
   protected final SpecSerDe specSerDe;
   protected final SqlStatements sqlStatements;
 
-  public MysqlNonFlowSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
+  public MysqlBaseSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
     super(config, specSerDe);
     String configPrefix = getConfigPrefix();
     if (config.hasPath(configPrefix)) {
@@ -151,7 +150,7 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
   }
 
   protected String getConfigPrefix() {
-    return MysqlNonFlowSpecStore.CONFIG_PREFIX;
+    return MysqlBaseSpecStore.CONFIG_PREFIX;
   }
 
   protected SqlStatements createSqlStatements() {
@@ -226,7 +225,7 @@ public class MysqlNonFlowSpecStore extends InstrumentedSpecStore {
 
   @Override
   public Spec getSpec(URI specUri, String version) throws IOException, SpecNotFoundException {
-    return getSpec(specUri);
+    return getSpec(specUri); // `version` ignored, as mentioned in javadoc
   }
 
   @Override

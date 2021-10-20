@@ -43,15 +43,15 @@ import static org.apache.gobblin.service.ServiceConfigKeys.*;
 
 /**
  * Implementation of {@link SpecStore} that stores specs in MySQL both as a serialized BLOB and as a JSON string, and extends
- * {@link MysqlNonFlowSpecStore} with enhanced FlowSpec search/retrieval capabilities.  The {@link SpecSerDe}'s serialized output
+ * {@link MysqlBaseSpecStore} with enhanced FlowSpec search/retrieval capabilities.  The {@link SpecSerDe}'s serialized output
  * is presumed suitable for a MySql `JSON` column.  As in the base, versions are unsupported and ignored.
  *
  * ETYMOLOGY: this class might better be named `MysqlFlowSpecStore` while the base be `MysqlSpecStore`, but the `MysqlSpecStore` name's
- * association with this class's semantics predates the refactoring/generalization into `MysqlNonFlowSpecStore`.  Thus, to maintain
+ * association with this class's semantics predates the refactoring/generalization into `MysqlBaseSpecStore`.  Thus, to maintain
  * b/w-compatibility and avoid surprising legacy users who already refer to it (e.g. by name, in configuration), that original name remains intact.
  */
 @Slf4j
-public class MysqlSpecStore extends MysqlNonFlowSpecStore {
+public class MysqlSpecStore extends MysqlBaseSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
 
   // Historical Note: the `spec_json` column didn't always exist and was introduced for GOBBLIN-1150; the impl. thus allows that not every

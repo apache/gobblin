@@ -39,17 +39,17 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
-public class MysqlNonFlowSpecStoreTest {
+public class MysqlBaseSpecStoreTest {
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
-  private static final String TABLE = "non_flow_spec_store";
+  private static final String TABLE = "base_spec_store";
 
-  private MysqlNonFlowSpecStore specStore;
+  private MysqlBaseSpecStore specStore;
   private final URI uri1 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "1");
   private final URI uri2 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "2");
   private TopologySpec topoSpec1, topoSpec2;
 
-  public MysqlNonFlowSpecStoreTest()
+  public MysqlBaseSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
   }
 
@@ -60,13 +60,13 @@ public class MysqlNonFlowSpecStoreTest {
     // prefix keys to demonstrate disambiguation mechanism used to side-step intentially-sabatoged non-prefixed, 'fallback'
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, " SABATOGE! !" + testDb.getJdbcUrl())
-        .addPrimitive(MysqlNonFlowSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
-        .addPrimitive(MysqlNonFlowSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
-        .addPrimitive(MysqlNonFlowSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive(MysqlNonFlowSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
-    this.specStore = new MysqlNonFlowSpecStore(config, new JavaSpecSerDe());
+    this.specStore = new MysqlBaseSpecStore(config, new JavaSpecSerDe());
 
     topoSpec1 = new TopologySpec.Builder(this.uri1)
         .withConfig(ConfigBuilder.create()
@@ -120,7 +120,7 @@ public class MysqlNonFlowSpecStoreTest {
 
   @Test (dependsOnMethods = "testGetSpec")
   public void testGetSpecWithTag() throws Exception {
-    //Creating and inserting flowspecs with tags
+    //Creating and inserting specs with tags
     URI uri5 = URI.create("topospec5");
     TopologySpec topoSpec5 = new TopologySpec.Builder(uri5)
         .withConfig(ConfigBuilder.create()
