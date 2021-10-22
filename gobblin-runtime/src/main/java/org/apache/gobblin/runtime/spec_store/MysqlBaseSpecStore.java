@@ -81,6 +81,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
+  // NOTE: using max length of a `FlowSpec` URI, as it's believed to be the longest of existing `Spec` types
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
         + ") NOT NULL, tag VARCHAR(128) NOT NULL, modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE "
         + "CURRENT_TIMESTAMP, spec LONGBLOB, PRIMARY KEY (spec_uri))";

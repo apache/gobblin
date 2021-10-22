@@ -68,6 +68,10 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       throws IOException {
     List<String> conditions = new ArrayList<>();
 
+    /*
+     * IMPORTANT: the order of `conditions` added must align with the order of parameter binding later in `completePreparedStatement`!
+     */
+
     if (this.getFlowSpecUri() != null) {
       conditions.add("spec_uri = ?");
     }
@@ -143,6 +147,10 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   public void completePreparedStatement(PreparedStatement statement)
       throws SQLException {
     int i = 0;
+
+    /*
+     * IMPORTANT: the order of binding params must align with the order of building the conditions earlier in `augmentBaseGetStatement`!
+     */
 
     if (this.getFlowSpecUri() != null) {
       statement.setString(++i, this.getFlowSpecUri().toString());
