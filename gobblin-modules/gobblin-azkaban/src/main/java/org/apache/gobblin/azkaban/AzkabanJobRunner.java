@@ -61,7 +61,7 @@ public class AzkabanJobRunner {
     runner.run();
   }
 
-  public static String getTempDirectory() {
+  public static String getTempDirectory() throws IOException {
     File tempDirBase = new File(System.getProperty("java.io.tmpdir"));
     File tmpDirectory = Files.createTempDirectory(
          tempDirBase.toPath(), System.currentTimeMillis() + "-").toFile();
