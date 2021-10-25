@@ -268,7 +268,7 @@ public class FSSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+  public Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException {
     throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
   }
 
