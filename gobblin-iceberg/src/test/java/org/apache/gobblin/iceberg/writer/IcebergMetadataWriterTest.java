@@ -188,7 +188,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     return state;
   }
 
-  @Test
+  @Test(dependsOnGroups={"hiveMetadataWriterTest"})
   public void testWriteAddFileGMCE() throws IOException {
     // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
     // without risking running into type cast runtime error.
@@ -323,6 +323,40 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Assert low watermark and high watermark set properly
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "40");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "45");
+  }
+
+  @Test(dependsOnMethods={"testWriteAddFileGMCECompleteness"}, groups={"icebergMetadataWriterTest"})
+  public void testFaultTolerant() throws Exception {
+    // Set fault tolerant dataset number to be 1
+    gobblinMCEWriter.setMaxErrorDataset(1);
+    // Stop metaStore so write will fail
+    stopMetastore();
+    GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(51L))));
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(52L))));
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().size(), 1);
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
+        .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
+        .get("hivedb.testIcebergTable").peek().lowWatermark, 50L);
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
+        .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
+        .get("hivedb.testIcebergTable").peek().highWatermark, 52L);
+    //We should not see exception as we have fault tolerant
+    gobblinMCEWriter.flush();
+    gmce.getDatasetIdentifier().setNativeName("data/tracking/testFaultTolerant");
+    GenericRecord genericGmce_differentDb = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    Assert.expectThrows(IOException.class, () -> gobblinMCEWriter.writeEnvelope((new RecordEnvelope<>(genericGmce_differentDb,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(53L))))));
+    // restart metastore to make sure followiing test runs well
+    startMetastore();
   }
 
   @Test(dependsOnMethods={"testChangeProperty"}, groups={"icebergMetadataWriterTest"})
@@ -466,6 +500,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
       return Lists.newArrayList("hivedb");
     }
     protected List<String> getTableNames(Optional<String> dbPrefix, Path path) {
+      if (path.toString().contains("testFaultTolerant")) {
+        return Lists.newArrayList("testFaultTolerantIcebergTable");
+      }
       return Lists.newArrayList("testIcebergTable");
     }
   }

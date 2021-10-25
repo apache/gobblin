@@ -48,6 +48,16 @@ public interface MetadataWriter extends Closeable {
   void flush(String dbName, String tableName) throws IOException;
 
   /**
+   * If something wrong happens, we want to reset the table inside the writer so that we can continual
+   * registration for this table
+   *
+   * @param dbName The db name of metadata-registration target.
+   * @param tableName The table name of metadata-registration target.
+   * @throws IOException
+   */
+  void reset(String dbName, String tableName) throws IOException;
+
+  /**
    * Compute and cache the metadata from the GMCE
    * @param recordEnvelope Containing {@link GobblinMetadataChangeEvent}
    * @param newSpecsMap The container (as a map) for new specs.

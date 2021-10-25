@@ -861,6 +861,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  @Override
+  public void reset(String dbName, String tableName) throws IOException {
+      this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
+  }
+
   /**
    * NOTE: completion watermark for a window [t1, t2] is marked as t2 if audit counts match
    * for that window (aka its is set to the beginning of next window)
