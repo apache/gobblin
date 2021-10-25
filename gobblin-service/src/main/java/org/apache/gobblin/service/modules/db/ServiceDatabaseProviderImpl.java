@@ -70,6 +70,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     // To improve performance, we only check connections on creation, and set a maximum connection lifetime
     // If database goes to read-only mode, then connection would not work correctly for up to configured lifetime
     dataSource.setTestOnCreate(true);
+    dataSource.setMaxConnLifetimeMillis(configuration.getMaxConnectionLifetime().toMillis());
     dataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(10).toMillis());
     dataSource.setMinIdle(2);
     dataSource.setMaxTotal(configuration.getMaxConnections());
@@ -86,7 +87,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     private String password;
 
     @Builder.Default
-    private Duration maxConnectionLifetime = Duration.ofMinutes(1);
+    private Duration maxConnectionLifetime = Duration.ofMillis(-1);
 
     @Builder.Default
     private int maxConnections = 100;
