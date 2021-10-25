@@ -17,8 +17,19 @@
 
 package org.apache.gobblin.runtime.api;
 
+import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
+
 /**
  * This is an interface to package all the parameters that should be used to search {@link Spec} in a {@link SpecStore}
  */
 public interface SpecSearchObject {
+
+  /** @returns `baseStatement`, further constrained by the search object's restrictions (e.g. through (unbound) `WHERE` clause conditions) */
+  String augmentBaseGetStatement(String baseStatement) throws IOException;
+
+  /** Bind all placeholders in `statement`, which must have been prepared from the result of {@link this.augmentBaseGetStatment()} */
+  public void completePreparedStatement(PreparedStatement statement) throws SQLException;
 }
