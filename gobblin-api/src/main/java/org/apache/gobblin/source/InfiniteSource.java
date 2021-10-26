@@ -14,22 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.source;
 
-package org.apache.gobblin.runtime.api;
-
-import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import com.google.common.eventbus.EventBus;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
- * This is an interface to package all the parameters that should be used to search {@link Spec} in a {@link SpecStore}
+ * An interface for infinite source, where source should be able to detect the work unit change
+ * and post the change through eventBus
+ *
+ * @author Zihan Li
+ *
+ * @param <S> output schema type
+ * @param <D> output record type
  */
-public interface SpecSearchObject {
+@Alpha
+public interface InfiniteSource<S, D> extends Source<S, D>{
 
-  /** @returns `baseStatement`, further constrained by the search object's restrictions (e.g. through (unbound) `WHERE` clause conditions) */
-  String augmentBaseGetStatement(String baseStatement) throws IOException;
+  /**
+   * Return the eventBus where it will post {@link org.apache.gobblin.stream.WorkUnitChangeEvent} when workUnit change
+   */
+  EventBus getEventBus();
 
-  /** Bind all placeholders in `statement`, which must have been prepared from the result of {@link this.augmentBaseGetStatment()} */
-  public void completePreparedStatement(PreparedStatement statement) throws SQLException;
 }

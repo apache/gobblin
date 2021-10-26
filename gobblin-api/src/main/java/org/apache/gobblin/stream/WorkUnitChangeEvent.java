@@ -15,21 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.stream;
 
-import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
+import java.util.List;
+import lombok.Getter;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
- * This is an interface to package all the parameters that should be used to search {@link Spec} in a {@link SpecStore}
+ * The event for {@link org.apache.gobblin.source.InfiniteSource} to indicate there is a change in work units
+ * Job launcher should then be able to handle this event
  */
-public interface SpecSearchObject {
-
-  /** @returns `baseStatement`, further constrained by the search object's restrictions (e.g. through (unbound) `WHERE` clause conditions) */
-  String augmentBaseGetStatement(String baseStatement) throws IOException;
-
-  /** Bind all placeholders in `statement`, which must have been prepared from the result of {@link this.augmentBaseGetStatment()} */
-  public void completePreparedStatement(PreparedStatement statement) throws SQLException;
+public class WorkUnitChangeEvent {
+  @Getter
+  private final List<String> oldTaskIds;
+  @Getter
+  private final List<WorkUnit> newWorkUnits;
+  public WorkUnitChangeEvent(List<String> oldTaskIds, List<WorkUnit> newWorkUnits) {
+    this.oldTaskIds = oldTaskIds;
+    this.newWorkUnits = newWorkUnits;
+  }
 }

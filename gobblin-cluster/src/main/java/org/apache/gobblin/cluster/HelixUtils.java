@@ -36,6 +36,7 @@ import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.InstanceConfig;
 import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.JobContext;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
@@ -143,6 +144,33 @@ public class HelixUtils {
     }
 
     log.info("Work flow {} initialized", workFlowName);
+  }
+
+  protected static boolean deleteTaskFromHelixJob(String workFlowName,
+      String jobName, String taskID, TaskDriver helixTaskDriver) {
+    try {
+      log.info(String.format("try to delete task %s from workflow %s, job %s", taskID, workFlowName, jobName));
+      helixTaskDriver.deleteTask(workFlowName, jobName, taskID);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return !helixTaskDriver.getJobConfig(TaskUtil.getNamespacedJobName(workFlowName, jobName)).getMapConfigs().containsKey(taskID);
+    }
+    return true;
+  }
+
+  protected static boolean addTaskToHelixJob(String workFlowName,
+      String jobName, TaskConfig taskConfig, TaskDriver helixTaskDriver) {
+    String taskId = taskConfig.getId();
+    try {
+      log.info(String.format("try to add task %s to workflow %s, job %s", taskId, workFlowName, jobName));
+      helixTaskDriver.addTask(workFlowName, jobName, taskConfig);
+    } catch (Exception e) {
+      e.printStackTrace();
+      JobContext jobContext =
+          helixTaskDriver.getJobContext(TaskUtil.getNamespacedJobName(workFlowName, jobName));
+      return jobContext.getTaskIdPartitionMap().containsKey(taskId);
+    }
+    return true;
   }
 
   public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,

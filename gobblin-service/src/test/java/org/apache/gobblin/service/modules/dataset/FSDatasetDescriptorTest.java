@@ -83,6 +83,20 @@ public class FSDatasetDescriptorTest {
   }
 
   @Test
+  public void testContainsMatchingPaths() throws IOException {
+    // Paths that match exactly should be accepted, and that should allow glob patterns as input paths for the self serve edges
+    Config config1 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/*"))
+        .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"));
+    FSDatasetDescriptor descriptor1 = new FSDatasetDescriptor(config1);
+
+    Config config2 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/*"))
+        .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"));
+
+    FSDatasetDescriptor descriptor2 = new FSDatasetDescriptor(config2);
+    Assert.assertTrue(descriptor1.contains(descriptor2));
+  }
+
+  @Test
   public void testEquals() throws IOException {
     Config config1 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/*"))
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"));

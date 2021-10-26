@@ -66,7 +66,7 @@ public class MysqlSpecStoreTest {
   private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
 
   public MysqlSpecStoreTest()
-      throws URISyntaxException {
+      throws URISyntaxException { // (based on `uri1` and other initializations just above)
   }
 
   @BeforeClass
@@ -131,7 +131,7 @@ public class MysqlSpecStoreTest {
   public void testSpecSearch() throws Exception {
     // empty FlowSpecSearchObject should throw an error
     FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().build();
-    MysqlSpecStore.createGetPreparedStatement(flowSpecSearchObject, "table");
+    flowSpecSearchObject.augmentBaseGetStatement("SELECT * FROM Dummy WHERE ");
   }
 
   @Test
@@ -274,8 +274,8 @@ public class MysqlSpecStoreTest {
     @Override
     public void addSpec(Spec spec, String tagValue) throws IOException {
       try (Connection connection = this.dataSource.getConnection();
-          PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-        setAddPreparedStatement(statement, spec, tagValue);
+          PreparedStatement statement = connection.prepareStatement(this.sqlStatements.insertStatement)) {
+        this.sqlStatements.completeInsertPreparedStatement(statement, spec, tagValue);
         statement.setString(4, null);
         statement.executeUpdate();
         connection.commit();

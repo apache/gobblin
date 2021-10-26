@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.service;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -89,16 +91,26 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
-      String message = "Flow was not compiled successfully.";
-      if (!flowSpec.getCompilationErrors().isEmpty()) {
-        message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
-      }
-      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, message));
+      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }
 
     return new CreateKVResponse<>(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 
+  private String getErrorMessage(FlowSpec flowSpec) {
+    StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
+    if (!flowSpec.getCompilationErrors().isEmpty()) {
+      message.append(" Compilation errors encountered (Sorted by relevance): ");
+      FlowSpec.CompilationError[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
+      Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
+      int errorId = 0;
+      for (FlowSpec.CompilationError error: errors) {
+        message.append("\n").append(String.format("ERROR[%s]", errorId)).append(error.errorMessage);
+        errorId++;
+      }
+    }
+    return message.toString();
+  }
   /**
    * Note: this method is only implemented for testing, normally partial update would be called in
    * GobblinServiceFlowConfigResourceHandler.partialUpdateFlowConfig
