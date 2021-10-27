@@ -100,6 +100,8 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final String SALESFORCE_SOAP_SERVICE = "/services/Soap/u";
   private static final Gson GSON = new Gson();
   private static final int MAX_RETRY_INTERVAL_SECS = 600;
+  private static final long ONE_MINUTE_IN_MILLI_SECS = 60 * 1000L;
+  private static final long MAX_WAIT_TIME_MILLI_SECS = 10 * ONE_MINUTE_IN_MILLI_SECS; // 10min
 
   private boolean pullStatus = true;
   private String nextUrl;
@@ -835,17 +837,19 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       BatchInfo bulkBatchInfo = this.bulkConnection.createBatchFromStream(this.bulkJob, bout);
 
-      int waitMilliSeconds = 60 * 1000; // wait 1 minute
-
       // Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
       bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
 
       // wait for completion, failure, or formation of PK chunking batches
       // if it is InProgress or Queued, continue to wait.
+      int count = 0;
       while (bulkBatchInfo.getState() == BatchStateEnum.InProgress || bulkBatchInfo.getState() == BatchStateEnum.Queued) {
+        log.info("Waiting for bulk resultSetIds");
+        // Exponential backoff - min wait time is 1min, max is MAX_WAIT_TIME_MILLI_SECS
+        long waitMilliSeconds = Math.min((long) (Math.pow(2, count) * ONE_MINUTE_IN_MILLI_SECS), MAX_WAIT_TIME_MILLI_SECS);
         Thread.sleep(waitMilliSeconds);
         bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
-        log.info("Waiting for bulk resultSetIds");
+        count++;
       }
 
       // Wait for pk chunking batches
