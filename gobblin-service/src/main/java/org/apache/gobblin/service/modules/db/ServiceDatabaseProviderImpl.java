@@ -87,7 +87,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     private String password;
 
     @Builder.Default
-    private Duration maxConnectionLifetime = Duration.ofMinutes(1);
+    private Duration maxConnectionLifetime = Duration.ofMillis(-1);
 
     @Builder.Default
     private int maxConnections = 100;
