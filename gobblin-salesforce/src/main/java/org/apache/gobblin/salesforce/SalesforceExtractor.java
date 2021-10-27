@@ -100,8 +100,6 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final String SALESFORCE_SOAP_SERVICE = "/services/Soap/u";
   private static final Gson GSON = new Gson();
   private static final int MAX_RETRY_INTERVAL_SECS = 600;
-  private static final long ONE_MINUTE_IN_MILLI_SECS = 60 * 1000L;
-  private static final long MAX_WAIT_TIME_MILLI_SECS = 10 * ONE_MINUTE_IN_MILLI_SECS; // 10min
 
   private boolean pullStatus = true;
   private String nextUrl;
@@ -843,10 +841,16 @@ public class SalesforceExtractor extends RestApiExtractor {
       // wait for completion, failure, or formation of PK chunking batches
       // if it is InProgress or Queued, continue to wait.
       int count = 0;
+      long minWaitTimeInMilliSeconds = super.workUnitState.getPropAsLong(
+          ConfigurationKeys.EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS_KEY,
+          ConfigurationKeys.DEFAULT_EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS);
+      long maxWaitTimeInMilliSeconds = super.workUnitState.getPropAsLong(
+          ConfigurationKeys.EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS_KEY,
+          ConfigurationKeys.DEFAULT_EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS);
       while (bulkBatchInfo.getState() == BatchStateEnum.InProgress || bulkBatchInfo.getState() == BatchStateEnum.Queued) {
         log.info("Waiting for bulk resultSetIds");
-        // Exponential backoff - min wait time is 1min, max is MAX_WAIT_TIME_MILLI_SECS
-        long waitMilliSeconds = Math.min((long) (Math.pow(2, count) * ONE_MINUTE_IN_MILLI_SECS), MAX_WAIT_TIME_MILLI_SECS);
+        // Exponential backoff
+        long waitMilliSeconds = Math.min((long) (Math.pow(2, count) * minWaitTimeInMilliSeconds), maxWaitTimeInMilliSeconds);
         Thread.sleep(waitMilliSeconds);
         bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
         count++;
