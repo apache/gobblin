@@ -318,6 +318,12 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
   public static final String EXTRACT_ID_TIME_ZONE = "extract.extractIdTimeZone";
   public static final String DEFAULT_EXTRACT_ID_TIME_ZONE = "UTC";
+  public static final String EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS_KEY =
+      "extract.salesforce.bulkApi.minWaitTimeInMillis";
+  public static final long DEFAULT_EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS = 60 * 1000L; // 1 min
+  public static final String EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS_KEY =
+      "extract.salesforce.bulkApi.maxWaitTimeInMillis";
+  public static final long DEFAULT_EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS = 10 * 60 * 1000L; // 10 min
 
   /**
    * Converter configuration properties.
