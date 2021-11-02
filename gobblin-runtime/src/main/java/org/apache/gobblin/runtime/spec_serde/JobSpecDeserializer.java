@@ -45,20 +45,14 @@ public class JobSpecDeserializer implements JsonDeserializer<JobSpec> {
     String uri = jsonObject.get(JobSpecSerializer.JOB_SPEC_URI_KEY).getAsString();
     String version = jsonObject.get(JobSpecSerializer.JOB_SPEC_VERSION_KEY).getAsString();
     String description = jsonObject.get(JobSpecSerializer.JOB_SPEC_DESCRIPTION_KEY).getAsString();
-    Optional<URI> templateURI;
-    try {
-      templateURI = Optional.ofNullable(jsonObject.get(JobSpecSerializer.JOB_SPEC_TEMPLATE_URI_KEY).getAsString()).map(s -> {
-        try {
-          return new URI(s);
-        } catch (URISyntaxException e) {
-          LOGGER.warn(String.format("error deserializing '%s' as a URI",
-              jsonObject.get(JobSpecSerializer.JOB_SPEC_TEMPLATE_URI_KEY).getAsString()), e);
-          throw new RuntimeException(e);
-        }
-      });
-    } catch (RuntimeException e) {
-      templateURI = Optional.empty();
-    }
+    Optional<URI> templateURI = Optional.ofNullable(jsonObject.get(JobSpecSerializer.JOB_SPEC_TEMPLATE_URI_KEY)).flatMap(jsonElem -> {
+      try {
+        return Optional.of(new URI(jsonElem.getAsString()));
+      } catch (URISyntaxException | RuntimeException e) {
+        LOGGER.warn(String.format("error deserializing '%s' as a URI: %s", jsonElem.toString(), e.getMessage()));
+        return Optional.empty();
+      }
+    });
     Properties properties;
 
     try {
