@@ -486,6 +486,12 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     // Create the parent directory of the final output directory if it does not exist
     WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
             publisherOutputDir.getParent(), this.permissions.get(branchId), retrierConfig);
+    // Set parent directory group if configured
+    if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
+      LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
+      HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
+    }
+
     movePath(parallelRunner, workUnitState, writerOutputDir, publisherOutputDir, branchId);
   }
 
