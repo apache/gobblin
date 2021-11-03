@@ -18,16 +18,16 @@
 package org.apache.gobblin.runtime.spec_serde;
 
 import com.google.gson.Gson;
-import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 
 
 /**
- * {@link SpecSerDe} for {@link FlowSpec}s that serializes as JSON using {@link Gson}.
+ * {@link SpecSerDe} for {@link JobSpec}s that serializes as JSON using {@link Gson}.
  */
-public class GsonFlowSpecSerDe extends GenericGsonSpecSerDe<FlowSpec> {
+public class GsonJobSpecSerDe extends GenericGsonSpecSerDe<JobSpec> {
 
-  public GsonFlowSpecSerDe() {
-    super(FlowSpec.class, new FlowSpecSerializer(), new FlowSpecDeserializer());
+  public GsonJobSpecSerDe() {
+    super(JobSpec.class, new JobSpecSerializer(), new JobSpecDeserializer());
   }
 }
