@@ -17,10 +17,16 @@
 
 package org.apache.gobblin.data.management.retention.profile;
 
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Properties;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.LoggerFactory;
+
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.ConfigClientCache;
 import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
@@ -28,12 +34,10 @@ import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
-import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.retention.dataset.CleanableIcebergDataset;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.LoggerFactory;
+import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 
 public class ManagedIcebergCleanableDatasetFinder extends ManagedCleanableDatasetFinder {
@@ -51,9 +55,13 @@ public class ManagedIcebergCleanableDatasetFinder extends ManagedCleanableDatase
 
   @Override
   public ConfigurableCleanableDataset<FileSystemDatasetVersion> datasetAtPath(Path path) throws IOException {
+    Properties datasetProps = new Properties();
+    datasetProps.putAll(this.props);
+    datasetProps.setProperty(FsCleanableHelper.RETENTION_DATASET_ROOT, path.toString());
+
     try {
-      return new CleanableIcebergDataset<>(this.fs, this.props, path,
-          this.client.getConfig(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI) + ICEBERG_CONFIG_PREFIX + path.toString()),
+      return new CleanableIcebergDataset<>(this.fs, datasetProps, path,
+          this.client.getConfig(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI) + ICEBERG_CONFIG_PREFIX + path),
           LoggerFactory.getLogger(CleanableIcebergDataset.class));
     } catch (ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException | URISyntaxException | VersionDoesNotExistException var3) {
       throw new IllegalArgumentException(var3);
