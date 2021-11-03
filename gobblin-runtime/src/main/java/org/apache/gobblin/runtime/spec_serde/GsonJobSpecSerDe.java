@@ -17,45 +17,17 @@
 
 package org.apache.gobblin.runtime.spec_serde;
 
-import com.google.common.base.Charsets;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.reflect.TypeToken;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
-import org.apache.gobblin.runtime.api.SpecSerDeException;
 
 
 /**
- * {@link SpecSerDe} that serializes as Json using {@link Gson}. Note that currently only {@link JobSpec}s are supported.
+ * {@link SpecSerDe} for {@link JobSpec}s that serializes as JSON using {@link Gson}.
  */
-public class GsonJobSpecSerDe implements SpecSerDe {
-  private GsonSerDe<JobSpec> gsonSerDe;
+public class GsonJobSpecSerDe extends GenericGsonSpecSerDe<JobSpec> {
 
   public GsonJobSpecSerDe() {
-    this.gsonSerDe = new GsonSerDe<>(new TypeToken<JobSpec>(){}.getType(), new JobSpecSerializer(), new JobSpecDeserializer());
-  }
-
-  @Override
-  public byte[] serialize(Spec spec) throws SpecSerDeException {
-    if (!(spec instanceof JobSpec)) {
-      throw new SpecSerDeException("Failed to serialize spec " + spec.getUri() + ", only JobSpec is supported");
-    }
-
-    try {
-      return this.gsonSerDe.serialize((JobSpec) spec).getBytes(Charsets.UTF_8);
-    } catch (JsonParseException e) {
-      throw new SpecSerDeException(spec, e);
-    }
-  }
-
-  @Override
-  public Spec deserialize(byte[] spec) throws SpecSerDeException {
-    try {
-      return this.gsonSerDe.deserialize(new String(spec, Charsets.UTF_8));
-    } catch (JsonParseException e) {
-      throw new SpecSerDeException(e);
-    }
+    super(JobSpec.class, new JobSpecSerializer(), new JobSpecDeserializer());
   }
 }

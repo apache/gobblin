@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory;
 
 
 /**
- * MySQL-backed Job Catalog for persisting (`JobSpec`) job configuration information.  Fully support (mutation) listeners and metrics.
+ * MySQL-backed Job Catalog for persisting (`JobSpec`) job configuration information, which fully supports (mutation)
+ * listeners and metrics.
  */
 public class MysqlJobCatalog extends JobCatalogBase implements MutableJobCatalog {
 

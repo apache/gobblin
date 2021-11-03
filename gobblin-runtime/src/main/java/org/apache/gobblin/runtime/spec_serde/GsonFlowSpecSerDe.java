@@ -17,46 +17,17 @@
 
 package org.apache.gobblin.runtime.spec_serde;
 
-import com.google.common.base.Charsets;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.reflect.TypeToken;
-
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
-import org.apache.gobblin.runtime.api.SpecSerDeException;
 
 
 /**
- * {@link SpecSerDe} that serializes as Json using {@link Gson}. Note that currently only {@link FlowSpec}s are supported.
+ * {@link SpecSerDe} for {@link FlowSpec}s that serializes as JSON using {@link Gson}.
  */
-public class GsonFlowSpecSerDe implements SpecSerDe {
-  private GsonSerDe<FlowSpec> gsonSerDe;
+public class GsonFlowSpecSerDe extends GenericGsonSpecSerDe<FlowSpec> {
 
   public GsonFlowSpecSerDe() {
-    this.gsonSerDe = new GsonSerDe<>(new TypeToken<FlowSpec>(){}.getType(), new FlowSpecSerializer(), new FlowSpecDeserializer());
-  }
-
-  @Override
-  public byte[] serialize(Spec spec) throws SpecSerDeException {
-    if (!(spec instanceof FlowSpec)) {
-      throw new SpecSerDeException("Failed to serialize spec " + spec.getUri() + ", only FlowSpec is supported");
-    }
-
-    try {
-      return this.gsonSerDe.serialize((FlowSpec) spec).getBytes(Charsets.UTF_8);
-    } catch (JsonParseException e) {
-      throw new SpecSerDeException(spec, e);
-    }
-  }
-
-  @Override
-  public Spec deserialize(byte[] spec) throws SpecSerDeException {
-    try {
-      return this.gsonSerDe.deserialize(new String(spec, Charsets.UTF_8));
-    } catch (JsonParseException e) {
-      throw new SpecSerDeException(e);
-    }
+    super(FlowSpec.class, new FlowSpecSerializer(), new FlowSpecDeserializer());
   }
 }
