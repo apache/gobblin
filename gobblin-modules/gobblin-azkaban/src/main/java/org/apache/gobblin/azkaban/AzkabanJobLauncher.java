@@ -105,6 +105,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
+  private static final String AZKABAN_LINK_JOBEXEC_PROXY_URL = "azkaban.link.jobexec.proxyUrl";
   private static final String AZKABAN_FLOW_EXEC_ID = "azkaban.flow.execid";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
@@ -379,7 +380,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps) {
     List<Tag<?>> metadataTags = Lists.newArrayList();
     String jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID, "");
-    String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, "");
+    // Display the proxy URL in the metadata tag if it exists
+    String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_PROXY_URL, jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, ""));
 
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
         jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
