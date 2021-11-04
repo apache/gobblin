@@ -117,13 +117,10 @@ public class FlowStatusGenerator {
   public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId, String tag) {
     List<JobStatus> jobStatuses = ImmutableList.copyOf(retainStatusOfAnyFlowOrJobMatchingTag(
         jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId), tag));
-    Iterator<JobStatus> jobStatusIterator = jobStatuses.iterator();
-        // duplicate copy of the iterator is required due to un re-parsing nature of the Iterator
-    Iterator<JobStatus> jobStatusIterator2 = jobStatuses.iterator();
     ExecutionStatus flowExecutionStatus =
-        JobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.dagManagerEnabled, jobStatusIterator2);
-    return jobStatusIterator.hasNext()
-        ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, flowExecutionStatus) : null;
+        JobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusRetriever.getDagManagerEnabled(), jobStatuses.iterator());
+    return jobStatuses.iterator().hasNext()
+        ? new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatuses.iterator(), flowExecutionStatus) : null;
   }
 
   /**

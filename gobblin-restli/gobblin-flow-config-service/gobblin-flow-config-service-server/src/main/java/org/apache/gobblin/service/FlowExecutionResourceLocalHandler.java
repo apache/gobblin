@@ -157,6 +157,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
 
     long flowEndTime = 0L;
+    long maxJobEndTime = Long.MIN_VALUE;
     String flowMessage = "";
 
     while (jobStatusIter.hasNext()) {
@@ -170,6 +171,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         }
         continue;
       }
+
+      maxJobEndTime = Math.max(maxJobEndTime, queriedJobStatus.getEndTime());
 
       JobStatus jobStatus = new JobStatus();
 
@@ -207,6 +210,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       jobStatusArray.add(jobStatus);
     }
+
+    // If DagManager is not enabled, we have to determine flow end time by individual job's end times.
+    flowEndTime = flowEndTime == 0L ? maxJobEndTime : flowEndTime;
 
     jobStatusArray.sort(Comparator.comparing((JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
 

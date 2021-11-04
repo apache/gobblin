@@ -61,7 +61,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   @Getter
   protected final MetricContext metricContext;
-  protected final boolean dagManagerEnabled;
+  @Getter
+  protected final Boolean dagManagerEnabled;
 
   private final MultiContextIssueRepository issueRepository;
 
@@ -184,11 +185,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
           // rationalized order, to facilitate test assertions
           Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
       ).collect(Collectors.toList())));
-      Iterator<JobStatus> jobStatusIterator = jobStatuses.iterator();
-      // duplicate copy of the iterator is required due to un re-parsing nature of the Iterator
-      Iterator<JobStatus> jobStatusIterator2 = jobStatuses.iterator();
-      return new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(), jobStatusIterator,
-            getFlowStatusFromJobStatuses(dagManagerEnabled, jobStatusIterator2));
+      return new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(), jobStatuses.iterator(),
+            getFlowStatusFromJobStatuses(dagManagerEnabled, jobStatuses.iterator()));
     }).collect(Collectors.toList());
   }
 
@@ -251,17 +249,9 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
         }
       }
 
-      if (jobStatuses.contains(ExecutionStatus.FAILED)) {
-        flowExecutionStatus = ExecutionStatus.FAILED;
-      } else if (jobStatuses.contains(ExecutionStatus.CANCELLED)) {
-        flowExecutionStatus = ExecutionStatus.CANCELLED;
-      } else if (jobStatuses.contains(ExecutionStatus.ORCHESTRATED)) {
-        flowExecutionStatus = ExecutionStatus.ORCHESTRATED;
-      } else if (jobStatuses.contains(ExecutionStatus.RUNNING)) {
-        flowExecutionStatus = ExecutionStatus.RUNNING;
-      } else if (jobStatuses.contains(ExecutionStatus.COMPLETE)) {
-        flowExecutionStatus = ExecutionStatus.COMPLETE;
-      }
+      List<ExecutionStatus> statusesInDescendingSalience = ImmutableList.of(ExecutionStatus.FAILED, ExecutionStatus.CANCELLED,
+          ExecutionStatus.RUNNING, ExecutionStatus.ORCHESTRATED, ExecutionStatus.COMPLETE);
+      flowExecutionStatus = statusesInDescendingSalience.stream().filter(jobStatuses::contains).findFirst().orElse(ExecutionStatus.$UNKNOWN);
     }
 
     return flowExecutionStatus;
