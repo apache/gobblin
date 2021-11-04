@@ -491,7 +491,7 @@ class AzkabanMultiCallables {
         this.invalidSession = true;
         throw e;
       } catch (Exception e) {
-        throw new AzkabanClientException("Azkaban client failed to get proxy users", e);
+        throw new AzkabanClientException(String.format("Azkaban client failed to get proxy users for %s", client.url), e);
       }
     }
   }
