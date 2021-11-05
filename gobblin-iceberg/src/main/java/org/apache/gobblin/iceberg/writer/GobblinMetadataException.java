@@ -20,22 +20,19 @@ package org.apache.gobblin.iceberg.writer;
 import java.io.IOException;
 
 
-public class MetadataFlushException extends IOException {
-  public String datasetName;
+public class GobblinMetadataException extends IOException {
+  public String datasetPath;
   public String dbName;
   public String tableName;
-  public String GMCETopicName;
-  public int GMCETopicPartition;
+  public String GMCETopicPartition;
   public long highWatermark;
   public long lowWatermark;
   public Exception exception;
-  MetadataFlushException(String datasetName, String dbName, String tableName, String GMCETopicName,
-      int GMCETopicPartition, long lowWatermark, long highWatermark, Exception exception) {
+  GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark, Exception exception) {
     super(String.format("failed to flush table %s, %s", dbName, tableName), exception);
-    this.datasetName = datasetName;
+    this.datasetPath = datasetPath;
     this.dbName = dbName;
     this.tableName = tableName;
-    this.GMCETopicName = GMCETopicName;
     this.GMCETopicPartition = GMCETopicPartition;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
