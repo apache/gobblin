@@ -38,6 +38,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -963,7 +964,7 @@ public class DagManager extends AbstractIdleService {
       String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
       boolean proxyUserCheck = true;
       int proxyQuotaIncrement;
-      Map<String, Integer> usersQuotaIncrement = new HashMap<>();
+      Set<String> usersQuotaIncrement = new HashSet<>(); // holds the users for which quota is increased
       StringBuilder requesterMessage = new StringBuilder();
 
       if (proxyUser != null) {
@@ -972,8 +973,7 @@ public class DagManager extends AbstractIdleService {
         if (!proxyUserCheck) {
           requesterMessage.append(String.format(
               "Quota exceeded for proxy user %s on executor %s : quota=%s, runningJobs=%d%n",
-              proxyUser, specExecutorUri, getQuotaForUser(proxyUser),
-              proxyUserToJobCount.get(DagManagerUtils.getUserQuotaKey(proxyUser, dagNode))));
+              proxyUser, specExecutorUri, getQuotaForUser(proxyUser), Math.abs(proxyQuotaIncrement)));
         }
       }
 
@@ -981,38 +981,36 @@ public class DagManager extends AbstractIdleService {
       boolean requesterCheck = true;
 
       if (serializedRequesters != null) {
-        for (ServiceRequester requester : RequesterService.deserialize(serializedRequesters)) {
-          int userQuotaIncrement = incrementJobCountAndCheckUserQuota(requesterToJobCount, requester.getName(), dagNode);
-          boolean thisRequesterCheck;
-          thisRequesterCheck = userQuotaIncrement < 0;  // user quota check failed
-          usersQuotaIncrement.put(requester.getName(), Math.max(userQuotaIncrement, 0));
+        List<String> uniqueRequesters = RequesterService.deserialize(serializedRequesters).stream()
+            .map(ServiceRequester::getName).distinct().collect(Collectors.toList());
+        for (String requester : uniqueRequesters) {
+          int userQuotaIncrement = incrementJobCountAndCheckUserQuota(requesterToJobCount, requester, dagNode);
+          boolean thisRequesterCheck = userQuotaIncrement < 0;  // user quota check failed
+          usersQuotaIncrement.add(requester);
           requesterCheck = requesterCheck && thisRequesterCheck;
           if (!thisRequesterCheck) {
             requesterMessage.append(String.format(
                 "Quota exceeded for requester %s on executor %s : quota=%s, runningJobs=%d%n",
-                requester.getName(), specExecutorUri, getQuotaForUser(requester.getName()),
-                requesterToJobCount.get(DagManagerUtils.getUserQuotaKey(requester.getName(), dagNode))));
+                requester, specExecutorUri, getQuotaForUser(requester), Math.abs(userQuotaIncrement)));
           }
         }
       }
 
       // Throw errors for reach quota at the end to avoid inconsistent job counts
       if (!proxyUserCheck || !requesterCheck) {
-        if (!proxyUserCheck) {
-          decrementQuotaUsage(proxyUserToJobCount, proxyUser);
-        }
-
-        if (!requesterCheck) {
-          decrementQuotaUsageForUsers(usersQuotaIncrement);
-        }
-
+        // roll back the increased counts in this block
+        decrementQuotaUsage(proxyUserToJobCount, proxyUser);
+        decrementQuotaUsageForUsers(usersQuotaIncrement);
         throw new IOException(requesterMessage.toString());
       }
     }
 
     /**
      * Increment quota by one for the given map and key.
-     * @return -1 if quota is already reached for this user, 0 if quota does not need to be increased, +1 if used quota is increased by 1
+     * @return a negative number if quota is already reached for this user
+     *         a positive number if the quota is not reached for this user
+     *         the absolute value of the number is the used quota before this increment request
+     *         0 if quota usage is not changed
      */
     private int incrementJobCountAndCheckUserQuota(Map<String, Integer> quotaMap, String user, DagNode<JobExecutionPlan> dagNode) {
       String key = DagManagerUtils.getUserQuotaKey(user, dagNode);
@@ -1022,16 +1020,16 @@ public class DagManager extends AbstractIdleService {
         return 0;
       }
 
-      int jobCount = quotaMap.getOrDefault(key, 0);
-      jobCount++;
+      Integer currentCount;
+      do {
+        currentCount = quotaMap.getOrDefault(key, 0);
+      } while (currentCount == null || !quotaMap.replace(key, currentCount, currentCount + 1));
 
-      if (jobCount > getQuotaForUser(user)) {
-        return -1;
+      if (currentCount >= getQuotaForUser(user)) {
+        return -currentCount; // increment must have crossed the quota
+      } else {
+        return currentCount;
       }
-
-      quotaMap.put(key, jobCount);
-
-      return 1;
     }
 
     private int getQuotaForUser(String user) {
@@ -1115,15 +1113,9 @@ public class DagManager extends AbstractIdleService {
       } while (currentCount != null && currentCount > 0 && !quotaMap.replace(user, currentCount, currentCount - 1));
     }
 
-    private void decrementQuotaUsageForUsers(Map<String, Integer> requesterAndCountToDecreaseMap) {
-      for (Map.Entry<String, Integer> entry : requesterAndCountToDecreaseMap.entrySet()) {
-        String user = entry.getKey();
-        Integer currentCount;
-        int newCount;
-        do {
-          currentCount = DagManagerThread.requesterToJobCount.get(user);
-          newCount = Math.max(0, DagManagerThread.requesterToJobCount.get(user) - entry.getValue());
-        } while (currentCount != null && currentCount > 0 && !DagManagerThread.requesterToJobCount.replace(user, currentCount, newCount));
+    private void decrementQuotaUsageForUsers(Set<String> requestersToDecreaseCount) {
+      for (String requester : requestersToDecreaseCount) {
+       decrementQuotaUsage(DagManagerThread.requesterToJobCount, requester);
       }
     }
 
