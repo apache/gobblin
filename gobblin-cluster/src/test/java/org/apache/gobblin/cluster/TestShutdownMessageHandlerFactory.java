@@ -23,17 +23,17 @@ import java.util.List;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.testng.Assert;
 
 
 /**
- * A test implementation of {@link MessageHandlerFactory}.
+ * A test implementation of {@link MultiTypeMessageHandlerFactory}.
  *
  * @author Yinan Li
  */
-public class TestShutdownMessageHandlerFactory implements MessageHandlerFactory {
+public class TestShutdownMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
   private final HelixMessageTestBase helixMessageTestBase;
 
