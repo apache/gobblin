@@ -267,10 +267,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
     currentWatermark =
         icebergTable.properties().containsKey(String.format(GMCE_HIGH_WATERMARK_KEY, topicPartition)) ? Long.parseLong(
             icebergTable.properties().get(String.format(GMCE_HIGH_WATERMARK_KEY, topicPartition))) : DEFAULT_WATERMARK;
-    if (currentWatermark != DEFAULT_WATERMARK) {
-      // set the low watermark for current snapshot
-      tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark = Optional.of(currentWatermark);
-    }
     return currentWatermark;
   }
 
@@ -1023,8 +1019,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Long currentOffset = ((LongWatermark)recordEnvelope.getWatermark().getWatermark()).getValue();
 
         if (currentOffset > currentWatermark) {
-          if (currentWatermark == DEFAULT_WATERMARK) {
-            //This means we haven't register this table or the GMCE topic partition changed, we need to reset the low watermark
+          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark.isPresent()) {
+            //This means we haven't register this table or met some error before, we need to reset the low watermark
             tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark =
                 Optional.of(currentOffset - 1);
           }
