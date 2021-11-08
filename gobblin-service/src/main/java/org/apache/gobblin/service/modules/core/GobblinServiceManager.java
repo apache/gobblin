@@ -34,9 +34,9 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.api.listeners.ControllerChangeListener;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -417,12 +417,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     if (this.helixManager.isPresent()) {
       // Subscribe to leadership changes
-      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
-        @Override
-        public void onControllerChange(NotificationContext changeContext) {
-          handleLeadershipChange(changeContext);
-        }
-      });
+      this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
 
 
       // Update for first time since there might be no notification
