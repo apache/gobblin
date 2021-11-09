@@ -1025,6 +1025,10 @@ public class DagManager extends AbstractIdleService {
         currentCount = quotaMap.get(key);
       } while (currentCount == null ? quotaMap.putIfAbsent(key, 1) != null : !quotaMap.replace(key, currentCount, currentCount + 1));
 
+      if (currentCount == null) {
+        currentCount = 0;
+      }
+
       if (currentCount >= getQuotaForUser(user)) {
         return -currentCount; // increment must have crossed the quota
       } else {
