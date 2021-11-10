@@ -46,6 +46,7 @@ import java.util.stream.Stream;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -114,7 +115,6 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor.KafkaWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
@@ -267,10 +267,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
     currentWatermark =
         icebergTable.properties().containsKey(String.format(GMCE_HIGH_WATERMARK_KEY, topicPartition)) ? Long.parseLong(
             icebergTable.properties().get(String.format(GMCE_HIGH_WATERMARK_KEY, topicPartition))) : DEFAULT_WATERMARK;
-    if (currentWatermark != DEFAULT_WATERMARK) {
-      // set the low watermark for current snapshot
-      tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark = Optional.of(currentWatermark);
-    }
     return currentWatermark;
   }
 
@@ -861,6 +857,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  @Override
+  public void reset(String dbName, String tableName) throws IOException {
+      this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
+  }
+
   /**
    * NOTE: completion watermark for a window [t1, t2] is marked as t2 if audit counts match
    * for that window (aka its is set to the beginning of next window)
@@ -1013,13 +1014,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
       if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
         TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
         String topicPartition = tableTopicPartitionMap.computeIfAbsent(tid,
-            t -> ((KafkaWatermark) recordEnvelope.getWatermark()).getTopicPartition().toString());
+            t -> recordEnvelope.getWatermark().getSource());
         Long currentWatermark = getAndPersistCurrentWatermark(tid, topicPartition);
-        Long currentOffset = ((KafkaWatermark) recordEnvelope.getWatermark()).getLwm().getValue();
+        Long currentOffset = ((LongWatermark)recordEnvelope.getWatermark().getWatermark()).getValue();
 
         if (currentOffset > currentWatermark) {
-          if (currentWatermark == DEFAULT_WATERMARK) {
-            //This means we haven't register this table or the GMCE topic partition changed, we need to reset the low watermark
+          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark.isPresent()) {
+            //This means we haven't register this table or met some error before, we need to reset the low watermark
             tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark =
                 Optional.of(currentOffset - 1);
           }
