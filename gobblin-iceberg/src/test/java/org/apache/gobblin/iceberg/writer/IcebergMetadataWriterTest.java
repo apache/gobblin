@@ -343,10 +343,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().size(), 1);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
-        .get("hivedb.testIcebergTable").peek().lowWatermark, 50L);
+        .get("hivedb.testIcebergTable").lowWatermark, 50L);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
-        .get("hivedb.testIcebergTable").peek().highWatermark, 52L);
+        .get("hivedb.testIcebergTable").highWatermark, 52L);
     //We should not see exception as we have fault tolerant
     gobblinMCEWriter.flush();
     gmce.getDatasetIdentifier().setNativeName("data/tracking/testFaultTolerant");
