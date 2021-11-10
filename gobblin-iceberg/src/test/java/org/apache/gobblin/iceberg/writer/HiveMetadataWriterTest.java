@@ -177,8 +177,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     state.setProp("gmce.metadata.writer.classes", "org.apache.gobblin.hive.writer.HiveMetadataWriter");
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
   }
-
-  @Test(dependsOnGroups={"icebergMetadataWriterTest"})
+  @Test
   public void testHiveWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
@@ -215,7 +214,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
 
   }
 
-  @Test(dependsOnMethods = {"testHiveWriteAddFileGMCE"})
+  @Test(dependsOnMethods = {"testHiveWriteAddFileGMCE"}, groups={"hiveMetadataWriterTest"})
   public void testHiveWriteRewriteFileGMCE() throws IOException {
     gmce.setTopicPartitionOffsetsRange(null);
     Map<String, String> registrationState = gmce.getRegistrationProperties();

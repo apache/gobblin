@@ -29,9 +29,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import lombok.AllArgsConstructor;
+import lombok.Setter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
@@ -87,12 +91,15 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS = "metadata.parallel.runner.timeout.mills";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
   public static final String GMCE_METADATA_WRITER_CLASSES = "gmce.metadata.writer.classes";
+  public static final String GMCE_METADATA_WRITER_MAX_ERROR_DATASET = "gmce.metadata.writer.max.error.dataset";
+  public static final int DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET = 0;
   public static final int DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS = 60000;
   public static final String TABLE_NAME_DELIMITER = ".";
   @Getter
   List<MetadataWriter> metadataWriters;
-  Map<String, OperationType> tableOperationTypeMap;
-  Map<String, OperationType> datasetOperationTypeMap;
+  Map<String, TableStatus> tableOperationTypeMap;
+  @Getter
+  Map<String, Map<String, GobblinMetadataException>> datasetErrorMap;
   Set<String> acceptedClusters;
   protected State state;
   private final ParallelRunner parallelRunner;
@@ -101,18 +108,30 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private Map<String, Cache<String, Collection<HiveSpec>>> newSpecsMaps;
   private Closer closer = Closer.create();
   protected final AtomicLong recordCount = new AtomicLong(0L);
+  @Setter
+  private int maxErrorDataset;
+
+  @AllArgsConstructor
+  static class TableStatus {
+    OperationType operationType;
+    String datasetPath;
+    String gmceTopicPartition;
+    long gmceLowWatermark;
+    long gmceHighWatermark;
+  }
 
   GobblinMCEWriter(DataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     newSpecsMaps = new HashMap<>();
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
+    datasetErrorMap = new HashMap<>();
     acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
+    maxErrorDataset = state.getPropAsInt(GMCE_METADATA_WRITER_MAX_ERROR_DATASET, DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET);
     for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
     }
     tableOperationTypeMap = new HashMap<>();
-    datasetOperationTypeMap = new HashMap<>();
     parallelRunner = closer.register(new ParallelRunner(state.getPropAsInt(METADATA_REGISTRATION_THREADS, 20),
         FileSystem.get(HadoopUtils.getConfFromState(properties))));
     parallelRunnerTimeoutMills =
@@ -187,6 +206,8 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   @Override
   public void writeEnvelope(RecordEnvelope<GenericRecord> recordEnvelope) throws IOException {
     GenericRecord genericRecord = recordEnvelope.getRecord();
+    CheckpointableWatermark watermark = recordEnvelope.getWatermark();
+    Preconditions.checkNotNull(watermark);
     //filter out the events that not emitted by accepted clusters
     if (!acceptedClusters.contains(genericRecord.get("cluster"))) {
       return;
@@ -197,13 +218,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     String datasetName = gmce.getDatasetIdentifier().toString();
     //remove the old hive spec cache after flush
     //Here we assume that new hive spec for one path always be the same(ingestion flow register to same tables)
-    if (!datasetOperationTypeMap.containsKey(datasetName)) {
-      oldSpecsMaps.remove(datasetName);
-    }
-    if (datasetOperationTypeMap.containsKey(datasetName)
-        && datasetOperationTypeMap.get(datasetName) != gmce.getOperationType()) {
-      datasetOperationTypeMap.put(datasetName, gmce.getOperationType());
-    }
+    oldSpecsMaps.remove(datasetName);
 
     // Mapping from URI of path of arrival files to the list of HiveSpec objects.
     // We assume in one same operation interval, for same dataset, the table property will not change to reduce the time to compute hiveSpec.
@@ -248,20 +263,93 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String dbName = spec.getTable().getDbName();
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
-      if (tableOperationTypeMap.containsKey(tableString)
-          && tableOperationTypeMap.get(tableString) != gmce.getOperationType()) {
-        for (MetadataWriter writer : metadataWriters) {
-          writer.flush(dbName, tableName);
-        }
+      if (!tableOperationTypeMap.containsKey(tableString)) {
+        tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
+            gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
+            ((LongWatermark)watermark.getWatermark()).getValue()-1, ((LongWatermark)watermark.getWatermark()).getValue()));
+      } else if (tableOperationTypeMap.get(tableString).operationType != gmce.getOperationType()) {
+        flush(dbName, tableName);
+        tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
+            gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
+            ((LongWatermark)watermark.getWatermark()).getValue()-1, ((LongWatermark)watermark.getWatermark()).getValue()));
       }
-      tableOperationTypeMap.put(tableString, gmce.getOperationType());
-      for (MetadataWriter writer : metadataWriters) {
-        writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
-      }
+      tableOperationTypeMap.get(tableString).gmceHighWatermark = ((LongWatermark)watermark.getWatermark()).getValue();
+      write(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
     }
     this.recordCount.incrementAndGet();
   }
 
+  // Add fault tolerant ability and make sure we can emit GTE as desired
+  private void write(RecordEnvelope recordEnvelope, ConcurrentHashMap newSpecsMap, ConcurrentHashMap oldSpecsMap, HiveSpec spec) throws IOException {
+    boolean meetException = false;
+    String dbName = spec.getTable().getDbName();
+    String tableName = spec.getTable().getTableName();
+    String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
+    for (MetadataWriter writer : metadataWriters) {
+      if (meetException) {
+        writer.reset(dbName, tableName);
+      } else {
+        try {
+          writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
+        } catch (Exception e) {
+          meetException = true;
+          writer.reset(dbName, tableName);
+          addOrThrowException(e, tableString, dbName, tableName);
+        }
+      }
+    }
+  }
+
+  private void addOrThrowException(Exception e, String tableString, String dbName, String tableName) throws IOException{
+    TableStatus tableStatus = tableOperationTypeMap.get(tableString);
+    Map<String, GobblinMetadataException> tableErrorMap = this.datasetErrorMap.getOrDefault(tableStatus.datasetPath, new HashMap<>());
+    if (tableErrorMap.containsKey(tableString)) {
+      tableErrorMap.get(tableString).highWatermark = tableStatus.gmceHighWatermark;
+    } else {
+      GobblinMetadataException gobblinMetadataException =
+          new GobblinMetadataException(tableStatus.datasetPath, dbName, tableName, tableStatus.gmceTopicPartition, tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, e);
+      tableErrorMap.put(tableString, gobblinMetadataException);
+    }
+    this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
+    log.error(String.format("Meet exception when flush table %s", tableString), e);
+    if (datasetErrorMap.size() > maxErrorDataset) {
+      //Fail the job if the error size exceeds some number
+      throw new IOException(String.format("Container fails to flush for more than %s dataset, last exception we met is: ", maxErrorDataset), e);
+    }
+    tableOperationTypeMap.remove(tableString);
+  }
+
+  // Add fault tolerant ability and make sure we can emit GTE as desired
+  private void flush(String dbName, String tableName) throws IOException {
+    boolean meetException = false;
+    String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
+    if (tableOperationTypeMap.get(tableString).gmceLowWatermark == tableOperationTypeMap.get(tableString).gmceHighWatermark) {
+      // No need to flush
+      return;
+    }
+    for (MetadataWriter writer : metadataWriters) {
+      if(meetException) {
+        writer.reset(dbName, tableName);
+      } else {
+        try {
+          writer.flush(dbName, tableName);
+        } catch (IOException e) {
+          meetException = true;
+          writer.reset(dbName, tableName);
+          addOrThrowException(e, tableString, dbName, tableName);
+        }
+      }
+    }
+    if (!meetException && datasetErrorMap.containsKey(tableOperationTypeMap.get(tableString).datasetPath)
+        && datasetErrorMap.get(tableOperationTypeMap.get(tableString).datasetPath).containsKey(tableString)) {
+      // We only want to emit GTE when the table watermark moves. There can be two scenario that watermark move, one is after one flush interval,
+      // we commit new watermark to state store, anther is here, where during the flush interval, we flush table because table operation changes.
+      // Under this condition, error map contains this dataset means we met error before this flush, but this time when flush succeed and
+      // the watermark inside the table moves, so we want to emit GTE to indicate there is some data loss here
+      //todo: since we finish flush for this table once, need to emit GTE to indicate we miss data for this table
+      log.warn(String.format("Send GTE to indicate table flush failure for %s", tableString));
+    }
+  }
   /**
    * Call the metadata writers to do flush each table metadata.
    * Flush of metadata writer is the place that do real metadata
@@ -279,12 +367,11 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     log.info(String.format("start to flushing %s records", String.valueOf(recordCount.get())));
     for (String tableString : tableOperationTypeMap.keySet()) {
       List<String> tid = Splitter.on(TABLE_NAME_DELIMITER).splitToList(tableString);
-      for (MetadataWriter writer : metadataWriters) {
-        writer.flush(tid.get(0), tid.get(1));
-      }
+      flush(tid.get(0), tid.get(1));
     }
     tableOperationTypeMap.clear();
     recordCount.lazySet(0L);
+    //todo: after flush, watermark will move forward, so emit error GTE here
   }
 
   @Override
