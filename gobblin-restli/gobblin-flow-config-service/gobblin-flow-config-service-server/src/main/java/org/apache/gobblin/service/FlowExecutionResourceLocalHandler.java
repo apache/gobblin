@@ -87,6 +87,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
+      // todo: flow end time will be incorrect when dag manager is not used
+      //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
       return flowStatuses.stream()
           .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
           .collect(Collectors.toList());
@@ -155,8 +157,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
 
     long flowEndTime = 0L;
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
-
+    long maxJobEndTime = Long.MIN_VALUE;
     String flowMessage = "";
 
     while (jobStatusIter.hasNext()) {
@@ -165,12 +166,13 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
       // Check if this is the flow status instead of a single job status
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
         flowEndTime = queriedJobStatus.getEndTime();
-        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();
         }
         continue;
       }
+
+      maxJobEndTime = Math.max(maxJobEndTime, queriedJobStatus.getEndTime());
 
       JobStatus jobStatus = new JobStatus();
 
@@ -178,7 +180,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           queriedJobStatus.getProgressPercentage());
 
       jobStatus.setFlowId(flowId)
-          .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
+          .setJobId(new JobId()
+              .setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
           .setJobTag(queriedJobStatus.getJobTag(), SetMode.IGNORE_NULL)
           .setExecutionStatistics(new JobStatistics()
@@ -189,7 +192,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
               .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
-          .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
+          .setJobState(new JobState()
+              .setLowWatermark(queriedJobStatus.getLowWatermark()).
               setHighWatermark(queriedJobStatus.getHighWatermark()));
 
       if (includeIssues) {
@@ -207,6 +211,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
       jobStatusArray.add(jobStatus);
     }
 
+    // If DagManager is not enabled, we have to determine flow end time by individual job's end times.
+    flowEndTime = flowEndTime == 0L ? maxJobEndTime : flowEndTime;
+
     jobStatusArray.sort(Comparator.comparing((JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
 
     return new FlowExecution()
@@ -215,7 +222,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
-        .setExecutionStatus(flowExecutionStatus)
+        .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
         .setJobStatuses(jobStatusArray);
   }
 
@@ -260,8 +267,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
     Instant current = Instant.ofEpochMilli(currentTime);
     Instant start = Instant.ofEpochMilli(startTime);
-    Long timeElapsed = Duration.between(start, current).getSeconds();
-    Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
-    return timeLeft;
+    long timeElapsed = Duration.between(start, current).getSeconds();
+    return (long) (timeElapsed * (100.0 / (double) completionPercentage - 1));
   }
 }
