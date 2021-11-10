@@ -33,6 +33,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
@@ -154,7 +155,7 @@ public class DagManagerUtils {
     return dagNode.getValue().getJobSpec().getConfig();
   }
 
-  static SpecProducer getSpecProducer(DagNode<JobExecutionPlan> dagNode)
+  static SpecProducer<Spec> getSpecProducer(DagNode<JobExecutionPlan> dagNode)
       throws ExecutionException, InterruptedException {
     return dagNode.getValue().getSpecExecutor().getProducer().get();
   }
