@@ -428,17 +428,10 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
         // Delete the final output directory if it is configured to be replaced
         LOG.info("Deleting publisher output dir " + publisherOutputDir);
         this.publisherFileSystemByBranches.get(branchId).delete(publisherOutputDir, true);
-      } else {
-        // Create the parent directory of the final output directory if it does not exist
-        WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-            publisherOutputDir.getParent(), this.permissions.get(branchId), retrierConfig);
-        if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
-          LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
-          HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
-        }
       }
 
-      movePath(parallelRunner, state, writerOutputDir, publisherOutputDir, branchId);
+      // If we end up here, the publisher output dir is not present
+      addWriterOutputToNewDir(writerOutputDir, publisherOutputDir, state, branchId, parallelRunner);
       writerOutputPathsMoved.add(writerOutputDir);
     }
   }
@@ -485,6 +478,21 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
 
       movePath(parallelRunner, workUnitState, taskOutputPath, publisherOutputPath, branchId);
     }
+  }
+
+  protected void addWriterOutputToNewDir(Path writerOutputDir, Path publisherOutputDir,
+      WorkUnitState workUnitState, int branchId, ParallelRunner parallelRunner)
+      throws IOException {
+    // Create the parent directory of the final output directory if it does not exist
+    WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
+            publisherOutputDir.getParent(), this.permissions.get(branchId), retrierConfig);
+    // Set parent directory group if configured
+    if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
+      LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
+      HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
+    }
+
+    movePath(parallelRunner, workUnitState, writerOutputDir, publisherOutputDir, branchId);
   }
 
   protected void addWriterOutputToExistingDir(Path writerOutputDir, Path publisherOutputDir,

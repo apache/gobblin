@@ -69,17 +69,7 @@ public class TimePartitionedStreamingDataPublisher extends TimePartitionedDataPu
       log.warn(String.format("Branch %d of WorkUnit %s produced no data", branchId, state.getId()));
       return;
     }
-    // The directory where the final output directory for this job will be placed.
-    // It is a combination of DATA_PUBLISHER_FINAL_DIR and WRITER_FILE_PATH.
-    Path publisherOutputDir = getPublisherOutputDir(state, branchId);
 
-    if (!this.publisherFileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
-      // Create the directory of the final output directory if it does not exist before we do the actual publish
-      // This is used to force the publisher save recordPublisherOutputDirs as the granularity to be parent of new file paths
-      // which will be used to do hive registration
-      WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.permissions.get(branchId), retrierConfig);
-    }
     super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
   }
 

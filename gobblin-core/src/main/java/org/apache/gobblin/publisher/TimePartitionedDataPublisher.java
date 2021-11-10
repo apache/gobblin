@@ -18,7 +18,10 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
+import java.util.Set;
 
+import com.google.common.annotations.VisibleForTesting;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
@@ -27,6 +30,8 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -38,8 +43,33 @@ import org.apache.gobblin.util.WriterUtils;
  */
 public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
+  private static final Logger LOG = LoggerFactory.getLogger(TimePartitionedDataPublisher.class);
+
   public TimePartitionedDataPublisher(State state) throws IOException {
     super(state);
+  }
+
+  /**
+   * This method needs to be overridden for TimePartitionedDataPublisher, since the output folder structure
+   * contains timestamp, we need to move the files recursively to correctly record detailed publish folders.
+   *
+   * For example, move {writerOutput}/2015/04/08/15/output.avro to {publisherOutput}/2015/04/08/15/output.avro
+   */
+  @Override
+  protected void addWriterOutputToNewDir(Path writerOutput, Path publisherOutput, WorkUnitState workUnitState,
+                                         int branchId, ParallelRunner parallelRunner) throws IOException {
+
+    // Create the parent directory of the final output directory if it does not exist
+    WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
+            publisherOutput.getParent(), this.permissions.get(branchId), retrierConfig);
+    // Set parent directory group if configured
+    if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
+      LOG.info(String.format("Setting path %s group to %s", publisherOutput.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
+      HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutput, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
+    }
+
+    // Now that the parent folder has been created, use addWriterOutputToExistingDir
+    this.addWriterOutputToExistingDir(writerOutput, publisherOutput, workUnitState, branchId, parallelRunner);
   }
 
   /**
@@ -64,5 +94,10 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
 
       movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }
+  }
+
+  @VisibleForTesting
+  Set<Path> getPublishOutputDirs() {
+    return this.publisherOutputDirs;
   }
 }
