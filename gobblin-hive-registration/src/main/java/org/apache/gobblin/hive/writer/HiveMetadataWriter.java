@@ -123,6 +123,15 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
   }
 
+  @Override
+  public void reset(String dbName, String tableName) throws IOException {
+    String tableKey = tableNameJoiner.join(dbName, tableName);
+    this.currentExecutionMap.remove(tableKey);
+    this.schemaCreationTimeMap.remove(tableKey);
+    this.latestSchemaMap.remove(tableKey);
+    this.specMaps.remove(tableKey);
+  }
+
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
     String dbName = tableSpec.getTable().getDbName();
