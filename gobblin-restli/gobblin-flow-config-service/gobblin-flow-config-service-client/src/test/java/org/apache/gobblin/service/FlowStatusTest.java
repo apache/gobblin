@@ -35,7 +35,6 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
@@ -56,7 +55,7 @@ public class FlowStatusTest {
   class TestJobStatusRetriever extends JobStatusRetriever {
 
     protected TestJobStatusRetriever(MultiContextIssueRepository issueRepository) {
-      super(issueRepository);
+      super(ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED, issueRepository);
     }
 
     @Override
@@ -109,7 +108,7 @@ public class FlowStatusTest {
     });
 
     _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowStatusResource.class)).injector(injector).build();
+        Lists.newArrayList(FlowStatusResource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();
@@ -278,7 +277,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 0L);
+    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 6000L);
     Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.RUNNING);
 
