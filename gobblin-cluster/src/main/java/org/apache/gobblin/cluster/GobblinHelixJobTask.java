@@ -84,8 +84,13 @@ class GobblinHelixJobTask implements Task {
     this.helixMetrics = helixMetrics;
     this.taskConfig = context.getTaskConfig();
     this.sysConfig = builder.getConfig();
-    this.jobHelixManager = builder.getJobHelixManager();
     this.jobPlusSysConfig = ConfigUtils.configToProperties(sysConfig);
+
+    // make a copy of helix manager, so that each job can keep using it without worrying about disconnect from the GobblinTaskRunner where they are created
+    this.jobHelixManager =  GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(jobPlusSysConfig),
+        jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, builder.getJobHelixManager().getInstanceType());
+
     this.jobLauncherListener = new GobblinHelixJobLauncherListener(launcherMetrics);
 
     Map<String, String> configMap = this.taskConfig.getConfigMap();
@@ -149,6 +154,7 @@ class GobblinHelixJobTask implements Task {
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
 
     try (Closer closer = Closer.create()) {
+      this.jobHelixManager.connect();
       Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobUri);
 
       long timeOut = PropertiesUtils.getPropAsLong(jobPlusSysConfig,
@@ -203,6 +209,7 @@ class GobblinHelixJobTask implements Task {
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
     } finally {
+      this.jobHelixManager.disconnect();
       // always cleanup the job mapping for current job name.
       try {
         this.jobsMapping.deleteMapping(jobUri);

@@ -126,8 +126,17 @@ class HelixRetriggeringJobCallable implements Callable {
     this.planningJobLauncherMetrics = planningJobLauncherMetrics;
     this.helixMetrics = helixMetrics;
     this.appWorkDir = appWorkDir;
-    this.jobHelixManager = jobHelixManager;
-    this.taskDriverHelixManager = taskDriverHelixManager;
+
+    // make a copy of helix managers, so that each job can keep using it without worrying about disconnect from the GobblinClusterManager where they are created
+    this.jobHelixManager = GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(sysProps),
+        sysProps.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, jobHelixManager.getInstanceType());
+
+    this.taskDriverHelixManager = taskDriverHelixManager.map(
+        helixManager -> GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(sysProps),
+            sysProps.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+            GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, helixManager.getInstanceType()));
+
     this.isDistributeJobEnabled = isDistributeJobEnabled();
     this.jobUri = jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI);
     this.jobsMapping = jobsMapping;
@@ -161,6 +170,10 @@ class HelixRetriggeringJobCallable implements Callable {
     }
 
     try {
+      this.jobHelixManager.connect();
+      if (this.taskDriverHelixManager.isPresent()) {
+        this.taskDriverHelixManager.get().connect();
+      }
       if (this.isDistributeJobEnabled) {
         runJobExecutionLauncher();
       } else {
@@ -172,7 +185,10 @@ class HelixRetriggeringJobCallable implements Callable {
       if (deleteJobWhenException) {
         deleteJobSpec();
       }
-      throw e;
+      throw new JobException(e.getMessage());
+    } finally {
+      this.jobHelixManager.disconnect();
+      this.taskDriverHelixManager.ifPresent(HelixManager::disconnect);
     }
 
     return null;

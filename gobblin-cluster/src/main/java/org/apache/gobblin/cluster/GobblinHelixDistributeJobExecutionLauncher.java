@@ -110,12 +110,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   @Getter
   private DistributeJobMonitor jobMonitor;
 
-  public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
-    if (builder.taskDriverHelixManager.isPresent()) {
-      this.planningJobHelixManager = builder.taskDriverHelixManager.get();
-    } else {
-      this.planningJobHelixManager = builder.jobHelixManager;
-    }
+  public GobblinHelixDistributeJobExecutionLauncher(Builder builder) {
+    this.planningJobHelixManager = builder.taskDriverHelixManager.orElseGet(() -> builder.jobHelixManager);
+
     this.helixTaskDriver = new TaskDriver(this.planningJobHelixManager);
     this.sysProps = builder.sysProps;
     this.jobPlanningProps = builder.jobPlanningProps;
@@ -151,7 +148,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
           this.helixTaskDriver.waitToStop(planningJobId, this.helixJobStopTimeoutSeconds * 1000);
-          log.info("Stopped the workflow ", planningJobId);
+          log.info("Stopped the workflow {}", planningJobId);
         }
       } catch (HelixException e) {
         // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
