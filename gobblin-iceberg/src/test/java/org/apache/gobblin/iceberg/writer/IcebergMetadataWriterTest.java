@@ -151,6 +151,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         .build();
 
     State state = getState();
+    // Need to add hivedb.* to new parition table black list to avoid
+    // creating new column in schema and partition
+    state.setProp(ICEBERG_NEW_PARTITION_BLACKLIST, String.format("%s.*", DB_NAME));
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
     ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
         HiveMetastoreTest.catalog);
