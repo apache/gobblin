@@ -111,7 +111,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   private DistributeJobMonitor jobMonitor;
 
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) {
-    this.planningJobHelixManager = builder.taskDriverHelixManager.orElseGet(() -> builder.jobHelixManager);
+    this.planningJobHelixManager = builder.planningJobHelixManager;
 
     this.helixTaskDriver = new TaskDriver(this.planningJobHelixManager);
     this.sysProps = builder.sysProps;
@@ -137,6 +137,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Override
   public void close()  throws IOException {
+    this.planningJobHelixManager.disconnect();
   }
 
   private void executeCancellation() {
@@ -165,8 +166,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   public static class Builder {
     Properties sysProps;
     Properties jobPlanningProps;
-    HelixManager jobHelixManager;
-    Optional<HelixManager> taskDriverHelixManager;
+    HelixManager planningJobHelixManager;
     Path appWorkDir;
     GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
     GobblinHelixMetrics helixMetrics;
