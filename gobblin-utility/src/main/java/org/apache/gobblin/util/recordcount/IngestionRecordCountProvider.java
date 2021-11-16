@@ -39,12 +39,24 @@ public class IngestionRecordCountProvider extends RecordCountProvider {
 
   /**
    * Construct a new file path by appending record count to the filename of the given file path, separated by SEPARATOR.
+   * return original path if record count already exists
    * For example, given path: "/a/b/c/file.avro" and record count: 123,
    * the new path returned will be: "/a/b/c/file.123.avro"
+   * given path: "/a/b/c/file.123.avro" and record count: 123,
+   * returned "/a/b/c/file.123.avro"
    */
   public static String constructFilePath(String oldFilePath, long recordCounts) {
     return new Path(new Path(oldFilePath).getParent(), Files.getNameWithoutExtension(oldFilePath).toString() + SEPARATOR
         + recordCounts + SEPARATOR + Files.getFileExtension(oldFilePath)).toString();
+  }
+
+  /**
+   * @param filepath format /a/b/c/file.123.avro
+   * @return true if record count exists
+   */
+  public static boolean containsRecordCount(String filepath) {
+    String[] components = filepath.split(Pattern.quote(SEPARATOR));
+    return components.length >= 2 && StringUtils.isNumeric(components[components.length - 2]);
   }
 
   /**
@@ -53,7 +65,7 @@ public class IngestionRecordCountProvider extends RecordCountProvider {
   @Override
   public long getRecordCount(Path filepath) {
     String[] components = filepath.getName().split(Pattern.quote(SEPARATOR));
-    Preconditions.checkArgument(components.length >= 2 && StringUtils.isNumeric(components[components.length - 2]),
+    Preconditions.checkArgument(containsRecordCount(filepath.getName()),
         String.format("Filename %s does not follow the pattern: FILENAME.RECORDCOUNT.EXTENSION", filepath));
     return Long.parseLong(components[components.length - 2]);
   }
