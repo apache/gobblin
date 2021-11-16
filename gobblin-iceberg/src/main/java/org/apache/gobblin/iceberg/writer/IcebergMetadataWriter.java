@@ -165,6 +165,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final DateTimeFormatter HOURLY_DATEPARTITION_FORMAT;
   private final String newPartitionColumn;
   private final String newPartitionColumnType;
+  private final WhitelistBlacklist newPartitionTableWhitelistBlacklist;
   private Optional<KafkaAuditCountVerifier> auditCountVerifier;
   private final String auditCheckGranularity;
 
@@ -227,6 +228,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
     this.auditCountVerifier = Optional.fromNullable(this.completenessEnabled ? new KafkaAuditCountVerifier(state) : null);
     this.newPartitionColumn = state.getProp(NEW_PARTITION_KEY, DEFAULT_NEW_PARTITION);
     this.newPartitionColumnType = state.getProp(NEW_PARTITION_TYPE_KEY, DEFAULT_PARTITION_COLUMN_TYPE);
+    this.newPartitionTableWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_NEW_PARTITION_WHITELIST, ""),
+        state.getProp(ICEBERG_NEW_PARTITION_BLACKLIST, ""));
     this.auditCheckGranularity = state.getProp(AUDIT_CHECK_GRANULARITY, DEFAULT_AUDIT_CHECK_GRANULARITY);
   }
 
@@ -284,9 +287,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * information increases the memory footprints, therefore we would like to flush them eagerly).
    */
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
-      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
-    TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec, TableMetadata tableMetadata) throws IOException {
+    TableIdentifier tid = TableIdentifier.of(tableMetadata.dbName, tableMetadata.tableName);
     Table table;
     try {
       table = getIcebergTable(tid);
@@ -475,6 +477,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     if(!table.spec().fields().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
       table.updateSpec().addField(fieldName).commit();
     }
+    table.refresh();
     return table;
   }
 
@@ -684,7 +687,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Collection<HiveSpec> hiveSpecs = newSpecsMap.get(new Path(file.getFilePath()).getParent().toString());
         StructLike partition = getIcebergPartitionVal(hiveSpecs, file.getFilePath(), partitionSpec);
 
-        if(tableMetadata.completenessEnabled && gmce.getOperationType() == OperationType.add_files) {
+        if(this.newPartitionTableWhitelistBlacklist.acceptTable(tableMetadata.dbName, tableMetadata.tableName)
+            && gmce.getOperationType() == OperationType.add_files) {
           tableMetadata.prevCompletenessWatermark = Long.parseLong(table.properties().getOrDefault(COMPLETION_WATERMARK_KEY,
               String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
           // Assumes first partition value to be partitioned by date
@@ -705,6 +709,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   /**
    * 1. Add "late" partition column to iceberg table if not exists
    * 2. compute "late" partition value based on datepartition and completion watermark
+   * 3. Default to late=0 if completion watermark check is disabled
    * @param table
    * @param tableMetadata
    * @param hivePartition
@@ -713,10 +718,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
    */
   private StructLike addLatePartitionValueToIcebergTable(Table table, TableMetadata tableMetadata, HivePartition hivePartition, String datepartition) {
     table = addPartitionToIcebergTable(table, newPartitionColumn, newPartitionColumnType);
-    table.refresh();
     PartitionSpec partitionSpec = table.spec();
     long prevCompletenessWatermark = tableMetadata.prevCompletenessWatermark;
-    int late = isLate(datepartition, prevCompletenessWatermark);
+    int late = !tableMetadata.completenessEnabled ? 0 : isLate(datepartition, prevCompletenessWatermark);
     List<String> partitionValues = new ArrayList<>(hivePartition.getValues());
     partitionValues.add(String.valueOf(late));
     return IcebergUtils.getPartition(partitionSpec.partitionType(), partitionValues);
@@ -1011,8 +1015,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
       GenericRecord genericRecord = recordEnvelope.getRecord();
       GobblinMetadataChangeEvent gmce =
           (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
-      if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
-        TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
+      String dbName = tableSpec.getTable().getDbName();
+      String tableName = tableSpec.getTable().getTableName();
+      if (whitelistBlacklist.acceptTable(dbName, tableName)) {
+        TableIdentifier tid = TableIdentifier.of(dbName, tableName);
         String topicPartition = tableTopicPartitionMap.computeIfAbsent(tid,
             t -> recordEnvelope.getWatermark().getSource());
         Long currentWatermark = getAndPersistCurrentWatermark(tid, topicPartition);
@@ -1025,11 +1031,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
                 Optional.of(currentOffset - 1);
           }
           tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
-          if(this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
+          tableMetadataMap.get(tid).setDbName(dbName);
+          tableMetadataMap.get(tid).setTableName(dbName);
+          if(this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
             tableMetadataMap.get(tid).setCompletenessEnabled(true);
           }
 
-          write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
+          write(gmce, newSpecsMap, oldSpecsMap, tableSpec, tableMetadataMap.get(tid));
           tableCurrentWatermarkMap.put(tid, currentOffset);
         } else {
           log.warn(String.format("Skip processing record %s since it has lower watermark", genericRecord.toString()));
@@ -1078,6 +1086,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
     long newCompletenessWatermark = DEFAULT_COMPLETION_WATERMARK;
     SortedSet<ZonedDateTime> datePartitions = new TreeSet<>(Collections.reverseOrder());
 
+    @Setter
+    String dbName;
+    @Setter
+    String tableName;
     @Setter
     String datasetName;
     @Setter

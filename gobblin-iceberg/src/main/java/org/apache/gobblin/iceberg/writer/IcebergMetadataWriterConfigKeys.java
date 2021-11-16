@@ -36,5 +36,8 @@ public class IcebergMetadataWriterConfigKeys {
   public static final String TOPIC_NAME_KEY = "topic.name";
   public static final String AUDIT_CHECK_GRANULARITY = "iceberg.completeness.audit.check.granularity";
   public static final String DEFAULT_AUDIT_CHECK_GRANULARITY = "HOUR";
+  public static final String ICEBERG_NEW_PARTITION_WHITELIST = "iceberg.new.partition.whitelist";
+  public static final String ICEBERG_NEW_PARTITION_BLACKLIST = "iceberg.new.partition.blacklist";
+
 
 }
