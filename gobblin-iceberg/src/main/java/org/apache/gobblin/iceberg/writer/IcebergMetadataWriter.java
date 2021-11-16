@@ -1032,7 +1032,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
           }
           tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
           tableMetadataMap.get(tid).setDbName(dbName);
-          tableMetadataMap.get(tid).setTableName(dbName);
+          tableMetadataMap.get(tid).setTableName(tableName);
           if(this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
             tableMetadataMap.get(tid).setCompletenessEnabled(true);
           }
