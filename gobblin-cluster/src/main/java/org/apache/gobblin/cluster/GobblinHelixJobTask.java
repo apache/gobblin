@@ -88,7 +88,6 @@ class GobblinHelixJobTask implements Task {
 
     // make a copy of helix manager, so that each job can keep using it without worrying about disconnect from the GobblinTaskRunner where they are created
     this.jobHelixManager =  GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(jobPlusSysConfig),
-        jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, builder.getJobHelixManager().getInstanceType());
 
     this.jobLauncherListener = new GobblinHelixJobLauncherListener(launcherMetrics);

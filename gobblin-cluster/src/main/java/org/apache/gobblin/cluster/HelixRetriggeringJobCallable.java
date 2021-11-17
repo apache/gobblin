@@ -129,12 +129,10 @@ class HelixRetriggeringJobCallable implements Callable {
 
     // make a copy of helix managers, so that each job can keep using it without worrying about disconnect from the GobblinClusterManager where they are created
     this.jobHelixManager = GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(sysProps),
-        sysProps.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, jobHelixManager.getInstanceType());
 
     this.taskDriverHelixManager = taskDriverHelixManager.map(
         helixManager -> GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(sysProps),
-            sysProps.getProperty(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
             GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, helixManager.getInstanceType()));
 
     this.isDistributeJobEnabled = isDistributeJobEnabled();
@@ -260,8 +258,7 @@ class HelixRetriggeringJobCallable implements Callable {
     String newPlanningId;
     Closer closer = Closer.create();
     try {
-      HelixManager planningJobHelixManager = this.taskDriverHelixManager.isPresent()?
-          this.taskDriverHelixManager.get() : this.jobHelixManager;
+      HelixManager planningJobHelixManager = this.taskDriverHelixManager.orElse(this.jobHelixManager);
       planningJobHelixManager.connect();
 
       String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
