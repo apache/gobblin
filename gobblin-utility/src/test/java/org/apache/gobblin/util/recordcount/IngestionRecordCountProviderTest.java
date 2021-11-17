@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.util.recordcount;
 
-import java.util.regex.Pattern;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
