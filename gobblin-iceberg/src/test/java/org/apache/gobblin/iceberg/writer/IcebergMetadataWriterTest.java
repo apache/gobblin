@@ -179,6 +179,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
   private State getStateWithCompletenessConfig() {
     State state = getState();
+    state.setProp(ICEBERG_NEW_PARTITION_ENABLED, true);
     state.setProp(ICEBERG_COMPLETENESS_ENABLED, true);
     state.setProp(NEW_PARTITION_KEY, "late");
     state.setProp(NEW_PARTITION_TYPE_KEY, "int");
