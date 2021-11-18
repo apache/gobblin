@@ -17,25 +17,15 @@
 
 package org.apache.gobblin.hive.metastore;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.avro.Schema;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.apache.gobblin.hive.AutoCloseableHiveLock;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
-import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
@@ -49,14 +39,21 @@ import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.primitives.Ints;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.hive.HiveMetaStoreClientFactory;
+import org.apache.gobblin.hive.AutoCloseableHiveLock;
 import org.apache.gobblin.hive.HiveLock;
+import org.apache.gobblin.hive.HiveMetaStoreClientFactory;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegProps;
@@ -68,7 +65,10 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.AutoReturnableObject;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**
@@ -525,7 +525,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
       if (tableExists) {
         try (Timer.Context context = this.metricContext.timer(DROP_TABLE).time()) {
-          client.get().dropTable(dbName, tableName);
+          client.get().dropTable(dbName, tableName, false, false);
         }
         String metastoreURI = this.clientPool.getHiveConf().get(HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE, "null");
         HiveMetaStoreEventHelper.submitSuccessfulTableDrop(eventSubmitter, dbName, tableName, metastoreURI);
