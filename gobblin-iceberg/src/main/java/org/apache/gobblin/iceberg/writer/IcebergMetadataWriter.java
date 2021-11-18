@@ -1027,14 +1027,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (currentOffset > currentWatermark) {
           if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark.isPresent()) {
             //This means we haven't register this table or met some error before, we need to reset the low watermark
-            tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark =
-                Optional.of(currentOffset - 1);
-          }
-          tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
-          tableMetadataMap.get(tid).setDbName(dbName);
-          tableMetadataMap.get(tid).setTableName(tableName);
-          if(this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
-            tableMetadataMap.get(tid).setCompletenessEnabled(true);
+            tableMetadataMap.get(tid).lowWatermark = Optional.of(currentOffset - 1);
+            tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
+            tableMetadataMap.get(tid).setDbName(dbName);
+            tableMetadataMap.get(tid).setTableName(tableName);
+            if (this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
+              tableMetadataMap.get(tid).setCompletenessEnabled(true);
+            }
           }
 
           write(gmce, newSpecsMap, oldSpecsMap, tableSpec, tableMetadataMap.get(tid));
