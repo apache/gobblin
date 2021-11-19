@@ -17,16 +17,6 @@
 
 package org.apache.gobblin.publisher;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigRenderOptions;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +30,29 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -62,15 +74,6 @@ import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
 import org.apache.gobblin.writer.PartitionIdentifier;
 import org.apache.gobblin.writer.PartitionedDataWriter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
@@ -122,14 +125,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   static final String PUBLISH_RETRY_ENABLED = DATA_PUBLISHER_RETRY_PREFIX + "enabled";
 
   static final Config PUBLISH_RETRY_DEFAULTS;
-  protected final Config retrierConfig;
+  protected final Config retryerConfig;
 
   static {
     Map<String, Object> configMap =
         ImmutableMap.<String, Object>builder()
             .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(2L))   //Overall retry for 2 minutes
             .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(5L)) //Try to retry 5 seconds
-            .put(RETRY_MULTIPLIER, 2L) // Muliply by 2 every attempt
+            .put(RETRY_MULTIPLIER, 2L) // Multiply by 2 every attempt
             .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
             .build();
     PUBLISH_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);
@@ -194,15 +197,14 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
 
     if (this.shouldRetry) {
-      this.retrierConfig = ConfigBuilder.create()
+      this.retryerConfig = ConfigBuilder.create()
           .loadProps(this.getState().getProperties(), DATA_PUBLISHER_RETRY_PREFIX)
           .build()
           .withFallback(PUBLISH_RETRY_DEFAULTS);
-      LOG.info("Retry enabled for publish with config : "+ retrierConfig.root().render(ConfigRenderOptions.concise()));
-
-    }else {
+      LOG.info("Retry enabled for publish with config : " + retryerConfig.root().render(ConfigRenderOptions.concise()));
+    } else {
       LOG.info("Retry disabled for publish.");
-      this.retrierConfig = WriterUtils.NO_RETRY_CONFIG;
+      this.retryerConfig = WriterUtils.NO_RETRY_CONFIG;
     }
 
 
@@ -399,7 +401,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     if (publishSingleTaskData) {
       // Create final output directory
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir,
-          this.permissions.get(branchId), retrierConfig);
+          this.permissions.get(branchId), retryerConfig);
       if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
         LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
         HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
@@ -431,7 +433,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       } else {
         // Create the parent directory of the final output directory if it does not exist
         WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-            publisherOutputDir.getParent(), this.permissions.get(branchId), retrierConfig);
+            publisherOutputDir.getParent(), this.permissions.get(branchId), retryerConfig);
         if(this.publisherOutputDirOwnerGroupByBranches.get(branchId).isPresent()) {
           LOG.info(String.format("Setting path %s group to %s", publisherOutputDir.toString(), this.publisherOutputDirOwnerGroupByBranches.get(branchId).get()));
           HadoopUtils.setGroup(this.publisherFileSystemByBranches.get(branchId), publisherOutputDir, this.publisherOutputDirOwnerGroupByBranches.get(branchId).get());
@@ -481,7 +483,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
           .substring(taskOutputFile.indexOf(writerOutputDir.toString()) + writerOutputDir.toString().length() + 1);
       Path publisherOutputPath = new Path(publisherOutputDir, pathSuffix);
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputPath.getParent(), this.permissions.get(branchId), retrierConfig);
+          publisherOutputPath.getParent(), this.permissions.get(branchId), retryerConfig);
 
       movePath(parallelRunner, workUnitState, taskOutputPath, publisherOutputPath, branchId);
     }
@@ -677,7 +679,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       FileSystem fs = this.metaDataWriterFileSystemByBranches.get(branchId);
 
         if (!fs.exists(metadataOutputPath.getParent())) {
-          WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, metadataOutputPath, this.permissions.get(branchId), retrierConfig);
+          WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, metadataOutputPath, this.permissions.get(branchId), retryerConfig);
         }
 
       //Delete the file if metadata already exists

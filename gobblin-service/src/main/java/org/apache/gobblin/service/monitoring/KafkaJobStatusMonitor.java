@@ -80,7 +80,7 @@ import static org.apache.gobblin.util.retry.RetryerFactory.*;
  */
 @Slf4j
 public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> {
-  static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
+  public static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
@@ -131,10 +131,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     this.flowNameGroupToWorkUnitCount = new ConcurrentHashMap<>();
 
-    Config retryerOverridesConfig = config.hasPath(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES)
-        ? ConfigFactory.parseMap(ImmutableMap.of(
-                RETRY_TIME_OUT_MS,
-                config.getDuration(ConfigurationKeys.KAFKA_JOB_STATUS_MONITOR_RETRY_TIME_OUT_MINUTES, TimeUnit.MINUTES)))
+    Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
+        ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
     this.persistJobStatusRetryer =

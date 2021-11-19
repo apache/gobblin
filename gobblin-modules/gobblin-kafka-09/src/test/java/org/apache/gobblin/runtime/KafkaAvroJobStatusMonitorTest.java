@@ -16,8 +16,6 @@
  */
 package org.apache.gobblin.runtime;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -30,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.FileUtils;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.testng.Assert;
@@ -40,7 +37,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
@@ -71,6 +70,7 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_MULTIPLIER;
 import static org.mockito.Mockito.mock;
 
 
@@ -316,7 +316,7 @@ public class KafkaAvroJobStatusMonitorTest {
     });
 
     try {
-      Thread.sleep(1000);
+      Thread.sleep(1000L);
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
@@ -324,7 +324,8 @@ public class KafkaAvroJobStatusMonitorTest {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
-        .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
+        .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
+        .withValue(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX + "." + RETRY_MULTIPLIER, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.toMillis(1L)));
 
     AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle = new AtomicBoolean(false);
     int minNumFakeExceptionsExpected = 10;
@@ -356,7 +357,8 @@ public class KafkaAvroJobStatusMonitorTest {
     }, 2, 2, TimeUnit.SECONDS);
     Thread mainThread = Thread.currentThread();
     // guardrail against excessive retries (befitting this unit test):
-    toggleManagementExecutor.scheduleAtFixedRate(mainThread::interrupt, 60, 5, TimeUnit.SECONDS);
+    toggleManagementExecutor.scheduleAtFixedRate(mainThread::interrupt, 20, 5, TimeUnit.SECONDS);
+
     jobStatusMonitor.processMessage(recordIterator.next());
 
     Assert.assertTrue(jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus() > minNumFakeExceptionsExpected,
