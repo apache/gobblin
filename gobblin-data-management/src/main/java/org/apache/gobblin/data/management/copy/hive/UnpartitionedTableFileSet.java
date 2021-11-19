@@ -81,12 +81,10 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             existingTargetTable = Optional.absent();
             break ;
           default:
-            log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable(),
-                new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
-                    existingTargetTable.get().getDataLocation()));
+            log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable());
             multiTimer.close();
-
-            return Lists.newArrayList();
+            throw new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
+                    existingTargetTable.get().getDataLocation());
         }
       }
     }
