@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -55,6 +54,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -186,7 +186,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         ImmutableMap.<String, Object>builder()
             .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(2L))   //Overall retry for 2 minutes
             .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(5L)) //Try to retry 5 seconds
-            .put(RETRY_MULTIPLIER, 2L) // Muliply by 2 every attempt
+            .put(RETRY_MULTIPLIER, 2L) // Multiply by 2 every attempt
             .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
             .build();
     COMPACTION_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);

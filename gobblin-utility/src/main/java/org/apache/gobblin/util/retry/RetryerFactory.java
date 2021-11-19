@@ -56,17 +56,12 @@ public class RetryerFactory<T> {
   private static final Predicate<Throwable> RETRY_EXCEPTION_PREDICATE;
   private static final Config DEFAULTS;
   static {
-    RETRY_EXCEPTION_PREDICATE = new Predicate<Throwable>() {
-      @Override
-      public boolean apply(Throwable t) {
-        return !(t instanceof NonTransientException);
-      }
-    };
+    RETRY_EXCEPTION_PREDICATE = t -> !(t instanceof NonTransientException);
 
     Map<String, Object> configMap = ImmutableMap.<String, Object>builder()
                                                 .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(5L))
                                                 .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(30L))
-                                                .put(RETRY_MULTIPLIER, 2L)
+                                                .put(RETRY_MULTIPLIER, TimeUnit.SECONDS.toMillis(1L))
                                                 .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
                                                 .put(RETRY_TIMES, 2)
                                                 .build();
