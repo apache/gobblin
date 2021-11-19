@@ -56,7 +56,7 @@ public class IngestionRecordCountProvider extends RecordCountProvider {
    */
   public static boolean containsRecordCount(String filepath) {
     String[] components = filepath.split(Pattern.quote(SEPARATOR));
-    return components.length >= 2 && StringUtils.isNumeric(components[components.length - 2]);
+    return components.length >= 3 && StringUtils.isNumeric(components[components.length - 2]);
   }
 
   /**
