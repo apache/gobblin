@@ -84,12 +84,8 @@ class GobblinHelixJobTask implements Task {
     this.helixMetrics = helixMetrics;
     this.taskConfig = context.getTaskConfig();
     this.sysConfig = builder.getConfig();
+    this.jobHelixManager = builder.getJobHelixManager();
     this.jobPlusSysConfig = ConfigUtils.configToProperties(sysConfig);
-
-    // make a copy of helix manager, so that each job can keep using it without worrying about disconnect from the GobblinTaskRunner where they are created
-    this.jobHelixManager =  GobblinHelixMultiManager.buildHelixManager(ConfigUtils.propertiesToConfig(jobPlusSysConfig),
-        GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, builder.getJobHelixManager().getInstanceType());
-
     this.jobLauncherListener = new GobblinHelixJobLauncherListener(launcherMetrics);
 
     Map<String, String> configMap = this.taskConfig.getConfigMap();

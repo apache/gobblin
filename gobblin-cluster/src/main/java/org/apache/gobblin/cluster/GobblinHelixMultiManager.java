@@ -30,7 +30,6 @@ import java.util.function.Function;
 
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
@@ -167,7 +166,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
 
     String helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
-    return HelixManagerFactory.getZKHelixManager(
+    return GobblinHelixManagerFactory.getZKHelixManager(
         config.getString(clusterName), helixInstanceName, type, zkConnectionString);
   }
 

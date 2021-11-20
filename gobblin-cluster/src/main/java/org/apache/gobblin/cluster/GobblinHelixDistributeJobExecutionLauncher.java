@@ -137,7 +137,6 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Override
   public void close()  throws IOException {
-    this.planningJobHelixManager.disconnect();
   }
 
   private void executeCancellation() {
