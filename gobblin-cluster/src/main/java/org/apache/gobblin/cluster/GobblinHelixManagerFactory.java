@@ -17,14 +17,13 @@
 
 package org.apache.gobblin.cluster;
 
-import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 
 public class GobblinHelixManagerFactory {
 
-  public static HelixManager getZKHelixManager(String clusterName, String instanceName,
+  public static GobblinReferenceCountingZkHelixManager getZKHelixManager(String clusterName, String instanceName,
       InstanceType type, String zkAddr) {
-    return new GobblinZkHelixManager(clusterName, instanceName, type, zkAddr);
+    return new GobblinReferenceCountingZkHelixManager(clusterName, instanceName, type, zkAddr);
   }
 }

@@ -37,6 +37,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -143,13 +144,14 @@ class GobblinHelixJobTask implements Task {
   /**
    * Launch the actual {@link GobblinHelixJobLauncher}.
    */
+  @SneakyThrows
   @Override
   public TaskResult run() {
     log.info("Running planning job {} [{} {}]", this.planningJobId, this.applicationName, this.instanceName);
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
+    this.jobHelixManager.connect();
 
     try (Closer closer = Closer.create()) {
-      this.jobHelixManager.connect();
       Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobUri);
 
       long timeOut = PropertiesUtils.getPropAsLong(jobPlusSysConfig,

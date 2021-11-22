@@ -31,10 +31,10 @@ import lombok.extern.slf4j.Slf4j;
  * Calls to connect and disconnect to the underlying ZKHelixManager are made only for the first and last usage respectively.
  */
 @Slf4j
-public class GobblinZkHelixManager extends ZKHelixManager {
-  final AtomicInteger usageCount = new AtomicInteger(0);
+public class GobblinReferenceCountingZkHelixManager extends ZKHelixManager {
+  private final AtomicInteger usageCount = new AtomicInteger(0);
 
-  public GobblinZkHelixManager(String clusterName, String instanceName, InstanceType instanceType, String zkAddress) {
+  public GobblinReferenceCountingZkHelixManager(String clusterName, String instanceName, InstanceType instanceType, String zkAddress) {
     super(clusterName, instanceName, instanceType, zkAddress);
   }
 
