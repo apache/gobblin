@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
@@ -233,6 +234,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       extract.setFullTrue(System.currentTimeMillis());
     }
 
+    long highestWaterMark = -1;
+    long lowestWaterMark = Long.MAX_VALUE;
     for (Partition partition : partitions) {
       WorkUnit workunit = WorkUnit.create(extract);
       workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
@@ -241,7 +244,13 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       addLineageSourceInfo(state, sourceEntity, workunit);
       partition.serialize(workunit);
       workUnits.add(workunit);
+      highestWaterMark = Math.max(highestWaterMark, partition.getHighWatermark());
+      lowestWaterMark = Math.min(lowestWaterMark, partition.getLowWatermark());
     }
+    state.appendToListProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD,
+        String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, highestWaterMark));
+    state.appendToListProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD,
+        String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, lowestWaterMark));
 
     return workUnits;
   }

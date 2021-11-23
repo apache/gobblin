@@ -54,6 +54,8 @@ public class StressTestingSource implements Source<String, byte[]> {
   public static final int DEFAULT_NUM_RECORDS = 1;
   public static final String MEM_ALLOC_BYTES_KEY = CONFIG_NAMESPACE + "." + "memAllocBytes";
   public static final int DEFAULT_MEM_ALLOC_BYTES = 8;
+  public static final String THROW_EXCEPTION = CONFIG_NAMESPACE + "." + "throwException";
+  public static final boolean DEFAULT_THROW_EXCEPTION = false;
 
   private static final long INVALID_TIME = -1;
 
@@ -94,6 +96,7 @@ public class StressTestingSource implements Source<String, byte[]> {
     private final int numRecords;
     private final int memAllocBytes;
     private final Random random;
+    private final boolean throwException;
 
     public ExtractorImpl(WorkUnitState state) {
       this.random = new Random();
@@ -113,6 +116,7 @@ public class StressTestingSource implements Source<String, byte[]> {
       // num records only takes effect if the duration is not specified
       this.numRecords = this.endTime == INVALID_TIME ? state.getPropAsInt(NUM_RECORDS_KEY, DEFAULT_NUM_RECORDS) : 0;
       this.memAllocBytes = state.getPropAsInt(MEM_ALLOC_BYTES_KEY, DEFAULT_MEM_ALLOC_BYTES);
+      this.throwException = state.getPropAsBoolean(THROW_EXCEPTION, DEFAULT_THROW_EXCEPTION);
     }
 
     @Override
@@ -134,6 +138,9 @@ public class StressTestingSource implements Source<String, byte[]> {
       // If an end time is configured then it is used as the stopping point otherwise the record count limit is used
       if ((this.endTime != INVALID_TIME && System.currentTimeMillis() > this.endTime) ||
           (this.numRecords > 0 && this.recordsEmitted >= this.numRecords)) {
+        if (this.throwException) {
+          throw new IOException("This is one test exception");
+        }
         return null;
       }
 
