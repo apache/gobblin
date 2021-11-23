@@ -304,6 +304,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   private synchronized String addRecordCountToStagingFile()
       throws IOException {
     String filePath = this.stagingFile.toString();
+    if(IngestionRecordCountProvider.containsRecordCount(filePath)) {
+      LOG.info(String.format("Path %s already has record count", filePath));
+      return filePath;
+    }
     String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
     HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount), true);
