@@ -273,53 +273,56 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * Or will create the table thru. RPC and return retVal from remote MetaStore.
    */
   private boolean ensureHiveTableExistenceBeforeAlternation(String tableName, String dbName, IMetaStoreClient client,
-      Table table, HiveSpec spec) throws TException, IOException{
+      Table table) throws TException, IOException{
     try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
-        try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
-          client.createTable(getTableWithCreateTimeNow(table));
-          log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
-          return true;
-        } catch (AlreadyExistsException e) {
-          log.debug("Table {}.{} already existed", table.getDbName(), table.getTableName());
+        if(!existsTable(dbName, tableName)) {
+          try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
+            client.createTable(getTableWithCreateTimeNow(table));
+            log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
+            return true;
+          }
         }
       }catch (TException e) {
         log.error(
             String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
         throw e;
       }
-
       log.info("Table {} already exists in db {}.", tableName, dbName);
-      try {
-        HiveTable existingTable;
-        try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
-          existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
-        }
-        HiveTable schemaSourceTable = existingTable;
-        if (state.contains(SCHEMA_SOURCE_DB)) {
-          try (Timer.Context context = this.metricContext.timer(GET_SCHEMA_SOURCE_HIVE_TABLE).time()) {
-            // We assume the schema source table has the same table name as the origin table, so only the db name can be configured
-            schemaSourceTable = HiveMetaStoreUtils.getHiveTable(client.getTable(state.getProp(SCHEMA_SOURCE_DB, dbName),
-                tableName));
-          }
-        }
-        if(shouldUpdateLatestSchema) {
-          updateSchema(spec, table, schemaSourceTable);
-        }
-        if (needToUpdateTable(existingTable, HiveMetaStoreUtils.getHiveTable(table))) {
-          try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
-            client.alter_table(dbName, tableName, getNewTblByMergingExistingTblProps(table, existingTable));
-          }
-          log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
-        }
-      } catch (TException e2) {
-        log.error(
-            String.format("Unable to create or alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
-            e2);
-        throw e2;
-      }
-      // When the logic up to here it means table already existed in db and alteration happen. Return false.
+      // When the logic up to here it means table already existed in db. Return false.
       return false;
+    }
+  }
+
+  private void alterTableIfNeeded (String tableName, String dbName, IMetaStoreClient client,
+      Table table, HiveSpec spec) throws TException, IOException {
+    try {
+      HiveTable existingTable;
+      try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
+        existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+      }
+      HiveTable schemaSourceTable = existingTable;
+      if (state.contains(SCHEMA_SOURCE_DB)) {
+        try (Timer.Context context = this.metricContext.timer(GET_SCHEMA_SOURCE_HIVE_TABLE).time()) {
+          // We assume the schema source table has the same table name as the origin table, so only the db name can be configured
+          schemaSourceTable = HiveMetaStoreUtils.getHiveTable(client.getTable(state.getProp(SCHEMA_SOURCE_DB, dbName),
+              tableName));
+        }
+      }
+      if(shouldUpdateLatestSchema) {
+        updateSchema(spec, table, schemaSourceTable);
+      }
+      if (needToUpdateTable(existingTable, HiveMetaStoreUtils.getHiveTable(table))) {
+        try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
+          client.alter_table(dbName, tableName, getNewTblByMergingExistingTblProps(table, existingTable));
+        }
+        log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
+      }
+    } catch (TException e2) {
+      log.error(
+          String.format("Unable to alter Hive table %s in db %s: " + e2.getMessage(), tableName, dbName),
+          e2);
+      throw e2;
     }
   }
 
@@ -475,15 +478,16 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         this.tableAndDbExistenceCache.get(dbName + ":" + tableName, new Callable<Boolean>() {
           @Override
           public Boolean call() throws Exception {
-            return ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
+            return ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table);
           }
         });
       } catch (ExecutionException ee) {
         throw new IOException("Table existence checking throwing execution exception.", ee);
       }
     } else {
-      this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
+      this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table);
     }
+    alterTableIfNeeded(tableName, dbName, client, table, spec);
   }
 
   @Override
