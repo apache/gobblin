@@ -168,4 +168,37 @@ public class TestStressTestingSource {
     Assert.assertTrue(Math.abs(timeSpentMicro - (RUN_DURATION_SECS * 1000000)) < (1000000),
         "Time spent " + timeSpentMicro);
   }
+
+  @Test
+  public void testThrowException() throws DataRecordException, IOException {
+    final int MEM_ALLOC_BYTES = 100;
+    final int NUM_WORK_UNITS = 1;
+    final int SLEEP_TIME_MICRO = 1000;
+    final int NUM_RECORDS = 30; // this config is ignored since the duration is set
+    final int RUN_DURATION_SECS = 5;
+
+    SourceState state = new SourceState();
+    state.setProp(StressTestingSource.NUM_WORK_UNITS_KEY, NUM_WORK_UNITS);
+    state.setProp(StressTestingSource.MEM_ALLOC_BYTES_KEY, MEM_ALLOC_BYTES);
+    state.setProp(StressTestingSource.SLEEP_TIME_MICRO_KEY, SLEEP_TIME_MICRO);
+    state.setProp(StressTestingSource.NUM_RECORDS_KEY, NUM_RECORDS);
+    state.setProp(StressTestingSource.RUN_DURATION_KEY, RUN_DURATION_SECS);
+    state.setProp(StressTestingSource.THROW_EXCEPTION, true);
+
+    StressTestingSource source = new StressTestingSource();
+
+    List<WorkUnit> wus = source.getWorkunits(state);
+    Assert.assertEquals(wus.size(), NUM_WORK_UNITS);
+
+    WorkUnit wu = wus.get(0);
+    WorkUnitState wuState = new WorkUnitState(wu, state);
+    Extractor<String, byte[]> extractor = source.getExtractor(wuState);
+
+    Assert.expectThrows(IOException.class, () -> {
+      byte[] record;
+      while ((record = extractor.readRecord(null)) != null) {
+        Assert.assertEquals(record.length, 100);
+      }
+    });
+  }
 }
