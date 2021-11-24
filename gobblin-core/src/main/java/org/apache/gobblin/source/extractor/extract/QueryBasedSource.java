@@ -245,9 +245,9 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       partition.serialize(workunit);
       workUnits.add(workunit);
       highestWaterMark = highestWaterMark.isPresent() ?
-          highestWaterMark.transform(l -> Math.max(l, partition.getHighWatermark())) : Optional.of(partition.getHighWatermark());
+          highestWaterMark.transform(hw -> Math.max(hw, partition.getHighWatermark())) : Optional.of(partition.getHighWatermark());
       lowestWaterMark = lowestWaterMark.isPresent() ?
-          lowestWaterMark.transform(l -> Math.min(l, partition.getLowWatermark())) : Optional.of(partition.getLowWatermark());
+          lowestWaterMark.transform(lw -> Math.min(lw, partition.getLowWatermark())) : Optional.of(partition.getLowWatermark());
     }
     if(highestWaterMark.isPresent() && lowestWaterMark.isPresent()) {
       state.appendToListProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, highestWaterMark.get()));
