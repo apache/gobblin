@@ -1112,6 +1112,9 @@ public class DagManager extends AbstractIdleService {
 
     private void decrementQuotaUsage(Map<String, Integer> quotaMap, String user) {
       Integer currentCount;
+      if (user == null) {
+        return;
+      }
       do {
         currentCount = quotaMap.get(user);
       } while (currentCount != null && currentCount > 0 && !quotaMap.replace(user, currentCount, currentCount - 1));

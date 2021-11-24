@@ -245,13 +245,13 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       partition.serialize(workunit);
       workUnits.add(workunit);
       highestWaterMark = highestWaterMark.isPresent() ?
-          Optional.of(Math.max(highestWaterMark.get(), partition.getHighWatermark())) : Optional.of(partition.getHighWatermark());
+          highestWaterMark.transform(l -> Math.max(l, partition.getHighWatermark())) : Optional.of(partition.getHighWatermark());
       lowestWaterMark = lowestWaterMark.isPresent() ?
-          Optional.of(Math.min(lowestWaterMark.get(), partition.getLowWatermark())) : Optional.of(partition.getLowWatermark());
+          lowestWaterMark.transform(l -> Math.min(l, partition.getLowWatermark())) : Optional.of(partition.getLowWatermark());
     }
     if(highestWaterMark.isPresent() && lowestWaterMark.isPresent()) {
-      state.appendToListProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, highestWaterMark));
-      state.appendToListProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, lowestWaterMark));
+      state.appendToListProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, highestWaterMark.get()));
+      state.appendToListProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, lowestWaterMark.get()));
     }
 
     return workUnits;
