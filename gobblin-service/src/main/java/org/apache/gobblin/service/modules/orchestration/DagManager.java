@@ -969,7 +969,7 @@ public class DagManager extends AbstractIdleService {
 
       if (proxyUser != null) {
         proxyQuotaIncrement = incrementJobCountAndCheckUserQuota(proxyUserToJobCount, proxyUser, dagNode);
-        proxyUserCheck = proxyQuotaIncrement < 0;  // proxy user quota check failed
+        proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds
         if (!proxyUserCheck) {
           requesterMessage.append(String.format(
               "Quota exceeded for proxy user %s on executor %s : quota=%s, runningJobs=%d%n",
@@ -985,7 +985,7 @@ public class DagManager extends AbstractIdleService {
             .map(ServiceRequester::getName).distinct().collect(Collectors.toList());
         for (String requester : uniqueRequesters) {
           int userQuotaIncrement = incrementJobCountAndCheckUserQuota(requesterToJobCount, requester, dagNode);
-          boolean thisRequesterCheck = userQuotaIncrement < 0;  // user quota check failed
+          boolean thisRequesterCheck = userQuotaIncrement >= 0;  // user quota check succeeds
           usersQuotaIncrement.add(requester);
           requesterCheck = requesterCheck && thisRequesterCheck;
           if (!thisRequesterCheck) {
@@ -1112,6 +1112,9 @@ public class DagManager extends AbstractIdleService {
 
     private void decrementQuotaUsage(Map<String, Integer> quotaMap, String user) {
       Integer currentCount;
+      if (user == null) {
+        return;
+      }
       do {
         currentCount = quotaMap.get(user);
       } while (currentCount != null && currentCount > 0 && !quotaMap.replace(user, currentCount, currentCount - 1));
