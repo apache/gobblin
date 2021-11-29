@@ -30,7 +30,6 @@ import java.util.function.Function;
 
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
@@ -160,30 +159,28 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   /**
    * Build the {@link HelixManager} for the Application Master.
    */
-  protected static HelixManager buildHelixManager(Config config, String zkConnectionString, String clusterName, InstanceType type) {
+  protected static HelixManager buildHelixManager(Config config, String clusterName, InstanceType type) {
+    Preconditions.checkArgument(config.hasPath(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY));
+    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    log.info("Using ZooKeeper connection string: " + zkConnectionString);
+
     String helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
-    return HelixManagerFactory.getZKHelixManager(
+    return GobblinHelixManagerFactory.getZKHelixManager(
         config.getString(clusterName), helixInstanceName, type, zkConnectionString);
   }
 
   public void initialize() {
-    Preconditions.checkArgument(this.config.hasPath(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY));
-    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    log.info("Using ZooKeeper connection string: " + zkConnectionString);
-
     if (this.dedicatedManagerCluster) {
       Preconditions.checkArgument(this.config.hasPath(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY));
       log.info("We will use separate clusters to manage GobblinClusterManager and job distribution.");
       // This will create and register a Helix controller in ZooKeeper
       this.managerClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY,
           InstanceType.CONTROLLER);
 
       // This will create a Helix administrator to dispatch jobs to ZooKeeper
       this.jobClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           InstanceType.ADMINISTRATOR);
 
@@ -195,14 +192,13 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
 
       if (this.dedicatedJobClusterController) {
         this.jobClusterController = Optional.of(GobblinHelixMultiManager
-            .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
+            .buildHelixManager(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
                 InstanceType.CONTROLLER));
       }
 
       if (this.dedicatedTaskDriverCluster) {
         // This will create a Helix administrator to dispatch jobs to ZooKeeper
         this.taskDriverHelixManager = Optional.of(buildHelixManager(this.config,
-            zkConnectionString,
             GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
             InstanceType.ADMINISTRATOR));
 
@@ -216,7 +212,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
         // This will create a dedicated controller for planning job distribution
         if (dedicatedTaskDriverClusterController) {
           this.taskDriverClusterController = Optional.of(GobblinHelixMultiManager
-              .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
+              .buildHelixManager(this.config, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
                   InstanceType.CONTROLLER));
         }
       }
@@ -226,7 +222,6 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
           GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
       this.managerClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           isHelixClusterManaged ? InstanceType.PARTICIPANT : InstanceType.CONTROLLER);
       this.jobClusterHelixManager = this.managerClusterHelixManager;

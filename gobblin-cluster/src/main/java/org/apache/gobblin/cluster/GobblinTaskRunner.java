@@ -48,7 +48,6 @@ import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
@@ -285,18 +284,18 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     if (this.isTaskDriver && this.dedicatedTaskDriverCluster) {
       // This will create a Helix manager to receive the planning job
-      this.taskDriverHelixManager = Optional.of(HelixManagerFactory.getZKHelixManager(
+      this.taskDriverHelixManager = Optional.of(GobblinHelixManagerFactory.getZKHelixManager(
           ConfigUtils.getString(this.clusterConfig, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, ""),
           this.helixInstanceName,
           InstanceType.PARTICIPANT,
           zkConnectionString));
-      this.jobHelixManager = HelixManagerFactory.getZKHelixManager(
+      this.jobHelixManager = GobblinHelixManagerFactory.getZKHelixManager(
           this.clusterName,
           this.helixInstanceName,
           InstanceType.ADMINISTRATOR,
           zkConnectionString);
     } else {
-      this.jobHelixManager = HelixManagerFactory.getZKHelixManager(
+      this.jobHelixManager = GobblinHelixManagerFactory.getZKHelixManager(
           this.clusterName,
           this.helixInstanceName,
           InstanceType.PARTICIPANT,
@@ -305,8 +304,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   private HelixManager getReceiverManager() {
-    return taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
-        : this.jobHelixManager;
+    return taskDriverHelixManager.isPresent() ? taskDriverHelixManager.get() : this.jobHelixManager;
   }
 
   private TaskStateModelFactory createTaskStateModelFactory(Map<String, TaskFactory> taskFactoryMap) {
