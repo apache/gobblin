@@ -82,7 +82,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   public boolean isEmpty(String database, String table) throws SQLException {
     String sql = String.format(SELECT_SQL_FORMAT, database, table);
     try (PreparedStatement pstmt = this.conn.prepareStatement(sql); ResultSet resultSet = pstmt.executeQuery();) {
-      if (!resultSet.first()) {
+      if (!resultSet.next()) {
         throw new RuntimeException("Should have received at least one row from SQL " + pstmt);
       }
       return 0 == resultSet.getInt(1);
