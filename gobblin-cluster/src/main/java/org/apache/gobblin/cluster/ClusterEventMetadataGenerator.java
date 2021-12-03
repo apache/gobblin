@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,21 +44,19 @@ public class ClusterEventMetadataGenerator implements EventMetadataGenerator{
     List<TaskState> taskStates = jobContext.getJobState().getTaskStates();
     String taskException = EventMetadataUtils.getTaskFailureExceptions(taskStates);
     String jobException = EventMetadataUtils.getJobFailureExceptions(jobContext.getJobState());
-    Map<String,String> jobMetadata = new HashMap<>();
-    jobMetadata.put(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, ""));
-    jobMetadata.put(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, ""));
+    ImmutableMap.Builder<String, String> metadataBuilder = ImmutableMap.builder();
+    metadataBuilder.put(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, ""));
+    metadataBuilder.put(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, ""));
     switch (eventName) {
       case JOB_COMPLETE:
-        jobMetadata.put(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
-        break;
+        return metadataBuilder.put(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates))).build();
       case JOB_FAILED:
-        jobMetadata.put(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException);
-        break;
+        return metadataBuilder.put(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException).build();
       default:
         break;
     }
 
-    return jobMetadata;
+    return metadataBuilder.build();
   }
 }
 
