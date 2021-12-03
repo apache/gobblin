@@ -34,11 +34,20 @@ import lombok.ToString;
  * The implementation of JdbcBufferedInserter for MySQL.
  * This purpose of buffered insert is mainly for performance reason and the implementation is based on the
  * reference manual http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+ *
+ * This class supports two types of insertions for MySQL 1) standard insertion - only supports records with unique
+ * primary keys and fails on attempted insertion of a duplicate record 2) replace insertion - inserts new records as
+ * normal but allows for value overwrites for duplicate inserts (by primary key)
+ *
+ * Note that replacement occurs at 'record-level', so if there are duplicates in the same input then they will replace
+ * each other in a non-deterministic order.
  */
 @ToString
 public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
 
   private static final Logger LOG = LoggerFactory.getLogger(MySqlBufferedInserter.class);
+
+  protected static final String REPLACE_STATEMENT_PREFIX_FORMAT = "REPLACE INTO %s.%s (%s) VALUES ";
 
   private final int maxParamSize;
 
@@ -84,6 +93,26 @@ public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
           + " due to # of params limitation " + this.maxParamSize + " , # of columns: " + this.columnNames.size());
     }
     this.batchSize = actualBatchSize;
-    super.initializeBatch(databaseName, table);
+
+    // Use separate insertion statement if replacements are allowed
+    if (this.replaceExistingValues) {
+        this.insertStmtPrefix = createReplaceStatementStr(databaseName, table);
+        this.insertPstmtForFixedBatch =
+            this.conn.prepareStatement(createPrepareStatementStr(this.batchSize));
+        LOG.info(String.format("Initialized for %s replace " + this, (this.batchSize > 1) ? "batch" : ""));
+      } else {
+      super.initializeBatch(databaseName, table);
+    }
+  }
+
+  /**
+   * Populates the placeholders and constructs the prefix of batch replace statement
+   * It works like INSERT other than overwriting records that have the same primary key or unique index
+   * @param databaseName name of the database
+   * @param table name of the table
+   * @return {@link #REPLACE_STATEMENT_PREFIX_FORMAT} with all its resolved placeholders
+   */
+  protected String createReplaceStatementStr(String databaseName, String table) {
+    return String.format(REPLACE_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
   }
 }

@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.writer.commands;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcType;
-import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -32,6 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcType;
 
 
 /**
@@ -47,14 +48,17 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
       "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
+  private static final String COPY_REPLACE_STATEMENT_FORMAT = "REPLACE INTO %s.%s SELECT * FROM %s.%s";
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s.%s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
+  private final boolean replaceExistingValues;
 
   public MySqlWriterCommands(State state, Connection conn) {
     this.conn = conn;
     this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
+    this.replaceExistingValues = state.getPropAsBoolean(ConfigurationKeys.ALLOW_DATA_OVERWRITE);
   }
 
   @Override
@@ -128,7 +132,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
       pstmt.setString(2, table);
       LOG.info("Retrieving column type information from SQL: " + pstmt);
       try (ResultSet rs = pstmt.executeQuery()) {
-        if (!rs.first()) {
+        if (!rs.next()) {
           throw new IllegalArgumentException("No result from information_schema.columns");
         }
         do {
@@ -145,7 +149,13 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
   @Override
   public void copyTable(String databaseName, String from, String to) throws SQLException {
-    String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
+    // Chooses between INSERT and REPLACE logic based on the job configurations
+    String sql;
+    if (this.replaceExistingValues) {
+      sql = String.format(COPY_REPLACE_STATEMENT_FORMAT, databaseName, to, databaseName, from);
+    } else {
+      sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
+    }
     execute(sql);
   }
 

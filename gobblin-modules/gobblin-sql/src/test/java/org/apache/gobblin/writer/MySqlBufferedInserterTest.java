@@ -22,6 +22,7 @@ import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDB
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -35,6 +36,7 @@ import java.util.List;
 
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
@@ -52,7 +54,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     State state = new State();
     state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
 
-    JdbcBufferedInserter inserter = getJdbcBufferedInserter(state, conn);
+    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
 
     PreparedStatement pstmt = mock(PreparedStatement.class);
     when(conn.prepareStatement(anyString())).thenReturn(pstmt);
@@ -63,7 +65,35 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     }
     inserter.flush();
 
-    verify(conn, times(2)).prepareStatement(anyString());
+    verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
+    verify(pstmt, times(11)).clearParameters();
+    verify(pstmt, times(11)).execute();
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    reset(pstmt);
+  }
+
+  public void testMySqlBufferedReplace() throws SQLException {
+    final int colNums = 20;
+    final int batchSize = 10;
+    final int entryCount = 107;
+    final int colSize = 7;
+
+    State state = new State();
+    state.setProp(WRITER_JDBC_INSERT_BATCH_SIZE, Integer.toString(batchSize));
+    state.setProp(ConfigurationKeys.ALLOW_DATA_OVERWRITE, Boolean.toString(true));
+
+    MySqlBufferedInserter inserter = new MySqlBufferedInserter(state, conn);
+
+    PreparedStatement pstmt = mock(PreparedStatement.class);
+    when(conn.prepareStatement(anyString())).thenReturn(pstmt);
+
+    List<JdbcEntryData> jdbcEntries = createJdbcEntries(colNums, colSize, entryCount);
+    for(JdbcEntryData entry : jdbcEntries) {
+      inserter.insert(db, table, entry);
+    }
+    inserter.flush();
+
+    verify(conn, times(2)).prepareStatement(matches("REPLACE INTO .*"));
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
     verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
@@ -94,7 +124,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
 
     int expectedBatchSize = maxParamSize / colNums;
     int expectedExecuteCount = entryCount / expectedBatchSize + 1;
-    verify(conn, times(2)).prepareStatement(anyString());
+    verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
     verify(pstmt, times(expectedExecuteCount)).clearParameters();
     verify(pstmt, times(expectedExecuteCount)).execute();
     verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
