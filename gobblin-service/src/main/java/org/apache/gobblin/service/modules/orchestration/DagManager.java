@@ -138,6 +138,8 @@ public class DagManager extends AbstractIdleService {
   private static final String USER_JOB_QUOTA_KEY = DAG_MANAGER_PREFIX + "defaultJobQuota";
   private static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private static final String PER_USER_QUOTA = DAG_MANAGER_PREFIX + "perUserQuota";
+  // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
+  private static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
 
   private static final String QUOTA_SEPERATOR = ":";
 
@@ -180,6 +182,7 @@ public class DagManager extends AbstractIdleService {
   private final Integer numThreads;
   private final Integer pollingInterval;
   private final Integer retentionPollingInterval;
+  protected final Long defaultJobStartSlaTime;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
   private final Config config;
@@ -208,7 +211,7 @@ public class DagManager extends AbstractIdleService {
     }
 
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
-
+    this.defaultJobStartSlaTime = ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME);
     ImmutableMap.Builder<String, Integer> mapBuilder = ImmutableMap.builder();
     for (String userQuota : ConfigUtils.getStringList(config, PER_USER_QUOTA)) {
       mapBuilder.put(userQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(userQuota.split(QUOTA_SEPERATOR)[1]));
@@ -379,7 +382,7 @@ public class DagManager extends AbstractIdleService {
         for (int i = 0; i < numThreads; i++) {
           DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
               runQueue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, defaultQuota, perUserQuota, failedDagIds,
-              allSuccessfulMeter, allFailedMeter);
+              allSuccessfulMeter, allFailedMeter, this.defaultJobStartSlaTime);
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
@@ -443,14 +446,14 @@ public class DagManager extends AbstractIdleService {
     private final BlockingQueue<Dag<JobExecutionPlan>> queue;
     private final BlockingQueue<String> cancelQueue;
     private final BlockingQueue<String> resumeQueue;
-
+    private final Long defaultJobStartSlaTime;
     /**
      * Constructor.
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
         boolean instrumentationEnabled, int defaultQuota, Map<String, Integer> perUserQuota, Set<String> failedDagIds,
-        ContextAwareMeter allSuccessfulMeter, ContextAwareMeter allFailedMeter) {
+        ContextAwareMeter allSuccessfulMeter, ContextAwareMeter allFailedMeter, Long defaultJobStartSla) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
@@ -462,6 +465,7 @@ public class DagManager extends AbstractIdleService {
       this.perUserQuota = perUserQuota;
       this.allSuccessfulMeter = allSuccessfulMeter;
       this.allFailedMeter = allFailedMeter;
+      this.defaultJobStartSlaTime = defaultJobStartSla;
       if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
         this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
@@ -773,9 +777,8 @@ public class DagManager extends AbstractIdleService {
         return false;
       }
       ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
-      long timeOutForJobStart = DagManagerUtils.getJobStartSla(node);
+      long timeOutForJobStart = DagManagerUtils.getJobStartSla(node, this.defaultJobStartSlaTime);
       long jobOrchestratedTime = jobStatus.getOrchestratedTime();
-
       if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestratedTime > timeOutForJobStart) {
         log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
             DagManagerUtils.getJobName(node),

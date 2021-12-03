@@ -269,14 +269,14 @@ public class DagManagerUtils {
    * @param dagNode dag node for which flow start sla is to be retrieved
    * @return job start sla in ms
    */
-  static long getJobStartSla(DagNode<JobExecutionPlan> dagNode) {
+  static long getJobStartSla(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartSla) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
         jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME_UNIT));
 
     return slaTimeUnit.toMillis(jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
         ? jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
-        : ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME);
+        : defaultJobStartSla);
   }
 
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
