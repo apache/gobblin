@@ -17,13 +17,13 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.EventMetadataUtils;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.TaskState;
@@ -43,17 +43,21 @@ public class ClusterEventMetadataGenerator implements EventMetadataGenerator{
     List<TaskState> taskStates = jobContext.getJobState().getTaskStates();
     String taskException = EventMetadataUtils.getTaskFailureExceptions(taskStates);
     String jobException = EventMetadataUtils.getJobFailureExceptions(jobContext.getJobState());
-
+    Map<String,String> jobMetadata = new HashMap<>();
+    jobMetadata.put(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, ""));
+    jobMetadata.put(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, ""));
     switch (eventName) {
       case JOB_COMPLETE:
-        return ImmutableMap.of(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
+        jobMetadata.put(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
+        break;
       case JOB_FAILED:
-        return ImmutableMap.of(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException);
+        jobMetadata.put(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException);
+        break;
       default:
         break;
     }
 
-    return ImmutableMap.of();
+    return jobMetadata;
   }
 }
 

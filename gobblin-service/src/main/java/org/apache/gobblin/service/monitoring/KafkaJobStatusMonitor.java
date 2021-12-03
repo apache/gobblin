@@ -296,6 +296,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     mergedState.putAll(fallbackState.getProperties());
     mergedState.putAll(state.getProperties());
+    // Set CURRENT_ATTEMPTS_FIELD to right value to avoid continually retrying
+    if (fallbackState.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,0) > state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,0)) {
+      mergedState.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
+          fallbackState.getProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,"0"));
+      if (fallbackState.contains(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD)) {
+        mergedState.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, fallbackState.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD));
+      }
+    }
 
     return new org.apache.gobblin.configuration.State(mergedState);
   }
