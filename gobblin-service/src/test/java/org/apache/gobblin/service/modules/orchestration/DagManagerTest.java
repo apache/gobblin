@@ -90,7 +90,7 @@ public class DagManagerTest {
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, 5, new HashMap<>(), new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"), 15L);
+        metricContext.contextAwareMeter("failedMeter"), 15L * 60 * 1000);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -672,12 +672,15 @@ public class DagManagerTest {
     Iterator<JobStatus> jobStatusIterator1 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.ORCHESTRATED),
             false, flowExecutionId - 16 * 60 * 1000);
+    // This is for the second Dag that does not match the SLA so should schedule normally
     Iterator<JobStatus> jobStatusIterator2 =
         getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.ORCHESTRATED),
             false, flowExecutionId - 10 * 60 * 1000);
+    // Let the first job get reported as cancel due to SLA kill on start and clean up
     Iterator<JobStatus> jobStatusIterator3 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.CANCELLED),
             false, flowExecutionId - 16 * 60 * 1000);
+    // Cleanup the running job that is scheduled normally
     Iterator<JobStatus> jobStatusIterator4 =
         getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.COMPLETE));
 
@@ -701,9 +704,9 @@ public class DagManagerTest {
     Assert.assertEquals(this.jobToDag.size(), 1);
     Assert.assertEquals(this.dagToJobs.size(), 1);
     Assert.assertTrue(this.dags.containsKey(dagId1));
-    this._dagManagerThread.run();
 
     // Cleanup
+    this._dagManagerThread.run();
     this._dagManagerThread.run();
     Assert.assertEquals(this.dags.size(), 0);
     Assert.assertEquals(this.jobToDag.size(), 0);

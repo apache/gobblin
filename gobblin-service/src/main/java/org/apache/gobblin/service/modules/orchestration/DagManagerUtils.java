@@ -272,11 +272,12 @@ public class DagManagerUtils {
   static long getJobStartSla(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartSla) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
 
-    return slaTimeUnit.toMillis(jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
-        ? jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
-        : defaultJobStartSla);
+
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME))
+        : defaultJobStartSla;
   }
 
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {

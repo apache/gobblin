@@ -140,6 +140,7 @@ public class DagManager extends AbstractIdleService {
   private static final String PER_USER_QUOTA = DAG_MANAGER_PREFIX + "perUserQuota";
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
   private static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
+  private static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
 
   private static final String QUOTA_SEPERATOR = ":";
 
@@ -211,7 +212,8 @@ public class DagManager extends AbstractIdleService {
     }
 
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
-    this.defaultJobStartSlaTime = ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME);
+    TimeUnit jobStartTimeunit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+    this.defaultJobStartSlaTime = jobStartTimeunit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     ImmutableMap.Builder<String, Integer> mapBuilder = ImmutableMap.builder();
     for (String userQuota : ConfigUtils.getStringList(config, PER_USER_QUOTA)) {
       mapBuilder.put(userQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(userQuota.split(QUOTA_SEPERATOR)[1]));
