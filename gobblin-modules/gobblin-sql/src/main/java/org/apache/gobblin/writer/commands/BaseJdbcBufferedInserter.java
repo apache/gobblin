@@ -183,7 +183,6 @@ public abstract class BaseJdbcBufferedInserter implements JdbcBufferedInserter {
     return String.format(INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
   }
 
-
   @Override
   public void flush() throws SQLException {
     if (this.pendingInserts == null || this.pendingInserts.isEmpty()) {
