@@ -439,9 +439,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    * Submit event indicating that a specific set of GMCEs have been skipped, so there is a gap in the registration
    */
   private void submitFailureEvent(GobblinMetadataException exception) {
-    log.warn(String.format("Sending GTE to indicate table flush failure for %s", exception.tableName));
+    log.warn(String.format("Sending GTE to indicate table flush failure for %s.%s", exception.dbName, exception.tableName));
 
-    GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(IcebergMCEMetadataKeys.ICEBERG_COMMIT_EVENT_NAME);
+    GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(IcebergMCEMetadataKeys.METADATA_WRITER_FAILURE_EVENT);
 
     gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATASET_HDFS_PATH, exception.datasetPath);
     gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_DB_NAME, exception.dbName);

@@ -20,6 +20,7 @@ package org.apache.gobblin.iceberg.writer;
 public class IcebergMCEMetadataKeys {
   public static final String METRICS_NAMESPACE_ICEBERG_WRITER = "IcebergWriter";
   public static final String ICEBERG_COMMIT_EVENT_NAME = "IcebergMetadataCommitEvent";
+  public static final String METADATA_WRITER_FAILURE_EVENT = "MetadataWriterFailureEvent";
   public static final String LAG_KEY_NAME = "endToEndLag";
   public static final String SNAPSHOT_KEY_NAME = "currentSnapshotId";
   public static final String MANIFEST_LOCATION = "currentManifestLocation";
