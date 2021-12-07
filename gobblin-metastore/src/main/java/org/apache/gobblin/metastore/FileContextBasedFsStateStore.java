@@ -20,6 +20,7 @@ package org.apache.gobblin.metastore;
 import java.io.IOException;
 import java.net.URI;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -27,6 +28,7 @@ import org.apache.hadoop.fs.UnsupportedFileSystemException;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.filesystem.FileContextFactory;
 
 
 /**
@@ -51,19 +53,19 @@ public class FileContextBasedFsStateStore<T extends State> extends FsStateStore<
   public FileContextBasedFsStateStore(String fsUri, String storeRootDir, Class stateClass)
       throws IOException {
     super(fsUri, storeRootDir, stateClass);
-    this.fc = FileContext.getFileContext(URI.create(fsUri));
+    this.fc = FileContextFactory.getInstance((URI.create(fsUri)), new Configuration());
   }
 
   public FileContextBasedFsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass)
       throws UnsupportedFileSystemException {
     super(fs, storeRootDir, stateClass);
-    this.fc = FileContext.getFileContext(this.fs.getUri());
+    this.fc = FileContextFactory.getInstance(this.fs.getUri(), new Configuration());
   }
 
   public FileContextBasedFsStateStore(String storeUrl, Class<T> stateClass)
       throws IOException {
     super(storeUrl, stateClass);
-    this.fc = FileContext.getFileContext(this.fs.getUri());
+    this.fc = FileContextFactory.getInstance(this.fs.getUri(), new Configuration());
   }
 
   /**
