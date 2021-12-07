@@ -29,13 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import lombok.AllArgsConstructor;
-import lombok.Setter;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
@@ -49,7 +45,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -59,9 +57,15 @@ import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.writer.MetadataWriter;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
@@ -84,6 +88,7 @@ import org.apache.gobblin.writer.DataWriterBuilder;
 @SuppressWarnings("UnstableApiUsage")
 @Slf4j
 public class GobblinMCEWriter implements DataWriter<GenericRecord> {
+  public static final String GOBBLIN_MCE_WRITER_METRIC_NAMESPACE = GobblinMCEWriter.class.getCanonicalName();
   public static final String DEFAULT_HIVE_REGISTRATION_POLICY_KEY = "default.hive.registration.policy";
   public static final String FORCE_HIVE_DATABASE_NAME = "force.hive.database.name";
   public static final String ACCEPTED_CLUSTER_NAMES = "accepted.cluster.names";
@@ -110,6 +115,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   protected final AtomicLong recordCount = new AtomicLong(0L);
   @Setter
   private int maxErrorDataset;
+  protected EventSubmitter eventSubmitter;
 
   @AllArgsConstructor
   static class TableStatus {
@@ -136,6 +142,8 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         FileSystem.get(HadoopUtils.getConfFromState(properties))));
     parallelRunnerTimeoutMills =
         state.getPropAsInt(METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS, DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS);
+    MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass());
+    eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
   }
 
   @Override
@@ -340,14 +348,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         }
       }
     }
-    if (!meetException && datasetErrorMap.containsKey(tableOperationTypeMap.get(tableString).datasetPath)
-        && datasetErrorMap.get(tableOperationTypeMap.get(tableString).datasetPath).containsKey(tableString)) {
+    String datasetPath = tableOperationTypeMap.get(tableString).datasetPath;
+    if (!meetException && datasetErrorMap.containsKey(datasetPath) && datasetErrorMap.get(datasetPath).containsKey(tableString)) {
       // We only want to emit GTE when the table watermark moves. There can be two scenario that watermark move, one is after one flush interval,
       // we commit new watermark to state store, anther is here, where during the flush interval, we flush table because table operation changes.
       // Under this condition, error map contains this dataset means we met error before this flush, but this time when flush succeed and
       // the watermark inside the table moves, so we want to emit GTE to indicate there is some data loss here
-      //todo: since we finish flush for this table once, need to emit GTE to indicate we miss data for this table
-      log.warn(String.format("Send GTE to indicate table flush failure for %s", tableString));
+      submitFailureEvent(datasetErrorMap.get(datasetPath).get(tableString));
+      this.datasetErrorMap.get(datasetPath).remove(tableString);
     }
   }
   /**
@@ -371,7 +379,13 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     }
     tableOperationTypeMap.clear();
     recordCount.lazySet(0L);
-    //todo: after flush, watermark will move forward, so emit error GTE here
+    // Emit events for all current errors, since the GMCE watermark will be advanced
+    for (Map.Entry<String, Map<String, GobblinMetadataException>> entry : datasetErrorMap.entrySet()) {
+      for (GobblinMetadataException exception : entry.getValue().values()) {
+        submitFailureEvent(exception);
+      }
+      entry.getValue().clear();
+    }
   }
 
   @Override
@@ -419,5 +433,23 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       tmpState.setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), gmce.getTableSchema());
     }
     return tmpState;
+  }
+
+  /**
+   * Submit event indicating that a specific set of GMCEs have been skipped, so there is a gap in the registration
+   */
+  private void submitFailureEvent(GobblinMetadataException exception) {
+    log.warn(String.format("Sending GTE to indicate table flush failure for %s", exception.tableName));
+
+    GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(IcebergMCEMetadataKeys.ICEBERG_COMMIT_EVENT_NAME);
+
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATASET_HDFS_PATH, exception.datasetPath);
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_DB_NAME, exception.dbName);
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_TABLE_NAME, exception.tableName);
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition);
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
+    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
+
+    eventSubmitter.submit(gobblinTrackingEvent);
   }
 }

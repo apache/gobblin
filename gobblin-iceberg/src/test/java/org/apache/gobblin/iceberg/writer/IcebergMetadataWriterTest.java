@@ -19,6 +19,7 @@ package org.apache.gobblin.iceberg.writer;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -61,6 +62,7 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
 import org.apache.gobblin.metadata.DataOrigin;
@@ -68,6 +70,8 @@ import org.apache.gobblin.metadata.DatasetIdentifier;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
@@ -104,6 +108,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   static File hourlyDataFile_2;
   static File hourlyDataFile_1;
   static File dailyDataFile;
+
+  List<GobblinEventBuilder> eventsSent = new ArrayList<>();
 
   @AfterClass
   public void clean() throws Exception {
@@ -165,6 +171,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     _avroPartitionSchema =
         SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
+
+    gobblinMCEWriter.eventSubmitter = Mockito.mock(EventSubmitter.class);
+    Mockito.doAnswer(invocation -> eventsSent.add(invocation.getArgumentAt(0, GobblinEventBuilder.class)))
+        .when(gobblinMCEWriter.eventSubmitter).submit(Mockito.any(GobblinEventBuilder.class));
   }
 
   private State getState() {
@@ -330,8 +340,12 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   public void testFaultTolerant() throws Exception {
     // Set fault tolerant dataset number to be 1
     gobblinMCEWriter.setMaxErrorDataset(1);
-    // Stop metaStore so write will fail
-    stopMetastore();
+
+    // Add a mock writer that always throws exception so that write will fail
+    MetadataWriter mockWriter = Mockito.mock(MetadataWriter.class);
+    Mockito.doThrow(new IOException("Test failure")).when(mockWriter).writeEnvelope(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    gobblinMCEWriter.metadataWriters.add(0, mockWriter);
+
     GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
         new KafkaStreamingExtractor.KafkaWatermark(
@@ -342,22 +356,36 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(52L))));
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().size(), 1);
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().values().iterator().next().size(), 1);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
         .get("hivedb.testIcebergTable").lowWatermark, 50L);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
         .get("hivedb.testIcebergTable").highWatermark, 52L);
+
+    // No events sent yet since the topic has not been flushed
+    Assert.assertEquals(eventsSent.size(), 0);
+
     //We should not see exception as we have fault tolerant
     gobblinMCEWriter.flush();
+
+    // Since this topic has been flushed, there should be an event sent for previous failure, and the table
+    // should be removed from the error map
+    Assert.assertEquals(eventsSent.size(), 1);
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.FAILURE_EVENT_TABLE_NAME), "testIcebergTable");
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK), "50");
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK), "52");
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().values().iterator().next().size(), 0);
+
     gmce.getDatasetIdentifier().setNativeName("data/tracking/testFaultTolerant");
     GenericRecord genericGmce_differentDb = GenericData.get().deepCopy(gmce.getSchema(), gmce);
     Assert.expectThrows(IOException.class, () -> gobblinMCEWriter.writeEnvelope((new RecordEnvelope<>(genericGmce_differentDb,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
-            new LongWatermark(53L))))));
-    // restart metastore to make sure followiing test runs well
-    startMetastore();
+            new LongWatermark(54L))))));
+
+    gobblinMCEWriter.metadataWriters.remove(0);
   }
 
   @Test(dependsOnMethods={"testChangeProperty"}, groups={"icebergMetadataWriterTest"})

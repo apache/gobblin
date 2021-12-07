@@ -31,6 +31,8 @@ public class IcebergMCEMetadataKeys {
   public static final String GMCE_HIGH_WATERMARK = "gmceHighWatermark";
   public static final String GMCE_LOW_WATERMARK = "gmceLowWatermark";
   public static final String DATASET_HDFS_PATH = "datasetHdfsPath";
+  public static final String FAILURE_EVENT_DB_NAME = "databaseName";
+  public static final String FAILURE_EVENT_TABLE_NAME = "tableName";
 
   private IcebergMCEMetadataKeys() {
   }
