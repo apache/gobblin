@@ -96,12 +96,13 @@ public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
           + " due to # of params limitation " + this.maxParamSize + " , # of columns: " + this.columnNames.size());
     }
     this.batchSize = actualBatchSize;
-
-    // Use separate insertion statement if replacements are allowed
     super.initializeBatch(databaseName, table);
   }
 
   @Override
+  /**
+   * Use separate insertion statement if data overwrites are allowed
+   */
   protected String createInsertStatementStr(String databaseName, String table) {
     return String.format(this.overwriteRecords ? REPLACE_STATEMENT_PREFIX_FORMAT : INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
   }
