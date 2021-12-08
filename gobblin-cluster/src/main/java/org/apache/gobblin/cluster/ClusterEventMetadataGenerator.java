@@ -18,7 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 

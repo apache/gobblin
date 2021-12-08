@@ -275,7 +275,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private static void modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
     int maxAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, 1);
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
-    if (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name()) && currentAttempts < maxAttempts) {
+    // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
+    if ((state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
+        || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())) && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
       state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
@@ -296,14 +298,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     mergedState.putAll(fallbackState.getProperties());
     mergedState.putAll(state.getProperties());
-    // Set CURRENT_ATTEMPTS_FIELD to right value to avoid continually retrying
-    if (fallbackState.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,0) > state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,0)) {
-      mergedState.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          fallbackState.getProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,"0"));
-      if (fallbackState.contains(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD)) {
-        mergedState.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, fallbackState.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD));
-      }
-    }
 
     return new org.apache.gobblin.configuration.State(mergedState);
   }

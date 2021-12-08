@@ -182,39 +182,6 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
     Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
   }
-
-  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
-  public void testOutOfOrderJobTimingEventsForRetryingJob() throws IOException {
-    long flowExecutionId = 1240L;
-    Properties properties = new Properties();
-    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "0");
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.FAILED.name(), 0, 0, properties);
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
-    JobStatus jobStatus = jobStatusIterator.next();
-    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
-      jobStatus = jobStatusIterator.next();
-    }
-    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.PENDING_RETRY.name());
-    Assert.assertEquals(jobStatus.isShouldRetry(), true);
-    properties = new Properties();
-    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "1");
-    properties.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, "false");
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, properties);
-    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
-    jobStatus = jobStatusIterator.next();
-    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
-      jobStatus = jobStatusIterator.next();
-    }
-    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.RUNNING.name());
-    Assert.assertEquals(jobStatus.isShouldRetry(), false);
-    Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
-    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
-  }
-
   @Test (dependsOnMethods = "testJobTiming")
   public void testGetJobStatusesForFlowExecution1() {
     long flowExecutionId = 1234L;

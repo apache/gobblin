@@ -913,6 +913,8 @@ public class DagManager extends AbstractIdleService {
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
       jobExecutionPlan.setExecutionStatus(RUNNING);
       JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
+      Map<String, Integer> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, dagNode.getValue().getCurrentAttempts());
+      jobSpec.setConfig(ConfigFactory.parseMap(configWithCurrentAttempts).withFallback(jobSpec.getConfig()));
       Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
 
       String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
