@@ -51,7 +51,11 @@ public class PostgresWriterCommands implements JdbcWriterCommands {
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
 
-  public PostgresWriterCommands(State state, Connection conn) {
+  public PostgresWriterCommands(State state, Connection conn, boolean overwriteRecords) throws IllegalArgumentException {
+    if (overwriteRecords) {
+      throw new IllegalArgumentException("Replace existing records is not supported in PostgresWriterCommands");
+    }
+
     this.conn = conn;
     this.jdbcBufferedWriter = new PostgresBufferedInserter(state, conn);
   }

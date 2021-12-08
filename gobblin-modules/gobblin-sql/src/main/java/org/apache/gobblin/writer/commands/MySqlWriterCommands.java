@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 import org.apache.gobblin.converter.jdbc.JdbcType;
@@ -53,12 +52,12 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
-  private final boolean replaceExistingValues;
+  private final boolean overwriteRecords;
 
-  public MySqlWriterCommands(State state, Connection conn) {
+  public MySqlWriterCommands(State state, Connection conn, boolean overwriteRecords) {
     this.conn = conn;
-    this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
-    this.replaceExistingValues = state.getPropAsBoolean(ConfigurationKeys.ALLOW_DATA_OVERWRITE);
+    this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn, overwriteRecords);
+    this.overwriteRecords = overwriteRecords;
   }
 
   @Override
@@ -150,12 +149,9 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   @Override
   public void copyTable(String databaseName, String from, String to) throws SQLException {
     // Chooses between INSERT and REPLACE logic based on the job configurations
-    String sql;
-    if (this.replaceExistingValues) {
-      sql = String.format(COPY_REPLACE_STATEMENT_FORMAT, databaseName, to, databaseName, from);
-    } else {
-      sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
-    }
+    String sql = String
+        .format(this.overwriteRecords ? COPY_REPLACE_STATEMENT_FORMAT : COPY_INSERT_STATEMENT_FORMAT, databaseName,
+            to, databaseName, from);
     execute(sql);
   }
 

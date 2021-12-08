@@ -62,7 +62,11 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
 
-  public TeradataWriterCommands(State state, Connection conn) {
+  public TeradataWriterCommands(State state, Connection conn, boolean overwriteRecords) throws IllegalArgumentException {
+    if (overwriteRecords) {
+      throw new IllegalArgumentException("Replace existing records is not supported in TeradataWriterCommands");
+    }
+
     this.conn = conn;
     this.jdbcBufferedWriter = new TeradataBufferedInserter(state, conn);
   }

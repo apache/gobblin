@@ -33,7 +33,7 @@ import lombok.ToString;
 /**
  * The implementation of JdbcBufferedInserter for MySQL.
  * This purpose of buffered insert is mainly for performance reason and the implementation is based on the
- * reference manual http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+ * reference manual https://dev.mysql.com/doc/refman/8.0/en/
  *
  * This class supports two types of insertions for MySQL 1) standard insertion - only supports records with unique
  * primary keys and fails on attempted insertion of a duplicate record 2) replace insertion - inserts new records as
@@ -51,9 +51,12 @@ public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
 
   private final int maxParamSize;
 
-  public MySqlBufferedInserter(State state, Connection conn) {
+  private final boolean overwriteRecords;
+
+  public MySqlBufferedInserter(State state, Connection conn, boolean overwriteRecords) {
     super(state, conn);
     this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE, DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
+    this.overwriteRecords = overwriteRecords;
   }
 
   @Override
@@ -95,24 +98,11 @@ public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
     this.batchSize = actualBatchSize;
 
     // Use separate insertion statement if replacements are allowed
-    if (this.replaceExistingValues) {
-        this.insertStmtPrefix = createReplaceStatementStr(databaseName, table);
-        this.insertPstmtForFixedBatch =
-            this.conn.prepareStatement(createPrepareStatementStr(this.batchSize));
-        LOG.info(String.format("Initialized for %s replace " + this, (this.batchSize > 1) ? "batch" : ""));
-      } else {
-      super.initializeBatch(databaseName, table);
-    }
+    super.initializeBatch(databaseName, table);
   }
 
-  /**
-   * Populates the placeholders and constructs the prefix of batch replace statement
-   * It works like INSERT other than overwriting records that have the same primary key or unique index
-   * @param databaseName name of the database
-   * @param table name of the table
-   * @return {@link #REPLACE_STATEMENT_PREFIX_FORMAT} with all its resolved placeholders
-   */
-  protected String createReplaceStatementStr(String databaseName, String table) {
-    return String.format(REPLACE_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
+  @Override
+  protected String createInsertStatementStr(String databaseName, String table) {
+    return String.format(this.overwriteRecords ? REPLACE_STATEMENT_PREFIX_FORMAT : INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
   }
 }

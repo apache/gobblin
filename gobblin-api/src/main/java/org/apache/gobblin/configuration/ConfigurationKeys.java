@@ -219,7 +219,7 @@ public class ConfigurationKeys {
   /**
    * Optional property to specify whether existing data in databases can be overwritten during ingestion jobs
    */
-  public static final String ALLOW_DATA_OVERWRITE = "allow.data.overwrite";
+  public static final String ALLOW_JDBC_RECORD_OVERWRITE = "allow.jdbc.record.overwrite";
 
   /**
    * Optional property to specify a default Authenticator class for a job

@@ -36,7 +36,6 @@ import com.google.common.collect.Lists;
 
 import lombok.ToString;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 import org.apache.gobblin.converter.jdbc.JdbcEntryDatum;
@@ -67,9 +66,6 @@ public abstract class BaseJdbcBufferedInserter implements JdbcBufferedInserter {
   protected PreparedStatement insertPstmtForFixedBatch;
   private final Retryer<Boolean> retryer;
 
-  // If this config is true, the inserter can insert duplicate primary records according to the specific language
-  protected final boolean replaceExistingValues;
-
   public BaseJdbcBufferedInserter(State state, Connection conn) {
     this.conn = conn;
     this.batchSize = state.getPropAsInt(WRITER_JDBC_INSERT_BATCH_SIZE, DEFAULT_WRITER_JDBC_INSERT_BATCH_SIZE);
@@ -85,8 +81,6 @@ public abstract class BaseJdbcBufferedInserter implements JdbcBufferedInserter {
     this.retryer = RetryerBuilder.<Boolean> newBuilder().retryIfException()
         .withWaitStrategy(WaitStrategies.exponentialWait(1000, maxWait, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)).build();
-
-    this.replaceExistingValues = state.getPropAsBoolean(ConfigurationKeys.ALLOW_DATA_OVERWRITE);
   }
 
   /**
