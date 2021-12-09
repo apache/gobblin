@@ -217,6 +217,11 @@ public class ConfigurationKeys {
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /**
+   * Optional property to specify whether existing data in databases can be overwritten during ingestion jobs
+   */
+  public static final String ALLOW_JDBC_RECORD_OVERWRITE = "allow.jdbc.record.overwrite";
+
+  /**
    * Optional property to specify a default Authenticator class for a job
    */
   public static final String DEFAULT_AUTHENTICATOR_CLASS = "job.default.authenticator.class";
