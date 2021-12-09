@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.writer.commands;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcType;
-import org.apache.gobblin.source.extractor.JobCommitPolicy;
-import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -34,6 +28,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcType;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
 
 /**
@@ -62,7 +62,7 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
 
-  public TeradataWriterCommands(State state, Connection conn, boolean overwriteRecords) throws IllegalArgumentException {
+  public TeradataWriterCommands(State state, Connection conn, boolean overwriteRecords) throws UnsupportedOperationException {
     if (overwriteRecords) {
       throw new IllegalArgumentException("Replace existing records is not supported in TeradataWriterCommands");
     }
