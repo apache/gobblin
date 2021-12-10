@@ -258,7 +258,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       int previousGeneration = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
       // This is to make the change backward compatible as we may not have this info in cluster events
-      // If we does not have those info, we think the event are coming from the same attempts as previous one
+      // If we does not have those info, we treat the event as coming from the same attempts as previous one
       int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
       int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
       int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
