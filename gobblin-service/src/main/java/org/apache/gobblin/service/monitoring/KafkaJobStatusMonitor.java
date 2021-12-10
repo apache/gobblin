@@ -257,17 +257,20 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       String previousStatus = previousJobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       int previousGeneration = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
-      int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
+      // This is to make the change backward compatible as we may not have this info in cluster events
+      // If we does not have those info, we think the event are coming from the same attempts as previous one
+      int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
       int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
-      int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
-      // We use three things to determine the order, generation means how many times job has been resumed, attempts means during this generation, how many times job has been retried
+      int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
+      // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
+      // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
       // And job status reflect the execution status in one attempt
       if (previousStatus != null && currentStatus != null &&
           (previousGeneration > currentGeneration
               || (previousGeneration == currentGeneration && previousAttempts > currentAttempts)
               || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
               && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus)) < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))))){
-        log.warn(String.format("Received status %s generation %s attempts %s when status is already %s generation %s attempts %s for flow (%s, %s, %s), job (%s, %s)",
+        log.warn(String.format("Received status [generation.attempts] = %s [%s.%s] when already %s [%s.%s] for flow (%s, %s, %s), job (%s, %s)",
             currentStatus, currentGeneration, currentAttempts, previousStatus, previousGeneration, previousAttempts, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
         jobStatus = mergeState(states.get(states.size() - 1), jobStatus);
       } else {
