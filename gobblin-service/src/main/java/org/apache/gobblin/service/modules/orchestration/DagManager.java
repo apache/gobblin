@@ -547,6 +547,7 @@ public class DagManager extends AbstractIdleService {
           node.getValue().setExecutionStatus(PENDING_RESUME);
           // reset currentAttempts because we do not want to count previous execution's attempts in deciding whether to retry a job
           node.getValue().setCurrentAttempts(0);
+          DagManagerUtils.incrementJobGeneration(node);
           Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), node.getValue());
           this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING_RESUME).stop(jobMetadata);
         }
@@ -913,8 +914,6 @@ public class DagManager extends AbstractIdleService {
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
       jobExecutionPlan.setExecutionStatus(RUNNING);
       JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
-      Map<String, Integer> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, dagNode.getValue().getCurrentAttempts());
-      jobSpec.setConfig(ConfigFactory.parseMap(configWithCurrentAttempts).withFallback(jobSpec.getConfig()));
       Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
 
       String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);

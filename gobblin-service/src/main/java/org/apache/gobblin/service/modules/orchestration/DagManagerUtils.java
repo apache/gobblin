@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.ConfigFactory;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -148,7 +150,12 @@ public class DagManagerUtils {
   }
 
   public static JobSpec getJobSpec(DagNode<JobExecutionPlan> dagNode) {
-    return dagNode.getValue().getJobSpec();
+    JobSpec jobSpec = dagNode.getValue().getJobSpec();
+    Map<String, Integer> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, dagNode.getValue().getCurrentAttempts(),
+        ConfigurationKeys.JOB_CURRENT_GENERATION, dagNode.getValue().getCurrentGeneration());
+    //Return new spec with new config to avoid change the reference to dagNode
+    return new JobSpec(jobSpec.getUri(), jobSpec.getVersion(), jobSpec.getDescription(), ConfigFactory.parseMap(configWithCurrentAttempts).withFallback(jobSpec.getConfig()),
+        jobSpec.getConfigAsProperties(), jobSpec.getTemplateURI(), jobSpec.getJobTemplate(), jobSpec.getMetadata());
   }
 
   static Config getJobConfig(DagNode<JobExecutionPlan> dagNode) {
@@ -234,6 +241,13 @@ public class DagManagerUtils {
    */
   static void incrementJobAttempt(DagNode<JobExecutionPlan> dagNode) {
     dagNode.getValue().setCurrentAttempts(dagNode.getValue().getCurrentAttempts() + 1);
+  }
+
+  /**
+   * Increment the value of {@link JobExecutionPlan#currentGeneration}
+   */
+  static void incrementJobGeneration(DagNode<JobExecutionPlan> dagNode) {
+    dagNode.getValue().setCurrentGeneration(dagNode.getValue().getCurrentGeneration() + 1);
   }
 
   /**

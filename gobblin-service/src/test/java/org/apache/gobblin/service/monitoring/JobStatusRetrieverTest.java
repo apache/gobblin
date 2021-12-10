@@ -99,6 +99,58 @@ public abstract class JobStatusRetrieverTest {
 
     KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
   }
+  @Test (dependsOnMethods = "testGetLatestExecutionIdsForFlow")
+  public void testOutOfOrderJobTimingEventsForRetryingJob() throws IOException {
+    long flowExecutionId = 1240L;
+    Properties properties = new Properties();
+    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "0");
+    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, "1");
+    properties.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, "false");
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, properties);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, properties);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.FAILED.name(), 0, 0, properties);
+    Iterator<JobStatus>
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    JobStatus jobStatus = jobStatusIterator.next();
+    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
+      jobStatus = jobStatusIterator.next();
+    }
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.PENDING_RETRY.name());
+    Assert.assertEquals(jobStatus.isShouldRetry(), true);
+    properties = new Properties();
+    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, "1");
+    properties.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "1");
+    properties.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, "false");
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, properties);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, properties);
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    jobStatus = jobStatusIterator.next();
+    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
+      jobStatus = jobStatusIterator.next();
+    }
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.RUNNING.name());
+    Assert.assertEquals(jobStatus.isShouldRetry(), false);
+    Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
+    Properties properties_new = new Properties();
+    properties_new.setProperty(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, "2");
+    properties_new.setProperty(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "0");
+    properties_new.setProperty(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, "false");
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING_RESUME.name(), JOB_START_TIME, JOB_START_TIME, properties_new);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME, properties);
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    jobStatus = jobStatusIterator.next();
+    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
+      jobStatus = jobStatusIterator.next();
+    }
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.PENDING_RESUME.name());
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME, properties_new);
+    jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
+    jobStatus = jobStatusIterator.next();
+    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
+      jobStatus = jobStatusIterator.next();
+    }
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+  }
 
   @Test
   public void testGetJobStatusesForFlowExecution() throws IOException {

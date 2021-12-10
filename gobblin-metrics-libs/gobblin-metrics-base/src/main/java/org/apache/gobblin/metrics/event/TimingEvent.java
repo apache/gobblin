@@ -89,6 +89,8 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String PROCESSED_COUNT_FIELD = "processedCount";
     public static final String MAX_ATTEMPTS_FIELD = "maxAttempts";
     public static final String CURRENT_ATTEMPTS_FIELD = "currentAttempts";
+    //This state should always move forward
+    public static final String CURRENT_GENERATION_FIELD = "currentGeneration";
     public static final String SHOULD_RETRY_FIELD = "shouldRetry";
   }
 
