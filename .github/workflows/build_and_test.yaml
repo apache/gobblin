@@ -124,6 +124,12 @@ jobs:
           echo -e "$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)\t$(hostname -f) $(hostname -s)" | sudo tee -a /etc/hosts
       - name: Verify mysql connection
         run: |
+            sudo apt-get -f install -o Dpkg::Options::="--force-overwrite"
+            sudo apt-get purge mysql\*
+            sudo rm -rf /var/lib/mysql
+            sudo rm -rf /etc/mysql
+            sudo dpkg -l | grep -i mysql
+            sudo apt-get clean
             sudo apt-get install -y mysql-client
             mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW DATABASES"
       - name: Cache Gradle Dependencies
