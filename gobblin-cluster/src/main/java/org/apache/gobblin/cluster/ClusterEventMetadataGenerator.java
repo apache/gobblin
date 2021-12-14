@@ -17,13 +17,13 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.EventMetadataUtils;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.TaskState;
@@ -43,17 +43,26 @@ public class ClusterEventMetadataGenerator implements EventMetadataGenerator{
     List<TaskState> taskStates = jobContext.getJobState().getTaskStates();
     String taskException = EventMetadataUtils.getTaskFailureExceptions(taskStates);
     String jobException = EventMetadataUtils.getJobFailureExceptions(jobContext.getJobState());
-
-    switch (eventName) {
-      case JOB_COMPLETE:
-        return ImmutableMap.of(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
-      case JOB_FAILED:
-        return ImmutableMap.of(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException);
-      default:
-        break;
+    ImmutableMap.Builder<String,String> metadataBuilder = ImmutableMap.builder();
+    if (jobContext.getJobState().contains(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD)) {
+        metadataBuilder.put(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD,
+            jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD));
+    }
+    if (jobContext.getJobState().contains(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD)) {
+        metadataBuilder.put(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD,
+            jobContext.getJobState().getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD));
     }
 
-    return ImmutableMap.of();
+    switch (eventName) {
+        case JOB_COMPLETE:
+            return metadataBuilder.put(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates))).build();
+        case JOB_FAILED:
+            return metadataBuilder.put(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException).build();
+        default:
+            break;
+    }
+
+    return metadataBuilder.build();
   }
 }
 
