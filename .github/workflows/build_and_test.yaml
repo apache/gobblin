@@ -130,7 +130,6 @@ jobs:
             sudo rm -rf /etc/mysql
             sudo dpkg -l | grep -i mysql
             sudo apt-get clean
-            sudo updatedb
             sudo apt-get install -y mysql-client
             mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW DATABASES"
       - name: Cache Gradle Dependencies
