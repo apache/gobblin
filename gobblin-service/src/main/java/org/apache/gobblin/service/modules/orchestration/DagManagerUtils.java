@@ -245,6 +245,8 @@ public class DagManagerUtils {
 
   /**
    * Increment the value of {@link JobExecutionPlan#currentGeneration}
+   * This method is not thread safe, we achieve correctness by making sure
+   * one dag will only be handled in the same DagManagerThread
    */
   static void incrementJobGeneration(DagNode<JobExecutionPlan> dagNode) {
     dagNode.getValue().setCurrentGeneration(dagNode.getValue().getCurrentGeneration() + 1);
