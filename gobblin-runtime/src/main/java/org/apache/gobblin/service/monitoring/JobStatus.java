@@ -55,6 +55,7 @@ public class JobStatus {
   private final String highWatermark;
   private final int maxAttempts;
   private final int currentAttempts;
+  private final int currentGeneration;
   private final boolean shouldRetry;
   private final Supplier<List<Issue>> issues;
   private final int progressPercentage;

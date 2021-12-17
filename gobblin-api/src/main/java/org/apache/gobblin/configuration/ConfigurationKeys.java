@@ -156,6 +156,8 @@ public class ConfigurationKeys {
   public static final String JOB_GROUP_KEY = "job.group";
   public static final String JOB_TAG_KEY = "job.tag";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
+  public static final String JOB_CURRENT_ATTEMPTS = "job.currentAttempts";
+  public static final String JOB_CURRENT_GENERATION = "job.currentGeneration";
   // Job launcher type
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";

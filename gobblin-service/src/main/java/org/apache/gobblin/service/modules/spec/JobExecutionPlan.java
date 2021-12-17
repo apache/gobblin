@@ -65,6 +65,7 @@ public class JobExecutionPlan {
   private final SpecExecutor specExecutor;
   private ExecutionStatus executionStatus = ExecutionStatus.PENDING;
   private final int maxAttempts;
+  private int currentGeneration = 1;
   private int currentAttempts = 0;
   private Optional<Future> jobFuture = Optional.absent();
   private long flowStartTime = 0L;
