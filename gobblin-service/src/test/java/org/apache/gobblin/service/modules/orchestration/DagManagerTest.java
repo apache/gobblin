@@ -74,6 +74,7 @@ public class DagManagerTest {
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
   private Set<String> failedDagIds;
+  private static long START_SLA_DEFAULT = 15 * 60 * 1000;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -90,7 +91,7 @@ public class DagManagerTest {
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, 5, new HashMap<>(), new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"), 15L * 60 * 1000);
+        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
