@@ -74,6 +74,7 @@ public class DagManagerTest {
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
   private Set<String> failedDagIds;
+  private static long START_SLA_DEFAULT = 15 * 60 * 1000;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -90,7 +91,7 @@ public class DagManagerTest {
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, 5, new HashMap<>(), new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"));
+        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -149,12 +150,15 @@ public class DagManagerTest {
   }
 
   static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
-    return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false);
+    return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false, flowExecutionId + 10);
   }
 
-  private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
+  private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
+    return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, shouldRetry, flowExecutionId + 10);
+  }
+  private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry, Long orchestratedTime) {
     return Iterators.singletonIterator(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
-        message("Test message").eventName(eventName).startTime(flowExecutionId + 10).shouldRetry(shouldRetry).build());
+        message("Test message").eventName(eventName).startTime(flowExecutionId + 10).shouldRetry(shouldRetry).orchestratedTime(orchestratedTime).build());
   }
 
   @Test
@@ -644,6 +648,72 @@ public class DagManagerTest {
     Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertFalse(this.dags.containsKey(dagId));
   }
+
+  @Test (dependsOnMethods = "testResumeCancelledDag")
+  public void testJobStartSLAKilledDag() throws URISyntaxException, IOException {
+    long flowExecutionId = System.currentTimeMillis();
+    String flowGroupId = "0";
+    String flowGroup = "group" + flowGroupId;
+    String flowName = "flow" + flowGroupId;
+    String jobName0 = "job0";
+    String flowGroupId1 = "1";
+    String flowGroup1 = "group" + flowGroupId1;
+    String flowName1 = "flow" + flowGroupId1;
+
+    Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", false);
+    Dag<JobExecutionPlan> dag1 = buildDag(flowGroupId1, flowExecutionId+1, "FINISH_RUNNING", false);
+
+    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId1 = DagManagerUtils.generateDagId(dag1);
+
+
+    //Add a dag to the queue of dags
+    this.queue.offer(dag);
+    // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.ORCHESTRATED),
+            false, flowExecutionId - 16 * 60 * 1000);
+    // This is for the second Dag that does not match the SLA so should schedule normally
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.ORCHESTRATED),
+            false, flowExecutionId - 10 * 60 * 1000);
+    // Let the first job get reported as cancel due to SLA kill on start and clean up
+    Iterator<JobStatus> jobStatusIterator3 =
+        getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.CANCELLED),
+            false, flowExecutionId - 16 * 60 * 1000);
+    // Cleanup the running job that is scheduled normally
+    Iterator<JobStatus> jobStatusIterator4 =
+        getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.COMPLETE));
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
+        thenReturn(jobStatusIterator1).
+        thenReturn(jobStatusIterator2).
+        thenReturn(jobStatusIterator3).
+        thenReturn(jobStatusIterator4);
+
+    // Run the thread once. Ensure the first job is running
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    // Job should be marked as failed
+    Assert.assertTrue(this.failedDagIds.contains(dagId));
+
+    // Next job should succeed as it doesn't exceed SLA
+    this.queue.offer(dag1);
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 1);
+    Assert.assertEquals(this.jobToDag.size(), 1);
+    Assert.assertEquals(this.dagToJobs.size(), 1);
+    Assert.assertTrue(this.dags.containsKey(dagId1));
+
+    // Cleanup
+    this._dagManagerThread.run();
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    Assert.assertEquals(this.jobToDag.size(), 0);
+    Assert.assertEquals(this.dagToJobs.size(), 0);
+  }
+
 
   @AfterClass
   public void cleanUp() throws Exception {
