@@ -610,9 +610,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "")));
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "")));
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
           "false"));
     }
