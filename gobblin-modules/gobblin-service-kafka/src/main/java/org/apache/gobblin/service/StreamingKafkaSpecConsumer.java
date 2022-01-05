@@ -121,6 +121,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
         // if there are more elements then pass them along in this call
         specPair = _jobSpecQueue.poll();
+        // comparing numSpecFetched to _jobSpecQueueSize to make sure the loop will not run infinitely even in peek time
       } while (specPair != null && numSpecFetched < _jobSpecQueueSize);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
