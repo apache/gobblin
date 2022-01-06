@@ -20,6 +20,7 @@ package org.apache.gobblin.iceberg.writer;
 public class IcebergMCEMetadataKeys {
   public static final String METRICS_NAMESPACE_ICEBERG_WRITER = "IcebergWriter";
   public static final String ICEBERG_COMMIT_EVENT_NAME = "IcebergMetadataCommitEvent";
+  public static final String METADATA_WRITER_FAILURE_EVENT = "MetadataWriterFailureEvent";
   public static final String LAG_KEY_NAME = "endToEndLag";
   public static final String SNAPSHOT_KEY_NAME = "currentSnapshotId";
   public static final String MANIFEST_LOCATION = "currentManifestLocation";
@@ -31,6 +32,8 @@ public class IcebergMCEMetadataKeys {
   public static final String GMCE_HIGH_WATERMARK = "gmceHighWatermark";
   public static final String GMCE_LOW_WATERMARK = "gmceLowWatermark";
   public static final String DATASET_HDFS_PATH = "datasetHdfsPath";
+  public static final String FAILURE_EVENT_DB_NAME = "databaseName";
+  public static final String FAILURE_EVENT_TABLE_NAME = "tableName";
 
   private IcebergMCEMetadataKeys() {
   }
