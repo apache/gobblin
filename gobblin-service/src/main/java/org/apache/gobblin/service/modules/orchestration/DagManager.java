@@ -52,6 +52,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigException;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -524,7 +525,7 @@ public class DagManager extends AbstractIdleService {
         cleanUp();
         log.debug("Clean up done");
       } catch (Exception e) {
-        log.error("Exception encountered in {}", getClass().getName(), e);
+        log.error(String.format("Exception encountered in %s", getClass().getName()), e);
       }
     }
 
@@ -829,7 +830,15 @@ public class DagManager extends AbstractIdleService {
       if (dagToSLA.containsKey(dagId)) {
         flowSla = dagToSLA.get(dagId);
       } else {
-        flowSla = DagManagerUtils.getFlowSLA(node);
+        try {
+          flowSla = DagManagerUtils.getFlowSLA(node);
+        } catch (ConfigException e) {
+          log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
+              node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
+              node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
+              DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+          flowSla = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
+        }
         dagToSLA.put(dagId, flowSla);
       }
 
