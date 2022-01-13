@@ -276,7 +276,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       Table table) throws TException, IOException{
     try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
-        if(!existsTable(dbName, tableName)) {
+        if(!existsTable(dbName, tableName, client)) {
           try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
             client.createTable(getTableWithCreateTimeNow(table));
             log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
@@ -472,35 +472,30 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   private void createOrAlterTable(IMetaStoreClient client, Table table, HiveSpec spec) throws TException, IOException {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
-    boolean tableExistenceInCache;
-    if (this.optimizedChecks) {
-      try {
-        this.tableAndDbExistenceCache.get(dbName + ":" + tableName, new Callable<Boolean>() {
-          @Override
-          public Boolean call() throws Exception {
-            return ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table);
-          }
-        });
-      } catch (ExecutionException ee) {
-        throw new IOException("Table existence checking throwing execution exception.", ee);
-      }
-    } else {
-      this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table);
-    }
+    this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table);
     alterTableIfNeeded(tableName, dbName, client, table, spec);
+  }
+
+  public boolean existsTable(String dbName, String tableName, IMetaStoreClient client) throws IOException {
+    if (this.optimizedChecks && this.tableAndDbExistenceCache.getIfPresent(dbName + ":" + tableName ) != null ) {
+      return true;
+    }
+    try {
+      boolean exists;
+      try (Timer.Context context = this.metricContext.timer(TABLE_EXISTS).time()) {
+        exists =  client.tableExists(dbName, tableName);
+      }
+      this.tableAndDbExistenceCache.put(dbName + ":" + tableName, exists);
+      return exists;
+    } catch (TException e) {
+      throw new IOException(String.format("Unable to check existence of table %s in db %s", tableName, dbName), e);
+    }
   }
 
   @Override
   public boolean existsTable(String dbName, String tableName) throws IOException {
-    if (this.optimizedChecks && this.tableAndDbExistenceCache.getIfPresent(dbName + ":" + tableName ) != null ) {
-      return true;
-    }
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
-      try (Timer.Context context = this.metricContext.timer(TABLE_EXISTS).time()) {
-        return client.get().tableExists(dbName, tableName);
-      }
-    } catch (TException e) {
-      throw new IOException(String.format("Unable to check existence of table %s in db %s", tableName, dbName), e);
+      return existsTable(dbName, tableName, client.get());
     }
   }
 
