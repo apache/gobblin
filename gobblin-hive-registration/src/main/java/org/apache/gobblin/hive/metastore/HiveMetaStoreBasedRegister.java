@@ -276,14 +276,16 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       Table table) throws TException, IOException{
     try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
-        if(!existsTable(dbName, tableName, client)) {
+        if (!existsTable(dbName, tableName, client)) {
           try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
             client.createTable(getTableWithCreateTimeNow(table));
             log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
             return true;
           }
         }
-      }catch (TException e) {
+      } catch (AlreadyExistsException ignore) {
+        // Table already exists, continue
+      } catch (TException e) {
         log.error(
             String.format("Unable to create Hive table %s in db %s: " + e.getMessage(), tableName, dbName), e);
         throw e;
