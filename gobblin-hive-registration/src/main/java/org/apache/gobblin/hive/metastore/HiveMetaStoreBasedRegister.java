@@ -479,7 +479,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   }
 
   public boolean existsTable(String dbName, String tableName, IMetaStoreClient client) throws IOException {
-    if (this.optimizedChecks && this.tableAndDbExistenceCache.getIfPresent(dbName + ":" + tableName ) != null ) {
+    Boolean tableExits = this.tableAndDbExistenceCache.getIfPresent(dbName + ":" + tableName );
+    if (this.optimizedChecks && tableExits != null && tableExits) {
       return true;
     }
     try {
