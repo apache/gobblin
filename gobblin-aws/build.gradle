@@ -58,7 +58,9 @@ dependencies {
   compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
-  compile externalDependency.helix
+  compile (externalDependency.helix) {
+    exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
+  }
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
