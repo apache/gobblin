@@ -753,10 +753,9 @@ public class DagManager extends AbstractIdleService {
             submitJob(node);
           }
         } catch (Exception e) {
-            // Error occurred while processing dag, leave dag for next thread execution to process
-            log.error(String.format("Exception caught in DagManager while processing dag for flowGroup %s flowName %s due to ",
-                node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
-                node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY)), e);
+            // Error occurred while processing dag, continue processing other dags assigned to this thread
+            log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
+                DagManagerUtils.getFullyQualifiedDagName(node)), e);
           }
       }
 
