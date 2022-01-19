@@ -23,15 +23,16 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.gobblin.metrics.context.ContextWeakReference;
@@ -63,13 +64,13 @@ public class RootMetricContext extends MetricContext {
 
   private RootMetricContext(List<Tag<?>> tags) throws NameConflictException {
     super(ROOT_METRIC_CONTEXT, null, tags, true);
-    this.innerMetricContexts = Sets.newConcurrentHashSet();
+    this.innerMetricContexts = Collections.newSetFromMap(new ConcurrentHashMap<>());
     this.referenceQueue = new ReferenceQueue<>();
     this.referenceQueueExecutorService = ExecutorsUtils.loggingDecorator(MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1,
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinMetrics-ReferenceQueue")))));
     this.referenceQueueExecutorService.scheduleWithFixedDelay(new CheckReferenceQueue(), 0, 2, TimeUnit.SECONDS);
 
-    this.reporters = Sets.newConcurrentHashSet();
+    this.reporters = Collections.newSetFromMap(new ConcurrentHashMap<>());
     this.reportingStarted = false;
 
     addShutdownHook();

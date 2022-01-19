@@ -22,12 +22,14 @@ import lombok.Getter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,7 +57,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+//import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -117,7 +119,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
       throw Throwables.propagate(ee);
     }
 
-    this.contextAwareMetricsSet = Sets.newConcurrentHashSet();
+    this.contextAwareMetricsSet = Collections.newSetFromMap(new ConcurrentHashMap<>()); //Sets.newConcurrentHashSet();
 
     this.notificationTargets = Maps.newConcurrentMap();
     this.executorServiceOptional = Optional.absent();
