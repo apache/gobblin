@@ -709,48 +709,54 @@ public class DagManager extends AbstractIdleService {
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
       for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
-        boolean slaKilled = slaKillIfNeeded(node);
+        try {
+          boolean slaKilled = slaKillIfNeeded(node);
 
-        JobStatus jobStatus = pollJobStatus(node);
+          JobStatus jobStatus = pollJobStatus(node);
 
-        boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
+          boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
 
-        ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
+          ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
 
-        JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
+          JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
-        switch (status) {
-          case COMPLETE:
-            jobExecutionPlan.setExecutionStatus(COMPLETE);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case FAILED:
-            jobExecutionPlan.setExecutionStatus(FAILED);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case CANCELLED:
-            jobExecutionPlan.setExecutionStatus(CANCELLED);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case PENDING:
-            jobExecutionPlan.setExecutionStatus(PENDING);
-            break;
-          case PENDING_RETRY:
-            jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
-            break;
-          default:
-            jobExecutionPlan.setExecutionStatus(RUNNING);
-            break;
-        }
+          switch (status) {
+            case COMPLETE:
+              jobExecutionPlan.setExecutionStatus(COMPLETE);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case FAILED:
+              jobExecutionPlan.setExecutionStatus(FAILED);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case CANCELLED:
+              jobExecutionPlan.setExecutionStatus(CANCELLED);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case PENDING:
+              jobExecutionPlan.setExecutionStatus(PENDING);
+              break;
+            case PENDING_RETRY:
+              jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
+              break;
+            default:
+              jobExecutionPlan.setExecutionStatus(RUNNING);
+              break;
+          }
 
-        if (jobStatus != null && jobStatus.isShouldRetry()) {
-          log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
-              jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
-          submitJob(node);
-        }
+          if (jobStatus != null && jobStatus.isShouldRetry()) {
+            log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
+                jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+            submitJob(node);
+          }
+        } catch (Exception e) {
+            // Error occurred while processing dag, continue processing other dags assigned to this thread
+            log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
+                DagManagerUtils.getFullyQualifiedDagName(node)), e);
+          }
       }
 
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
