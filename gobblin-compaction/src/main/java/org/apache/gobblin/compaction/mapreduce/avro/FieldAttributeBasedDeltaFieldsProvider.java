@@ -79,7 +79,7 @@ public class FieldAttributeBasedDeltaFieldsProvider implements AvroDeltaFieldNam
   private List<String> getDeltaFieldNamesForNewSchema(Schema originalSchema) {
     List<String> deltaFields = new ArrayList<>();
     for (Field field : originalSchema.getFields()) {
-      String deltaAttributeField = field.getJsonProp(this.attributeField).getValueAsText();
+      String deltaAttributeField = field.getProp(this.attributeField);
       ObjectNode objectNode = getDeltaPropValue(deltaAttributeField);
       if (objectNode == null || objectNode.get(this.deltaPropName) == null) {
         continue;

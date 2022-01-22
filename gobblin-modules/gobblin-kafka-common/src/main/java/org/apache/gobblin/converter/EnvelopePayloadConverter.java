@@ -70,7 +70,7 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       return createLatestPayloadField(field);
     }
     // Make a copy of the field to the output schema
-    return new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+    return new Field(field.name(), field.schema(), field.doc(), field.defaultVal(), field.order());
   }
 
   /**
@@ -83,7 +83,7 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       throws SchemaConversionException {
     try {
       Schema payloadSchema = fetchLatestPayloadSchema();
-      return new Field(field.name(), payloadSchema, DECORATED_PAYLOAD_DOC, field.defaultValue(), field.order());
+      return new Field(field.name(), payloadSchema, DECORATED_PAYLOAD_DOC, field.defaultVal(), field.order());
     } catch (Exception e) {
       throw new SchemaConversionException(e);
     }

@@ -31,7 +31,7 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.common.base.Splitter;
 import com.google.gson.JsonArray;
 
-import avro.shaded.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;

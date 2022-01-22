@@ -101,8 +101,17 @@ public class AvroOrcSchemaConverter {
    */
   private static TypeDescription getTypeDescriptionForBinarySchema(Schema avroSchema) {
     if ("decimal".equalsIgnoreCase(avroSchema.getProp("logicalType"))) {
-      int scale = avroSchema.getJsonProp("scale").asInt(0);
-      int precision = avroSchema.getJsonProp("precision").asInt();
+      int scale, precision;
+      try {
+        scale = (Integer) avroSchema.getObjectProp("scale");
+      } catch (ClassCastException e) {
+        scale = 0;
+      }
+      try {
+        precision = (Integer) avroSchema.getObjectProp("precision");
+      } catch (ClassCastException e) {
+        precision = 0;
+      }
 
       return TypeDescription.createDecimal().withScale(scale).withPrecision(precision);
     }

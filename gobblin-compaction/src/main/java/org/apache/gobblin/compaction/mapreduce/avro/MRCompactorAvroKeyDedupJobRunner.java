@@ -198,7 +198,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = getKeySchema(field);
       if (newFieldSchema.isPresent()) {
-        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultVal()));
       }
     }
     if (!fields.isEmpty()) {

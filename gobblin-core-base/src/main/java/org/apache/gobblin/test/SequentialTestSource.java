@@ -29,7 +29,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import avro.shaded.com.google.common.base.Throwables;
+import com.google.common.base.Throwables;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.SourceState;
