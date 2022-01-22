@@ -36,11 +36,17 @@ public class MetricNameRegexFilterTest {
     MetricNameRegexFilter metricNameRegexFilter1 = new MetricNameRegexFilter(".*");
     Assert.assertTrue(metricNameRegexFilter1.matches("test1", mock(Metric.class)));
     Assert.assertTrue(metricNameRegexFilter1.matches("test2", mock(Metric.class)));
-    Assert.assertTrue(metricNameRegexFilter1.matches("test3", mock(Metric.class)));
+    Assert.assertTrue(metricNameRegexFilter1.matches("test3", mock(Metric.class)));;
 
     MetricNameRegexFilter metricNameRegexFilter2 = new MetricNameRegexFilter("test1");
     Assert.assertTrue(metricNameRegexFilter2.matches("test1", mock(Metric.class)));
     Assert.assertFalse(metricNameRegexFilter2.matches("test2", mock(Metric.class)));
     Assert.assertFalse(metricNameRegexFilter2.matches("test3", mock(Metric.class)));
+    MetricNameRegexFilter metricNameRegexFilter3 = new MetricNameRegexFilter("GobblinService\\..*\\.RunningStatus");
+    Assert.assertTrue(metricNameRegexFilter3.matches("GobblinService.testGroup.testFlow.RunningStatus", mock(Metric.class)));
+    Assert.assertTrue(metricNameRegexFilter3.matches("GobblinService.test..RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexFilter3.matches("test3.RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexFilter3.matches("GobblinService.test4RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexFilter3.matches("GobblinServicetest5.RunningStatus", mock(Metric.class)));
   }
 }

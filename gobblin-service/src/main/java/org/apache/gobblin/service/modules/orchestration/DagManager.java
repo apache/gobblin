@@ -70,6 +70,7 @@ import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -399,6 +400,7 @@ public class DagManager extends AbstractIdleService {
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         this.scheduledExecutorPool.shutdown();
+        RootMetricContext.get().removeMatching(new MetricNameRegexFilter(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + "\\..*\\." + ServiceMetricNames.RUNNING_STATUS));
         try {
           this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
