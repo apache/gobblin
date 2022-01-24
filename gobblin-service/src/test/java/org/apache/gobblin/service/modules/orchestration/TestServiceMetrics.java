@@ -15,32 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.metric.filter;
-
-import static org.mockito.Mockito.mock;
+package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Metric;
-
+import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.mockito.Mockito.*;
 
-/**
- * Tests for {@link MetricNameRegexFilter}.
- */
 @Test
-public class MetricNameRegexFilterTest {
-
+public class TestServiceMetrics {
   @Test
   public void matchesTest() {
-    MetricNameRegexFilter metricNameRegexFilter1 = new MetricNameRegexFilter(".*");
-    Assert.assertTrue(metricNameRegexFilter1.matches("test1", mock(Metric.class)));
-    Assert.assertTrue(metricNameRegexFilter1.matches("test2", mock(Metric.class)));
-    Assert.assertTrue(metricNameRegexFilter1.matches("test3", mock(Metric.class)));
 
-    MetricNameRegexFilter metricNameRegexFilter2 = new MetricNameRegexFilter("test1");
-    Assert.assertTrue(metricNameRegexFilter2.matches("test1", mock(Metric.class)));
-    Assert.assertFalse(metricNameRegexFilter2.matches("test2", mock(Metric.class)));
-    Assert.assertFalse(metricNameRegexFilter2.matches("test3", mock(Metric.class)));
+    MetricNameRegexFilter metricNameRegexForDagManager = DagManager.getMetricsFilterForDagManager();
+    Assert.assertTrue(metricNameRegexForDagManager.matches("GobblinService.testGroup.testFlow.RunningStatus", mock(Metric.class)));
+    Assert.assertTrue(metricNameRegexForDagManager.matches("GobblinService.test..RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexForDagManager.matches("test3.RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexForDagManager.matches("GobblinService.test4RunningStatus", mock(Metric.class)));
+    Assert.assertFalse(metricNameRegexForDagManager.matches("GobblinServicetest5.RunningStatus", mock(Metric.class)));
   }
 }
