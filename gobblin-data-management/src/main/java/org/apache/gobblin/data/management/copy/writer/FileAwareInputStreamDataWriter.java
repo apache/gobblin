@@ -486,14 +486,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       }
 
       if (ownerAndPermission.getFsPermission() != null) {
-        log.debug("Applying permissions %s to path %s.", ownerAndPermission.getFsPermission(), path);
+        log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
       }
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       if (group != null || owner != null) {
-        log.debug("Applying owner %s and group %s to path %s.", owner, group, path);
+        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
         fs.setOwner(path, owner, group);
       }
     } else {

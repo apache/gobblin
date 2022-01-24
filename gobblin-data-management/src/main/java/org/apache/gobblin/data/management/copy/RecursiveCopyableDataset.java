@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -36,11 +37,13 @@ import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.SetPermissionCommitStep;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 
@@ -58,6 +61,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   public static final String DELETE_KEY = CONFIG_PREFIX + ".delete";
   /** If true, will delete newly empty directories up to the dataset root. */
   public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIG_PREFIX + ".deleteEmptyDirectories";
+  /** If true, will use our new logic to preserve permissions, owner, and group of ancestors. */
+  public static final String USE_NEW_PRESERVE_LOGIC_KEY = CONFIG_PREFIX + ".useNewPreserveLogic";
 
   private final Path rootPath;
   private final FileSystem fs;
@@ -74,6 +79,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   private final boolean deleteEmptyDirectories;
   //Apply filter to directories
   private final boolean applyFilterToDirectories;
+  // Use new preserve logic which recurses down and walks the parent links up for preservation of permissions, user, and group.
+  private final boolean useNewPreserveLogic;
 
   private final Properties properties;
 
@@ -93,6 +100,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
         Boolean.parseBoolean(properties.getProperty(CopyConfiguration.INCLUDE_EMPTY_DIRECTORIES));
     this.applyFilterToDirectories =
         Boolean.parseBoolean(properties.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
+    this.useNewPreserveLogic = Boolean.parseBoolean(properties.getProperty(USE_NEW_PRESERVE_LOGIC_KEY));
     this.properties = properties;
   }
 
@@ -133,10 +141,21 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
+    // map of paths and permissions sorted by depth of path, so that permissions can be set in order
+    Map<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
+        (o1, o2) -> Long.compare(o2.chars().filter(ch -> ch == '/').count(), o1.chars().filter(ch -> ch == '/').count()));
+
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), replacedPrefix);
       Path thisTargetPath = new Path(replacingPrefix, filePathRelativeToSearchPath);
+
+      if (this.useNewPreserveLogic) {
+        ancestorOwnerAndPermissions.putAll(CopyableFile
+            .resolveReplicatedAncestorOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
+                replacedPrefix, configuration));
+      }
+
       CopyableFile copyableFile =
               CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
                       .fileSet(datasetURN())
@@ -153,8 +172,16 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     if (!toDelete.isEmpty()) {
       CommitStep step = new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
               this.deleteEmptyDirectories ? Optional.of(deleteEmptyDirectoriesUpTo) : Optional.<Path>absent());
-      copyEntities.add(new PrePublishStep(datasetURN(), Maps.<String, String>newHashMap(), step, 1));
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
     }
+
+    if (this.useNewPreserveLogic) {
+      Properties props = new Properties();
+      props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
+      CommitStep step = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
+      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), step, 1));
+    }
+
     return copyEntities;
   }
 
