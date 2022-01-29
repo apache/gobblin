@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -361,6 +362,7 @@ public class CopyableFile extends CopyEntity implements File {
 
   public static Map<String, OwnerAndPermission> resolveReplicatedAncestorOwnerAndPermissionsRecursively(FileSystem sourceFs, Path fromPath,
       Path toPath, CopyConfiguration copyConfiguration) throws IOException {
+    Preconditions.checkArgument(sourceFs.getFileStatus(fromPath).isDirectory(), "Source path must be a directory.");
 
     Map<String, OwnerAndPermission> ownerAndPermissions = Maps.newHashMap();
 
@@ -376,7 +378,6 @@ public class CopyableFile extends CopyEntity implements File {
       ownerAndPermissions.put(PathUtils.getPathWithoutSchemeAndAuthority(currentOriginPath).toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentOriginPath, copyConfiguration));
       currentOriginPath = currentOriginPath.getParent();
     }
-    // Now currentTargetPath and currentOriginPath are the same path.
 
     // Walk through the parents and preserve the permissions from Origin -> Target as we go in lockstep.
     while (currentOriginPath != null && currentTargetPath != null

@@ -66,6 +66,7 @@ public class SetPermissionCommitStep implements CommitStep {
       try {
         log.info("Setting permission {} on path {}", entry.getValue().getFsPermission(), path);
         fs.setPermission(path, entry.getValue().getFsPermission());
+        // TODO : we can also set owner and group here.
       } catch (AccessControlException e) {
         log.warn("Error while setting permission on " + path, e);
         if (this.stopOnError) {
