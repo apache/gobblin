@@ -194,9 +194,10 @@ public class HivePartitionFileSet extends HiveFileSet {
     }
   }
 
-  private static void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
+  private void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
       throws IOException {
-    if (!desiredTargetPartition.getDataLocation().equals(existingTargetPartition.getDataLocation())) {
+    if (!hiveCopyEntityHelper.getTargetFs().resolvePath(desiredTargetPartition.getDataLocation())
+        .equals(hiveCopyEntityHelper.getTargetFs().resolvePath(existingTargetPartition.getDataLocation()))) {
       throw new IOException(
           String.format("Desired target location %s and already registered target location %s do not agree.",
               desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation()));

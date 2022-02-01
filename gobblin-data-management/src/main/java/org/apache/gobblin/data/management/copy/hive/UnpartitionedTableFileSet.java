@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -64,11 +65,21 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
 
     Optional<Table> existingTargetTable = this.helper.getExistingTargetTable();
     if (existingTargetTable.isPresent()) {
-      if (!this.helper.getTargetTable().getDataLocation().equals(existingTargetTable.get().getDataLocation())) {
+      boolean path_mismatch = false;
+      try {
+        if (!this.helper.getTargetFs().resolvePath(this.helper.getTargetTable().getDataLocation())
+            .equals(this.helper.getTargetFs().resolvePath(existingTargetTable.get().getDataLocation()))) {
+          path_mismatch = true;
+        }
+      } catch (FileNotFoundException e) {
+        // If desired path does not exist, then user is defining a different snapshot path so check policy
+        path_mismatch = true;
+      }
+      if (path_mismatch) {
         switch (this.helper.getExistingEntityPolicy()){
           case UPDATE_TABLE:
             // Update the location of files while keep the existing table entity.
-            log.warn("Source table will not be deregistered while file locaiton has been changed, update source table's"
+            log.warn("Source table will not be deregistered while file location has been changed, update source table's"
                 + " file location to" + this.helper.getTargetTable().getDataLocation());
             existingTargetTable = Optional.absent();
             break ;
