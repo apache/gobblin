@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
@@ -411,7 +412,8 @@ public class AvroFlattener {
             }
           }
         }
-        Schema.Field field = new Schema.Field(flattenName, flattenedFieldSchema, f.doc(), f.defaultValue(), f.order());
+        Schema.Field field = AvroCompatibilityHelper.createSchemaField(flattenName, flattenedFieldSchema, f.doc(),
+            AvroUtils.getCompatibleDefaultValue(f), f.order());
 
         if (StringUtils.isNotBlank(flattenSource)) {
           field.addProp(FLATTENED_SOURCE_KEY, flattenSource);

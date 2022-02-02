@@ -13,8 +13,8 @@
             "isNullable": true,
             "dataType": {
               "type": [
-                "int",
-                "null"
+                "null",
+                "int"
               ]
             }
           },
@@ -263,12 +263,12 @@
               "name": "id",
               "type": [
                 {
-                  "type": "int",
-                  "source.type": "int"
-                },
-                {
                   "type": "null",
                   "source.type": "null"
+                },
+                {
+                  "type": "int",
+                  "source.type": "int"
                 }
               ],
               "doc": "System-assigned numeric user ID. Cannot be changed by the user.",
