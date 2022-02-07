@@ -99,7 +99,7 @@ public class HivePartitionFileSet extends HiveFileSet {
               hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE_AND_PARTITIONS) {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                 ioe);
-            return Lists.newArrayList();
+            throw ioe;
           }
           log.warn("Source and target partitions are not compatible. Will override target partition: " + ioe.getMessage());
           log.debug("Incompatibility details: ", ioe);
@@ -196,11 +196,9 @@ public class HivePartitionFileSet extends HiveFileSet {
 
   private void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
       throws IOException {
-    if (!hiveCopyEntityHelper.getTargetFs().resolvePath(desiredTargetPartition.getDataLocation())
-        .equals(hiveCopyEntityHelper.getTargetFs().resolvePath(existingTargetPartition.getDataLocation()))) {
-      throw new IOException(
-          String.format("Desired target location %s and already registered target location %s do not agree.",
-              desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation()));
+    if (!HiveUtils.areTablePathsEquivalent(hiveCopyEntityHelper.getTargetFs(), desiredTargetPartition.getDataLocation(),
+        existingTargetPartition.getDataLocation())) {
+      throw new HiveTableLocationNotMatchException(desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation());
     }
   }
 }

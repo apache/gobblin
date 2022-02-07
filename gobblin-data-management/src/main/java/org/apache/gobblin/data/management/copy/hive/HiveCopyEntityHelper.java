@@ -751,13 +751,8 @@ public class HiveCopyEntityHelper {
 
   private void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable)
       throws IOException {
-    try {
-      if (!this.targetFs.resolvePath(desiredTargetTable.getDataLocation())
-          .equals(this.targetFs.resolvePath(existingTargetTable.getDataLocation()))) {
-        throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation());
-      }
-    } catch (FileNotFoundException e) {
-      // Since existing table must exist for this check to be run, then location must have been changed to a non-existent path
+
+    if (HiveUtils.areTablePathsEquivalent(this.targetFs, desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation())) {
       throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation());
     }
 
