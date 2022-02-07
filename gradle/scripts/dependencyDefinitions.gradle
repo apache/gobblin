@@ -110,6 +110,7 @@ ext.externalDependency = [
     "metricsCore": "io.dropwizard.metrics:metrics-core:" + dropwizardMetricsVersion,
     "metricsJvm": "io.dropwizard.metrics:metrics-jvm:" + dropwizardMetricsVersion,
     "metricsGraphite": "io.dropwizard.metrics:metrics-graphite:" + dropwizardMetricsVersion,
+    "metricsJmx": "io.dropwizard.metrics:metrics-jmx:" + dropwizardMetricsVersion,
     "jsch": "com.jcraft:jsch:0.1.54",
     "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",

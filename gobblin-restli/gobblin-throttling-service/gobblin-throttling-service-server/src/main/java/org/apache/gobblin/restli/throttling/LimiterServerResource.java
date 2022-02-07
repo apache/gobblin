@@ -45,6 +45,7 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.MetricContextFactory;
 import org.apache.gobblin.metrics.broker.SubTaggedMetricContextKey;
+import org.apache.gobblin.util.ClosableTimerContext;
 import org.apache.gobblin.util.NoopCloseable;
 import org.apache.gobblin.util.Sleeper;
 import org.apache.gobblin.util.limiter.Limiter;
@@ -101,7 +102,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
   public void get(
       ComplexResourceKey<PermitRequest, EmptyRecord> key,
       @CallbackParam final Callback<PermitAllocation> callback) {
-    try (Closeable context = this.requestTimer == null ? NoopCloseable.INSTANCE : this.requestTimer.time()) {
+    try (Closeable context = (this.requestTimer == null ? NoopCloseable.INSTANCE : new ClosableTimerContext(this.requestTimer.time()))) {
       long startNanos = System.nanoTime();
 
       PermitRequest request = key.getKey();
@@ -127,7 +128,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
             new SharedLimiterKey(request.getResource()));
 
         PermitAllocation allocation;
-        try (Closeable thisContext = limiterTimer.time()) {
+        try (Closeable thisContext = new ClosableTimerContext(limiterTimer.time())) {
           allocation = policy.computePermitAllocation(request);
         }
 
