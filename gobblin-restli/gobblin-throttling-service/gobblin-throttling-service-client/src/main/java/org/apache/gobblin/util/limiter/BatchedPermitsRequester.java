@@ -52,6 +52,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.restli.throttling.PermitAllocation;
 import org.apache.gobblin.restli.throttling.PermitRequest;
 import org.apache.gobblin.restli.throttling.ThrottlingProtocolVersion;
+import org.apache.gobblin.util.ClosableTimerContext;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.NoopCloseable;
 import org.apache.gobblin.util.Sleeper;
@@ -243,7 +244,7 @@ class BatchedPermitsRequester {
 
       this.currentCallback = new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
-              BatchedPermitsRequester.this.restRequestTimer.time(), new Sleeper());
+              new ClosableTimerContext(BatchedPermitsRequester.this.restRequestTimer.time()), new Sleeper());
       this.requestSender.sendRequest(permitRequest, currentCallback);
     } catch (CloneNotSupportedException cnse) {
       // This should never happen.
