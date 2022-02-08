@@ -85,7 +85,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
-  public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
+  public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = true;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
 
@@ -161,6 +161,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
 
+    if (getMetricContext().getInnerMetricContext().getContextAwareMetrics().containsKey(GOBBLIN_COPY_BYTES_COPIED_METER)) {
+      getMetricContext().remove(GOBBLIN_COPY_BYTES_COPIED_METER);
+    }
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
@@ -295,6 +298,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
+        log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
       }
     }
