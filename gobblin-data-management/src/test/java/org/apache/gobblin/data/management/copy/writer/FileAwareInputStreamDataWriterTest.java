@@ -16,9 +16,6 @@
  */
 package org.apache.gobblin.data.management.copy.writer;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,9 +25,26 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Properties;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
@@ -50,17 +64,6 @@ import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.util.TestUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.io.StreamUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.*;
 
@@ -85,7 +88,7 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString1.length(), ownerAndPermission);
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false);
@@ -174,7 +177,7 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
@@ -208,7 +211,7 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
@@ -254,7 +257,7 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
@@ -429,7 +432,7 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(),
         new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString1.length(), ownerAndPermission);
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG, false);
