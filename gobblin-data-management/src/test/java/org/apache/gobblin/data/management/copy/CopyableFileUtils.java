@@ -43,37 +43,41 @@ public class CopyableFileUtils {
   }
 
   public static CopyableFile getTestCopyableFile() {
-    return getTestCopyableFile(null, null);
+    return getTestCopyableFile(0L, null);
   }
 
   public static CopyableFile getTestCopyableFile(String resourcePath) {
     return getTestCopyableFile(resourcePath, null);
   }
 
+  public static CopyableFile getTestCopyableFile(Long size, OwnerAndPermission ownerAndPermission) {
+    return getTestCopyableFile(null, null, size, ownerAndPermission);
+  }
+
   public static CopyableFile getTestCopyableFile(OwnerAndPermission ownerAndPermission) {
-    return getTestCopyableFile(null, null, ownerAndPermission);
+    return getTestCopyableFile(null, null, 0L, ownerAndPermission);
   }
 
   public static CopyableFile getTestCopyableFile(String resourcePath, OwnerAndPermission ownerAndPermission) {
-    return getTestCopyableFile(resourcePath, null, ownerAndPermission);
+    return getTestCopyableFile(resourcePath, null, 0L, ownerAndPermission);
   }
 
-  public static CopyableFile getTestCopyableFile(String resourcePath, String relativePath,
+  public static CopyableFile getTestCopyableFile(String resourcePath, String relativePath, Long size,
       OwnerAndPermission ownerAndPermission) {
-    return getTestCopyableFile(resourcePath, getRandomPath(), relativePath, ownerAndPermission);
+    return getTestCopyableFile(resourcePath, getRandomPath(), relativePath, size, ownerAndPermission);
   }
 
   public static CopyableFile getTestCopyableFile(String resourcePath, String destinationPath, String relativePath,
-      OwnerAndPermission ownerAndPermission) {
+      Long size, OwnerAndPermission ownerAndPermission) {
 
     FileStatus status = null;
 
     if (resourcePath == null) {
       resourcePath = getRandomPath();
-      status = new FileStatus(0l, false, 0, 0l, 0l, new Path(resourcePath));
+      status = new FileStatus(size, false, 0, 0l, 0l, new Path(resourcePath));
     } else {
       String filePath = CopyableFileUtils.class.getClassLoader().getResource(resourcePath).getFile();
-      status = new FileStatus(0l, false, 0, 0l, 0l, new Path(filePath));
+      status = new FileStatus(size, false, 0, 0l, 0l, new Path(filePath));
     }
 
     if (relativePath == null) {
