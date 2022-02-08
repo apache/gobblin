@@ -161,9 +161,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
 
-    if (getMetricContext().getInnerMetricContext().getContextAwareMetrics().containsKey(GOBBLIN_COPY_BYTES_COPIED_METER)) {
+    // remove the old metric which counts how many bytes are copied, because in case of retries, this can give incorrect value
+    if (getMetricContext().getMetrics().containsKey(GOBBLIN_COPY_BYTES_COPIED_METER)) {
       getMetricContext().remove(GOBBLIN_COPY_BYTES_COPIED_METER);
     }
+
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
     this.bufferSize = state.getPropAsInt(CopyConfiguration.BUFFER_SIZE, StreamCopier.DEFAULT_BUFFER_SIZE);
