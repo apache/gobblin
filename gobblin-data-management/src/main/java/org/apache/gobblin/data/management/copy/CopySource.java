@@ -298,7 +298,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     if (PriorityIterableBasedRequestAllocator.class.isAssignableFrom(allocator.getClass())) {
       PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>> priorityIterableBasedRequestAllocator =
           (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) allocator;
-      // If there are no allocated items and there items exceeding the available resources, then we can infer all items exceed resources
+      // If there are no allocated items and are there items exceeding the available resources, then we can infer all items exceed resources
       if (!allocatedRequests.hasNext() && priorityIterableBasedRequestAllocator.getRequestsExceedingAvailableResourcePool().size() > 0) {
         throw new IOException(String.format("Requested copy datasets are all larger than the available resource pool. Try increasing %s and/or %s",
             CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY, CopyConfiguration.MAX_COPY_PREFIX + ".size"));
