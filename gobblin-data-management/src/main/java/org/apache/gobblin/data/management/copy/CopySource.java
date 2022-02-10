@@ -209,8 +209,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       Iterator<FileSet<CopyEntity>> prioritizedFileSets =
           allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
 
-      //Submit alertable events for unfulfilled requests
+      //Submit alertable events for unfulfilled requests and fail if all of the allocated requests were rejected due to size
       submitUnfulfilledRequestEvents(allocator);
+      failJobIfAllRequestsRejected(allocator, prioritizedFileSets);
 
       String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, FileSetWorkUnitGenerator.class.getName());
       Iterator<Callable<Void>> callableIterator =
@@ -288,6 +289,20 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
                   .put(FILESET_TOTAL_SIZE_IN_BYTES, Long.toString(fileSet.getTotalSizeInBytes()))
                   .put(FILESET_NAME, fileSet.getName()).build()).build();
       this.metricContext.submitEvent(event);
+    }
+  }
+
+  void failJobIfAllRequestsRejected(RequestAllocator<FileSet<CopyEntity>> allocator,
+      Iterator<FileSet<CopyEntity>> allocatedRequests) throws IOException {
+    // TODO: we should set job as partial success if there is a mix of allocated requests and rejections
+    if (PriorityIterableBasedRequestAllocator.class.isAssignableFrom(allocator.getClass())) {
+      PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>> priorityIterableBasedRequestAllocator =
+          (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) allocator;
+      // If there are no allocated items and are there items exceeding the available resources, then we can infer all items exceed resources
+      if (!allocatedRequests.hasNext() && priorityIterableBasedRequestAllocator.getRequestsExceedingAvailableResourcePool().size() > 0) {
+        throw new IOException(String.format("Requested copy datasets are all larger than the available resource pool. Try increasing %s and/or %s",
+            CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY, CopyConfiguration.MAX_COPY_PREFIX + ".size"));
+      }
     }
   }
 
