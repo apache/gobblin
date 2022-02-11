@@ -319,12 +319,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       tableErrorMap.put(tableString, gobblinMetadataException);
     }
     this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
+    tableOperationTypeMap.remove(tableString);
     log.error(String.format("Meet exception when flush table %s", tableString), e);
     if (datasetErrorMap.size() > maxErrorDataset) {
       //Fail the job if the error size exceeds some number
       throw new IOException(String.format("Container fails to flush for more than %s dataset, last exception we met is: ", maxErrorDataset), e);
     }
-    tableOperationTypeMap.remove(tableString);
   }
 
   // Add fault tolerant ability and make sure we can emit GTE as desired
@@ -358,6 +358,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       this.datasetErrorMap.get(datasetPath).remove(tableString);
     }
   }
+
   /**
    * Call the metadata writers to do flush each table metadata.
    * Flush of metadata writer is the place that do real metadata
@@ -390,7 +391,6 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
 
   @Override
   public void close() throws IOException {
-    this.flush();
     this.closer.close();
   }
 
