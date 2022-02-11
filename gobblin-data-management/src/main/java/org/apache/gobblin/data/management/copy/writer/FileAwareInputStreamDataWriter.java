@@ -85,7 +85,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
-  public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = true;
+  // setting GOBBLIN_COPY_CHECK_FILESIZE to true may result in failures because the calculation of
+  // expected bytes to be copied and actual bytes copied may have bugs
+  public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
 
