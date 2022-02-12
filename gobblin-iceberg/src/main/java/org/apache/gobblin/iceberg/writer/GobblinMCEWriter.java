@@ -275,7 +275,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
             ((LongWatermark)watermark.getWatermark()).getValue()-1, ((LongWatermark)watermark.getWatermark()).getValue()));
-      } else if (tableOperationTypeMap.get(tableString).operationType != gmce.getOperationType()) {
+      } else if (tableOperationTypeMap.get(tableString).operationType != gmce.getOperationType() && gmce.getOperationType() != OperationType.change_property) {
         flush(dbName, tableName);
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
