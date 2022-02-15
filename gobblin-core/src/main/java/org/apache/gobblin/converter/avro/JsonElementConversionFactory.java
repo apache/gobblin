@@ -35,7 +35,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.EmptyIterable;
 import org.apache.gobblin.converter.json.JsonSchema;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -45,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 import lombok.extern.java.Log;
 import sun.util.calendar.ZoneInfo;
@@ -618,8 +618,10 @@ public class JsonElementConversionFactory {
           throw new UnsupportedOperationException(e);
         }
 
-        Schema.Field fld = new Schema.Field(map.getColumnName(), fldSchema, map.getComment(),
-            map.isNullable() ? JsonNodeFactory.instance.nullNode() : null);
+        // [Avro 1.9.2 upgrade] No need to pass JsonNodeFactory.instance.nullNode() if map is nullable.
+        // AvroCompatibilityHelper will take care of this.
+        Schema.Field fld = AvroCompatibilityHelper.createSchemaField(map.getColumnName(), fldSchema, map.getComment(),
+            null);
         fld.addProp(SOURCE_TYPE, sourceType);
         fields.add(fld);
       }

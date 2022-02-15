@@ -31,6 +31,7 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
   compile externalDependency.avro
+  compile externalDependency.avroCompatHelper
   compile externalDependency.guava
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig

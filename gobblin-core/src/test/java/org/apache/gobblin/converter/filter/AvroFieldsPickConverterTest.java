@@ -88,7 +88,7 @@ public class AvroFieldsPickConverterTest {
         while (expectedDataFileReader.hasNext()) {
           GenericRecord expected = expectedDataFileReader.next();
           GenericRecord actual = converter.convertRecord(convertedSchema, srcDataFileReader.next(), workUnitState).iterator().next();
-          Assert.assertEquals(actual, expected);
+          Assert.assertEquals(actual.toString(), expected.toString());
         }
         Assert.assertTrue(!srcDataFileReader.hasNext());
       }
