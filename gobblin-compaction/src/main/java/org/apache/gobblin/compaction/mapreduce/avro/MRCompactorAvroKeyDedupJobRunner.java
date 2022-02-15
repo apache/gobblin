@@ -37,6 +37,7 @@ import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.gobblin.compaction.dataset.Dataset;
 import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
@@ -198,7 +199,8 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
     for (Field field : record.getFields()) {
       Optional<Schema> newFieldSchema = getKeySchema(field);
       if (newFieldSchema.isPresent()) {
-        fields.add(new Field(field.name(), newFieldSchema.get(), field.doc(), field.defaultValue()));
+        fields.add(AvroCompatibilityHelper.createSchemaField(field.name(), newFieldSchema.get(), field.doc(),
+            AvroUtils.getCompatibleDefaultValue(field)));
       }
     }
     if (!fields.isEmpty()) {

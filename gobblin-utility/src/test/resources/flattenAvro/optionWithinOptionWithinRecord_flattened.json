@@ -4,15 +4,18 @@
   "fields" : [ {
     "name" : "parentFieldUnion__unionRecordMemberFieldUnion__superNestedFieldString1",
     "type" : [ "null", "string" ],
-    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString1"
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString1",
+    "default": null
   }, {
     "name" : "parentFieldUnion__unionRecordMemberFieldUnion__superNestedFieldString2",
     "type" : [ "null", "string" ],
-    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString2"
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldUnion.superNestedFieldString2",
+    "default": null
   }, {
     "name" : "parentFieldUnion__unionRecordMemberFieldString",
     "type" : [ "null", "string" ],
-    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldString"
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldString",
+    "default": null
   }, {
     "name" : "parentFieldInt",
     "type" : "int"
