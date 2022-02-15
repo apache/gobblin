@@ -26,6 +26,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -85,10 +86,11 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
       String curFieldName = field.name();
       if (!field.schema().getType().equals(Schema.Type.MAP)) {
         if (fieldsRenameMap.containsKey(curFieldName)) {
-          newFields.add(
-              new Schema.Field(fieldsRenameMap.get(curFieldName), field.schema(), field.doc(), field.defaultValue()));
+          newFields.add(AvroCompatibilityHelper.createSchemaField(fieldsRenameMap.get(curFieldName), field.schema(),
+              field.doc(), AvroUtils.getCompatibleDefaultValue(field)));
         } else {
-          newFields.add(new Schema.Field(curFieldName, field.schema(), field.doc(), field.defaultValue()));
+          newFields.add(AvroCompatibilityHelper.createSchemaField(curFieldName, field.schema(), field.doc(),
+              AvroUtils.getCompatibleDefaultValue(field)));
         }
         this.nonMapFields.add(curFieldName);
       } else {
@@ -102,7 +104,7 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
     for (String fieldToFlatten : ConfigUtils.getStringList(config, FIELDS_TO_FLATTEN)) {
       String newFieldName =
           this.fieldsRenameMap.containsKey(fieldToFlatten) ? this.fieldsRenameMap.get(fieldToFlatten) : fieldToFlatten;
-      newFields.add(new Field(newFieldName, Schema.create(Schema.Type.STRING), "", null));
+      newFields.add(AvroCompatibilityHelper.createSchemaField(newFieldName, Schema.create(Schema.Type.STRING), "", null));
     }
 
     return this;

@@ -8,6 +8,6 @@
      {"name": "date_of_birth", "type": "long"},
      {"name": "last_modified", "type": "long"},
      {"name": "created", "type": "long"},
-     {"name": "favorite_quotes", "type": [{ "type": "array", "items": "string"}, "null"], "default": null}
+     {"name": "favorite_quotes", "type": ["null", { "type": "array", "items": "string"}], "default": null}
  ]
 }

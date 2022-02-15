@@ -49,9 +49,9 @@ import org.apache.avro.util.internal.JacksonUtils;
 import org.apache.commons.math3.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ArrayNode;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -101,7 +101,7 @@ public class AvroUtilsTest {
 
     Schema expectedOutputSchema1 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
-            + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"number\", \"type\": [\"null\", \"int\"]}"
+            + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"number\", \"type\": [\"null\", \"int\"],\"default\":null}]}"
             + "]}");
 
     Assert.assertEquals(expectedOutputSchema1, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1));
@@ -118,7 +118,7 @@ public class AvroUtilsTest {
     Schema expectedOutputSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
             + "{\"name\": \"name\", \"type\": \"string\"}, "
-            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}]}" + "]}");
+            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}],\"default\":null}]}" + "]}");
 
     Assert.assertEquals(expectedOutputSchema2, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2));
   }
@@ -146,10 +146,10 @@ public class AvroUtilsTest {
             .parse("{\"type\":\"record\", \"name\":\"test\", "
                 + "\"fields\":["
                 + "{\"name\": \"name\", \"type\": \"string\"}, "
-                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}]}"
+                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
 
-    Assert.assertEquals(expectedOutputSchema1, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1));
+    Assert.assertEquals(expectedOutputSchema1.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1).toString());
 
     Schema oldSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
@@ -163,9 +163,9 @@ public class AvroUtilsTest {
     Schema expectedOutputSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
             + "{\"name\": \"name\", \"type\": \"string\"}, "
-            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}]}" + "]}");
+            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}" + "]}");
 
-    Assert.assertEquals(expectedOutputSchema2, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2));
+    Assert.assertEquals(expectedOutputSchema2.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2).toString());
   }
 
   /**
@@ -190,10 +190,10 @@ public class AvroUtilsTest {
             .parse("{\"type\":\"record\", \"name\":\"test\", "
                 + "\"fields\":["
                 + "{\"name\": \"name\", \"type\": \"string\"}, "
-                + "{\"name\": \"color\", \"type\": [\"null\", \"string\"]}, "
-                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}]}"
+                + "{\"name\": \"color\", \"type\": [\"null\", \"string\"], \"default\": null}, "
+                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
-    Assert.assertEquals(expectedOutputSchema, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema));
+    Assert.assertEquals(expectedOutputSchema.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema).toString());
   }
 
   /**

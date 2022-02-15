@@ -36,6 +36,7 @@ dependencies {
   compile externalDependency.commonsMath
   compile externalDependency.commonsHttpClient
   compile externalDependency.avro
+  compile externalDependency.avroCompatHelper
   compile externalDependency.guava
   compile externalDependency.gson
   compile externalDependency.slf4j

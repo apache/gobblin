@@ -24,7 +24,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**
@@ -70,7 +72,8 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       return createLatestPayloadField(field);
     }
     // Make a copy of the field to the output schema
-    return new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+    return AvroCompatibilityHelper.createSchemaField(field.name(), field.schema(), field.doc(),
+        AvroUtils.getCompatibleDefaultValue(field), field.order());
   }
 
   /**
@@ -83,7 +86,8 @@ public class EnvelopePayloadConverter extends BaseEnvelopeSchemaConverter<Generi
       throws SchemaConversionException {
     try {
       Schema payloadSchema = fetchLatestPayloadSchema();
-      return new Field(field.name(), payloadSchema, DECORATED_PAYLOAD_DOC, field.defaultValue(), field.order());
+      return AvroCompatibilityHelper.createSchemaField(field.name(), payloadSchema, DECORATED_PAYLOAD_DOC,
+          AvroUtils.getCompatibleDefaultValue(field), field.order());
     } catch (Exception e) {
       throw new SchemaConversionException(e);
     }
