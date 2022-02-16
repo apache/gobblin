@@ -396,7 +396,7 @@ Properties for Gobblin's fork operator.
 | Name | Description | Required | Default Value |
 | --- | --- | --- | --- |
 | `writer.destination.type` | Writer destination type. Can be HDFS, KAFKA, MYSQL or TERADATA | No | HDFS | 
-| `writer.output.format` | Writer output format; currently only Avro is supported. | No | AVRO | 
+| `writer.output.format` | Writer output format; currently Avro and Parquet are supported. | No | AVRO |
 | `writer.fs.uri` | File system URI for writer output. | No | file:/// | 
 | `writer.staging.dir` | Staging directory of writer output. All staging data that the writer produces will be placed in this directory, but all the data will be eventually moved to the writer.output.dir. | Yes | None |
 | `writer.output.dir` | Output directory of writer output. All output data that the writer produces will be placed in this directory, but all the data will be eventually moved to the final directory by the publisher. | Yes | None |
@@ -406,7 +406,7 @@ Properties for Gobblin's fork operator.
 | `writer.partitioner.class` | Partitioner used for distributing records into multiple output files. `writer.builder.class` must be a subclass of `PartitionAwareDataWriterBuilder`, otherwise Gobblin will throw an error.  | No | None (will not use partitioner) |
 | `writer.buffer.size` |  Writer buffer size in bytes. This parameter is only applicable for the AvroHdfsDataWriter. | No | 4096 | 
 | `writer.deflate.level` |  Writer deflate level. Deflate is a type of compression for Avro data. | No | 9 | 
-| `writer.codec.type` |  This is used to specify the type of compression used when writing data out. Possible values are NOCOMPRESSION, DEFLATE, SNAPPY. | No | DEFLATE | 
+| `writer.codec.type` |  This is used to specify the type of compression used when writing data out. Possible values are NULL, DEFLATE, SNAPPY, BZIP2, XZ (for AvroHdfsDataWriter), or UNCOMPRESSED, GZIP, SNAPPY, LZO (for ParquetHdfsDataWriter). | No | DEFLATE (for AvroHdfsDataWriter), UNCOMPRESSED (for ParquetHdfsDataWriter) |
 | `writer.eager.initialization` | This is used to control the writer creation. If the value is set to true, writer is created before records are read. This means an empty file will be created even if no records were read. | No | False | 
 | `writer.parquet.page.size` | The page size threshold | No | 1048576 |
 | `writer.parquet.dictionary.page.size` | The block size threshold. | No | 134217728 |
