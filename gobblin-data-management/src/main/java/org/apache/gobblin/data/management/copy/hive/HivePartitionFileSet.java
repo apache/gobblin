@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
@@ -40,6 +41,8 @@ import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -99,7 +102,13 @@ public class HivePartitionFileSet extends HiveFileSet {
               hiveCopyEntityHelper.getExistingEntityPolicy() != HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE_AND_PARTITIONS) {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                 ioe);
-            return Lists.newArrayList();
+            // Silence error and continue processing workunits if we allow partial success
+            if (ConfigUtils.getString(hiveCopyEntityHelper.getConfiguration().getConfig(), ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+                JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.toString()).equals(JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS.toString())) {
+              return Lists.newArrayList();
+            } else {
+              throw ioe;
+            }
           }
           log.warn("Source and target partitions are not compatible. Will override target partition: " + ioe.getMessage());
           log.debug("Incompatibility details: ", ioe);
@@ -194,12 +203,11 @@ public class HivePartitionFileSet extends HiveFileSet {
     }
   }
 
-  private static void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
+  private void checkPartitionCompatibility(Partition desiredTargetPartition, Partition existingTargetPartition)
       throws IOException {
-    if (!desiredTargetPartition.getDataLocation().equals(existingTargetPartition.getDataLocation())) {
-      throw new IOException(
-          String.format("Desired target location %s and already registered target location %s do not agree.",
-              desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation()));
+    if (!HiveUtils.areTablePathsEquivalent(hiveCopyEntityHelper.getTargetFs(), desiredTargetPartition.getDataLocation(),
+        existingTargetPartition.getDataLocation())) {
+      throw new HiveTableLocationNotMatchException(desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation());
     }
   }
 }
