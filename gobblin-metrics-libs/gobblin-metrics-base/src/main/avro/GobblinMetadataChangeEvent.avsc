@@ -276,6 +276,16 @@
         "doc": "The avro schema with iceberg schema id for the data, this is used to match the field id in the file metrics to the field name",
         "default": null,
         "optional": true
+      },
+      {
+        "name": "allowedMetadataWriters",
+        "type": ["null",{
+          "type": "array",
+          "items" : "string"
+        } ],
+        "default": null,
+        "doc": "Array of the metadata writers that are allowed to consume this GMCE. If this field is missing, all metadata writers are allowed.",
+        "optional": true
       }
     ]
   }
