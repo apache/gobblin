@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.mockito.Mockito;
@@ -430,6 +431,33 @@ public class HiveCopyEntityHelperTest {
     );
 
     Assert.assertEquals(helper.getDataset().getDatasetPath(), "/targetPath/db/table");
+  }
+
+  @Test
+  public void testPartitionedTableCompatibility() throws Exception {
+    FieldSchema partitionSchema = new FieldSchema("part", "string", "some comment");
+    List partitions = new ArrayList();
+    Path testPath = new Path("/testPath/db/table");
+    Path existingTablePath = new Path("/existing/testPath/db/table");
+    org.apache.hadoop.hive.ql.metadata.Table table = new org.apache.hadoop.hive.ql.metadata.Table("testDb","table1");
+    table.setDataLocation(testPath);
+    partitions.add(partitionSchema);
+    table.setPartCols(partitions);
+    org.apache.hadoop.hive.ql.metadata.Table existingTargetTable = new Table("testDb","table1");
+    existingTargetTable.setDataLocation(existingTablePath);
+    existingTargetTable.setPartCols(partitions);
+    HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
+    Mockito.when(helper.getExistingTargetTable()).thenReturn(Optional.of(existingTargetTable));
+    Mockito.when(helper.getTargetTable()).thenReturn(table);
+    // Mock filesystem resolver
+    FileSystem mockFS = Mockito.mock(FileSystem.class);
+    Mockito.when(helper.getTargetFs()).thenReturn(mockFS);
+    Mockito.when(mockFS.resolvePath(Mockito.any())).thenReturn(new Path("hdfs://testPath/db/table"));
+
+    Mockito.doCallRealMethod().when(helper).checkPartitionedTableCompatibility(table, existingTargetTable);
+    helper.checkPartitionedTableCompatibility(table, existingTargetTable);
   }
 
   private boolean containsPath(Collection<FileStatus> statuses, Path path) {
