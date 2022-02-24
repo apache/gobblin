@@ -1037,8 +1037,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
-
-
   private static String getJobIdPrefix(String jobId) {
     return jobId.substring(0, jobId.lastIndexOf(Id.Job.SEPARATOR) + 1);
   }

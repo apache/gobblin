@@ -54,6 +54,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 import lombok.Getter;
 
@@ -214,6 +215,7 @@ public class TaskExecutor extends AbstractIdleService {
             ConfigurationKeys.DEFAULT_QUEUED_TASK_TIME_MAX_AGE),
         conf.getInt(ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
             ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES));
+    Log4jConfigurationHelper.setLogLevel(conf.getTrimmedStringCollection(Log4jConfigurationHelper.LOG_LEVEL_OVERRIDE_MAP));
   }
 
   @Override
