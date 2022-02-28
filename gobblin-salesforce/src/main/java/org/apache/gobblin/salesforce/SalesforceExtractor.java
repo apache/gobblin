@@ -894,6 +894,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       log.info("Closing salesforce bulk job connection");
       this.bulkConnection.closeJob(this.getBulkJobId());
     }
+    this.sfConnector.close();
   }
 
   private static List<Command> constructGetCommand(String restQuery) {
