@@ -64,6 +64,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   public static final String FS_WRITER_METRICS_KEY = "fs_writer_metrics";
 
   protected final State properties;
+  protected final Configuration conf;
   protected final String id;
   protected final int numBranches;
   protected final int branchId;
@@ -96,7 +97,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     this.writerAttemptIdOptional = Optional.fromNullable(builder.getWriterAttemptId());
     this.encoders = builder.getEncoders();
 
-    Configuration conf = new Configuration();
+    this.conf = new Configuration();
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
@@ -266,7 +267,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
-    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile, true);
+    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile, true, this.conf);
     this.properties.appendToSetProp(this.allOutputFilesPropName, this.outputFile.toString());
 
     FsWriterMetrics metrics = new FsWriterMetrics(
