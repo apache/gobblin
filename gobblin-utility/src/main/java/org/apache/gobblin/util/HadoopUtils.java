@@ -203,6 +203,12 @@ public class HadoopUtils {
     }
   }
 
+  /**
+   * Moves the object to the filesystem trash according to the file system policy.
+   * @param fs FileSystem object
+   * @param path Path to the object to be moved to trash.
+   * @throws IOException
+   */
   public static void moveToTrash(FileSystem fs, Path path) throws IOException {
     moveToTrash(fs, path, new Configuration());
   }
@@ -268,6 +274,14 @@ public class HadoopUtils {
     renamePath(fs, oldName, newName, false);
   }
 
+  /**
+   * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
+   * {@link FileSystem#rename(Path, Path)} returns False.
+   * @param fs FileSystem object
+   * @param oldName old name of the path
+   * @param new name of the path
+   * @throws IOException
+   */
   public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
     renamePath(fs, oldName, newName, overwrite, new Configuration());
   }
