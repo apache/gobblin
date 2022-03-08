@@ -518,9 +518,6 @@ public class Task implements TaskIFace {
       }
     }
 
-    LOG.info("Extracted " + this.recordsPulled + " data records");
-    LOG.info("Row quality checker finished with results: " + rowResults.getResults());
-
     this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, this.recordsPulled);
     this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 

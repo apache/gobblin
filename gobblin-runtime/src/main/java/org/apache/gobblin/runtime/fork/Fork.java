@@ -110,7 +110,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   private final Optional<String> taskAttemptId;
 
   private final int branches;
-  private final int index;
+  protected int index;
   private final ExecutionModel executionModel;
 
   private final Converter converter;
