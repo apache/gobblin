@@ -17,14 +17,20 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
@@ -104,6 +110,8 @@ class HelixRetriggeringJobCallable implements Callable {
   private final String jobUri;
   private boolean jobDeleteAttempted = false;
   private final Striped<Lock> locks;
+  private final MetricContext metricContext;
+  private final EventSubmitter eventSubmitter;
 
   public HelixRetriggeringJobCallable(
       GobblinHelixJobScheduler jobScheduler,
@@ -117,7 +125,8 @@ class HelixRetriggeringJobCallable implements Callable {
       HelixManager jobHelixManager,
       Optional<HelixManager> taskDriverHelixManager,
       HelixJobsMapping jobsMapping,
-      Striped<Lock> locks) {
+      Striped<Lock> locks,
+      MetricContext metricContext) {
     this.jobScheduler = jobScheduler;
     this.jobCatalog = jobCatalog;
     this.sysProps = sysProps;
@@ -132,6 +141,8 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobUri = jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI);
     this.jobsMapping = jobsMapping;
     this.locks = locks;
+    this.metricContext = metricContext;
+    eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.runtime").build();
   }
 
   private boolean isRetriggeringEnabled() {
@@ -266,6 +277,10 @@ class HelixRetriggeringJobCallable implements Callable {
 
       try {
         if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobHelixManager)) {
+          TimingEvent timer = new TimingEvent(eventSubmitter, TimingEvent.JOB_SKIP_TIME);
+          HashMap<String, String> metadata = new HashMap<>(Tag.toMap(Tag.tagValuesToString(
+              Lists.newArrayList(HelixUtils.addAdditionalMetadataTags(jobProps, Lists.newArrayList())))));
+          timer.stop(metadata);
           planningJobLauncherMetrics.skippedPlanningJobs.mark();
           return;
         }
