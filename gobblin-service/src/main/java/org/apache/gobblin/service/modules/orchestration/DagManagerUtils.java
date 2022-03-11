@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -151,11 +152,13 @@ public class DagManagerUtils {
 
   public static JobSpec getJobSpec(DagNode<JobExecutionPlan> dagNode) {
     JobSpec jobSpec = dagNode.getValue().getJobSpec();
-    Map<String, Integer> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, dagNode.getValue().getCurrentAttempts(),
-        ConfigurationKeys.JOB_CURRENT_GENERATION, dagNode.getValue().getCurrentGeneration());
+    Map<String, String> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, String.valueOf(dagNode.getValue().getCurrentAttempts()),
+        ConfigurationKeys.JOB_CURRENT_GENERATION, String.valueOf(dagNode.getValue().getCurrentGeneration()));
+    Properties configAsProperties = new Properties(jobSpec.getConfigAsProperties());
+    configAsProperties.putAll(configWithCurrentAttempts);
     //Return new spec with new config to avoid change the reference to dagNode
     return new JobSpec(jobSpec.getUri(), jobSpec.getVersion(), jobSpec.getDescription(), ConfigFactory.parseMap(configWithCurrentAttempts).withFallback(jobSpec.getConfig()),
-        jobSpec.getConfigAsProperties(), jobSpec.getTemplateURI(), jobSpec.getJobTemplate(), jobSpec.getMetadata());
+        configAsProperties, jobSpec.getTemplateURI(), jobSpec.getJobTemplate(), jobSpec.getMetadata());
   }
 
   static Config getJobConfig(DagNode<JobExecutionPlan> dagNode) {

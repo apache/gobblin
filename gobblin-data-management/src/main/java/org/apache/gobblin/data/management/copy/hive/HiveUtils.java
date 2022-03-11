@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,7 @@ import java.util.Set;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
@@ -166,5 +168,20 @@ public class HiveUtils {
    */
   public static boolean isPartitioned(Table table) {
     return table.isPartitioned();
+  }
+
+  /**
+   * @param fs User configured filesystem of the target table
+   * @param userSpecifiedPath user specified path of the copy table location or partition
+   * @param existingTablePath path of an already registered Hive table or partition
+   * @return true if the filesystem resolves them to be equivalent, false otherwise
+   */
+  public static boolean areTablePathsEquivalent(FileSystem fs, Path userSpecifiedPath, Path existingTablePath) throws IOException {
+    try {
+      return fs.resolvePath(existingTablePath).equals(fs.resolvePath(userSpecifiedPath));
+    } catch (FileNotFoundException e) {
+      // The userSpecifiedPath must not exist here, so the paths are not equal
+      return false;
+    }
   }
 }

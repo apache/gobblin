@@ -72,6 +72,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final MutableJobCatalog _jobCatalog;
   private final MetricContext _metricContext;
   private final Metrics _metrics;
+  private final int _jobSpecQueueSize;
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
@@ -86,8 +87,9 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     }
 
     _jobCatalog = jobCatalog;
-    _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
-        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
+    _jobSpecQueueSize = ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
+        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE);
+    _jobSpecQueue = new LinkedBlockingQueue<>(_jobSpecQueueSize);
     _metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     _metrics = new Metrics(this._metricContext);
   }
@@ -111,13 +113,16 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
     try {
       Pair<SpecExecutor.Verb, Spec> specPair = _jobSpecQueue.take();
-      _metrics.specConsumerJobSpecDeq.mark();
+      int numSpecFetched = 0;
       do {
+        _metrics.specConsumerJobSpecDeq.mark();
+        numSpecFetched ++;
         changesSpecs.add(specPair);
 
         // if there are more elements then pass them along in this call
         specPair = _jobSpecQueue.poll();
-      } while (specPair != null);
+        // comparing numSpecFetched to _jobSpecQueueSize to make sure the loop will not run infinitely even in peak time
+      } while (specPair != null && numSpecFetched < _jobSpecQueueSize);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }

@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.source.extractor.extract.restapi;
 
+import com.google.common.io.Closer;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -26,8 +28,10 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 
 import com.google.common.base.Charsets;
@@ -53,7 +57,7 @@ import lombok.extern.slf4j.Slf4j;
  * A class for connecting to Rest APIs, construct queries and getting responses.
  */
 @Slf4j
-public abstract class RestApiConnector {
+public abstract class RestApiConnector implements Closeable {
 
   public static final String REST_API_CONNECTOR_CLASS = "rest.api.connector.class";
 
@@ -68,6 +72,7 @@ public abstract class RestApiConnector {
   protected long createdAt;
   protected String instanceUrl;
   protected String updatedQuery;
+  protected Closer closer = Closer.create();
 
   protected final State state;
 
@@ -75,6 +80,12 @@ public abstract class RestApiConnector {
     this.state = state;
     this.authTokenTimeout =
         state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT);
+  }
+
+  @Override
+  public void close() throws IOException {
+    // This is to close any idle connections opening by the httpClient
+    this.closer.close();
   }
 
   /**
@@ -133,6 +144,9 @@ public abstract class RestApiConnector {
           .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
           .configure(this.state)
           .createClient();
+      if (httpClient instanceof CloseableHttpClient) {
+        this.closer.register((CloseableHttpClient)httpClient);
+      }
     }
     return this.httpClient;
   }
@@ -178,7 +192,9 @@ public abstract class RestApiConnector {
         if (httpEntity != null) {
           EntityUtils.consume(httpEntity);
         }
-        // httpResponse.close();
+        if(httpResponse instanceof CloseableHttpResponse) {
+          this.closer.register((CloseableHttpResponse)httpResponse);
+        }
       } catch (Exception e) {
         throw new RestApiProcessingException("Failed to consume httpEntity; error - " + e.getMessage(), e);
       }

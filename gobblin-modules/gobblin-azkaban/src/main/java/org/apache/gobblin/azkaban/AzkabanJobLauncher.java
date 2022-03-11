@@ -74,6 +74,7 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.TimeRangeChecker;
 import org.apache.gobblin.util.hadoop.TokenUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 import static org.apache.gobblin.runtime.AbstractJobLauncher.resolveGobblinJobTemplateIfNecessary;
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
@@ -101,6 +102,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
   public static final String GOBBLIN_LOG_LEVEL_KEY = "gobblin.log.levelOverride";
+  public static final String LOG_LEVEL_OVERRIDE_MAP = "log.levelOverride.map";
+
   public static final String GOBBLIN_CUSTOM_JOB_LISTENERS = "gobblin.custom.job.listeners";
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
@@ -138,6 +141,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);
       Logger.getLogger("org.apache.gobblin").setLevel(logLevel);
     }
+
+    Log4jConfigurationHelper.setLogLevel(PropertiesUtils.getPropAsList(props, Log4jConfigurationHelper.LOG_LEVEL_OVERRIDE_MAP, ""));
 
     this.props = new Properties();
     this.props.putAll(props);
@@ -390,9 +395,9 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "")));
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "")));
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
           "false"));
     }

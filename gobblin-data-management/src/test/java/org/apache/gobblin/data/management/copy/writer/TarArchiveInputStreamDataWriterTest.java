@@ -16,19 +16,6 @@
  */
 package org.apache.gobblin.data.management.copy.writer;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.copy.CopySource;
-import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
-import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.data.management.copy.CopyableFileUtils;
-import org.apache.gobblin.data.management.copy.FileAwareInputStream;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
-import org.apache.gobblin.data.management.copy.TestCopyableDataset;
-import org.apache.gobblin.data.management.copy.converter.UnGzipConverter;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.TestUtils;
-
 import java.io.FileInputStream;
 import java.io.IOException;
 
@@ -48,6 +35,19 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.CopyableFileUtils;
+import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.TestCopyableDataset;
+import org.apache.gobblin.data.management.copy.converter.UnGzipConverter;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.TestUtils;
 
 
 public class TarArchiveInputStreamDataWriterTest {
@@ -118,7 +118,7 @@ public class TarArchiveInputStreamDataWriterTest {
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL,
             FsAction.ALL));
     CopyableFile cf =
-        CopyableFileUtils.getTestCopyableFile(filePath, new Path(testTempPath, newFileName).toString(), newFileName,
+        CopyableFileUtils.getTestCopyableFile(filePath, new Path(testTempPath, newFileName).toString(), newFileName, 0L,
             ownerAndPermission);
 
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)

@@ -714,6 +714,49 @@ public class DagManagerTest {
     Assert.assertEquals(this.dagToJobs.size(), 0);
   }
 
+  @Test (dependsOnMethods = "testJobStartSLAKilledDag")
+  public void testDagManagerWithBadFlowSLAConfig() throws URISyntaxException, IOException {
+    long flowExecutionId = System.currentTimeMillis();
+    String flowGroup = "group0";
+    String flowName = "flow0";
+    String jobName = "job0";
+
+    // Create a config with an improperly formatted Flow SLA time e.g. "1h"
+    Config jobConfig = ConfigBuilder.create().
+        addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group" + flowGroup).
+        addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow" + flowName).
+        addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
+        addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, flowGroup).
+        addPrimitive(ConfigurationKeys.JOB_NAME_KEY, jobName).
+        addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, "FINISH_RUNNING").
+        addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, "1h").build();
+
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
+    JobSpec js = JobSpec.builder("test_job" + jobName).withVersion("0").withConfig(jobConfig).
+        withTemplate(new URI(jobName)).build();
+    SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI(jobName));
+    JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
+    jobExecutionPlans.add(jobExecutionPlan);
+    Dag<JobExecutionPlan> dag = (new JobExecutionPlanDagFactory()).createDag(jobExecutionPlans);
+    String dagId = DagManagerUtils.generateDagId(dag);
+
+    //Add a dag to the queue of dags
+    this.queue.offer(dag);
+    // Job should have been run normally without breaking on SLA check, so we can just mark as completed for status
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus(flowName, flowGroup, flowExecutionId+1, jobName, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
+        thenReturn(jobStatusIterator1);
+
+    // Run the thread once. Job should run without crashing thread on SLA check and cleanup
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    Assert.assertEquals(this.jobToDag.size(), 0);
+    Assert.assertEquals(this.dagToJobs.size(), 0);
+  }
+
 
   @AfterClass
   public void cleanUp() throws Exception {

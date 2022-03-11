@@ -85,6 +85,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
+  // setting GOBBLIN_COPY_CHECK_FILESIZE to true may result in failures because the calculation of
+  // expected bytes to be copied and actual bytes copied may have bugs
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
@@ -160,6 +162,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.outputDir = getOutputDir(state);
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
+
+    // remove the old metric which counts how many bytes are copied, because in case of retries, this can give incorrect value
+    if (getMetricContext().getMetrics().containsKey(GOBBLIN_COPY_BYTES_COPIED_METER)) {
+      getMetricContext().remove(GOBBLIN_COPY_BYTES_COPIED_METER);
+    }
 
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
@@ -295,6 +302,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
+        log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
       }
     }
@@ -486,14 +494,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       }
 
       if (ownerAndPermission.getFsPermission() != null) {
-        log.debug("Applying permissions %s to path %s.", ownerAndPermission.getFsPermission(), path);
+        log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
       }
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       if (group != null || owner != null) {
-        log.debug("Applying owner %s and group %s to path %s.", owner, group, path);
+        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
         fs.setOwner(path, owner, group);
       }
     } else {

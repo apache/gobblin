@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigException;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -69,6 +71,7 @@ import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -398,6 +401,9 @@ public class DagManager extends AbstractIdleService {
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         this.scheduledExecutorPool.shutdown();
+        // The DMThread's metrics mappings follow the lifecycle of the DMThread itself and so are lost by DM deactivation-reactivation but the RootMetricContext is a (persistent) singleton.
+        // To avoid IllegalArgumentException by the RMC preventing (re-)add of a metric already known, remove all metrics that a new DMThread thread would attempt to add (in DagManagerThread::initialize) whenever running post-re-enablement
+        RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());
         try {
           this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -408,6 +414,11 @@ public class DagManager extends AbstractIdleService {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
     }
+  }
+
+  @VisibleForTesting
+  protected static MetricNameRegexFilter getMetricsFilterForDagManager() {
+    return new MetricNameRegexFilter(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + "\\..*\\." + ServiceMetricNames.RUNNING_STATUS);
   }
 
   /**
@@ -524,7 +535,7 @@ public class DagManager extends AbstractIdleService {
         cleanUp();
         log.debug("Clean up done");
       } catch (Exception e) {
-        log.error("Exception encountered in {}", getClass().getName(), e);
+        log.error(String.format("Exception encountered in %s", getClass().getName()), e);
       }
     }
 
@@ -708,48 +719,54 @@ public class DagManager extends AbstractIdleService {
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
       for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
-        boolean slaKilled = slaKillIfNeeded(node);
+        try {
+          boolean slaKilled = slaKillIfNeeded(node);
 
-        JobStatus jobStatus = pollJobStatus(node);
+          JobStatus jobStatus = pollJobStatus(node);
 
-        boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
+          boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
 
-        ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
+          ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
 
-        JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
+          JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
-        switch (status) {
-          case COMPLETE:
-            jobExecutionPlan.setExecutionStatus(COMPLETE);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case FAILED:
-            jobExecutionPlan.setExecutionStatus(FAILED);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case CANCELLED:
-            jobExecutionPlan.setExecutionStatus(CANCELLED);
-            nextSubmitted.putAll(onJobFinish(node));
-            nodesToCleanUp.add(node);
-            break;
-          case PENDING:
-            jobExecutionPlan.setExecutionStatus(PENDING);
-            break;
-          case PENDING_RETRY:
-            jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
-            break;
-          default:
-            jobExecutionPlan.setExecutionStatus(RUNNING);
-            break;
-        }
+          switch (status) {
+            case COMPLETE:
+              jobExecutionPlan.setExecutionStatus(COMPLETE);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case FAILED:
+              jobExecutionPlan.setExecutionStatus(FAILED);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case CANCELLED:
+              jobExecutionPlan.setExecutionStatus(CANCELLED);
+              nextSubmitted.putAll(onJobFinish(node));
+              nodesToCleanUp.add(node);
+              break;
+            case PENDING:
+              jobExecutionPlan.setExecutionStatus(PENDING);
+              break;
+            case PENDING_RETRY:
+              jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
+              break;
+            default:
+              jobExecutionPlan.setExecutionStatus(RUNNING);
+              break;
+          }
 
-        if (jobStatus != null && jobStatus.isShouldRetry()) {
-          log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
-              jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
-          submitJob(node);
-        }
+          if (jobStatus != null && jobStatus.isShouldRetry()) {
+            log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
+                jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+            submitJob(node);
+          }
+        } catch (Exception e) {
+            // Error occurred while processing dag, continue processing other dags assigned to this thread
+            log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
+                DagManagerUtils.getFullyQualifiedDagName(node)), e);
+          }
       }
 
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
@@ -829,7 +846,15 @@ public class DagManager extends AbstractIdleService {
       if (dagToSLA.containsKey(dagId)) {
         flowSla = dagToSLA.get(dagId);
       } else {
-        flowSla = DagManagerUtils.getFlowSLA(node);
+        try {
+          flowSla = DagManagerUtils.getFlowSLA(node);
+        } catch (ConfigException e) {
+          log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
+              node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
+              node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
+              DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+          flowSla = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
+        }
         dagToSLA.put(dagId, flowSla);
       }
 

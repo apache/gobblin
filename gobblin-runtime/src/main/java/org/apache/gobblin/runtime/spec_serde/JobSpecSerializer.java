@@ -39,8 +39,9 @@ public class JobSpecSerializer implements JsonSerializer<JobSpec> {
     jobSpecJson.add(JOB_SPEC_URI_KEY, context.serialize(src.getUri()));
     jobSpecJson.add(JOB_SPEC_VERSION_KEY, context.serialize(src.getVersion()));
     jobSpecJson.add(JOB_SPEC_DESCRIPTION_KEY, context.serialize(src.getDescription()));
-    jobSpecJson.add(JOB_SPEC_TEMPLATE_URI_KEY, src.getTemplateURI().isPresent() ? context.serialize(src.getJobTemplate().get()): null);
+    jobSpecJson.add(JOB_SPEC_TEMPLATE_URI_KEY, src.getTemplateURI().isPresent() ? context.serialize(src.getTemplateURI().get()) : null);
     jobSpecJson.add(JOB_SPEC_CONFIG_AS_PROPERTIES_KEY, context.serialize(src.getConfigAsProperties()));
+    // NOTE: do not serialize `JobSpec.jobTemplate`, since `transient`
 
     return jobSpecJson;
   }
