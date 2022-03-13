@@ -201,7 +201,7 @@ public class HelixUtils {
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
 
-    log.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
+    log.debug("HelixUtils.addAdditionalMetadataTags: metadataTags {}", metadataTags);
 
     return metadataTags;
   }
