@@ -144,9 +144,9 @@ public abstract class RestApiConnector implements Closeable {
           .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
           .configure(this.state)
           .createClient();
-    }
-    if (httpClient instanceof CloseableHttpClient) {
-      this.closer.register((CloseableHttpClient)httpClient);
+      if (httpClient instanceof CloseableHttpClient) {
+        this.closer.register((CloseableHttpClient)httpClient);
+      }
     }
     return this.httpClient;
   }
