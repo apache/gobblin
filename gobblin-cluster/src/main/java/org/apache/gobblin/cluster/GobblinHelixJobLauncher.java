@@ -138,7 +138,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap,
       Optional<GobblinHelixMetrics> helixMetrics) throws Exception {
 
-    super(jobProps, HelixUtils.addAdditionalMetadataTags(jobProps, metadataTags));
+    super(jobProps, HelixUtils.initBaseEventTags(jobProps, metadataTags));
     LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);

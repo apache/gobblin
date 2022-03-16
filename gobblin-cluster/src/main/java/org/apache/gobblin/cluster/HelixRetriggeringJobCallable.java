@@ -277,9 +277,9 @@ class HelixRetriggeringJobCallable implements Callable {
 
       try {
         if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobHelixManager)) {
-          TimingEvent timer = new TimingEvent(eventSubmitter, TimingEvent.JOB_SKIP_TIME);
+          TimingEvent timer = new TimingEvent(eventSubmitter, TimingEvent.JOB_SKIPPED_TIME);
           HashMap<String, String> metadata = new HashMap<>(Tag.toMap(Tag.tagValuesToString(
-              Lists.newArrayList(HelixUtils.addAdditionalMetadataTags(jobProps, Lists.newArrayList())))));
+              HelixUtils.initBaseEventTags(jobProps, Lists.newArrayList()))));
           timer.stop(metadata);
           planningJobLauncherMetrics.skippedPlanningJobs.mark();
           return;

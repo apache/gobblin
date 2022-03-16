@@ -159,7 +159,7 @@ public class HelixUtils {
    * @param inputTags list of metadata tags
    * @return
    */
-  public static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps,
+  public static List<? extends Tag<?>> initBaseEventTags(Properties jobProps,
       List<? extends Tag<?>> inputTags) {
     List<Tag<?>> metadataTags = Lists.newArrayList(inputTags);
     String jobId;

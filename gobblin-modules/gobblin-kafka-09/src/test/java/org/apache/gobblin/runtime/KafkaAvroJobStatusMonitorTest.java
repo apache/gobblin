@@ -505,7 +505,7 @@ public class KafkaAvroJobStatusMonitorTest {
   private GobblinTrackingEvent createJobSkippedEvent() {
     String namespace = "org.apache.gobblin.metrics";
     Long timestamp = System.currentTimeMillis();
-    String name = TimingEvent.JOB_SKIP_TIME;
+    String name = TimingEvent.JOB_SKIPPED_TIME;
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);

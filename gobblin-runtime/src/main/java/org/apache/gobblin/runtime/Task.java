@@ -1048,6 +1048,7 @@ public class Task implements TaskIFace {
   public synchronized boolean cancel() {
     LOG.info("Calling task cancel with interrupt flag: {}", this.shouldInterruptTaskOnCancel);
     if (this.taskFuture != null && this.taskFuture.cancel(this.shouldInterruptTaskOnCancel)) {
+      // Make sure to mark running task as done
       this.taskStateTracker.onTaskCommitCompletion(this);
       return true;
     } else {
