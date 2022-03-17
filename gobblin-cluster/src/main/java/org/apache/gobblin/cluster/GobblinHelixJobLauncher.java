@@ -44,7 +44,6 @@ import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -73,7 +72,6 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -140,7 +138,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap,
       Optional<GobblinHelixMetrics> helixMetrics) throws Exception {
 
-    super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
+    super(jobProps, HelixUtils.initBaseEventTags(jobProps, metadataTags));
     LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
@@ -573,58 +571,5 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
       this.fs.delete(jobStateFilePath, false);
     }
-  }
-
-  /**
-   * Inject in some additional properties
-   * @param jobProps job properties
-   * @param inputTags list of metadata tags
-   * @return
-   */
-  private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps,
-      List<? extends Tag<?>> inputTags) {
-    List<Tag<?>> metadataTags = Lists.newArrayList(inputTags);
-    String jobId;
-
-    // generate job id if not already set
-    if (jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)) {
-      jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    } else {
-      jobId = JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobProps));
-      jobProps.put(ConfigurationKeys.JOB_ID_KEY, jobId);
-    }
-
-    String jobExecutionId = Long.toString(Id.Job.parse(jobId).getSequence());
-
-    // only inject flow tags if a flow name is defined
-    if (jobProps.containsKey(ConfigurationKeys.FLOW_NAME_KEY)) {
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
-          jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
-          jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
-
-      // use job execution id if flow execution id is not present
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-          jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
-    }
-
-    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
-          "false"));
-    }
-
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
-        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
-        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
-
-    LOGGER.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
-
-    return metadataTags;
   }
 }

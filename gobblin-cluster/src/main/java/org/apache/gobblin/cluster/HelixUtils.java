@@ -17,16 +17,23 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixException;
@@ -144,6 +151,59 @@ public class HelixUtils {
     }
 
     log.info("Work flow {} initialized", workFlowName);
+  }
+
+  /**
+   * Inject in some additional properties
+   * @param jobProps job properties
+   * @param inputTags list of metadata tags
+   * @return
+   */
+  public static List<? extends Tag<?>> initBaseEventTags(Properties jobProps,
+      List<? extends Tag<?>> inputTags) {
+    List<Tag<?>> metadataTags = Lists.newArrayList(inputTags);
+    String jobId;
+
+    // generate job id if not already set
+    if (jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)) {
+      jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    } else {
+      jobId = JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobProps));
+      jobProps.put(ConfigurationKeys.JOB_ID_KEY, jobId);
+    }
+
+    String jobExecutionId = Long.toString(Id.Job.parse(jobId).getSequence());
+
+    // only inject flow tags if a flow name is defined
+    if (jobProps.containsKey(ConfigurationKeys.FLOW_NAME_KEY)) {
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
+          jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
+          jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+
+      // use job execution id if flow execution id is not present
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+          jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
+    }
+
+    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
+          "false"));
+    }
+
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
+        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
+
+    log.debug("HelixUtils.addAdditionalMetadataTags: metadataTags {}", metadataTags);
+
+    return metadataTags;
   }
 
   protected static boolean deleteTaskFromHelixJob(String workFlowName,
