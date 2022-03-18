@@ -33,6 +33,11 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 
 
+/**
+ * Manages the statically configured user quotas for both the proxy user in user.to.proxy configuration and the API requester(s)
+ * Is used by the dag manager to ensure that the number of currently running jobs do not exceed the quota, if the quota
+ * is exceeded, then the execution will fail without running on the underlying executor
+ */
 @Slf4j
 public class GobblinServiceQuotaManager {
   public static final String PER_USER_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perUserQuota";
@@ -54,6 +59,10 @@ public class GobblinServiceQuotaManager {
     this.perUserQuota = mapBuilder.build();
   }
 
+  /**
+   * Checks if the dagNode exceeds the statically configured user quota for both the proxy user and requester user
+   * @throws IOException if the quota is exceeded, and logs a statement
+   */
   public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
     String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
