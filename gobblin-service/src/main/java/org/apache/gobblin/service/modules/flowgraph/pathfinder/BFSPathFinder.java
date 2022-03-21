@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -58,7 +61,11 @@ public class BFSPathFinder extends AbstractPathFinder {
    */
   public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
       throws ReflectiveOperationException {
-    super(flowGraph, flowSpec);
+    this(flowGraph, flowSpec, ConfigFactory.empty());
+  }
+
+  public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Config config) throws ReflectiveOperationException {
+    super(flowGraph, flowSpec, config);
   }
 
   /**

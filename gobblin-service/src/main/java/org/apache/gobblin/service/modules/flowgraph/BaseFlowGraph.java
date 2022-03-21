@@ -24,6 +24,9 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -50,6 +53,15 @@ public class BaseFlowGraph implements FlowGraph {
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
+  private Config config;
+
+  public BaseFlowGraph() {
+    this(ConfigFactory.empty());
+  }
+
+  public BaseFlowGraph(Config config) {
+    this.config = config;
+  }
 
   /**
    * Lookup a node by its identifier.
@@ -238,7 +250,7 @@ public class BaseFlowGraph implements FlowGraph {
           .getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
               FlowGraphConfigurationKeys.DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS));
       PathFinder pathFinder =
-          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec);
+          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec, config);
       return pathFinder.findPath();
     } finally {
       rwLock.readLock().unlock();

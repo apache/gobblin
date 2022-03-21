@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -60,6 +61,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public abstract class AbstractPathFinder implements PathFinder {
   private static final String SOURCE_PREFIX = "source";
   private static final String DESTINATION_PREFIX = "destination";
+  public static final String DATA_NODE_ID_TO_ALIAS_MAP = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "datanode.conversion.map";
+  // e.g. datanode.conversion.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
 
   private List<DataNode> destNodes;
 
@@ -77,18 +80,20 @@ public abstract class AbstractPathFinder implements PathFinder {
   protected Long flowExecutionId;
   protected FlowSpec flowSpec;
   protected Config flowConfig;
+  protected Config sysConfig;
 
-  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Config config)
       throws ReflectiveOperationException {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
     this.flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
     this.flowConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
+    this.sysConfig = config;
 
     //Get src/dest DataNodes from the flow config
-    String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
+    String srcNodeId = getDataNode(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, this.sysConfig);
+    List<String> destNodeIds = getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.sysConfig);
 
-    List<String> destNodeIds = ConfigUtils.getStringList(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     this.srcNode = this.flowGraph.getNode(srcNodeId);
     Preconditions.checkArgument(srcNode != null, "Flowgraph does not have a node with id " + srcNodeId);
     for (String destNodeId : destNodeIds) {
@@ -153,6 +158,26 @@ public abstract class AbstractPathFinder implements PathFinder {
 
     this.srcDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(srcDatasetDescriptorConfig);
     this.destDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(destDatasetDescriptorConfig);
+  }
+
+  static List<String> getDataNodes(Config flowConfig, String identifierKey, Config config) {
+    List<String> dataNodes = ConfigUtils.getStringList(flowConfig, identifierKey);
+    return dataNodes.stream().map(dataNode -> aliasDataNode(dataNode, config)).collect(Collectors.toList());
+  }
+
+  private static String getDataNode(Config flowConfig, String identifierKey, Config config) {
+    String dataNode = ConfigUtils.getString(flowConfig, identifierKey, "");
+    return aliasDataNode(dataNode, config);
+  }
+
+  protected static String aliasDataNode(String dataNode, Config config) {
+    if (config.hasPath(DATA_NODE_ID_TO_ALIAS_MAP)) {
+      Map<String, String> dataNodeConversionMap = Splitter.on(",").withKeyValueSeparator(":")
+          .split(config.getString(DATA_NODE_ID_TO_ALIAS_MAP));
+      return dataNodeConversionMap.getOrDefault(dataNode, dataNode);
+    } else {
+      return dataNode;
+    }
   }
 
   public static Config getDefaultConfig(DataNode dataNode) {
