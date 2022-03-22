@@ -413,6 +413,20 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         gobblinJobState.getPropAsLong(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
             GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS));
 
+    Map<String, String> jobConfigMap = new HashMap<>();
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS)) {
+      jobConfigMap.put(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS,
+          jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS));
+      log.info("Job {} has specific memory requirement:{}, add this config to command config map",
+          this.jobContext.getJobId(), jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS));
+    }
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES)) {
+      jobConfigMap.put(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES,
+          jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES));
+      log.info("Job {} has specific Vcore requirement:{}, add this config to command config map",
+          this.jobContext.getJobId(), jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES));
+    }
+    jobConfigBuilder.setJobCommandConfigMap(jobConfigMap);
     return jobConfigBuilder;
   }
 

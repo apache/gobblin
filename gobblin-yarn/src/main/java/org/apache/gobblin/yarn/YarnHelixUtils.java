@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -34,9 +35,11 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -228,5 +231,39 @@ public class YarnHelixUtils {
    */
   public static String getContainerNum(String containerId) {
     return "container-" + containerId.substring(containerId.lastIndexOf("_") + 1);
+  }
+
+  /**
+   * Find the helix tag for the newly allocated container. The tag should align with {@link YarnContainerRequestBundle},
+   * so that the correct resource can be allocated to helix workflow that has specific resource requirement.
+   * @param container newly allocated container
+   * @param helixTagAllocatedContainerCount current container count for each helix tag
+   * @param requestedYarnContainer yarn container request specify the desired state
+   * @return helix tag that this container should be assigned with, if null means need to use the default
+   */
+  public static String findHelixTagForContainer(Container container,
+      Map<String, Integer> helixTagAllocatedContainerCount, YarnContainerRequestBundle requestedYarnContainer) {
+    String foundTag = null;
+    if(requestedYarnContainer != null && requestedYarnContainer.getResourceHelixTagMap().containsKey(container.getResource().toString())) {
+      for (String tag : requestedYarnContainer.getResourceHelixTagMap().get(container.getResource().toString())) {
+        int desiredCount = requestedYarnContainer.getHelixTagContainerCountMap().get(tag);
+        int allocatedCount = helixTagAllocatedContainerCount.getOrDefault(tag, 0);
+        foundTag = tag;
+        if(allocatedCount < desiredCount) {
+          return foundTag;
+        }
+      }
+    }
+    return foundTag;
+  }
+
+  public static void ensureResourceFitMaxCapacity(Optional<Resource> maxResourceCapacity, Resource requestedResource) {
+    if (maxResourceCapacity == null || !maxResourceCapacity.isPresent()) {
+      return;
+    }
+    int maxMemoryCapacity = maxResourceCapacity.get().getMemory();
+    requestedResource.setMemory(Math.min(requestedResource.getMemory(), maxMemoryCapacity));
+    int maxCoreCapacity = maxResourceCapacity.get().getVirtualCores();
+    requestedResource.setVirtualCores(Math.min(requestedResource.getVirtualCores(), maxCoreCapacity));
   }
 }

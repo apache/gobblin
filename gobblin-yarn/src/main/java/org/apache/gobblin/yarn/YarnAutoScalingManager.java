@@ -17,11 +17,15 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Strings;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -29,9 +33,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.PropertyKey;
+import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TaskDriver;
@@ -72,6 +79,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
   private final String AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = AUTO_SCALING_PREFIX + "overProvisionFactor";
   private final double DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = 1.0;
+  private final String helixInstanceTags;
+  private final int defaultContainerMemoryMbs;
+  private final int defaultContainerCores;
 
   // A rough value of how much containers should be an intolerable number.
   private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
@@ -128,6 +138,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
     this.autoScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("AutoScalingExecutor")));
+
+    this.helixInstanceTags = ConfigUtils.getString(config,
+        GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, GobblinClusterConfigurationKeys.HELIX_DEFAULT_TAG);
+    this.defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
+    this.defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
   }
 
   @Override
@@ -141,8 +156,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
             this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers, this.overProvisionFactor,
-            this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor()), initialDelay, scheduleInterval,
-        TimeUnit.SECONDS);
+            this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.helixInstanceTags,
+            this.defaultContainerMemoryMbs, this.defaultContainerCores),
+        initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
   @Override
@@ -167,6 +183,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final double overProvisionFactor;
     private final SlidingWindowReservoir slidingWindowReservoir;
     private final HelixDataAccessor helixDataAccessor;
+    private final String helixInstanceTags;
+    private final int defaultContainerMemoryMbs;
+    private final int defaultContainerCores;
+
     /**
      * A static map that keep track of an idle instance and its latest beginning idle time.
      * If an instance is no longer idle when inspected, it will be dropped from this map.
@@ -202,7 +222,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     @VisibleForTesting
     void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
-
+      YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
       int numPartitions = 0;
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
@@ -217,24 +237,46 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
         WorkflowConfig workflowConfig = workFlowEntry.getValue();
         JobDag jobDag = workflowConfig.getJobDag();
-
         Set<String> jobs = jobDag.getAllNodes();
 
         // sum up the number of partitions
         for (String jobName : jobs) {
           JobContext jobContext = taskDriver.getJobContext(jobName);
-
+          JobConfig jobConfig = taskDriver.getJobConfig(jobName);
+          Resource resource = Resource.newInstance(this.defaultContainerMemoryMbs, this.defaultContainerCores);
+          int partitions = 0;
+          String jobTag =helixInstanceTags;
           if (jobContext != null) {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
             inUseInstances.addAll(jobContext.getPartitionSet().stream().map(jobContext::getAssignedParticipant)
-                .filter(e -> e != null).collect(Collectors.toSet()));
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
 
             numPartitions += jobContext.getPartitionSet().size();
+            partitions += jobContext.getPartitionSet().size();
+            // Respect job level config for helix instance tag, specific resource requirement if there's any
+            if (jobConfig != null) {
+              if (!Strings.isNullOrEmpty(jobConfig.getInstanceGroupTag())) {
+                jobTag = jobConfig.getInstanceGroupTag();
+              }
+              Map<String, String> jobCommandConfigMap = jobConfig.getJobCommandConfigMap();
+              if(jobCommandConfigMap.containsKey(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS)){
+                resource.setMemory(Integer.parseInt(jobCommandConfigMap.get(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_MEMORY_MBS)));
+              }
+              if(jobCommandConfigMap.containsKey(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES)){
+                resource.setVirtualCores(Integer.parseInt(jobCommandConfigMap.get(GobblinClusterConfigurationKeys.HELIX_JOB_CONTAINER_CORES)));
+              }
+            }
           }
+          int containerCount = (int) Math.ceil(((double)partitions / this.partitionsPerContainer) * this.overProvisionFactor);
+          YarnHelixUtils.ensureResourceFitMaxCapacity(this.yarnService.getMaxResourceCapacity(), resource);
+          yarnContainerRequestBundle.add(jobTag, containerCount, resource);
         }
       }
-
+      log.debug("The yarn container request bundle has config helixTagResourceMap {}, with the helixTagContainerCountMap as {}, "
+              + "resourceHelixTagMap as {}",
+          yarnContainerRequestBundle.getHelixTagResourceMap(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
+          yarnContainerRequestBundle.getResourceHelixTagMap());
       // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
       // and potentially replanner-instance.
       Set<String> allParticipants = getParticipants(HELIX_YARN_INSTANCE_NAME_PREFIX);
@@ -260,12 +302,14 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
       // adjust the number of target containers based on the configured min and max container values.
       numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
+      trimContainerSize(numTargetContainers, yarnContainerRequestBundle);
+      slidingWindowReservoir.add(yarnContainerRequestBundle);
 
-      slidingWindowReservoir.add(numTargetContainers);
+      log.info("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
+          yarnContainerRequestBundle.getTotalContainers(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
+          yarnContainerRequestBundle.getHelixTagResourceMap());
 
-      log.info("There are {} containers being requested", numTargetContainers);
-
-      this.yarnService.requestTargetNumberOfContainers(slidingWindowReservoir.getMax(), inUseInstances);
+      this.yarnService.requestTargetNumberOfContainers(yarnContainerRequestBundle, inUseInstances);
     }
 
     @VisibleForTesting
@@ -279,6 +323,32 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       return System.currentTimeMillis() - instanceIdleSince.get(participant) >
           TimeUnit.MINUTES.toMillis(maxIdleTimeInMinutesBeforeScalingDown);
     }
+
+    /**
+     * Trim the yarn container request bundle to fit the min and max container config. If indeed containers need to be
+     * added/decreased, evenly distribute that, also make sure each helix tag at least has one container associated with.
+     */
+    private void trimContainerSize(int numTargetContainers, YarnContainerRequestBundle yarnContainerRequestBundle) {
+      int factor = numTargetContainers - yarnContainerRequestBundle.getTotalContainers();
+      if (factor == 0) {
+        return;
+      }
+      Preconditions.checkArgument(numTargetContainers >= yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet().size(),
+          "Num of container requested is less than type of helix tags, which will cause some of job not being processed."
+              + "Please change the container configuration");
+      factor = factor >0 ? 1 : -1;
+      List<String> tags = new ArrayList<> (yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet());
+      int index = 0;
+      while(yarnContainerRequestBundle.getTotalContainers() != numTargetContainers) {
+        String tag = tags.get(index++);
+        index %= tags.size();
+        int containerCountForTag = yarnContainerRequestBundle.getHelixTagContainerCountMap().get(tag);
+        if (containerCountForTag <= 1) {
+          continue;
+        }
+        yarnContainerRequestBundle.add(tag, factor);
+      }
+    }
   }
 
   /**
@@ -290,8 +360,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
    * which captures max value. It is NOT built for general purpose.
    */
   static class SlidingWindowReservoir {
-    private ArrayDeque<Integer> fifoQueue;
-    private PriorityQueue<Integer> priorityQueue;
+    private ArrayDeque<YarnContainerRequestBundle> fifoQueue;
+    private PriorityQueue<YarnContainerRequestBundle> priorityQueue;
 
     // Queue Size
     private int maxSize;
@@ -306,10 +376,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       this.maxSize = maxSize;
       this.upperBound = upperBound;
       this.fifoQueue = new ArrayDeque<>(maxSize);
-      this.priorityQueue = new PriorityQueue<>(maxSize, new Comparator<Integer>() {
+      this.priorityQueue = new PriorityQueue<>(maxSize, new Comparator<YarnContainerRequestBundle>() {
         @Override
-        public int compare(Integer o1, Integer o2) {
-          return o2.compareTo(o1);
+        public int compare(YarnContainerRequestBundle o1, YarnContainerRequestBundle o2) {
+          Integer i2 = o2.getTotalContainers();
+          return i2.compareTo(o1.getTotalContainers());
         }
       });
     }
@@ -323,14 +394,14 @@ public class YarnAutoScalingManager extends AbstractIdleService {
      * When a new element is larger than upperbound, reject the value since we may request too many Yarn containers.
      * When queue is full, evict head of FIFO-queue (In FIFO queue, elements are inserted from tail).
      */
-    public void add(int e) {
-      if (e > upperBound) {
+    public void add(YarnContainerRequestBundle e) {
+      if (e.getTotalContainers() > upperBound) {
         log.error(String.format("Request of getting %s containers seems to be excessive, rejected", e));
         return;
       }
 
       if (fifoQueue.size() == maxSize) {
-        Integer removedElement = fifoQueue.remove();
+        YarnContainerRequestBundle removedElement = fifoQueue.remove();
         priorityQueue.remove(removedElement);
       }
 
@@ -345,7 +416,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     /**
      * If queue is empty, throw {@link IllegalStateException}.
      */
-    public int getMax() {
+    public YarnContainerRequestBundle getMax() {
       if (priorityQueue.size() > 0) {
         return this.priorityQueue.peek();
       } else {

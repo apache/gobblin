@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 
+import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.PropertyKey;
@@ -28,6 +29,7 @@ import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -35,6 +37,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
@@ -47,6 +50,9 @@ public class YarnAutoScalingManagerTest {
   // A queue within size == 1 and upperBound == "infinite" should not impact on the execution.
   private final static YarnAutoScalingManager.SlidingWindowReservoir noopQueue =
       new YarnAutoScalingManager.SlidingWindowReservoir(1, Integer.MAX_VALUE);
+  private final static int defaultContainerMemory = 1024;
+  private final static int defaultContainerCores = 2;
+  private final static String defaultHelixTag = "DefaultHelixTag";
   /**
    * Test for one workflow with one job
    */
@@ -82,13 +88,16 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
-            1, 10, 1.0, noopQueue, helixDataAccessor);
+            1, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
-
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
     // 2 containers requested and one worker in use
     Mockito.verify(mockYarnService, times(1)).
-        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 2);
   }
 
   /**
@@ -131,14 +140,18 @@ public class YarnAutoScalingManagerTest {
             "GobblinYarnTaskRunner-2", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 3 containers requested and 2 workers in use
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(3, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 3);
   }
 
   /**
@@ -200,14 +213,18 @@ public class YarnAutoScalingManagerTest {
             "GobblinYarnTaskRunner-3", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 5 containers requested and 3 workers in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(5,
-        ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2", "GobblinYarnTaskRunner-3"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2", "GobblinYarnTaskRunner-3")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 5);
   }
 
   /**
@@ -269,14 +286,18 @@ public class YarnAutoScalingManagerTest {
             "GobblinYarnTaskRunner-2", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 3 containers requested and 2 workers in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(3,
-        ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 3);
   }
 
   /**
@@ -313,14 +334,18 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            2, 1, 10, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2,
+            1, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 1 container requested since 2 partitions and limit is 2 partitions per container. One worker in use.
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 1);
   }
 
 
@@ -358,14 +383,18 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 5, 10, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            5, 10, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 5 containers requested due to min and one worker in use
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(5, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 5);
   }
 
   /**
@@ -402,14 +431,18 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 1, 1.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 1, 1.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable.run();
 
     // 1 container requested to max and one worker in use
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 1);
   }
 
   @Test
@@ -443,41 +476,52 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable1 =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 1.2, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 1.2, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable1.run();
 
     // 3 containers requested to max and one worker in use
     // NumPartitions = 2, Partitions per container = 1 and overprovision = 1.2, Min containers = 1, Max = 10
     // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 1.2))) = 3.
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(3, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 3);
 
-
+    Mockito.reset(mockYarnService);
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable2 =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 0.1, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 0.1, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable2.run();
 
     // 3 containers requested to max and one worker in use
     // NumPartitions = 2, Partitions per container = 1 and overprovision = 1.2, Min containers = 1, Max = 10
     // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 0.1))) = 1.
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 1);
 
+    Mockito.reset(mockYarnService);
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable3 =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, 6.0, noopQueue, helixDataAccessor);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, 6.0, noopQueue, helixDataAccessor,
+            defaultHelixTag, defaultContainerMemory, defaultContainerCores);
 
     runnable3.run();
 
     // 3 containers requested to max and one worker in use
     // NumPartitions = 2, Partitions per container = 1 and overprovision = 6.0,
     // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 6.0))) = 10.
-    Mockito.verify(mockYarnService, times(1))
-        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 10);
   }
 
   /**
@@ -518,33 +562,39 @@ public class YarnAutoScalingManagerTest {
 
     runnable.setRaiseException(true);
     runnable.run();
-    Mockito.verify(mockYarnService, times(0)).requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
+    Mockito.verify(mockYarnService, times(0)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
 
     Mockito.reset(mockYarnService);
     runnable.setRaiseException(false);
     runnable.run();
     // 1 container requested to max and one worker in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 1);
   }
 
   public void testMaxValueEvictingQueue() throws Exception {
+    Resource resource = Resource.newInstance(16, 1);
     YarnAutoScalingManager.SlidingWindowReservoir window = new YarnAutoScalingManager.SlidingWindowReservoir(3, 10);
-
     // Normal insertion with eviction of originally largest value
-    window.add(3);
-    window.add(1);
-    window.add(2);
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(3, resource));
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(1, resource));
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(2, resource));
     // Now it contains [3,1,2]
-    Assert.assertEquals(window.getMax(), 3);
-    window.add(1);
+    Assert.assertEquals(window.getMax().getTotalContainers(), 3);
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(1, resource));
     // Now it contains [1,2,1]
-    Assert.assertEquals(window.getMax(), 2);
-    window.add(5);
-    Assert.assertEquals(window.getMax(), 5);
+    Assert.assertEquals(window.getMax().getTotalContainers(), 2);
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(5, resource));
+    Assert.assertEquals(window.getMax().getTotalContainers(), 5);
     // Now it contains [2,1,5]
-    window.add(11);
+    window.add(GobblinYarnTestUtils.createYarnContainerRequest(11, resource));
     // Still [2,1,5] as 11 > 10 thereby being rejected.
-    Assert.assertEquals(window.getMax(), 5);
+    Assert.assertEquals(window.getMax().getTotalContainers(), 5);
   }
 
   /**
@@ -557,7 +607,6 @@ public class YarnAutoScalingManagerTest {
     TaskDriver mockTaskDriver = mock(TaskDriver.class);
     WorkflowConfig mockWorkflowConfig = mock(WorkflowConfig.class);
     JobDag mockJobDag = mock(JobDag.class);
-
     Mockito.when(mockJobDag.getAllNodes()).thenReturn(ImmutableSet.of("job1"));
     Mockito.when(mockWorkflowConfig.getJobDag()).thenReturn(mockJobDag);
 
@@ -591,8 +640,11 @@ public class YarnAutoScalingManagerTest {
 
     // 2 containers requested and one worker in use, while the evaluation will hold for true if not set externally,
     // still tell YarnService there are two instances being used.
+    ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
     Mockito.verify(mockYarnService, times(1)).
-        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 2);
 
     // Set failEvaluation which simulates the "beyond tolerance" case.
     Mockito.reset(mockYarnService);
@@ -600,7 +652,9 @@ public class YarnAutoScalingManagerTest {
     runnable.run();
 
     Mockito.verify(mockYarnService, times(1)).
-        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-2"));
+        requestTargetNumberOfContainers(argument.capture(),
+            eq(ImmutableSet.of("GobblinYarnTaskRunner-2")));
+    Assert.assertEquals(argument.getValue().getTotalContainers(), 2);
   }
 
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
@@ -609,7 +663,8 @@ public class YarnAutoScalingManagerTest {
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         int minContainers, int maxContainers, HelixDataAccessor helixDataAccessor) {
-      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, 1.0, noopQueue, helixDataAccessor);
+      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, 1.0,
+          noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory, defaultContainerCores);
     }
 
     @Override

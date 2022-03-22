@@ -198,9 +198,11 @@ public class YarnServiceTestWithExpiration {
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testStartError() throws Exception{
-    this.expiredYarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
+    Resource resource = Resource.newInstance(16, 1);
+    this.expiredYarnService.requestTargetNumberOfContainers(
+        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
 
-    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(64, 1).isEmpty());
+    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(resource).isEmpty());
     Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
     AssertWithBackoff.create().logger(LOG).timeoutMs(60000).maxSleepMs(2000).backoffFactor(1.5)
