@@ -24,9 +24,6 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -53,14 +50,14 @@ public class BaseFlowGraph implements FlowGraph {
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
-  private Config config;
+  private Map<String, String> dataNodeAliasMap;
 
   public BaseFlowGraph() {
-    this(ConfigFactory.empty());
+    this(new HashMap<>());
   }
 
-  public BaseFlowGraph(Config config) {
-    this.config = config;
+  public BaseFlowGraph(Map<String, String> dataNodeAliasMap) {
+    this.dataNodeAliasMap = dataNodeAliasMap;
   }
 
   /**
@@ -250,7 +247,7 @@ public class BaseFlowGraph implements FlowGraph {
           .getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
               FlowGraphConfigurationKeys.DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS));
       PathFinder pathFinder =
-          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec, config);
+          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec, dataNodeAliasMap);
       return pathFinder.findPath();
     } finally {
       rwLock.readLock().unlock();

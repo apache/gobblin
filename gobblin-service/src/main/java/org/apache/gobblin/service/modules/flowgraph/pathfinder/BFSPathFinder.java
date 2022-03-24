@@ -21,9 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,11 +59,11 @@ public class BFSPathFinder extends AbstractPathFinder {
    */
   public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
       throws ReflectiveOperationException {
-    this(flowGraph, flowSpec, ConfigFactory.empty());
+    this(flowGraph, flowSpec, new HashMap<>());
   }
 
-  public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Config config) throws ReflectiveOperationException {
-    super(flowGraph, flowSpec, config);
+  public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap) throws ReflectiveOperationException {
+    super(flowGraph, flowSpec, dataNodeAliasMap);
   }
 
   /**

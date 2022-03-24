@@ -17,7 +17,9 @@
 
 package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -35,11 +37,13 @@ public class AbstractPathFinderTest {
   public void convertDataNodesTest() {
     Config flowConfig = ConfigFactory.empty()
         .withValue(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ConfigValueFactory.fromAnyRef("node1-alpha,node2"));
-    Config sysConfig = ConfigFactory.empty()
-        .withValue(AbstractPathFinder.DATA_NODE_ID_TO_ALIAS_MAP, ConfigValueFactory.fromAnyRef("node1-alpha:node1, node1-beta:node, node3-alpha:node3, node3-beta:node3"));
+    Map<String, String> dataNodeAliasMap = new HashMap<>();
+    dataNodeAliasMap.put("node1-alpha", "node1");
+    dataNodeAliasMap.put("node1-beta", "node1");
+    dataNodeAliasMap.put("node3-alpha", "node3");
+    dataNodeAliasMap.put("node1-beta", "node3");
 
-
-    List<String> dataNodes = AbstractPathFinder.getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, sysConfig);
+    List<String> dataNodes = AbstractPathFinder.getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
     Assert.assertEquals(dataNodes.size(), 2);
     Assert.assertTrue(dataNodes.contains("node1"));
     Assert.assertTrue(dataNodes.contains("node2"));
