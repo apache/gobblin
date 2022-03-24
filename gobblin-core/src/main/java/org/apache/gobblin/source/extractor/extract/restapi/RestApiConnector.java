@@ -28,10 +28,8 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.StatusLine;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.util.EntityUtils;
 
 import com.google.common.base.Charsets;
@@ -144,8 +142,8 @@ public abstract class RestApiConnector implements Closeable {
           .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
           .configure(this.state)
           .createClient();
-      if (httpClient instanceof CloseableHttpClient) {
-        this.closer.register((CloseableHttpClient)httpClient);
+      if (httpClient instanceof Closeable) {
+        this.closer.register((Closeable)httpClient);
       }
     }
     return this.httpClient;
@@ -192,8 +190,8 @@ public abstract class RestApiConnector implements Closeable {
         if (httpEntity != null) {
           EntityUtils.consume(httpEntity);
         }
-        if(httpResponse instanceof CloseableHttpResponse) {
-          this.closer.register((CloseableHttpResponse)httpResponse);
+        if(httpResponse instanceof Closeable) {
+          this.closer.register((Closeable)httpResponse);
         }
       } catch (Exception e) {
         throw new RestApiProcessingException("Failed to consume httpEntity; error - " + e.getMessage(), e);

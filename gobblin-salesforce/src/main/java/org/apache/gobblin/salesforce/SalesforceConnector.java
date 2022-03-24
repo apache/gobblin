@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.salesforce;
 
+import java.io.Closeable;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -98,8 +99,8 @@ public class SalesforceConnector extends RestApiConnector {
       HttpPost post = new HttpPost(host + DEFAULT_AUTH_TOKEN_PATH);
       post.setEntity(new UrlEncodedFormEntity(formParams));
       HttpResponse httpResponse= getHttpClient().execute(post);
-      if (httpResponse instanceof CloseableHttpResponse) {
-        this.closer.register((CloseableHttpResponse) httpResponse);
+      if (httpResponse instanceof Closeable) {
+        this.closer.register((Closeable) httpResponse);
       }
       return httpResponse.getEntity();
     } catch (Exception e) {
