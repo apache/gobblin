@@ -77,7 +77,6 @@ public abstract class AbstractPathFinder implements PathFinder {
   protected Long flowExecutionId;
   protected FlowSpec flowSpec;
   protected Config flowConfig;
-  protected Map<String, String> dataNodeAliasMap;
 
   AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap)
       throws ReflectiveOperationException {
@@ -85,11 +84,10 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.flowSpec = flowSpec;
     this.flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
     this.flowConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
-    this.dataNodeAliasMap = dataNodeAliasMap;
 
     //Get src/dest DataNodes from the flow config
-    String srcNodeId = getDataNode(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, this.dataNodeAliasMap);
-    List<String> destNodeIds = getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.dataNodeAliasMap);
+    String srcNodeId = getDataNode(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, dataNodeAliasMap);
+    List<String> destNodeIds = getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
 
     this.srcNode = this.flowGraph.getNode(srcNodeId);
     Preconditions.checkArgument(srcNode != null, "Flowgraph does not have a node with id " + srcNodeId);

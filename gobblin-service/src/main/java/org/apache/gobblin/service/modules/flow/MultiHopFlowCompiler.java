@@ -92,7 +92,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private DataMovementAuthorizer dataMovementAuthorizer;
 
-  // a map to hold aliases of data nodes, e.g. datanode.conversion.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
+  // a map to hold aliases of data nodes, e.g. gobblin.service.datanode.aliases.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
   public static final String DATA_NODE_ID_TO_ALIAS_MAP = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "datanode.aliases.map";
 
   public MultiHopFlowCompiler(Config config) {
