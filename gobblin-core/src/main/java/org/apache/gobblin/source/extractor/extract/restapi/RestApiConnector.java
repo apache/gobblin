@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -84,6 +85,10 @@ public abstract class RestApiConnector implements Closeable {
   public void close() throws IOException {
     // This is to close any idle connections opening by the httpClient
     this.closer.close();
+    if (this.getHttpClient() != null && !(this.getHttpClient() instanceof Closeable)) {
+      log.warn("httpClient is not closable, we will only close the idle connections");
+      this.getHttpClient().getConnectionManager().closeIdleConnections(0, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**
@@ -144,8 +149,6 @@ public abstract class RestApiConnector implements Closeable {
           .createClient();
       if (httpClient instanceof Closeable) {
         this.closer.register((Closeable)httpClient);
-      } else {
-        log.warn("httpClient is not closable, we will not be able to handle the resources close, please make sure the implementation handle it correctly");
       }
     }
     return this.httpClient;
