@@ -149,6 +149,8 @@ public abstract class RestApiConnector implements Closeable {
           .createClient();
       if (httpClient instanceof Closeable) {
         this.closer.register((Closeable)httpClient);
+      } else {
+        log.warn("httpClient is not closable, we will not be able to handle the resources close, please make sure the implementation handle it correctly");
       }
     }
     return this.httpClient;
