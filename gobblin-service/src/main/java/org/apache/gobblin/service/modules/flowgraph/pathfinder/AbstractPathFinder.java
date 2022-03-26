@@ -26,6 +26,7 @@ import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,10 @@ public abstract class AbstractPathFinder implements PathFinder {
   protected Long flowExecutionId;
   protected FlowSpec flowSpec;
   protected Config flowConfig;
+
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec) throws ReflectiveOperationException {
+    this(flowGraph, flowSpec, new HashMap<>());
+  }
 
   AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap)
       throws ReflectiveOperationException {
