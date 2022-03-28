@@ -115,6 +115,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
