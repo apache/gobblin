@@ -26,6 +26,7 @@ import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -78,7 +79,11 @@ public abstract class AbstractPathFinder implements PathFinder {
   protected FlowSpec flowSpec;
   protected Config flowConfig;
 
-  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec) throws ReflectiveOperationException {
+    this(flowGraph, flowSpec, new HashMap<>());
+  }
+
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap)
       throws ReflectiveOperationException {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
@@ -86,9 +91,9 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.flowConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
 
     //Get src/dest DataNodes from the flow config
-    String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
+    String srcNodeId = getDataNode(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, dataNodeAliasMap);
+    List<String> destNodeIds = getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
 
-    List<String> destNodeIds = ConfigUtils.getStringList(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     this.srcNode = this.flowGraph.getNode(srcNodeId);
     Preconditions.checkArgument(srcNode != null, "Flowgraph does not have a node with id " + srcNodeId);
     for (String destNodeId : destNodeIds) {
@@ -153,6 +158,16 @@ public abstract class AbstractPathFinder implements PathFinder {
 
     this.srcDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(srcDatasetDescriptorConfig);
     this.destDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(destDatasetDescriptorConfig);
+  }
+
+  static List<String> getDataNodes(Config flowConfig, String identifierKey, Map<String, String> dataNodeAliasMap) {
+    List<String> dataNodes = ConfigUtils.getStringList(flowConfig, identifierKey);
+    return dataNodes.stream().map(dataNode -> dataNodeAliasMap.getOrDefault(dataNode, dataNode)).collect(Collectors.toList());
+  }
+
+  private static String getDataNode(Config flowConfig, String identifierKey, Map<String, String> dataNodeAliasMap) {
+    String dataNode = ConfigUtils.getString(flowConfig, identifierKey, "");
+    return dataNodeAliasMap.getOrDefault(dataNode, dataNode);
   }
 
   public static Config getDefaultConfig(DataNode dataNode) {
