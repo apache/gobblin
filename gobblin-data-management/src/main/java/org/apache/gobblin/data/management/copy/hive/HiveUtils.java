@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -52,6 +53,7 @@ import javax.annotation.Nullable;
 /**
  * Utilities for {@link org.apache.hadoop.hive.ql} classes.
  */
+@Slf4j
 public class HiveUtils {
 
   /**
@@ -171,17 +173,34 @@ public class HiveUtils {
   }
 
   /**
+   * First check if the user path is exactly the same as the existing path, if so then just return true
+   * Otherwise there could be a fs mismatch, resolve this through the filesystem
+   * If the paths do not exist, then recurse up the parent directories until there is a match, and compare the children
    * @param fs User configured filesystem of the target table
    * @param userSpecifiedPath user specified path of the copy table location or partition
    * @param existingTablePath path of an already registered Hive table or partition
    * @return true if the filesystem resolves them to be equivalent, false otherwise
    */
   public static boolean areTablePathsEquivalent(FileSystem fs, Path userSpecifiedPath, Path existingTablePath) throws IOException {
+    if (userSpecifiedPath == null || existingTablePath == null) {
+      log.error("User path or existing hive table path is null");
+      return false;
+    }
+    if (userSpecifiedPath.toString().equals(existingTablePath.toString())) {
+      return true;
+    }
     try {
       return fs.resolvePath(existingTablePath).equals(fs.resolvePath(userSpecifiedPath));
     } catch (FileNotFoundException e) {
-      // The userSpecifiedPath must not exist here, so the paths are not equal
-      return false;
+      // Check the edge case where the hive registration path folder does not exist, but the hive table does exist
+      // If the child paths aren't equal, then the paths can't be equal
+      if (!userSpecifiedPath.getName().equals(existingTablePath.getName())) {
+        return false;
+      }
+      // Recurse up the parents to check if there exists a path such that the fs will resolve as equivalent
+      log.warn(String.format("User specified path %s or existing table path %s does not exist, checking parents for equality",
+          userSpecifiedPath, existingTablePath));
+      return areTablePathsEquivalent(fs, userSpecifiedPath.getParent(), existingTablePath.getParent());
     }
   }
 }
