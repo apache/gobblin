@@ -144,7 +144,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
   private static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
   private static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
-  private static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
   private static final String CREATE_TABLE_TIME = "iceberg.create.table.time";
   private static final String SCHEMA_CREATION_TIME_KEY = "schema.creation.time";
   private static final String ADDED_FILES_CACHE_EXPIRING_TIME = "added.files.cache.expiring.time";
@@ -200,7 +199,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     tableCurrentWatermarkMap = new HashMap<>();
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
-    tags.add(new Tag<>(CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    tags.add(new Tag<>(IcebergMCEMetadataKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
     metricContext = closer.register(
         GobblinMetricsRegistry.getInstance().getMetricContext(state, IcebergMetadataWriter.class, tags));
     this.eventSubmitter =
