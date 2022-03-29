@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -29,10 +31,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -74,10 +78,10 @@ public class DagManagerTest {
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
-  private GobblinServiceQuotaManager _gobblinServiceQuotaManager;
+  private UserQuotaManager _gobblinServiceQuotaManager;
   private Set<String> failedDagIds;
-  private Set<String> runningDags;
   private static long START_SLA_DEFAULT = 15 * 60 * 1000;
+  private MetricContext metricContext;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -91,15 +95,13 @@ public class DagManagerTest {
     this.queue = new LinkedBlockingQueue<>();
     this.cancelQueue = new LinkedBlockingQueue<>();
     this.resumeQueue = new LinkedBlockingQueue<>();
-    this.runningDags = new HashSet<>();
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(GobblinServiceQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
-    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
-    this._gobblinServiceQuotaManager = new GobblinServiceQuotaManager(quotaConfig);
+        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
+    this._gobblinServiceQuotaManager = new UserQuotaManager(quotaConfig);
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT, _gobblinServiceQuotaManager,
-        runningDags);
+        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT, _gobblinServiceQuotaManager);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -791,7 +793,6 @@ public class DagManagerTest {
     this.queue.offer(dagList.get(0));
     Config jobConfig0 = dagList.get(0).getNodes().get(0).getValue().getJobSpec().getConfig();
     Config jobConfig1 = dagList.get(1).getNodes().get(0).getValue().getJobSpec().getConfig();
-
     Iterator<JobStatus> jobStatusIterator0 =
         getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
             "job0", "group0", String.valueOf(ExecutionStatus.RUNNING));
@@ -822,14 +823,13 @@ public class DagManagerTest {
     // dag will not be processed due to exceeding the quota, will log a message and exit out without adding it to dags
     this.queue.offer(dagList.get(1));
     this._dagManagerThread.run();
-
-    Assert.assertEquals(this.dags.size(), 1);
-    Assert.assertEquals(this.jobToDag.size(), 1);
-    Assert.assertEquals(this.dagToJobs.size(), 1);
-    Assert.assertEquals(this.runningDags.size(), 1);
+    SortedMap<String, Counter> allCounters = metricContext.getParent().get().getCounters();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
 
     this._dagManagerThread.run(); // cleanup
-    Assert.assertEquals(this.runningDags.size(), 0);
   }
 
   @Test (dependsOnMethods = "testDagManagerQuotaExceeded")
@@ -876,16 +876,25 @@ public class DagManagerTest {
 
     this._dagManagerThread.run();
 
+    SortedMap<String, Counter> allCounters = metricContext.getParent().get().getCounters();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
     // Test case where a job that exceeded a quota would cause a double decrement after fixing the proxy user name, allowing for more jobs to run
     this.queue.offer(dagList.get(2));
     this._dagManagerThread.run();
-    Assert.assertEquals(this.runningDags.size(), 1);
+    // Assert that running dag metrics are only counted once
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
 
     this._dagManagerThread.run(); // cleanup
-    Assert.assertEquals(this.runningDags.size(), 0);
-    Assert.assertEquals(this.dags.size(), 0);
-    Assert.assertEquals(this.jobToDag.size(), 0);
-    Assert.assertEquals(this.dagToJobs.size(), 0);
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 0);
 
   }
 

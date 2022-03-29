@@ -39,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * is exceeded, then the execution will fail without running on the underlying executor
  */
 @Slf4j
-public class GobblinServiceQuotaManager {
+public class UserQuotaManager {
   public static final String PER_USER_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perUserQuota";
   public static final String USER_JOB_QUOTA_KEY = DagManager.DAG_MANAGER_PREFIX + "defaultJobQuota";
   public static final String QUOTA_SEPERATOR = ":";
@@ -47,9 +47,10 @@ public class GobblinServiceQuotaManager {
   private final Map<String, Integer> proxyUserToJobCount = new ConcurrentHashMap<>();
   private final Map<String, Integer> requesterToJobCount = new ConcurrentHashMap<>();
   private final Map<String, Integer> perUserQuota;
+  Map<String, Boolean> runningDagIds = new ConcurrentHashMap<>();
   private final int defaultQuota;
 
-  GobblinServiceQuotaManager(Config config) {
+  UserQuotaManager(Config config) {
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
     ImmutableMap.Builder<String, Integer> mapBuilder = ImmutableMap.builder();
 
@@ -70,6 +71,7 @@ public class GobblinServiceQuotaManager {
     int proxyQuotaIncrement;
     Set<String> usersQuotaIncrement = new HashSet<>(); // holds the users for which quota is increased
     StringBuilder requesterMessage = new StringBuilder();
+    runningDagIds.put(DagManagerUtils.generateDagId(dagNode), true);
 
     if (proxyUser != null) {
       proxyQuotaIncrement = incrementJobCountAndCheckUserQuota(proxyUserToJobCount, proxyUser, dagNode);
@@ -107,6 +109,7 @@ public class GobblinServiceQuotaManager {
       String userKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
       decrementQuotaUsage(proxyUserToJobCount, userKey);
       decrementQuotaUsageForUsers(usersQuotaIncrement);
+      runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
       throw new IOException(requesterMessage.toString());
     }
   }
@@ -144,14 +147,18 @@ public class GobblinServiceQuotaManager {
 
   /**
    * Decrement the quota by one for the proxy user and requesters corresponding to the provided {@link Dag.DagNode}.
+   * Returns true if the dag existed in the set of running dags and was removed successfully
    */
-  public void releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) {
+  public boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) {
+    Boolean val = runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
+    if (val == null) {
+      return false;
+    }
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
     if (proxyUser != null) {
       String proxyUserKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
       decrementQuotaUsage(proxyUserToJobCount, proxyUserKey);
     }
-
     String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
     if (serializedRequesters != null) {
       try {
@@ -161,8 +168,10 @@ public class GobblinServiceQuotaManager {
         }
       } catch (IOException e) {
         log.error("Failed to release quota for requester list " + serializedRequesters, e);
+        return false;
       }
     }
+    return true;
   }
 
   private void decrementQuotaUsage(Map<String, Integer> quotaMap, String user) {

@@ -87,7 +87,6 @@ import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.eclipse.jetty.util.ConcurrentHashSet;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
@@ -365,13 +364,11 @@ public class DagManager extends AbstractIdleService {
               ServiceMetricNames.FAILED_FLOW_METER));
         }
 
-        GobblinServiceQuotaManager quotaManager = new GobblinServiceQuotaManager(config);
+        UserQuotaManager quotaManager = new UserQuotaManager(config);
         // Before initializing the DagManagerThreads check which dags are currently running before shutdown
-        Set<String> runningDags = new ConcurrentHashSet<>();
         for (Dag<JobExecutionPlan> dag: dagStateStore.getDags()) {
           for (DagNode<JobExecutionPlan> dagNode: dag.getNodes()) {
             if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
-              runningDags.add(DagManagerUtils.generateDagId(dagNode));
               // Add all the currently running Dags to the quota limit per user
               try {
                 quotaManager.checkQuota(dagNode);
@@ -389,7 +386,7 @@ public class DagManager extends AbstractIdleService {
         for (int i = 0; i < numThreads; i++) {
           DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
               runQueue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, failedDagIds, allSuccessfulMeter,
-              allFailedMeter, this.defaultJobStartSlaTimeMillis, quotaManager, runningDags);
+              allFailedMeter, this.defaultJobStartSlaTimeMillis, quotaManager);
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
@@ -450,7 +447,7 @@ public class DagManager extends AbstractIdleService {
     private final ContextAwareMeter allFailedMeter;
     private static final Map<String, ContextAwareMeter> groupSuccessfulMeters = Maps.newConcurrentMap();
     private static final Map<String, ContextAwareMeter> groupFailureMeters = Maps.newConcurrentMap();
-    private final GobblinServiceQuotaManager quotaManager;
+    private final UserQuotaManager quotaManager;
     private final JobStatusRetriever jobStatusRetriever;
     private final DagStateStore dagStateStore;
     private final DagStateStore failedDagStateStore;
@@ -458,15 +455,13 @@ public class DagManager extends AbstractIdleService {
     private final BlockingQueue<String> cancelQueue;
     private final BlockingQueue<String> resumeQueue;
     private final Long defaultJobStartSlaTimeMillis;
-    private final Set<String> runningDags;
     /**
      * Constructor.
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
         boolean instrumentationEnabled, Set<String> failedDagIds, ContextAwareMeter allSuccessfulMeter,
-        ContextAwareMeter allFailedMeter, Long defaultJobStartSla, GobblinServiceQuotaManager quotaManager,
-        Set<String> runningDags) {
+        ContextAwareMeter allFailedMeter, Long defaultJobStartSla, UserQuotaManager quotaManager) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
@@ -478,7 +473,6 @@ public class DagManager extends AbstractIdleService {
       this.allFailedMeter = allFailedMeter;
       this.defaultJobStartSlaTimeMillis = defaultJobStartSla;
       this.quotaManager = quotaManager;
-      this.runningDags = runningDags;
 
       if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -970,7 +964,6 @@ public class DagManager extends AbstractIdleService {
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
           getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::inc);
-          runningDags.add(DagManagerUtils.generateDagId(dagNode));
         }
 
         addSpecFuture.get();
@@ -1007,15 +1000,10 @@ public class DagManager extends AbstractIdleService {
       String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
       ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
       log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
-
       // Only decrement counters and quota for jobs that actually ran on the executor, not from a GaaS side failure/skip event
-      if (this.runningDags.contains(dagId)) {
-        quotaManager.releaseQuota(dagNode);
-        runningDags.remove(dagId);
-        if (this.metricContext != null) {
-          getRunningJobsCounter(dagNode).dec();
-          getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::dec);
-        }
+      if (quotaManager.releaseQuota(dagNode) && this.metricContext != null) {
+        getRunningJobsCounter(dagNode).dec();
+        getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::dec);
       }
 
       switch (jobStatus) {
