@@ -180,8 +180,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
             //Use raw path to comply with HDFS federation setting.
             Path rawPath = new Path(regPath.toUri().getRawPath());
             specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
-          } catch (Exception e) {
-            log.warn("Cannot get Hive Spec for {} using policy {}", file, policy.toString());
+          } catch (Throwable e) {
+            //todo: Emit failed GMCE in the future to easily track the error gmce and investigate the reason for that.
+            log.warn("Cannot get Hive Spec for {} using policy {} due to:", file, policy.toString());
+            log.warn(e.getMessage());
           }
           return null;
         }
