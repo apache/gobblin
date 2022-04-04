@@ -370,14 +370,7 @@ public class DagManager extends AbstractIdleService {
           for (DagNode<JobExecutionPlan> dagNode: dag.getNodes()) {
             if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
               // Add all the currently running Dags to the quota limit per user
-              try {
-                quotaManager.checkQuota(dagNode);
-              } catch (IOException e) {
-                // Quota is somehow exceeded with currently running jobs, we should never hit this state normally
-                // but we should avoid stalling the entire service
-                log.error(String.format("Quota exceeded during initialization in DagManager for job name: %s",
-                    DagManagerUtils.getFullyQualifiedDagName(dagNode)));
-              }
+              quotaManager.checkQuota(dagNode, true);
             }
           }
         }
@@ -947,7 +940,7 @@ public class DagManager extends AbstractIdleService {
       // Run this spec on selected executor
       SpecProducer<Spec> producer;
       try {
-        quotaManager.checkQuota(dagNode);
+        quotaManager.checkQuota(dagNode, false);
         producer = DagManagerUtils.getSpecProducer(dagNode);
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
