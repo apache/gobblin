@@ -19,6 +19,7 @@ package org.apache.gobblin.util;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import org.apache.avro.file.CodecFactory;
 import org.apache.hadoop.fs.Path;
@@ -32,13 +33,10 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.Extract.TableType;
-import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-
-import static org.mockito.Mockito.*;
 
 
 /**
@@ -141,24 +139,18 @@ public class WriterUtilsTest {
     Path testParent = new Path(testRoot, "mkdirs-1");
     Path testChild = new Path(testParent, "mkdirs-2/mkdirs-3/mkdirs-4");
 
-    Config configWithDefaults = mock(Config.class);
-    when(configWithDefaults.getString(RetryerFactory.RETRY_TYPE))
-        .thenReturn(RetryerFactory.RetryType.FIXED.name());
-
-    Config retryConfig = mock(Config.class);
-    when(retryConfig.withFallback(any(Config.class))).thenReturn(configWithDefaults);
-
+    Config retryConfig = ConfigFactory.empty();
     FileSystem fs = FileSystem.getLocal(new Configuration());
     try {
       fs.delete(testParent, true);
 
       FsPermission all = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
-      WriterUtils.mkdirsWithRecursivePermission(fs, testParent, all);
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, testParent, all, retryConfig);
       Assert.assertTrue(fs.exists(testParent));
       Assert.assertEquals(fs.getFileStatus(testParent).getPermission(), all);
 
       FsPermission restricted = new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.EXECUTE);
-      WriterUtils.mkdirsWithRecursivePermission(fs, testChild, restricted);
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, testChild, restricted, retryConfig);
       Assert.assertTrue(fs.exists(testChild));
 
       // created parent permission remains unchanged but uncreated parents and new dir set to restricted
