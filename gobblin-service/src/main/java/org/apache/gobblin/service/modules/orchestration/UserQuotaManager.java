@@ -64,7 +64,7 @@ public class UserQuotaManager {
    * Checks if the dagNode exceeds the statically configured user quota for both the proxy user and requester user
    * @throws IOException if the quota is exceeded, and logs a statement
    */
-  public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onStartup) throws IOException {
+  public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onInit) throws IOException {
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
     String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
     boolean proxyUserCheck = true;
@@ -104,7 +104,7 @@ public class UserQuotaManager {
     }
 
     // Throw errors for reach quota at the end to avoid inconsistent job counts
-    if ((!proxyUserCheck || !requesterCheck) && !onStartup) {
+    if ((!proxyUserCheck || !requesterCheck) && !onInit) {
       // roll back the increased counts in this block
       String userKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
       decrementQuotaUsage(proxyUserToJobCount, userKey);
