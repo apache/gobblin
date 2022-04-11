@@ -294,7 +294,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       tableOperationTypeMap.get(tableString).gmceHighWatermark = ((LongWatermark)watermark.getWatermark()).getValue();
 
       List<MetadataWriter> allowedWriters = getAllowedMetadataWriters(gmce, metadataWriters);
-      writeToMetadataWriters(recordEnvelope, allowedWriters, newSpecsMap, oldSpecsMap, spec);
+      writeWithMetadataWriters(recordEnvelope, allowedWriters, newSpecsMap, oldSpecsMap, spec);
     }
     this.recordCount.incrementAndGet();
   }
@@ -311,7 +311,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    * @throws IOException when max number of dataset errors is exceeded
    */
   @VisibleForTesting
-  void writeToMetadataWriters(
+  void writeWithMetadataWriters(
       RecordEnvelope<GenericRecord> recordEnvelope,
       List<MetadataWriter> allowedWriters,
       ConcurrentHashMap newSpecsMap,

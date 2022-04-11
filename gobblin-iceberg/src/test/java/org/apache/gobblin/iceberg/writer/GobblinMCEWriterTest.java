@@ -145,7 +145,7 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
   @Test
   public void testWriteWhenWriterSpecified() throws IOException {
     gmceBuilder.setAllowedMetadataWriters(Arrays.asList(mockWriter.getClass().getName()));
-    writeToMetadataWriters(gmceBuilder.build());
+    writeWithMetadataWriters(gmceBuilder.build());
 
     Mockito.verify(mockWriter, Mockito.times(1)).writeEnvelope(
         Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
@@ -183,17 +183,17 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
       }
     };
 
-    writeToMetadataWriters(gmceBuilder.build());
+    writeWithMetadataWriters(gmceBuilder.build());
     verifyMocksCalled.accept(dbName, tableName);
 
     // Another exception for same dataset but different db
     when(mockTable.getDbName()).thenReturn(dbName2);
-    writeToMetadataWriters(gmceBuilder.build());
+    writeWithMetadataWriters(gmceBuilder.build());
     verifyMocksCalled.accept(dbName2, tableName);
 
     // exception thrown because exceeds max number of datasets with errors
     when(mockTable.getDbName()).thenReturn(otherDb);
-    Assert.expectThrows(IOException.class, () -> writeToMetadataWriters(gmceBuilder.setDatasetIdentifier(DatasetIdentifier.newBuilder()
+    Assert.expectThrows(IOException.class, () -> writeWithMetadataWriters(gmceBuilder.setDatasetIdentifier(DatasetIdentifier.newBuilder()
         .setDataPlatformUrn("urn:namespace:dataPlatform:hdfs")
         .setNativeName("someOtherDB/testTable")
         .build()).build()));
@@ -230,11 +230,11 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
 
   private static abstract class TestExceptionMetadataWriter implements MetadataWriter { }
 
-  private void writeToMetadataWriters(GobblinMetadataChangeEvent gmce) throws IOException {
+  private void writeWithMetadataWriters(GobblinMetadataChangeEvent gmce) throws IOException {
     List<MetadataWriter> allowedMetadataWriters = GobblinMCEWriter.getAllowedMetadataWriters(
         gmce, gobblinMCEWriter.getMetadataWriters());
 
-    gobblinMCEWriter.writeToMetadataWriters(new RecordEnvelope<>(gmce, watermark), allowedMetadataWriters,
+    gobblinMCEWriter.writeWithMetadataWriters(new RecordEnvelope<>(gmce, watermark), allowedMetadataWriters,
         new ConcurrentHashMap(), new ConcurrentHashMap(), mockHiveSpec);
   }
 
