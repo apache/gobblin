@@ -101,7 +101,7 @@ public class GobblinMCEPublisherTest {
     InputStream dataInputStream = clazz.getClassLoader().getResourceAsStream(schemaPath);
     Decoder decoder = DecoderFactory.get().jsonDecoder(schema, dataInputStream);
     GenericRecord recordContainer = reader.read(null, decoder);
-    ;
+
     try {
       while (recordContainer != null) {
         records.add(recordContainer);
