@@ -307,6 +307,11 @@ public class DagManagerUtils {
     return (int) (flowExecutionId % numThreads);
   }
 
+  static boolean isDagFromAdhocFlow(Dag<JobExecutionPlan> dag) {
+    // Every dag should have at least one node, and every dag will clone the job configurations which include the schedule
+    return dag.getStartNodes().get(0).getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC);
+  }
+
   static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (eventSubmitter.isPresent() && !dag.isEmpty()) {
       // Every dag node will contain the same flow metadata

@@ -117,31 +117,26 @@ public class JobExecutionPlan {
       URI jobTemplateUri = new URI(jobConfig.getString(ConfigurationKeys.JOB_TEMPLATE_PATH));
       JobSpec jobSpec = jobSpecBuilder.withTemplate(jobTemplateUri).build();
 
-      //Add flowGroup to job spec
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup)));
-
-      //Add flowName to job spec
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
-
-      //Add job name
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
-
-      //Add flow execution id
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId)));
-
-      // Remove schedule
-      jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
-
-      //Remove template uri
-      jobSpec.setConfig(jobSpec.getConfig().withoutPath(GOBBLIN_JOB_TEMPLATE_KEY));
-
-      // Add job.name and job.group
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup)));
-
-      //Add flow failure option
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_FAILURE_OPTION,
-          ConfigValueFactory.fromAnyRef(flowFailureOption)));
+      jobSpec.setConfig(jobSpec.getConfig()
+          //Add flowGroup to job spec
+          .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+          //Add flowName to job spec
+          .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+          //Add job name
+          .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName))
+          //Add flow execution id
+          .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
+          // Remove schedule due to namespace conflict with azkaban schedule key, but still keep track if flow is scheduled or not
+          .withValue(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, ConfigValueFactory.fromAnyRef(!jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)))
+          .withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY)
+          //Remove template uri
+          .withoutPath(GOBBLIN_JOB_TEMPLATE_KEY)
+          // Add job.name and job.group
+          .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName))
+          .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+          //Add flow failure option
+          .withValue(ConfigurationKeys.FLOW_FAILURE_OPTION, ConfigValueFactory.fromAnyRef(flowFailureOption))
+      );
 
       //Add tracking config to JobSpec.
       addTrackingEventConfig(jobSpec, sysConfig);

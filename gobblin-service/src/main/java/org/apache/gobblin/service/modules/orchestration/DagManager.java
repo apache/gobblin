@@ -669,7 +669,8 @@ public class DagManager extends AbstractIdleService {
       }
 
       FlowId flowId = DagManagerUtils.getFlowId(dag);
-      if (!flowGauges.containsKey(flowId.toString())) {
+      // Do not register flow-specific metrics for a flow
+      if (!flowGauges.containsKey(flowId.toString()) && !DagManagerUtils.isDagFromAdhocFlow(dag)) {
         String flowStateGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(),
             flowId.getFlowName(), ServiceMetricNames.RUNNING_STATUS);
         flowGauges.put(flowId.toString(), FlowState.RUNNING);
