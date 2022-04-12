@@ -309,7 +309,8 @@ public class DagManagerUtils {
 
   static boolean isDagFromAdhocFlow(Dag<JobExecutionPlan> dag) {
     // Every dag should have at least one node, and every dag will clone the job configurations which include the schedule
-    return dag.getStartNodes().get(0).getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC);
+    // defaults to false (so metrics are still tracked) if the dag property is not configured due to old dags
+    return ConfigUtils.getBoolean(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig(), ConfigurationKeys.GOBBLIN_FLOW_ISADHOC,false);
   }
 
   static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {

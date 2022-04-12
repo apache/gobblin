@@ -238,7 +238,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
+        if (flowGauges.containsKey(spec.getUri().toString())) {
+          flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
+        }
         Instrumented.markMeter(this.skippedFlowsMeter);
 
         // Send FLOW_FAILED event
@@ -273,13 +275,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         Optional<TimingEvent> flowCompileFailedTimer = this.eventSubmitter.transform(submitter ->
             new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
+        if (flowGauges.containsKey(spec.getUri().toString())) {
+          flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
+        }
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         if (flowCompileFailedTimer.isPresent()) {
           flowCompileFailedTimer.get().stop(flowMetadata);
         }
         return;
-      } else {
+      } else if (flowGauges.containsKey(spec.getUri().toString())) {
         flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
 

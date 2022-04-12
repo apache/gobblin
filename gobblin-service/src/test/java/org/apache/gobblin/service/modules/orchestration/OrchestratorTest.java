@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.MetricRegistry;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -26,6 +27,9 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.hadoop.fs.Path;
@@ -77,7 +81,7 @@ public class OrchestratorTest {
   private FlowCatalog flowCatalog;
   private SpecCatalogListener mockListener;
   private FlowSpec flowSpec;
-
+  private FlowStatusGenerator mockStatusGenerator;
   private Orchestrator orchestrator;
 
   @BeforeClass
@@ -108,16 +112,16 @@ public class OrchestratorTest {
 
     this.flowCatalog.addListener(mockListener);
     this.serviceLauncher.addService(flowCatalog);
+    this.mockStatusGenerator = mock(FlowStatusGenerator.class);
 
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        mock(FlowStatusGenerator.class),
+        this.mockStatusGenerator,
         Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
 
     // Start application
     this.serviceLauncher.start();
-
     // Create Spec to play with
     this.topologySpec = initTopologySpec();
     this.flowSpec = initFlowSpec();
@@ -300,5 +304,28 @@ public class OrchestratorTest {
     specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
     Assert.assertTrue(specsInSEI == 0, "SpecProducer should not contain "
         + "Spec after deletion");
+  }
+
+  @Test
+  public void doNotRegisterMetricsAdhocFlows() throws Exception {
+    MetricContext metricContext = this.orchestrator.getMetricContext();
+    this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
+    Properties flowProps = new Properties();
+    flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "flow0");
+    flowProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "group0");
+    flowProps.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
+    flowProps.put("specExecInstance.capabilities", "source:destination");
+    flowProps.put("gobblin.flow.sourceIdentifier", "source");
+    flowProps.put("gobblin.flow.destinationIdentifier", "destination");
+    flowProps.put("flow.allowConcurrentExecution", false);
+    FlowSpec adhocSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
+    this.orchestrator.orchestrate(adhocSpec);
+    String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group0", "flow0", ServiceMetricNames.COMPILED);
+    Assert.assertNull(metricContext.getParent().get().getGauges().get(metricName));
+
+    flowProps.setProperty("job.schedule", "0/2 * * * * ?");
+    FlowSpec scheduledSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
+    this.orchestrator.orchestrate(scheduledSpec);
+    Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
   }
 }

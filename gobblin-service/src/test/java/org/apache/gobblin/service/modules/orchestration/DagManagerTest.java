@@ -124,11 +124,11 @@ public class DagManagerTest {
    * Create a list of dags with only one node each
    * @return a Dag.
    */
-  static List<Dag<JobExecutionPlan>> buildDagList(int numDags, String proxyUser) throws URISyntaxException{
+  static List<Dag<JobExecutionPlan>> buildDagList(int numDags, String proxyUser, Config additionalConfig) throws URISyntaxException{
     List<Dag<JobExecutionPlan>> dagList = new ArrayList<>();
     for (int i = 0; i < numDags; i++) {
       dagList.add(buildDag(Integer.toString(i),  System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 1,
-          proxyUser));
+          proxyUser, additionalConfig));
     }
     return dagList;
   }
@@ -145,10 +145,10 @@ public class DagManagerTest {
 
   static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes)
       throws URISyntaxException {
-    return buildDag(id, flowExecutionId, flowFailureOption, numNodes, "testUser");
+    return buildDag(id, flowExecutionId, flowFailureOption, numNodes, "testUser", ConfigFactory.empty());
   }
 
-  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser)
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser, Config additionalConfig)
       throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
@@ -161,7 +161,8 @@ public class DagManagerTest {
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
           addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
-          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
+          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build()
+          .withFallback(additionalConfig);
       if ((i == 1) || (i == 2)) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       } else if (i == 3) {
@@ -788,7 +789,7 @@ public class DagManagerTest {
 
   @Test (dependsOnMethods = "testDagManagerWithBadFlowSLAConfig")
   public void testDagManagerQuotaExceeded() throws URISyntaxException, IOException {
-    List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user");
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user", ConfigFactory.empty());
     //Add a dag to the queue of dags
     this.queue.offer(dagList.get(0));
     Config jobConfig0 = dagList.get(0).getNodes().get(0).getValue().getJobSpec().getConfig();
@@ -835,7 +836,7 @@ public class DagManagerTest {
   @Test (dependsOnMethods = "testDagManagerQuotaExceeded")
   public void testQuotaDecrement() throws URISyntaxException, IOException {
 
-    List<Dag<JobExecutionPlan>> dagList = buildDagList(3, "user");
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(3, "user", ConfigFactory.empty());
     //Add a dag to the queue of dags
     this.queue.offer(dagList.get(0));
     this.queue.offer(dagList.get(1));
@@ -896,6 +897,42 @@ public class DagManagerTest {
         ServiceMetricNames.SERVICE_USERS,
         "user")).getCount(), 0);
 
+  }
+
+  @Test (dependsOnMethods = "testQuotaDecrement")
+  public void testEmitFlowMetricOnlyIfNotAdhoc() throws URISyntaxException, IOException {
+
+    Long flowId = System.currentTimeMillis();
+    Dag<JobExecutionPlan> adhocDag = buildDag(String.valueOf(flowId), flowId, "FINISH_RUNNING", 1, "proxyUser",
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, true).build());    //Add a dag to the queue of dags
+    this.queue.offer(adhocDag);
+
+    Iterator<JobStatus> jobStatusIterator =
+        getMockJobStatus("flow" + flowId, "group" + flowId, flowId, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+        getMockJobStatus("flow" + flowId+1, "group" + flowId+1, flowId+1, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator);
+
+    this._dagManagerThread.run();
+    String flowStateGaugeName0 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+flowId,
+        "flow"+flowId, ServiceMetricNames.RUNNING_STATUS);
+    Assert.assertNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName0));
+
+    Dag<JobExecutionPlan> scheduledDag = buildDag(String.valueOf(flowId+1), flowId+1, "FINISH_RUNNING", 1, "proxyUser",
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, false).build());
+    this.queue.offer(scheduledDag);
+    this._dagManagerThread.run();
+    String flowStateGaugeName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+(flowId+1),
+        "flow"+(flowId+1), ServiceMetricNames.RUNNING_STATUS);
+
+    Assert.assertNotNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName1));
+
+    // cleanup
+    this._dagManagerThread.run();
   }
 
 
