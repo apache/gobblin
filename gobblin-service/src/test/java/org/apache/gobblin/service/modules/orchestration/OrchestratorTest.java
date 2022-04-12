@@ -306,7 +306,7 @@ public class OrchestratorTest {
         + "Spec after deletion");
   }
 
-  @Test
+  @Test (dependsOnMethods = "deleteFlowSpec")
   public void doNotRegisterMetricsAdhocFlows() throws Exception {
     MetricContext metricContext = this.orchestrator.getMetricContext();
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
