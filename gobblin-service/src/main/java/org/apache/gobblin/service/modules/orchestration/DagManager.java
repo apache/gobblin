@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.Meter;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.net.URI;
@@ -135,6 +136,7 @@ public class DagManager extends AbstractIdleService {
   private static final long DEFAULT_FAILED_DAG_RETENTION_TIME = 7L;
   public static final String FAILED_DAG_POLLING_INTERVAL = FAILED_DAG_STATESTORE_PREFIX + ".retention.pollingIntervalMinutes";
   public static final Integer DEFAULT_FAILED_DAG_POLLING_INTERVAL = 60;
+  public static final String DAG_MANAGER_HEARTBEAT = "gobblin.dagManager.heartbeat-%s";
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
   private static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
   private static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
@@ -379,7 +381,7 @@ public class DagManager extends AbstractIdleService {
         for (int i = 0; i < numThreads; i++) {
           DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
               runQueue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, failedDagIds, allSuccessfulMeter,
-              allFailedMeter, this.defaultJobStartSlaTimeMillis, quotaManager);
+              allFailedMeter, this.defaultJobStartSlaTimeMillis, quotaManager, i);
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
@@ -448,13 +450,14 @@ public class DagManager extends AbstractIdleService {
     private final BlockingQueue<String> cancelQueue;
     private final BlockingQueue<String> resumeQueue;
     private final Long defaultJobStartSlaTimeMillis;
+    private final Optional<Meter> dagManagerThreadHeartbeat;
     /**
      * Constructor.
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
         boolean instrumentationEnabled, Set<String> failedDagIds, ContextAwareMeter allSuccessfulMeter,
-        ContextAwareMeter allFailedMeter, Long defaultJobStartSla, UserQuotaManager quotaManager) {
+        ContextAwareMeter allFailedMeter, Long defaultJobStartSla, UserQuotaManager quotaManager, int dagMangerThreadId) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
@@ -474,10 +477,12 @@ public class DagManager extends AbstractIdleService {
         ContextAwareGauge<Long> orchestrationDelayMetric = metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY,
             orchestrationDelay::get);
         this.metricContext.register(orchestrationDelayMetric);
+        this.dagManagerThreadHeartbeat = Optional.of(this.metricContext.contextAwareMeter(String.format(DAG_MANAGER_HEARTBEAT, dagMangerThreadId)));
       } else {
         this.metricContext = null;
         this.eventSubmitter = Optional.absent();
         this.jobStatusPolledTimer = Optional.absent();
+        this.dagManagerThreadHeartbeat = Optional.absent();
       }
     }
 
@@ -522,6 +527,7 @@ public class DagManager extends AbstractIdleService {
         log.debug("Cleaning up finished dags..");
         cleanUp();
         log.debug("Clean up done");
+        Instrumented.markMeter(dagManagerThreadHeartbeat);
       } catch (Exception e) {
         log.error(String.format("Exception encountered in %s", getClass().getName()), e);
       }
