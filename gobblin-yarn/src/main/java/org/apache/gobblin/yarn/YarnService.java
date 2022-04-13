@@ -191,8 +191,11 @@ public class YarnService extends AbstractIdleService {
   // instance names get picked up when replacement containers get allocated.
   private final Set<String> unusedHelixInstanceNames = ConcurrentHashMap.newKeySet();
 
-  private final Map<String, Integer> helixTagRequestedContainerCount = Maps.newConcurrentMap();
-  private final Map<String, Integer> helixTagAllocatedContainerCount = Maps.newConcurrentMap();
+  // The map from helix tag to requested container count
+  private final Map<String, Integer> requestedContainerCountMap = Maps.newConcurrentMap();
+  // The map from helix tag to allocated container count
+  private final Map<String, Integer> allocatedContainerCountMap = Maps.newConcurrentMap();
+
   private volatile YarnContainerRequestBundle yarnContainerRequest;
   private final AtomicInteger priorityNumGenerator = new AtomicInteger(0);
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
@@ -454,12 +457,12 @@ public class YarnService extends AbstractIdleService {
     // so overshooting can occur, but periodic calls to this method will make adjustments towards the target.
     for (Map.Entry<String, Integer> entry : yarnContainerRequestBundle.getHelixTagContainerCountMap().entrySet()) {
       String currentHelixTag = entry.getKey();
-      int desiredContainer = entry.getValue();
-      int requestedContainerCount = helixTagRequestedContainerCount.getOrDefault(currentHelixTag, 0);
-      for(; requestedContainerCount < desiredContainer; requestedContainerCount++) {
+      int desiredContainerCount = entry.getValue();
+      int requestedContainerCount = requestedContainerCountMap.getOrDefault(currentHelixTag, 0);
+      for(; requestedContainerCount < desiredContainerCount; requestedContainerCount++) {
         requestContainer(Optional.absent(), yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag));
       }
-      helixTagRequestedContainerCount.put(currentHelixTag, requestedContainerCount);
+      requestedContainerCountMap.put(currentHelixTag, requestedContainerCount);
     }
 
     // If the total desired is lower than the currently allocated amount then release free containers.
@@ -479,7 +482,7 @@ public class YarnService extends AbstractIdleService {
           containersToRelease.add(containerInfo.getContainer());
           String helixTag = containerInfo.getHelixTag();
           if (!Strings.isNullOrEmpty(helixTag)) {
-            helixTagRequestedContainerCount.put(helixTag, helixTagRequestedContainerCount.get(helixTag) - 1);
+            requestedContainerCountMap.put(helixTag, requestedContainerCountMap.get(helixTag) - 1);
           }
         }
 
@@ -495,38 +498,42 @@ public class YarnService extends AbstractIdleService {
     this.yarnContainerRequest = yarnContainerRequestBundle;
     this.numRequestedContainers = numTargetContainers;
     LOGGER.info("Current tag-container being requested:{}, tag-container allocated: {}",
-        this.helixTagRequestedContainerCount, this.helixTagAllocatedContainerCount);
+        this.requestedContainerCountMap, this.allocatedContainerCountMap);
   }
 
-    // Request initial containers with default resource and helix tag
+  // Request initial containers with default resource and helix tag
   private void requestInitialContainers(int containersRequested) {
     YarnContainerRequestBundle initialYarnContainerRequest = new YarnContainerRequestBundle();
     Resource capability = Resource.newInstance(this.requestedContainerMemoryMbs, this.requestedContainerCores);
-    YarnHelixUtils.ensureResourceFitMaxCapacity(this.maxResourceCapacity, capability);
     initialYarnContainerRequest.add(this.helixInstanceTags, containersRequested, capability);
     requestTargetNumberOfContainers(initialYarnContainerRequest, Collections.EMPTY_SET);
   }
 
-  private void requestContainer(Optional<String> preferredNode, Optional<Resource> capability) {
-    Resource desiredResource = capability.or(Resource.newInstance(
+  private void requestContainer(Optional<String> preferredNode, Optional<Resource> resourceOptional) {
+    Resource desiredResource = resourceOptional.or(Resource.newInstance(
         this.requestedContainerMemoryMbs, this.requestedContainerCores));
     requestContainer(preferredNode, desiredResource);
   }
 
-  private void requestContainer(Optional<String> preferredNode, Resource capability) {
-    YarnHelixUtils.ensureResourceFitMaxCapacity(this.maxResourceCapacity, capability);
+  // Request containers with specific resource requirement
+  private void requestContainer(Optional<String> preferredNode, Resource resource) {
+    // Fail if Yarn cannot meet container resource requirements
+    Preconditions.checkArgument(resource.getMemory() <= this.maxResourceCapacity.get().getMemory() &&
+            resource.getVirtualCores() <= this.maxResourceCapacity.get().getVirtualCores(),
+        "Resource requirement must less than the max resource capacity. Requested resource" + resource.toString()
+            + " exceed the max resource limit " + this.maxResourceCapacity.get().toString());
 
-    // Due to YARN-314, different resource size needs different priority, otherwise Yarn will not allocate container
+    // Due to YARN-314, different resource capacity needs different priority, otherwise Yarn will not allocate container
     Priority priority = Records.newRecord(Priority.class);
-    if(!resourcePriorityMap.containsKey(capability.toString())) {
-      resourcePriorityMap.put(capability.toString(), priorityNumGenerator.getAndIncrement());
+    if(!resourcePriorityMap.containsKey(resource.toString())) {
+      resourcePriorityMap.put(resource.toString(), priorityNumGenerator.getAndIncrement());
     }
-    int priorityNum = resourcePriorityMap.get(capability.toString());
+    int priorityNum = resourcePriorityMap.get(resource.toString());
     priority.setPriority(priorityNum);
 
     String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
     this.amrmClientAsync.addContainerRequest(
-        new AMRMClient.ContainerRequest(capability, preferredNodes, null, priority));
+        new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority));
   }
 
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
@@ -671,7 +678,7 @@ public class YarnService extends AbstractIdleService {
     //containerId missing from the containersMap.
     String completedInstanceName = completedContainerInfo == null?  UNKNOWN_HELIX_INSTANCE : completedContainerInfo.getHelixParticipantId();
     String helixTag = completedContainerInfo == null ? helixInstanceTags : completedContainerInfo.getHelixTag();
-    helixTagAllocatedContainerCount.put(helixTag, helixTagAllocatedContainerCount.get(helixTag) - 1);
+    allocatedContainerCountMap.put(helixTag, allocatedContainerCountMap.get(helixTag) - 1);
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
         containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
@@ -786,8 +793,7 @@ public class YarnService extends AbstractIdleService {
     public void onContainersAllocated(List<Container> containers) {
       for (final Container container : containers) {
         String containerId = container.getId().toString();
-        String containerHelixTag = YarnHelixUtils.findHelixTagForContainer(container,
-            helixTagAllocatedContainerCount, yarnContainerRequest);
+        String containerHelixTag = YarnHelixUtils.findHelixTagForContainer(container, allocatedContainerCountMap, yarnContainerRequest);
         if (Strings.isNullOrEmpty(containerHelixTag)) {
           containerHelixTag = helixInstanceTags;
         }
@@ -818,8 +824,8 @@ public class YarnService extends AbstractIdleService {
               instanceName = null;
             }
           }
-          helixTagAllocatedContainerCount.put(containerHelixTag,
-              helixTagAllocatedContainerCount.getOrDefault(containerHelixTag, 0) + 1);
+          allocatedContainerCountMap.put(containerHelixTag,
+              allocatedContainerCountMap.getOrDefault(containerHelixTag, 0) + 1);
         }
 
         if (Strings.isNullOrEmpty(instanceName)) {

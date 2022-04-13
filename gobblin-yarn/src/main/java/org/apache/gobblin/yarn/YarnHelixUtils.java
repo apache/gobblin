@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -39,7 +38,6 @@ import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -255,15 +253,5 @@ public class YarnHelixUtils {
       }
     }
     return foundTag;
-  }
-
-  public static void ensureResourceFitMaxCapacity(Optional<Resource> maxResourceCapacity, Resource requestedResource) {
-    if (maxResourceCapacity == null || !maxResourceCapacity.isPresent()) {
-      return;
-    }
-    int maxMemoryCapacity = maxResourceCapacity.get().getMemory();
-    requestedResource.setMemory(Math.min(requestedResource.getMemory(), maxMemoryCapacity));
-    int maxCoreCapacity = maxResourceCapacity.get().getVirtualCores();
-    requestedResource.setVirtualCores(Math.min(requestedResource.getVirtualCores(), maxCoreCapacity));
   }
 }

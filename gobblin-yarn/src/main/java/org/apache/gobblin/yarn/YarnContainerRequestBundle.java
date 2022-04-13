@@ -17,12 +17,12 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.yarn.api.records.Resource;
 
@@ -48,12 +48,18 @@ public class YarnContainerRequestBundle {
 
   public void add(String helixTag, int containerCount, Resource resource) {
     helixTagContainerCountMap.put(helixTag, helixTagContainerCountMap.getOrDefault(helixTag, 0) + containerCount);
-    if(!helixTagResourceMap.containsKey(helixTag)) {
+    if(helixTagResourceMap.containsKey(helixTag)) {
+      Resource existedResource = helixTagResourceMap.get(helixTag);
+      Preconditions.checkArgument(resource.getMemory() == existedResource.getMemory() &&
+              resource.getVirtualCores() == existedResource.getVirtualCores(),
+          "Helix tag need to have consistent resource requirement. Tag " + helixTag
+              + " has existed resource require " + existedResource.toString() + " and different require " + resource.toString());
+    } else {
       helixTagResourceMap.put(helixTag, resource);
+      Set<String> tagSet = resourceHelixTagMap.getOrDefault(resource.toString(), new HashSet<>());
+      tagSet.add(helixTag);
+      resourceHelixTagMap.put(resource.toString(), tagSet);
     }
-    Set<String> tagSet = resourceHelixTagMap.getOrDefault(resource.toString(), new HashSet<>());
-    tagSet.add(helixTag);
-    resourceHelixTagMap.put(resource.toString(), tagSet);
     totalContainers += containerCount;
   }
 
@@ -62,17 +68,9 @@ public class YarnContainerRequestBundle {
     if (!helixTagContainerCountMap.containsKey(helixTag) && !helixTagResourceMap.containsKey(helixTag)) {
       log.error("Helix tag {} is not present in the request bundle yet, can't process the request to add {} "
           + "container for it without specifying the resource requirement", helixTag, containerCount);
+      return;
     }
     helixTagContainerCountMap.put(helixTag, helixTagContainerCountMap.get(helixTag) + containerCount);
     this.totalContainers += containerCount;
-  }
-
-  public void set(String helixTag, int containerCount) {
-    if (!helixTagContainerCountMap.containsKey(helixTag) && !helixTagResourceMap.containsKey(helixTag)) {
-      log.error("Helix tag {} is not present in the request bundle yet, can't process the request to set {} "
-          + "container for it without specifying the resource requirement", helixTag, containerCount);
-    }
-    this.totalContainers += containerCount - helixTagContainerCountMap.get(helixTag);
-    helixTagContainerCountMap.put(helixTag, helixTagContainerCountMap.get(helixTag) + containerCount);
   }
 }

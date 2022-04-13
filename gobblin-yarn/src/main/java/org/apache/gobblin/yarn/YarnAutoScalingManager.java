@@ -223,7 +223,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
       YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
-      int numPartitions = 0;
+      int numTargetContainers = 0;
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
 
@@ -244,16 +244,15 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           JobContext jobContext = taskDriver.getJobContext(jobName);
           JobConfig jobConfig = taskDriver.getJobConfig(jobName);
           Resource resource = Resource.newInstance(this.defaultContainerMemoryMbs, this.defaultContainerCores);
-          int partitions = 0;
-          String jobTag =helixInstanceTags;
+          int numPartitions = 0;
+          String jobTag = helixInstanceTags;
           if (jobContext != null) {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
             inUseInstances.addAll(jobContext.getPartitionSet().stream().map(jobContext::getAssignedParticipant)
                 .filter(Objects::nonNull).collect(Collectors.toSet()));
 
-            numPartitions += jobContext.getPartitionSet().size();
-            partitions += jobContext.getPartitionSet().size();
+            numPartitions = jobContext.getPartitionSet().size();
             // Respect job level config for helix instance tag, specific resource requirement if there's any
             if (jobConfig != null) {
               if (!Strings.isNullOrEmpty(jobConfig.getInstanceGroupTag())) {
@@ -268,15 +267,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
               }
             }
           }
-          int containerCount = (int) Math.ceil(((double)partitions / this.partitionsPerContainer) * this.overProvisionFactor);
-          YarnHelixUtils.ensureResourceFitMaxCapacity(this.yarnService.getMaxResourceCapacity(), resource);
+          // compute the container count as a ceiling of number of partitions divided by the number of containers
+          // per partition. Scale the result by a constant overprovision factor.
+          int containerCount = (int) Math.ceil(((double)numPartitions / this.partitionsPerContainer) * this.overProvisionFactor);
+          numTargetContainers += containerCount;
           yarnContainerRequestBundle.add(jobTag, containerCount, resource);
         }
       }
-      log.debug("The yarn container request bundle has config helixTagResourceMap {}, with the helixTagContainerCountMap as {}, "
-              + "resourceHelixTagMap as {}",
-          yarnContainerRequestBundle.getHelixTagResourceMap(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
-          yarnContainerRequestBundle.getResourceHelixTagMap());
       // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
       // and potentially replanner-instance.
       Set<String> allParticipants = getParticipants(HELIX_YARN_INSTANCE_NAME_PREFIX);
@@ -296,16 +293,12 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         }
       }
 
-      // compute the target containers as a ceiling of number of partitions divided by the number of containers
-      // per partition. Scale the result by a constant overprovision factor.
-      int numTargetContainers = (int) Math.ceil(((double)numPartitions / this.partitionsPerContainer) * this.overProvisionFactor);
-
       // adjust the number of target containers based on the configured min and max container values.
       numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
       trimContainerSize(numTargetContainers, yarnContainerRequestBundle);
       slidingWindowReservoir.add(yarnContainerRequestBundle);
 
-      log.info("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
+      log.debug("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
           yarnContainerRequestBundle.getTotalContainers(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
           yarnContainerRequestBundle.getHelixTagResourceMap());
 
@@ -336,7 +329,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       Preconditions.checkArgument(numTargetContainers >= yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet().size(),
           "Num of container requested is less than type of helix tags, which will cause some of job not being processed."
               + "Please change the container configuration");
-      factor = factor >0 ? 1 : -1;
+      factor = factor > 0 ? 1 : -1;
       List<String> tags = new ArrayList<> (yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet());
       int index = 0;
       while(yarnContainerRequestBundle.getTotalContainers() != numTargetContainers) {
