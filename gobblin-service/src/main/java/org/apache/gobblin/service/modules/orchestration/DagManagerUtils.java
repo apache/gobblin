@@ -307,16 +307,20 @@ public class DagManagerUtils {
     return (int) (flowExecutionId % numThreads);
   }
 
+  static Config getDagJobConfig(Dag<JobExecutionPlan> dag) {
+    // Every dag should have at least one node, and the job configurations are cloned among each node
+    return dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+  }
+
   static boolean isDagFromAdhocFlow(Dag<JobExecutionPlan> dag) {
-    // Every dag should have at least one node, and every dag will clone the job configurations which include the schedule
     // defaults to false (so metrics are still tracked) if the dag property is not configured due to old dags
-    return ConfigUtils.getBoolean(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig(), ConfigurationKeys.GOBBLIN_FLOW_ISADHOC,false);
+    return ConfigUtils.getBoolean(getDagJobConfig(dag), ConfigurationKeys.GOBBLIN_FLOW_ISADHOC,false);
   }
 
   static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (eventSubmitter.isPresent() && !dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
-      Config config = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
+      Config config = getDagJobConfig(dag);
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
 
       if (dag.getFlowEvent() != null) {

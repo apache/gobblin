@@ -688,7 +688,7 @@ public class DagManager extends AbstractIdleService {
 
       // Set flow status to running
       DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
-      flowGauges.put(flowId.toString(), FlowState.RUNNING);
+      conditionallyUpdateFlowGaugeExecutionState(flowGauges, flowId, FlowState.RUNNING);
 
       // Report the orchestration delay the first time the Dag is initialized. Orchestration delay is defined as
       // the time difference between the instant when a flow first transitions to the running state and the instant
@@ -1117,7 +1117,7 @@ public class DagManager extends AbstractIdleService {
             onFlowFailure(dagId);
             status = TimingEvent.FlowTimings.FLOW_FAILED;
             this.failedDagIdsFinishAllPossible.remove(dagId);
-            flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+            conditionallyUpdateFlowGaugeExecutionState(flowGauges, DagManagerUtils.getFlowId(this.dags.get(dagId)), FlowState.FAILED);
           } else {
             onFlowSuccess(dagId);
           }
@@ -1135,7 +1135,7 @@ public class DagManager extends AbstractIdleService {
 
     private void onFlowSuccess(String dagId) {
       if (this.metricContext != null) {
-        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
+        conditionallyUpdateFlowGaugeExecutionState(flowGauges, DagManagerUtils.getFlowId(this.dags.get(dagId)), FlowState.SUCCESSFUL);
         this.allSuccessfulMeter.mark();
         getGroupMeterForDag(dagId, ServiceMetricNames.SUCCESSFUL_FLOW_METER, groupSuccessfulMeters).mark();
       }
@@ -1144,7 +1144,7 @@ public class DagManager extends AbstractIdleService {
     private void onFlowFailure(String dagId) {
       addFailedDag(dagId);
       if (this.metricContext != null) {
-        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+        conditionallyUpdateFlowGaugeExecutionState(flowGauges, DagManagerUtils.getFlowId(this.dags.get(dagId)), FlowState.FAILED);
         this.allFailedMeter.mark();
         getGroupMeterForDag(dagId, ServiceMetricNames.FAILED_FLOW_METER, groupFailureMeters).mark();
       }
@@ -1179,6 +1179,18 @@ public class DagManager extends AbstractIdleService {
        }
       this.dags.remove(dagId);
       this.dagToJobs.remove(dagId);
+    }
+
+    /**
+     * Updates flowGauges with the appropriate state if the gauge is being tracked for the flow
+      * @param flowGauges
+     * @param flowId
+     * @param state
+     */
+    private void conditionallyUpdateFlowGaugeExecutionState(Map<String, FlowState> flowGauges, FlowId flowId, FlowState state) {
+      if (flowGauges.containsKey(flowId.toString())) {
+        flowGauges.put(flowId.toString(), state);
+      }
     }
   }
 

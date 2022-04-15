@@ -1014,7 +1014,7 @@ public class ConfigurationKeys {
   public static final String DATASET_BASE_OUTPUT_PATH_KEY = "gobblin.flow.dataset.baseOutputPath";
   public static final String DATASET_COMBINE_KEY = "gobblin.flow.dataset.combine";
   public static final String WHITELISTED_EDGE_IDS = "gobblin.flow.whitelistedEdgeIds";
-  public static final String GOBBLIN_FLOW_ISADHOC = "gobblin.flow.isAdhoc";
+  public static final String GOBBLIN_FLOW_ISADHOC = "gobblin.internal.flow.isAdhoc";
   /***
    * Configuration properties related to TopologySpec Store
    */
