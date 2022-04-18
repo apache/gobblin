@@ -43,7 +43,7 @@ public class UserQuotaManagerTest {
   // Tests that if exceeding the quota on startup, do not throw an exception and do not decrement the counter
   @Test
   public void testExceedsQuotaOnStartup() throws Exception {
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user");
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user", ConfigFactory.empty());
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
@@ -57,7 +57,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testExceedsQuotaThrowsException() throws Exception {
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2");
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
