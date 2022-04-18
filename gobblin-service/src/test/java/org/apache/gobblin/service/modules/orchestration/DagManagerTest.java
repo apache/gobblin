@@ -907,17 +907,21 @@ public class DagManagerTest {
         ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, true).build());    //Add a dag to the queue of dags
     this.queue.offer(adhocDag);
 
-    Iterator<JobStatus> jobStatusIterator =
+    Iterator<JobStatus> jobStatusIterator1 =
         getMockJobStatus("flow" + flowId, "group" + flowId, flowId, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+    Iterator<JobStatus> jobStatusIterator2 =
         getMockJobStatus("flow" + flowId+1, "group" + flowId+1, flowId+1, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
 
 
     Mockito.when(_jobStatusRetriever
-        .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(),
+        .getJobStatusesForFlowExecution(Mockito.eq("flow" + flowId), Mockito.eq("group" + flowId), Mockito.anyLong(),
             Mockito.anyString(), Mockito.anyString()))
-        .thenReturn(jobStatusIterator);
+        .thenReturn(jobStatusIterator1);
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow" + (flowId+1)), Mockito.eq("group" + (flowId+1)), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator2);
 
-    this._dagManagerThread.run();
     String flowStateGaugeName0 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+flowId,
         "flow"+flowId, ServiceMetricNames.RUNNING_STATUS);
     Assert.assertNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName0));
@@ -933,6 +937,8 @@ public class DagManagerTest {
 
     // cleanup
     this._dagManagerThread.run();
+    // should be successful since it should be cleaned up with status complete
+    Assert.assertEquals(metricContext.getParent().get().getGauges().get(flowStateGaugeName1).getValue(), DagManager.FlowState.SUCCESSFUL.value);
   }
 
 

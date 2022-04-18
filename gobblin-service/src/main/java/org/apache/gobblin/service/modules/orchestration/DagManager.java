@@ -1194,7 +1194,7 @@ public class DagManager extends AbstractIdleService {
     }
   }
 
-  private enum FlowState {
+  public enum FlowState {
     FAILED(-1),
     RUNNING(0),
     SUCCESSFUL(1);
