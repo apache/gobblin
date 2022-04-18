@@ -29,6 +29,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 
 
 public class AbstractPathFinderTest {
@@ -43,7 +44,7 @@ public class AbstractPathFinderTest {
     dataNodeAliasMap.put("node3-alpha", "node3");
     dataNodeAliasMap.put("node1-beta", "node3");
 
-    List<String> dataNodes = AbstractPathFinder.getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
+    List<String> dataNodes = FlowConfigUtils.getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
     Assert.assertEquals(dataNodes.size(), 2);
     Assert.assertTrue(dataNodes.contains("node1"));
     Assert.assertTrue(dataNodes.contains("node2"));
