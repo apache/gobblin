@@ -66,6 +66,7 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
+import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ClassAliasResolver;
@@ -92,6 +93,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private DataMovementAuthorizer dataMovementAuthorizer;
 
+  private Map<String, String> dataNodeAliasMap = new HashMap<>();
+
   // a map to hold aliases of data nodes, e.g. gobblin.service.datanode.aliases.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
   public static final String DATA_NODE_ID_TO_ALIAS_MAP = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "datanode.aliases.map";
 
@@ -109,10 +112,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    Map<String, String> dataNodeAliasMap = new HashMap<>();
-
     try {
-      dataNodeAliasMap = config.hasPath(DATA_NODE_ID_TO_ALIAS_MAP)
+      this.dataNodeAliasMap = config.hasPath(DATA_NODE_ID_TO_ALIAS_MAP)
           ? Splitter.on(",").withKeyValueSeparator(":").split(config.getString(DATA_NODE_ID_TO_ALIAS_MAP))
           : new HashMap<>();
     } catch (RuntimeException e) {
@@ -203,15 +204,15 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     long startTime = System.nanoTime();
 
     FlowSpec flowSpec = (FlowSpec) spec;
-    String source = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
-    String destination = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
+    String source = FlowConfigUtils.getDataNode(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, this.dataNodeAliasMap);
+    String destination = FlowConfigUtils.getDataNode(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.dataNodeAliasMap);
 
     DataNode sourceNode = this.flowGraph.getNode(source);
     if (sourceNode == null) {
       flowSpec.addCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", source));
       return null;
     }
-    List<String> destNodeIds = ConfigUtils.getStringList(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
+    List<String> destNodeIds = FlowConfigUtils.getDataNodes(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.dataNodeAliasMap);
     List<DataNode> destNodes = destNodeIds.stream().map(this.flowGraph::getNode).collect(Collectors.toList());
     if (destNodes.contains(null)) {
       flowSpec.addCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", destNodeIds.get(destNodes.indexOf(null))));
