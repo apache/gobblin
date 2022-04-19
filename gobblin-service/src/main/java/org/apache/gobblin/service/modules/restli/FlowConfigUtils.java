@@ -18,14 +18,19 @@
 package org.apache.gobblin.service.modules.restli;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -101,4 +106,16 @@ public class FlowConfigUtils {
 
     return flowConfig;
   }
+
+  public static List<String> getDataNodes(Config flowConfig, String identifierKey, Map<String, String> dataNodeAliasMap) {
+    List<String> dataNodes = ConfigUtils.getStringList(flowConfig, identifierKey);
+    return dataNodes.stream().map(dataNode -> dataNodeAliasMap.getOrDefault(dataNode, dataNode)).collect(Collectors.toList());
+  }
+
+  public static String getDataNode(Config flowConfig, String identifierKey, Map<String, String> dataNodeAliasMap) {
+    String dataNode = ConfigUtils.getString(flowConfig, identifierKey, "");
+    return dataNodeAliasMap.getOrDefault(dataNode, dataNode);
+  }
+
+
 }
