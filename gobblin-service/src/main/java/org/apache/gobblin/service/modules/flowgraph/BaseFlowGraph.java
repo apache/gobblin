@@ -50,6 +50,15 @@ public class BaseFlowGraph implements FlowGraph {
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
+  private Map<String, String> dataNodeAliasMap;
+
+  public BaseFlowGraph() {
+    this(new HashMap<>());
+  }
+
+  public BaseFlowGraph(Map<String, String> dataNodeAliasMap) {
+    this.dataNodeAliasMap = dataNodeAliasMap;
+  }
 
   /**
    * Lookup a node by its identifier.
@@ -238,7 +247,7 @@ public class BaseFlowGraph implements FlowGraph {
           .getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
               FlowGraphConfigurationKeys.DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS));
       PathFinder pathFinder =
-          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec);
+          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec, dataNodeAliasMap);
       return pathFinder.findPath();
     } finally {
       rwLock.readLock().unlock();

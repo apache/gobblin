@@ -34,6 +34,8 @@ public class IcebergMCEMetadataKeys {
   public static final String DATASET_HDFS_PATH = "datasetHdfsPath";
   public static final String FAILURE_EVENT_DB_NAME = "databaseName";
   public static final String FAILURE_EVENT_TABLE_NAME = "tableName";
+  public static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
+  public static final String EXCEPTION_MESSAGE_KEY_NAME = "exceptionMessage";
 
   private IcebergMCEMetadataKeys() {
   }

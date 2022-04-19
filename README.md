@@ -60,7 +60,7 @@ The distribution will be created in build/gobblin-distribution/distributions dir
     * [Running Gobblin on Docker from your laptop](https://github.com/apache/gobblin/blob/master/gobblin-docs/user-guide/Docker-Integration.md)
     * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
     * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
-  * Community Slack: [Get your invite]( https://join.slack.com/t/apache-gobblin/shared_invite/zt-vqgdztup-UUq8S6gGJqE6L5~9~JelNg)
+  * Community Slack: [Get your invite](https://join.slack.com/t/apache-gobblin/shared_invite/zt-1723tsdhd-ITcAEsaQNpQvuQUFOgfHbQ)
   * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
   * [Sample project](https://github.com/apache/gobblin/tree/master/gobblin-example)
   * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)

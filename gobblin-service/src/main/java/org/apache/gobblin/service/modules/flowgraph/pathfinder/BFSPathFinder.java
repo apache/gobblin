@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,7 +59,11 @@ public class BFSPathFinder extends AbstractPathFinder {
    */
   public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
       throws ReflectiveOperationException {
-    super(flowGraph, flowSpec);
+    this(flowGraph, flowSpec, new HashMap<>());
+  }
+
+  public BFSPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap) throws ReflectiveOperationException {
+    super(flowGraph, flowSpec, dataNodeAliasMap);
   }
 
   /**

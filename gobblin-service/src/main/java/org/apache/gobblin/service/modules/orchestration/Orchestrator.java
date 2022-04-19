@@ -222,7 +222,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
-      if (!flowGauges.containsKey(spec.getUri().toString())) {
+      // Only register the metric of flows that are scheduled, run once flows should not be tracked indefinitely
+      if (!flowGauges.containsKey(spec.getUri().toString()) && flowConfig.hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         String flowCompiledGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
         flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
         ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
@@ -237,7 +238,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
+        conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SKIPPED);
         Instrumented.markMeter(this.skippedFlowsMeter);
 
         // Send FLOW_FAILED event
@@ -272,15 +273,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         Optional<TimingEvent> flowCompileFailedTimer = this.eventSubmitter.transform(submitter ->
             new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
+        conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.FAILED);
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         if (flowCompileFailedTimer.isPresent()) {
           flowCompileFailedTimer.get().stop(flowMetadata);
         }
         return;
-      } else {
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
+      conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SUCCESSFUL);
 
       //If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is successful,
       // retrieve the flowExecutionId from the JobSpec.
@@ -389,7 +389,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
 
     // Delete all compiled JobSpecs on their respective Executor
-    for (Dag.DagNode<JobExecutionPlan> dagNode: jobExecutionPlanDag.getNodes()) {
+    for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
       JobExecutionPlan jobExecutionPlan = dagNode.getValue();
       Spec jobSpec = jobExecutionPlan.getJobSpec();
       try {
@@ -399,6 +399,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       } catch (Exception e) {
         _log.error(String.format("Could not delete JobSpec: %s for flow: %s", jobSpec, spec), e);
       }
+    }
+  }
+
+  /**
+   * Updates the flowgauge related to the spec if the gauge is being tracked for the flow
+   * @param spec FlowSpec to be updated
+   * @param state desired state to set the gauge
+   */
+  private void conditionallyUpdateFlowGaugeSpecState(Spec spec, CompiledState state) {
+    if (this.flowGauges.containsKey(spec.getUri().toString())) {
+      this.flowGauges.get(spec.getUri().toString()).setState(state);
     }
   }
 

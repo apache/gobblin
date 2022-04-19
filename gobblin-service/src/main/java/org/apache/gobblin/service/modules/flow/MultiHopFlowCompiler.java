@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -38,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
@@ -89,6 +92,9 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private DataMovementAuthorizer dataMovementAuthorizer;
 
+  // a map to hold aliases of data nodes, e.g. gobblin.service.datanode.aliases.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
+  public static final String DATA_NODE_ID_TO_ALIAS_MAP = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "datanode.aliases.map";
+
   public MultiHopFlowCompiler(Config config) {
     this(config, true);
   }
@@ -103,7 +109,18 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    this.flowGraph = new BaseFlowGraph();
+    Map<String, String> dataNodeAliasMap = new HashMap<>();
+
+    try {
+      dataNodeAliasMap = config.hasPath(DATA_NODE_ID_TO_ALIAS_MAP)
+          ? Splitter.on(",").withKeyValueSeparator(":").split(config.getString(DATA_NODE_ID_TO_ALIAS_MAP))
+          : new HashMap<>();
+    } catch (RuntimeException e) {
+      MultiHopFlowCompiler.log.warn("Exception reading data node alias map, ignoring it.", e);
+    }
+
+    this.flowGraph = new BaseFlowGraph(dataNodeAliasMap);
+
     Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {

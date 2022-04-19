@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -29,10 +31,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -65,6 +69,7 @@ import org.apache.gobblin.util.ConfigUtils;
 public class DagManagerTest {
   private final String dagStateStoreDir = "/tmp/dagManagerTest/dagStateStore";
   private DagStateStore _dagStateStore;
+  private DagStateStore _failedDagStateStore;
   private JobStatusRetriever _jobStatusRetriever;
   private DagManager.DagManagerThread _dagManagerThread;
   private LinkedBlockingQueue<Dag<JobExecutionPlan>> queue;
@@ -73,8 +78,10 @@ public class DagManagerTest {
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
+  private UserQuotaManager _gobblinServiceQuotaManager;
   private Set<String> failedDagIds;
   private static long START_SLA_DEFAULT = 15 * 60 * 1000;
+  private MetricContext metricContext;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -83,15 +90,18 @@ public class DagManagerTest {
         .withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(this.dagStateStoreDir));
 
     this._dagStateStore = new FSDagStateStore(config, new HashMap<>());
-    DagStateStore failedDagStateStore = new InMemoryDagStateStore();
+    this._failedDagStateStore = new InMemoryDagStateStore();
     this._jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     this.queue = new LinkedBlockingQueue<>();
     this.cancelQueue = new LinkedBlockingQueue<>();
     this.resumeQueue = new LinkedBlockingQueue<>();
-    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
-    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, failedDagStateStore, queue, cancelQueue,
-        resumeQueue, true, 5, new HashMap<>(), new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT);
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+    Config quotaConfig = ConfigFactory.empty()
+        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
+    this._gobblinServiceQuotaManager = new UserQuotaManager(quotaConfig);
+    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
+        resumeQueue, true, new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
+        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -111,6 +121,19 @@ public class DagManagerTest {
   }
 
   /**
+   * Create a list of dags with only one node each
+   * @return a Dag.
+   */
+  static List<Dag<JobExecutionPlan>> buildDagList(int numDags, String proxyUser, Config additionalConfig) throws URISyntaxException{
+    List<Dag<JobExecutionPlan>> dagList = new ArrayList<>();
+    for (int i = 0; i < numDags; i++) {
+      dagList.add(buildDag(Integer.toString(i),  System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 1,
+          proxyUser, additionalConfig));
+    }
+    return dagList;
+  }
+
+  /**
    * Create a {@link Dag <JobExecutionPlan>}.
    * @return a Dag.
    */
@@ -122,6 +145,11 @@ public class DagManagerTest {
 
   static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes)
       throws URISyntaxException {
+    return buildDag(id, flowExecutionId, flowFailureOption, numNodes, "testUser", ConfigFactory.empty());
+  }
+
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser, Config additionalConfig)
+      throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < numNodes; i++) {
@@ -132,7 +160,9 @@ public class DagManagerTest {
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
-          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).build();
+          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
+          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build()
+          .withFallback(additionalConfig);
       if ((i == 1) || (i == 2)) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       } else if (i == 3) {
@@ -755,6 +785,160 @@ public class DagManagerTest {
     Assert.assertEquals(this.dags.size(), 0);
     Assert.assertEquals(this.jobToDag.size(), 0);
     Assert.assertEquals(this.dagToJobs.size(), 0);
+  }
+
+  @Test (dependsOnMethods = "testDagManagerWithBadFlowSLAConfig")
+  public void testDagManagerQuotaExceeded() throws URISyntaxException, IOException {
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user", ConfigFactory.empty());
+    //Add a dag to the queue of dags
+    this.queue.offer(dagList.get(0));
+    Config jobConfig0 = dagList.get(0).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Config jobConfig1 = dagList.get(1).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Iterator<JobStatus> jobStatusIterator0 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus("flow1", "group1", Long.valueOf(jobConfig1.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group1", String.valueOf(ExecutionStatus.FAILED));
+    // Cleanup the running job that is scheduled normally
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator3 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow0"), Mockito.eq("group0"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator0)
+        .thenReturn(jobStatusIterator2)
+        .thenReturn(jobStatusIterator3);
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow1"), Mockito.eq("group1"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator1);
+
+    this._dagManagerThread.run();
+    // dag will not be processed due to exceeding the quota, will log a message and exit out without adding it to dags
+    this.queue.offer(dagList.get(1));
+    this._dagManagerThread.run();
+    SortedMap<String, Counter> allCounters = metricContext.getParent().get().getCounters();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
+
+    this._dagManagerThread.run(); // cleanup
+  }
+
+  @Test (dependsOnMethods = "testDagManagerQuotaExceeded")
+  public void testQuotaDecrement() throws URISyntaxException, IOException {
+
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(3, "user", ConfigFactory.empty());
+    //Add a dag to the queue of dags
+    this.queue.offer(dagList.get(0));
+    this.queue.offer(dagList.get(1));
+    Config jobConfig0 = dagList.get(0).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Config jobConfig1 = dagList.get(1).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Config jobConfig2 = dagList.get(1).getNodes().get(0).getValue().getJobSpec().getConfig();
+
+    Iterator<JobStatus> jobStatusIterator0 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus("flow1", "group1", Long.valueOf(jobConfig1.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group1", String.valueOf(ExecutionStatus.FAILED));
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator3 =
+        getMockJobStatus("flow2", "group2", Long.valueOf(jobConfig2.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group2", String.valueOf(ExecutionStatus.FAILED));
+    Iterator<JobStatus> jobStatusIterator4 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow0"), Mockito.eq("group0"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator0)
+        .thenReturn(jobStatusIterator2)
+        .thenReturn(jobStatusIterator4);
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow1"), Mockito.eq("group1"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator1);
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow2"), Mockito.eq("group2"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator3);
+
+    this._dagManagerThread.run();
+
+    SortedMap<String, Counter> allCounters = metricContext.getParent().get().getCounters();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
+    // Test case where a job that exceeded a quota would cause a double decrement after fixing the proxy user name, allowing for more jobs to run
+    this.queue.offer(dagList.get(2));
+    this._dagManagerThread.run();
+    // Assert that running dag metrics are only counted once
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
+
+    this._dagManagerThread.run(); // cleanup
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 0);
+
+  }
+
+  @Test (dependsOnMethods = "testQuotaDecrement")
+  public void testEmitFlowMetricOnlyIfNotAdhoc() throws URISyntaxException, IOException {
+
+    Long flowId = System.currentTimeMillis();
+    Dag<JobExecutionPlan> adhocDag = buildDag(String.valueOf(flowId), flowId, "FINISH_RUNNING", 1, "proxyUser",
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, true).build());    //Add a dag to the queue of dags
+    this.queue.offer(adhocDag);
+
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus("flow" + flowId, "group" + flowId, flowId, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus("flow" + flowId+1, "group" + flowId+1, flowId+1, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow" + flowId), Mockito.eq("group" + flowId), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator1);
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow" + (flowId+1)), Mockito.eq("group" + (flowId+1)), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator2);
+
+    String flowStateGaugeName0 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+flowId,
+        "flow"+flowId, ServiceMetricNames.RUNNING_STATUS);
+    Assert.assertNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName0));
+
+    Dag<JobExecutionPlan> scheduledDag = buildDag(String.valueOf(flowId+1), flowId+1, "FINISH_RUNNING", 1, "proxyUser",
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC, false).build());
+    this.queue.offer(scheduledDag);
+    this._dagManagerThread.run();
+    String flowStateGaugeName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+(flowId+1),
+        "flow"+(flowId+1), ServiceMetricNames.RUNNING_STATUS);
+
+    Assert.assertNotNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName1));
+
+    // cleanup
+    this._dagManagerThread.run();
+    // should be successful since it should be cleaned up with status complete
+    Assert.assertEquals(metricContext.getParent().get().getGauges().get(flowStateGaugeName1).getValue(), DagManager.FlowState.SUCCESSFUL.value);
   }
 
 
