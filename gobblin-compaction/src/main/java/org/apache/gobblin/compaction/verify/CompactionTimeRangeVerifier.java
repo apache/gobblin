@@ -99,7 +99,8 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
         if (compactState.contains(CompactionSlaEventHelper.LAST_RUN_START_TIME)
             && compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME)
             > latestEligibleCompactTime.getMillis()) {
-          log.warn("Last compaction for {} is {}, not before {}", dataset.datasetRoot(),
+          log.warn("Last compaction for {} is {}, which is not before latestEligibleCompactTime={}",
+              dataset.datasetRoot(),
               new DateTime(compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME), timeZone),
               latestEligibleCompactTime);
           return new Result(false,
