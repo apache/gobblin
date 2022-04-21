@@ -706,7 +706,6 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableSet.of(Integer.valueOf(4), Integer.valueOf(5)));
     Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("GobblinYarnTaskRunner-3");
     Mockito.when(mockTaskDriver.getJobContext("job3")).thenReturn(mockJobContext3);
-    //mockJobContext3.get
     JobConfig mockJobConfig3 = mock(JobConfig.class);
     String helixTag = "test-Tag1";
     Map<String, String> resourceMap = new HashMap<>();

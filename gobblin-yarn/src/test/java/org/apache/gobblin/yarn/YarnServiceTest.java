@@ -294,6 +294,16 @@ public class YarnServiceTest {
     Assert.assertTrue(command.contains("-Xmx1628"));
   }
 
+  /**
+   * Test if requested resource exceed the resource limit, yarnService should fail.
+   */
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, expectedExceptions = IllegalArgumentException.class)
+  public void testExceedResourceLimit() {
+    Resource resource = Resource.newInstance(204800, 10240);
+    this.yarnService.requestTargetNumberOfContainers(
+        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
+  }
+
    static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
