@@ -161,8 +161,8 @@ public class DagManagerTest {
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
           addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
-          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build()
-          .withFallback(additionalConfig);
+          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
+      jobConfig = additionalConfig.withFallback(jobConfig);
       if ((i == 1) || (i == 2)) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       } else if (i == 3) {

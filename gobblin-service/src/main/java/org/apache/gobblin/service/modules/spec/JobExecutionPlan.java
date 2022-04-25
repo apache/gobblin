@@ -122,8 +122,6 @@ public class JobExecutionPlan {
           .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
           //Add flowName to job spec
           .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-          //Add job name
-          .withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName))
           //Add flow execution id
           .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
           // Remove schedule due to namespace conflict with azkaban schedule key, but still keep track if flow is scheduled or not
