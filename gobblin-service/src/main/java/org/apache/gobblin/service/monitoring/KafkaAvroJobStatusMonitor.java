@@ -164,6 +164,12 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
         properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
         break;
+      case TimingEvent.FlowTimings.FLOW_START_SLA_KILLED:
+      case TimingEvent.FlowTimings.FLOW_SLA_KILLED:
+        properties.put(TimingEvent.FlowEventConstants.IS_FLOW_SLA_KILLED, true);
+        properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
+        properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
+        break;
       case TimingEvent.JOB_COMPLETION_PERCENTAGE:
         properties.put(TimingEvent.JOB_LAST_PROGRESS_EVENT_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
         break;
