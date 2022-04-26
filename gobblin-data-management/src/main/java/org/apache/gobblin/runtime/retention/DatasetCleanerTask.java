@@ -28,6 +28,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.BaseAbstractTask;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -48,8 +49,9 @@ public class DatasetCleanerTask extends BaseAbstractTask {
   @Override
   public void run() {
     try {
-      DatasetCleaner datasetCleaner = new DatasetCleaner(FileSystem.get(new Configuration()),
-          this.taskContext.getTaskState().getProperties());
+      Configuration conf = new Configuration();
+      JobConfigurationUtils.putStateIntoConfiguration(this.taskContext.getTaskState(), conf);
+      DatasetCleaner datasetCleaner = new DatasetCleaner(FileSystem.get(conf), this.taskContext.getTaskState().getProperties());
       datasetCleaner.clean();
       this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
     } catch (IOException e) {
