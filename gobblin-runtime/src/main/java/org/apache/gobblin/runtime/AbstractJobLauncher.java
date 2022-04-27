@@ -428,7 +428,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
     boolean isWorkUnitsEmpty = false;
-
+    TimingEvent workUnitsCreationTimer =
+        this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
     try {
       MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
       MDC.put(ConfigurationKeys.JOB_KEY_KEY, this.jobContext.getJobKey());
@@ -451,8 +452,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           executeUnfinishedCommitSequences(jobState.getJobName());
         }
 
-        TimingEvent workUnitsCreationTimer =
-            this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
         Source<?, ?> source = this.jobContext.getSource();
         if (source instanceof InfiniteSource) {
           ((InfiniteSource) source).getEventBus().register(this);
@@ -469,16 +468,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
         workUnitsCreationTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
-
-        if (this.runtimeMetricContext.isPresent()) {
-          String workunitCreationGaugeName = MetricRegistry
-              .name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
-                  jobState.getJobName());
-          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
-          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
-              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
-          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
-        }
 
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
@@ -685,8 +674,23 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     } finally {
-      // Stop metrics reporting
+      // Register metrics then stop metrics reporting, reporting is done when the metricsContext is closed
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
+        if (jobState.getPropAsBoolean(ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, true)) {
+          String workunitCreationGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX,
+              TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getJobName());
+          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
+          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
+              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
+          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
+
+          String workunitCountGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX,
+              JobEvent.WORK_UNITS_CREATED, jobState.getJobName());
+          ContextAwareGauge<Integer> workunitCountGauge = this.runtimeMetricContext.get()
+              .newContextAwareGauge(workunitCreationGaugeName, () -> Integer.valueOf(jobState.getProp(NUM_WORKUNITS)));
+          this.runtimeMetricContext.get().register(workunitCountGaugeName, workunitCountGauge);
+
+        }
         JobMetrics.remove(jobState);
       }
       MDC.remove(ConfigurationKeys.JOB_NAME_KEY);
