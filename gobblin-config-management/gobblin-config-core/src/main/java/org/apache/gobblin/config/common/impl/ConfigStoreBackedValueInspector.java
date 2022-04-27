@@ -153,7 +153,7 @@ public class ConfigStoreBackedValueInspector implements ConfigStoreValueInspecto
    */
   public Config getResolvedConfig(ConfigKeyPath configKey, Optional<Config> runtimeConfig) {
     return getResolvedConfigRecursive(configKey, Sets.<String>newHashSet(), runtimeConfig)
-        .withFallback(ConfigFactory.defaultOverrides()).withFallback(ConfigFactory.systemEnvironment()).resolve();
+        .withFallback(ConfigFactory.defaultOverrides()).resolve();
   }
 
   @Override
