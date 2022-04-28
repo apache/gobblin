@@ -803,7 +803,7 @@ public class DagManager extends AbstractIdleService {
         cancelDagNode(node);
 
         String dagId = DagManagerUtils.generateDagId(node);
-        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
         this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
 
         return true;
@@ -860,7 +860,7 @@ public class DagManager extends AbstractIdleService {
             node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
         cancelDagNode(node);
 
-        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
         this.dags.get(dagId).setMessage("Flow killed due to exceeding SLA of " + flowSla + " ms");
 
         return true;
