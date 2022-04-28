@@ -278,8 +278,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
 
     modifyStateIfRetryRequired(jobStatus);
-    // Remove data not needed to be stored in state store
-    jobStatus.removeProp(TimingEvent.FlowEventConstants.IS_FLOW_SLA_KILLED);
     stateStore.put(storeName, tableName, jobStatus);
   }
 
@@ -289,12 +287,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
     if ((state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
         || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())
-        || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.IS_FLOW_SLA_KILLED))
+        || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY))
     ) && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
       state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
     }
+    state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
   /**
