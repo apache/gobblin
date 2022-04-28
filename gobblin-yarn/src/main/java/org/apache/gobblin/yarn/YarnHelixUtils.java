@@ -34,6 +34,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -228,5 +229,29 @@ public class YarnHelixUtils {
    */
   public static String getContainerNum(String containerId) {
     return "container-" + containerId.substring(containerId.lastIndexOf("_") + 1);
+  }
+
+  /**
+   * Find the helix tag for the newly allocated container. The tag should align with {@link YarnContainerRequestBundle},
+   * so that the correct resource can be allocated to helix workflow that has specific resource requirement.
+   * @param container newly allocated container
+   * @param helixTagAllocatedContainerCount current container count for each helix tag
+   * @param requestedYarnContainer yarn container request specify the desired state
+   * @return helix tag that this container should be assigned with, if null means need to use the default
+   */
+  public static String findHelixTagForContainer(Container container,
+      Map<String, Integer> helixTagAllocatedContainerCount, YarnContainerRequestBundle requestedYarnContainer) {
+    String foundTag = null;
+    if(requestedYarnContainer != null && requestedYarnContainer.getResourceHelixTagMap().containsKey(container.getResource().toString())) {
+      for (String tag : requestedYarnContainer.getResourceHelixTagMap().get(container.getResource().toString())) {
+        int desiredCount = requestedYarnContainer.getHelixTagContainerCountMap().get(tag);
+        int allocatedCount = helixTagAllocatedContainerCount.getOrDefault(tag, 0);
+        foundTag = tag;
+        if(allocatedCount < desiredCount) {
+          return foundTag;
+        }
+      }
+    }
+    return foundTag;
   }
 }
