@@ -47,16 +47,25 @@ public class DatasetCleanerTask extends BaseAbstractTask {
   }
 
   @Override
-  public void run() {
+  public void run(){
+    DatasetCleaner datasetCleaner = null;
     try {
       Configuration conf = new Configuration();
       JobConfigurationUtils.putStateIntoConfiguration(this.taskContext.getTaskState(), conf);
-      DatasetCleaner datasetCleaner = new DatasetCleaner(FileSystem.get(conf), this.taskContext.getTaskState().getProperties());
+      datasetCleaner = new DatasetCleaner(FileSystem.get(conf), this.taskContext.getTaskState().getProperties());
       datasetCleaner.clean();
       this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
     } catch (IOException e) {
       this.workingState = WorkUnitState.WorkingState.FAILED;
       throw new RuntimeException(e);
+    } finally {
+      if (datasetCleaner != null) {
+        try {
+          datasetCleaner.close();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 
