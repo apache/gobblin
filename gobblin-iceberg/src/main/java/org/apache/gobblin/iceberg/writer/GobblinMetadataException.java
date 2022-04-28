@@ -18,6 +18,10 @@
 package org.apache.gobblin.iceberg.writer;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.gobblin.metadata.OperationType;
 
 
 public class GobblinMetadataException extends IOException {
@@ -27,8 +31,12 @@ public class GobblinMetadataException extends IOException {
   public String GMCETopicPartition;
   public long highWatermark;
   public long lowWatermark;
-  public Exception exception;
-  GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark, Exception exception) {
+  public String failedWriter;
+  public OperationType operationType;
+  public Set<String> addedPartitionValues;
+  public Set<String> droppedPartitionValues;
+  GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark,
+      String failedWriter, OperationType operationType, Exception exception) {
     super(String.format("failed to flush table %s, %s", dbName, tableName), exception);
     this.datasetPath = datasetPath;
     this.dbName = dbName;
@@ -36,5 +44,9 @@ public class GobblinMetadataException extends IOException {
     this.GMCETopicPartition = GMCETopicPartition;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
+    this.failedWriter = failedWriter;
+    this.operationType = operationType;
+    this.addedPartitionValues = new HashSet<>();
+    this.droppedPartitionValues = new HashSet<>();
   }
 }
