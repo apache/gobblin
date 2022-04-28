@@ -130,7 +130,7 @@ public class KafkaAvroJobStatusMonitorTest {
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKAJSM(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
@@ -188,7 +188,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKAJSM(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -265,7 +265,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKAJSM(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -324,7 +324,7 @@ public class KafkaAvroJobStatusMonitorTest {
     AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle = new AtomicBoolean(false);
     Config conf = ConfigFactory.empty().withValue(
         KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX + "." + RETRY_MULTIPLIER, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.toMillis(1L)));
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKAJSM(shouldThrowFakeExceptionInParseJobStatusToggle, conf);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(shouldThrowFakeExceptionInParseJobStatusToggle, conf);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
@@ -382,7 +382,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKAJSM(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
       this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -441,6 +441,7 @@ public class KafkaAvroJobStatusMonitorTest {
   /**
    * Create a Job Orchestrated Event with a configurable currentAttempt
    * @param currentAttempt specify the number of attempts for the JobOrchestration event
+   * @param maxAttempt the maximum number of retries for the event
    * @return the {@link GobblinTrackingEvent}
    */
   private GobblinTrackingEvent createJobOrchestratedEvent(int currentAttempt, int maxAttempt) {
@@ -496,7 +497,7 @@ public class KafkaAvroJobStatusMonitorTest {
     return new GobblinTrackingEvent(timestamp, namespace, eventName, metadata);
   }
 
-  MockKafkaAvroJobStatusMonitor createMockKAJSM(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig) throws IOException, ReflectiveOperationException {
+  MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig) throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
