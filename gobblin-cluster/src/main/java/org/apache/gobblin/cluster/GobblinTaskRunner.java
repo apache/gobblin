@@ -550,7 +550,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       Set<String> desiredTags = new HashSet<>(
           ConfigUtils.getStringList(this.clusterConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY));
       if (!desiredTags.isEmpty()) {
-        // If a helix instance already have tag assigned during last run, it won't be auto removed. Need to remove unwanted tags
+        // Remove tag assignments for the current Helix instance from a previous run
         for (String tag : existedTags) {
           if (!desiredTags.contains(tag))
             receiverManager.getClusterManagmentTool().removeInstanceTag(this.clusterName, this.helixInstanceName, tag);

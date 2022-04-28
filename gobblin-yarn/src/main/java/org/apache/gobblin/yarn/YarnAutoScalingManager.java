@@ -19,11 +19,9 @@ package org.apache.gobblin.yarn;
 
 import com.google.common.base.Strings;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -74,17 +72,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   // Only one container will be requested for each N partitions of work
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
   private final int DEFAULT_AUTO_SCALING_PARTITIONS_PER_CONTAINER = 1;
-  private final String AUTO_SCALING_MIN_CONTAINERS = AUTO_SCALING_PREFIX + "minContainers";
-  private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 1;
-  private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
   private final String AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = AUTO_SCALING_PREFIX + "overProvisionFactor";
   private final double DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = 1.0;
-  private final String helixInstanceTags;
+  // The cluster level default tags for Helix instances
+  private final String defaultHelixInstanceTags;
   private final int defaultContainerMemoryMbs;
   private final int defaultContainerCores;
 
-  // A rough value of how much containers should be an intolerable number.
-  private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
   private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
   private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
 
@@ -97,8 +91,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final ScheduledExecutorService autoScalingExecutor;
   private final YarnService yarnService;
   private final int partitionsPerContainer;
-  private final int minContainers;
-  private final int maxContainers;
   private final double overProvisionFactor;
   private final SlidingWindowReservoir slidingFixedSizeWindow;
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
@@ -113,33 +105,17 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     Preconditions.checkArgument(this.partitionsPerContainer > 0,
         AUTO_SCALING_PARTITIONS_PER_CONTAINER + " needs to be greater than 0");
 
-    this.minContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MIN_CONTAINERS,
-        DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
-
-    Preconditions.checkArgument(this.minContainers > 0,
-        DEFAULT_AUTO_SCALING_MIN_CONTAINERS + " needs to be greater than 0");
-
-    this.maxContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MAX_CONTAINERS,
-        DEFAULT_AUTO_SCALING_MAX_CONTAINERS);
-
     this.overProvisionFactor = ConfigUtils.getDouble(this.config, AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR,
         DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR);
 
-    Preconditions.checkArgument(this.maxContainers > 0,
-        DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than 0");
-
-    Preconditions.checkArgument(this.maxContainers >= this.minContainers,
-        DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than or equal to "
-            + DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
-
     this.slidingFixedSizeWindow = config.hasPath(AUTO_SCALING_WINDOW_SIZE)
-        ? new SlidingWindowReservoir(maxContainers, config.getInt(AUTO_SCALING_WINDOW_SIZE))
-        : new SlidingWindowReservoir(maxContainers);
+        ? new SlidingWindowReservoir(config.getInt(AUTO_SCALING_WINDOW_SIZE), Integer.MAX_VALUE)
+        : new SlidingWindowReservoir(Integer.MAX_VALUE);
 
     this.autoScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("AutoScalingExecutor")));
 
-    this.helixInstanceTags = ConfigUtils.getString(config,
+    this.defaultHelixInstanceTags = ConfigUtils.getString(config,
         GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, GobblinClusterConfigurationKeys.HELIX_DEFAULT_TAG);
     this.defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
@@ -155,8 +131,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     log.info("Scheduling the auto scaling task with an interval of {} seconds", scheduleInterval);
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
-            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers, this.overProvisionFactor,
-            this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.helixInstanceTags,
+            this.yarnService, this.partitionsPerContainer, this.overProvisionFactor,
+            this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
             this.defaultContainerMemoryMbs, this.defaultContainerCores),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
@@ -178,12 +154,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final TaskDriver taskDriver;
     private final YarnService yarnService;
     private final int partitionsPerContainer;
-    private final int minContainers;
-    private final int maxContainers;
     private final double overProvisionFactor;
     private final SlidingWindowReservoir slidingWindowReservoir;
     private final HelixDataAccessor helixDataAccessor;
-    private final String helixInstanceTags;
+    private final String defaultHelixInstanceTags;
     private final int defaultContainerMemoryMbs;
     private final int defaultContainerCores;
 
@@ -223,7 +197,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
       YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
-      int numTargetContainers = 0;
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
 
@@ -245,7 +218,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           JobConfig jobConfig = taskDriver.getJobConfig(jobName);
           Resource resource = Resource.newInstance(this.defaultContainerMemoryMbs, this.defaultContainerCores);
           int numPartitions = 0;
-          String jobTag = helixInstanceTags;
+          String jobTag = defaultHelixInstanceTags;
           if (jobContext != null) {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
@@ -253,7 +226,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
                 .filter(Objects::nonNull).collect(Collectors.toSet()));
 
             numPartitions = jobContext.getPartitionSet().size();
-            // Respect job level config for helix instance tag, specific resource requirement if there's any
+            // Job level config for helix instance tags takes precedence over other tag configurations
             if (jobConfig != null) {
               if (!Strings.isNullOrEmpty(jobConfig.getInstanceGroupTag())) {
                 jobTag = jobConfig.getInstanceGroupTag();
@@ -270,7 +243,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           // compute the container count as a ceiling of number of partitions divided by the number of containers
           // per partition. Scale the result by a constant overprovision factor.
           int containerCount = (int) Math.ceil(((double)numPartitions / this.partitionsPerContainer) * this.overProvisionFactor);
-          numTargetContainers += containerCount;
           yarnContainerRequestBundle.add(jobTag, containerCount, resource);
         }
       }
@@ -292,17 +264,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           instanceIdleSince.remove(participant);
         }
       }
-
-      // adjust the number of target containers based on the configured min and max container values.
-      numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
-      trimContainerSize(numTargetContainers, yarnContainerRequestBundle);
       slidingWindowReservoir.add(yarnContainerRequestBundle);
 
       log.debug("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
           yarnContainerRequestBundle.getTotalContainers(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
           yarnContainerRequestBundle.getHelixTagResourceMap());
 
-      this.yarnService.requestTargetNumberOfContainers(yarnContainerRequestBundle, inUseInstances);
+      this.yarnService.requestTargetNumberOfContainers(slidingWindowReservoir.getMax(), inUseInstances);
     }
 
     @VisibleForTesting
@@ -315,32 +283,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     boolean isInstanceUnused(String participant){
       return System.currentTimeMillis() - instanceIdleSince.get(participant) >
           TimeUnit.MINUTES.toMillis(maxIdleTimeInMinutesBeforeScalingDown);
-    }
-
-    /**
-     * Trim the yarn container request bundle to fit the min and max container config. If indeed containers need to be
-     * added/decreased, evenly distribute that, also make sure each helix tag at least has one container associated with.
-     */
-    private void trimContainerSize(int numTargetContainers, YarnContainerRequestBundle yarnContainerRequestBundle) {
-      int factor = numTargetContainers - yarnContainerRequestBundle.getTotalContainers();
-      if (factor == 0) {
-        return;
-      }
-      Preconditions.checkArgument(numTargetContainers >= yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet().size(),
-          "Num of container requested is less than type of helix tags, which will cause some of job not being processed."
-              + "Please change the container configuration");
-      factor = factor > 0 ? 1 : -1;
-      List<String> tags = new ArrayList<> (yarnContainerRequestBundle.getHelixTagContainerCountMap().keySet());
-      int index = 0;
-      while(yarnContainerRequestBundle.getTotalContainers() != numTargetContainers) {
-        String tag = tags.get(index++);
-        index %= tags.size();
-        int containerCountForTag = yarnContainerRequestBundle.getHelixTagContainerCountMap().get(tag);
-        if (containerCountForTag <= 1) {
-          continue;
-        }
-        yarnContainerRequestBundle.add(tag, factor);
-      }
     }
   }
 
