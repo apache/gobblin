@@ -35,8 +35,7 @@ public class UserQuotaManagerTest {
   @BeforeClass
   public void setUp() {
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"))
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user2:1"));
+        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1"));
     this._quotaManager = new UserQuotaManager(quotaConfig);
   }
 
@@ -71,7 +70,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testMultipleRemoveQuotasNegative() throws Exception {
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2", ConfigFactory.empty());
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
