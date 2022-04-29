@@ -68,4 +68,17 @@ public class UserQuotaManagerTest {
       this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), false);
     });
   }
+
+  @Test
+  public void testMultipleRemoveQuotasNegative() throws Exception {
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2", ConfigFactory.empty());
+
+    // Ensure that the current attempt is 1, normally done by DagManager
+    dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
+    dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
+
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    Assert.assertTrue(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
+    Assert.assertFalse(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
+  }
 }
