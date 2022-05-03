@@ -33,14 +33,14 @@ public class GobblinMetadataException extends IOException {
   public String GMCETopicPartition;
   public long highWatermark;
   public long lowWatermark;
-  public String failedWriter;
+  public List<String> failedWriters;
   public OperationType operationType;
   public Set<String> addedPartitionValues;
   public Set<String> droppedPartitionValues;
   public List<HiveRegistrationUnit.Column> partitionKeys;
 
   GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark,
-      String failedWriter, OperationType operationType, List<HiveRegistrationUnit.Column> partitionKeys, Exception exception) {
+      List<String> failedWriters, OperationType operationType, List<HiveRegistrationUnit.Column> partitionKeys, Exception exception) {
     super(String.format("failed to flush table %s, %s", dbName, tableName), exception);
     this.datasetPath = datasetPath;
     this.dbName = dbName;
@@ -48,7 +48,7 @@ public class GobblinMetadataException extends IOException {
     this.GMCETopicPartition = GMCETopicPartition;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
-    this.failedWriter = failedWriter;
+    this.failedWriters = failedWriters;
     this.operationType = operationType;
     this.addedPartitionValues = new HashSet<>();
     this.droppedPartitionValues = new HashSet<>();

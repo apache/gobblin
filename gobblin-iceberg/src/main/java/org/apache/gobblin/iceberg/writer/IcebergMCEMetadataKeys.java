@@ -36,7 +36,7 @@ public class IcebergMCEMetadataKeys {
   public static final String FAILURE_EVENT_TABLE_NAME = "tableName";
   public static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
   public static final String EXCEPTION_MESSAGE_KEY_NAME = "exceptionMessage";
-  public static final String FAILED_WRITER_KEY = "failedWriter";
+  public static final String FAILED_WRITERS_KEY = "failedWriters";
   public static final String OPERATION_TYPE_KEY = "operationType";
   public static final String ADDED_PARTITION_VALUES_KEY = "failedToAddPartitionValues";
   public static final String DROPPED_PARTITION_VALUES_KEY = "failedToDropPartitionValues";

@@ -336,7 +336,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         } catch (Exception e) {
           meetException = true;
           writer.reset(dbName, tableName);
-          addOrThrowException(e, tableString, dbName, tableName, writer.getClass().getName());
+          addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
         }
       }
     }
@@ -360,7 +360,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         .collect(Collectors.toList());
   }
 
-  private void addOrThrowException(Exception e, String tableString, String dbName, String tableName, String failedWriter) throws IOException {
+  private void addOrThrowException(Exception e, String tableString, String dbName, String tableName, List<String> failedWriters) throws IOException {
     TableStatus tableStatus = tableOperationTypeMap.get(tableString);
     Map<String, List<GobblinMetadataException>> tableErrorMap = this.datasetErrorMap.getOrDefault(tableStatus.datasetPath, new HashMap<>());
     GobblinMetadataException lastException = null;
@@ -374,7 +374,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       lastException.highWatermark = tableStatus.gmceHighWatermark;
     } else {
       lastException = new GobblinMetadataException(tableStatus.datasetPath, dbName, tableName, tableStatus.gmceTopicPartition,
-          tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, failedWriter, tableStatus.operationType, partitionKeysMap.get(tableString), e);
+          tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, failedWriters, tableStatus.operationType, partitionKeysMap.get(tableString), e);
       tableErrorMap.get(tableString).add(lastException);
     }
     if (e instanceof HiveMetadataWriterWithPartitionInfoException) {
@@ -407,7 +407,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         } catch (IOException e) {
           meetException = true;
           writer.reset(dbName, tableName);
-          addOrThrowException(e, tableString, dbName, tableName, writer.getClass().getName());
+          addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
         }
       }
     }
@@ -519,7 +519,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition.split("-")[1]);
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILED_WRITER_KEY, exception.failedWriter);
+      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILED_WRITERS_KEY, Joiner.on(',').join(exception.failedWriters));
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.OPERATION_TYPE_KEY, exception.operationType.toString());
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.ADDED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.addedPartitionValues));
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DROPPED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.droppedPartitionValues));
@@ -531,5 +531,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
 
       eventSubmitter.submit(gobblinTrackingEvent);
     }
+  }
+
+  private List<String> getFailedWriterList(MetadataWriter failedWriter) {
+    List<MetadataWriter> failedWriters = metadataWriters.subList(metadataWriters.indexOf(failedWriter), metadataWriters.size());
+    return failedWriters.stream().map(writer -> writer.getClass().getName()).collect(Collectors.toList());
   }
 }
