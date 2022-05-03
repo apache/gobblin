@@ -40,6 +40,7 @@ public class IcebergMCEMetadataKeys {
   public static final String OPERATION_TYPE_KEY = "operationType";
   public static final String ADDED_PARTITION_VALUES_KEY = "failedToAddPartitionValues";
   public static final String DROPPED_PARTITION_VALUES_KEY = "failedToDropPartitionValues";
+  public static final String PARTITION_KEYS = "partitionKeys";
 
   private IcebergMCEMetadataKeys() {
   }

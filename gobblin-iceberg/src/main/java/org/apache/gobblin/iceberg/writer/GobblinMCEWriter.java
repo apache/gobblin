@@ -20,7 +20,6 @@ package org.apache.gobblin.iceberg.writer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -118,6 +118,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private int parallelRunnerTimeoutMills;
   private Map<String, Cache<String, Collection<HiveSpec>>> oldSpecsMaps;
   private Map<String, Cache<String, Collection<HiveSpec>>> newSpecsMaps;
+  private Map<String, List<HiveRegistrationUnit.Column>> partitionKeysMap;
   private Closer closer = Closer.create();
   protected final AtomicLong recordCount = new AtomicLong(0L);
   @Setter
@@ -138,6 +139,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
     datasetErrorMap = new HashMap<>();
+    partitionKeysMap = new HashMap<>();
     acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
     maxErrorDataset = state.getPropAsInt(GMCE_METADATA_WRITER_MAX_ERROR_DATASET, DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET);
@@ -283,6 +285,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String dbName = spec.getTable().getDbName();
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
+      partitionKeysMap.put(tableString, spec.getTable().getPartitionKeys());
       if (!tableOperationTypeMap.containsKey(tableString)) {
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
@@ -371,7 +374,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       lastException.highWatermark = tableStatus.gmceHighWatermark;
     } else {
       lastException = new GobblinMetadataException(tableStatus.datasetPath, dbName, tableName, tableStatus.gmceTopicPartition,
-          tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, failedWriter, tableStatus.operationType, e);
+          tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, failedWriter, tableStatus.operationType, partitionKeysMap.get(tableString), e);
       tableErrorMap.get(tableString).add(lastException);
     }
     if (e instanceof HiveMetadataWriterWithPartitionInfoException) {
@@ -520,6 +523,8 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.OPERATION_TYPE_KEY, exception.operationType.toString());
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.ADDED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.addedPartitionValues));
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DROPPED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.droppedPartitionValues));
+      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.PARTITION_KEYS, Joiner.on(',').join(exception.partitionKeys.stream()
+          .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
 
       String message = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
       gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.EXCEPTION_MESSAGE_KEY_NAME, message);

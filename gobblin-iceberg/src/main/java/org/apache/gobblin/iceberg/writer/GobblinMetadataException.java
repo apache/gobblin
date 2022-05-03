@@ -19,8 +19,10 @@ package org.apache.gobblin.iceberg.writer;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.metadata.OperationType;
 
 
@@ -35,8 +37,10 @@ public class GobblinMetadataException extends IOException {
   public OperationType operationType;
   public Set<String> addedPartitionValues;
   public Set<String> droppedPartitionValues;
+  public List<HiveRegistrationUnit.Column> partitionKeys;
+
   GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark,
-      String failedWriter, OperationType operationType, Exception exception) {
+      String failedWriter, OperationType operationType, List<HiveRegistrationUnit.Column> partitionKeys, Exception exception) {
     super(String.format("failed to flush table %s, %s", dbName, tableName), exception);
     this.datasetPath = datasetPath;
     this.dbName = dbName;
@@ -48,5 +52,6 @@ public class GobblinMetadataException extends IOException {
     this.operationType = operationType;
     this.addedPartitionValues = new HashSet<>();
     this.droppedPartitionValues = new HashSet<>();
+    this.partitionKeys = partitionKeys;
   }
 }
