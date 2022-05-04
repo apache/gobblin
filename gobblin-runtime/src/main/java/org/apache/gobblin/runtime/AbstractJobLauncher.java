@@ -674,9 +674,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     } finally {
-      // Register metrics then stop metrics reporting, reporting is done when the metricsContext is closed
+      // Register metrics then stop metrics reporting, metrics will flush and emit when the metricsContext is closed
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
-        if (jobState.getPropAsBoolean(ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, true)) {
+        if (jobState.getPropAsBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, true)) {
           String workunitCreationGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX,
               TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getJobName());
           long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);

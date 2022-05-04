@@ -314,7 +314,7 @@ public class DagManagerUtils {
 
   static boolean shouldFlowOutputMetrics(Dag<JobExecutionPlan> dag) {
     // defaults to false (so metrics are still tracked) if the dag property is not configured due to old dags
-    return ConfigUtils.getBoolean(getDagJobConfig(dag), ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, true);
+    return ConfigUtils.getBoolean(getDagJobConfig(dag), ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, true);
   }
 
   static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {

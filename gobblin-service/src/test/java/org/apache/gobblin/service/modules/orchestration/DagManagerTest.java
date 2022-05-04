@@ -904,7 +904,7 @@ public class DagManagerTest {
 
     Long flowId = System.currentTimeMillis();
     Dag<JobExecutionPlan> adhocDag = buildDag(String.valueOf(flowId), flowId, "FINISH_RUNNING", 1, "proxyUser",
-        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, true).build());    //Add a dag to the queue of dags
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, true).build());    //Add a dag to the queue of dags
     this.queue.offer(adhocDag);
 
     Iterator<JobStatus> jobStatusIterator1 =
@@ -927,7 +927,7 @@ public class DagManagerTest {
     Assert.assertNull(metricContext.getParent().get().getGauges().get(flowStateGaugeName0));
 
     Dag<JobExecutionPlan> scheduledDag = buildDag(String.valueOf(flowId+1), flowId+1, "FINISH_RUNNING", 1, "proxyUser",
-        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, false).build());
+        ConfigBuilder.create().addPrimitive(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, false).build());
     this.queue.offer(scheduledDag);
     this._dagManagerThread.run();
     String flowStateGaugeName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group"+(flowId+1),

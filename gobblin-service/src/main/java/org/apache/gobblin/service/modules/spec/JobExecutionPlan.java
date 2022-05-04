@@ -127,7 +127,7 @@ public class JobExecutionPlan {
           //Add flow execution id
           .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
           // Remove schedule due to namespace conflict with azkaban schedule key, but still keep track if flow is scheduled or not
-          .withValue(ConfigurationKeys.GOBBLIN_JOB_SHOULD_OUTPUT_METRICS, ConfigValueFactory.fromAnyRef(jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)))
+          .withValue(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, ConfigValueFactory.fromAnyRef(jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)))
           .withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY)
           //Remove template uri
           .withoutPath(GOBBLIN_JOB_TEMPLATE_KEY)
