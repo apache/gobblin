@@ -199,9 +199,9 @@ public class JobExecutionPlanDagFactoryTest {
     Assert.assertEquals(dag2.getStartNodes().size(), 1);
     Assert.assertEquals(dag2.getEndNodes().size(), 1);
     Assert.assertEquals(dag2.getNodes().size(), 1);
-    // Dag1 is scheduled so should be adhoc, but not dag2
-    Assert.assertFalse(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC));
-    Assert.assertTrue(dag2.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_FLOW_ISADHOC));
+    // Dag1 is scheduled so should be adhoc and output metrics, but not dag2
+    Assert.assertTrue(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS));
+    Assert.assertFalse(dag2.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS));
   }
 
 }
