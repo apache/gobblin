@@ -952,6 +952,8 @@ public class DagManager extends AbstractIdleService {
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
 
+        // Increment job count before submitting the job onto the spec producer, if an exception is thrown then the
+        // job itself will be marked as FAILED in the exception handling, which will then decrement the counter
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
           getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::inc);

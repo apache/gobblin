@@ -26,7 +26,6 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
-import com.google.common.util.concurrent.UncheckedTimeoutException;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -113,7 +112,6 @@ public class AzkabanClient implements Closeable {
 
     this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
         .retryIfExceptionOfType(InvalidSessionException.class)
-        .retryIfExceptionOfType(UncheckedTimeoutException.class)
         .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.requestTimeout.toMillis(), TimeUnit.MILLISECONDS,
             this.executorService))
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
