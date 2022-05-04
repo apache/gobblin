@@ -69,7 +69,7 @@ public class UserQuotaManagerTest {
   }
 
   @Test
-  public void testMultipleRemoveQuotasNegative() throws Exception {
+  public void testMultipleRemoveQuotasIdempotent() throws Exception {
     List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
