@@ -952,8 +952,10 @@ public class DagManager extends AbstractIdleService {
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
 
-        // Increment job count before submitting the job onto the spec producer, if an exception is thrown then the
-        // job itself will be marked as FAILED in the exception handling, which will then decrement the counter
+        // Increment job count before submitting the job onto the spec producer, in case that throws an exception.
+        // By this point the quota is allocated, so it's imperative to increment as missing would introduce the potential to decrement below zero upon quota release.
+        // Quota release is guaranteed, despite failure, because exception handling within would mark the job FAILED.
+        // When the ensuing kafka message spurs DagManager processing, the quota is released and the counts decremented
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
           getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::inc);
