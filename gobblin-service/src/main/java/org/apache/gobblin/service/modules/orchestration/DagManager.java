@@ -810,7 +810,9 @@ public class DagManager extends AbstractIdleService {
         String dagId = DagManagerUtils.generateDagId(node);
         this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
         this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
-        this.getExecutorMeterForDag(node, ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER, startSlaExceededMeters).mark();
+        if (this.metricContext != null) {
+          this.getExecutorMeterForDag(node, ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER, startSlaExceededMeters).mark();
+        }
         return true;
       } else {
         return false;
