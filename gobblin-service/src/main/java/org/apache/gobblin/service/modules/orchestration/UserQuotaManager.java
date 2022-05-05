@@ -72,7 +72,6 @@ public class UserQuotaManager {
     Set<String> usersQuotaIncrement = new HashSet<>(); // holds the users for which quota is increased
     StringBuilder requesterMessage = new StringBuilder();
     runningDagIds.put(DagManagerUtils.generateDagId(dagNode), true);
-
     if (proxyUser != null) {
       proxyQuotaIncrement = incrementJobCountAndCheckUserQuota(proxyUserToJobCount, proxyUser, dagNode);
       proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds

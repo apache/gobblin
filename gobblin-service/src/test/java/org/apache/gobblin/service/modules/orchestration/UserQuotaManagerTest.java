@@ -35,8 +35,7 @@ public class UserQuotaManagerTest {
   @BeforeClass
   public void setUp() {
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"))
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user2:1"));
+        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1"));
     this._quotaManager = new UserQuotaManager(quotaConfig);
   }
 
@@ -67,5 +66,18 @@ public class UserQuotaManagerTest {
     Assert.assertThrows(IOException.class, () -> {
       this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), false);
     });
+  }
+
+  @Test
+  public void testMultipleRemoveQuotasIdempotent() throws Exception {
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
+
+    // Ensure that the current attempt is 1, normally done by DagManager
+    dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
+    dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
+
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    Assert.assertTrue(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
+    Assert.assertFalse(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
   }
 }
