@@ -26,12 +26,16 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
@@ -114,8 +118,12 @@ public class HiveMetadataWriter implements MetadataWriter {
       for (HashMap.Entry<List<String>, ListenableFuture<Void>> execution : executionMap.entrySet()) {
         try {
           execution.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-          throw new RuntimeException("Error when getting the result of registration for table" + tableKey, e);
+        } catch (TimeoutException e) {
+          // Since TimeoutException should always be a transient issue, throw RuntimeException which will fail/retry container
+          throw new RuntimeException("Timeout waiting for result of registration for table " + tableKey, e);
+        } catch (InterruptedException | ExecutionException e) {
+          Set<String> partitions = executionMap.keySet().stream().flatMap(List::stream).collect(Collectors.toSet());
+          throw new HiveMetadataWriterWithPartitionInfoException(partitions, Collections.emptySet(), e);
         }
       }
       executionMap.clear();
@@ -243,7 +251,7 @@ public class HiveMetadataWriter implements MetadataWriter {
       try {
         executionMap.get(partitionValue).get(timeOutSeconds, TimeUnit.SECONDS);
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        log.error("Error when getting the result of registration for table" + tableKey);
+        log.error("Error when getting the result of registration for table " + tableKey);
         throw new RuntimeException(e);
       }
     }
@@ -326,11 +334,25 @@ public class HiveMetadataWriter implements MetadataWriter {
     GobblinMetadataChangeEvent gmce =
         (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
     if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
-      write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
+      try {
+        write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
+      } catch (IOException e) {
+        throw new HiveMetadataWriterWithPartitionInfoException(getPartitionValues(newSpecsMap), getPartitionValues(oldSpecsMap), e);
+      }
     } else {
       log.debug(String.format("Skip table %s.%s since it's not selected", tableSpec.getTable().getDbName(),
           tableSpec.getTable().getTableName()));
     }
+  }
+
+  /**
+   * Extract a unique list of partition values as strings from a map of HiveSpecs.
+   */
+  public Set<String> getPartitionValues(Map<String, Collection<HiveSpec>> specMap) {
+    Set<HiveSpec> hiveSpecs = specMap.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+    Set<List<String>> partitionValueLists = hiveSpecs.stream().filter(spec -> spec.getPartition().isPresent())
+        .map(spec -> spec.getPartition().get().getValues()).collect(Collectors.toSet());
+    return partitionValueLists.stream().flatMap(List::stream).collect(Collectors.toSet());
   }
 
   @Override

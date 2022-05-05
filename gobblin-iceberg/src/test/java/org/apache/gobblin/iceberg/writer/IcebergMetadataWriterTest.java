@@ -365,10 +365,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().values().iterator().next().size(), 1);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "testDB/testIcebergTable").getAbsolutePath())
-        .get("hivedb.testIcebergTable").lowWatermark, 50L);
+        .get("hivedb.testIcebergTable").get(0).lowWatermark, 50L);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
         .get(new File(tmpDir, "testDB/testIcebergTable").getAbsolutePath())
-        .get("hivedb.testIcebergTable").highWatermark, 52L);
+        .get("hivedb.testIcebergTable").get(0).highWatermark, 52L);
 
     // No events sent yet since the topic has not been flushed
     Assert.assertEquals(eventsSent.size(), 0);

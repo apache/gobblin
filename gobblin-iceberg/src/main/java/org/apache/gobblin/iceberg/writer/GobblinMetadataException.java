@@ -18,6 +18,12 @@
 package org.apache.gobblin.iceberg.writer;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.gobblin.hive.HiveRegistrationUnit;
+import org.apache.gobblin.metadata.OperationType;
 
 
 public class GobblinMetadataException extends IOException {
@@ -27,8 +33,14 @@ public class GobblinMetadataException extends IOException {
   public String GMCETopicPartition;
   public long highWatermark;
   public long lowWatermark;
-  public Exception exception;
-  GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark, Exception exception) {
+  public List<String> failedWriters;
+  public OperationType operationType;
+  public Set<String> addedPartitionValues;
+  public Set<String> droppedPartitionValues;
+  public List<HiveRegistrationUnit.Column> partitionKeys;
+
+  GobblinMetadataException(String datasetPath, String dbName, String tableName, String GMCETopicPartition, long lowWatermark, long highWatermark,
+      List<String> failedWriters, OperationType operationType, List<HiveRegistrationUnit.Column> partitionKeys, Exception exception) {
     super(String.format("failed to flush table %s, %s", dbName, tableName), exception);
     this.datasetPath = datasetPath;
     this.dbName = dbName;
@@ -36,5 +48,10 @@ public class GobblinMetadataException extends IOException {
     this.GMCETopicPartition = GMCETopicPartition;
     this.highWatermark = highWatermark;
     this.lowWatermark = lowWatermark;
+    this.failedWriters = failedWriters;
+    this.operationType = operationType;
+    this.addedPartitionValues = new HashSet<>();
+    this.droppedPartitionValues = new HashSet<>();
+    this.partitionKeys = partitionKeys;
   }
 }
