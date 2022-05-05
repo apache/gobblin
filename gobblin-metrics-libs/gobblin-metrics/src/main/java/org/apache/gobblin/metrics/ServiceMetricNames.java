@@ -42,7 +42,6 @@ public class ServiceMetricNames {
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
   public static final String SUCCESSFUL_FLOW_METER = "SuccessfulFlows";
   public static final String START_SLA_EXCEEDED_FLOWS_METER = "StartSLAExceededFlows";
-  public static final String RUNNING_SLA_EXCEEDED_FLOWS_METER = "RunningSLAExceededFlows";
   public static final String FAILED_FLOW_METER = "FailedFlows";
   public static final String SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX + ".ScheduledFlows";
   public static final String NON_SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX + ".NonScheduledFlows";

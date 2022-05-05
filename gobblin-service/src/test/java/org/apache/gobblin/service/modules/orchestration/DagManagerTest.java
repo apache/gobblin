@@ -101,7 +101,7 @@ public class DagManagerTest {
     this._gobblinServiceQuotaManager = new UserQuotaManager(quotaConfig);
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, new HashSet<>(), metricContext.contextAwareMeter("successMeter"),
-        metricContext.contextAwareMeter("failedMeter"), START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
+        metricContext.contextAwareMeter("failedMeter"), new HashMap<>(), START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -735,6 +735,9 @@ public class DagManagerTest {
     Assert.assertEquals(this.jobToDag.size(), 1);
     Assert.assertEquals(this.dagToJobs.size(), 1);
     Assert.assertTrue(this.dags.containsKey(dagId1));
+
+    String slakilledMeterName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "job0", ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER);
+    Assert.assertEquals(metricContext.getParent().get().getMeters().get(slakilledMeterName).getCount(), 1);
 
     // Cleanup
     this._dagManagerThread.run();
