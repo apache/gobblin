@@ -1068,7 +1068,7 @@ public class DagManager extends AbstractIdleService {
           MetricRegistry.name(
               ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
               ServiceMetricNames.RUNNING_FLOWS_COUNTER,
-              dagNode.getValue().getSpecExecutor().getUri().toString()));
+              DagManagerUtils.getSpecExecutorName(dagNode)));
     }
 
     private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
@@ -1113,7 +1113,7 @@ public class DagManager extends AbstractIdleService {
      * @return
      */
     private ContextAwareMeter getExecutorMeterForDag(DagNode<JobExecutionPlan> dagNode, String meterName, Map<String, ContextAwareMeter> meterMap) {
-      String executorName = dagNode.getValue().getSpecExecutor().getUri().toString();
+      String executorName = DagManagerUtils.getSpecExecutorName(dagNode);
       return meterMap.computeIfAbsent(executorName,
           executorUri -> metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, executorUri, meterName)));
     }

@@ -317,6 +317,10 @@ public class DagManagerUtils {
     return ConfigUtils.getBoolean(getDagJobConfig(dag), ConfigurationKeys.GOBBLIN_FLOW_ISADHOC,false);
   }
 
+  static String getSpecExecutorName(DagNode<JobExecutionPlan> dagNode) {
+    return dagNode.getValue().getSpecExecutor().getUri().toString();
+  }
+
   static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (eventSubmitter.isPresent() && !dag.isEmpty()) {
       // Every dag node will contain the same flow metadata

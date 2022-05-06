@@ -127,7 +127,7 @@ public class DagManagerTest {
   static List<Dag<JobExecutionPlan>> buildDagList(int numDags, String proxyUser, Config additionalConfig) throws URISyntaxException{
     List<Dag<JobExecutionPlan>> dagList = new ArrayList<>();
     for (int i = 0; i < numDags; i++) {
-      dagList.add(buildDag(Integer.toString(i),  System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 1,
+      dagList.add(buildDag(Integer.toString(i), System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 1,
           proxyUser, additionalConfig));
     }
     return dagList;
@@ -172,7 +172,8 @@ public class DagManagerTest {
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
           withTemplate(new URI("job" + suffix)).build();
-      SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI("job" + i));
+      SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI(
+          ConfigUtils.getString(additionalConfig, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,"job" + i)));
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
       jobExecutionPlans.add(jobExecutionPlan);
     }
@@ -748,6 +749,51 @@ public class DagManagerTest {
   }
 
   @Test (dependsOnMethods = "testJobStartSLAKilledDag")
+  public void testJobKilledSLAMetricsArePerExecutor() throws URISyntaxException, IOException {
+    long flowExecutionId = System.currentTimeMillis();
+    Config executorOneConfig = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorOne"))
+        .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
+    Config executorTwoConfig = ConfigFactory.empty().withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorTwo"));
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user", executorOneConfig);
+    dagList.add(buildDag("2", flowExecutionId, "FINISH_RUNNING", 1, "user", executorTwoConfig));
+
+    //Add a dag to the queue of dags
+    this.queue.offer(dagList.get(0));
+    this.queue.offer(dagList.get(1));
+    this.queue.offer(dagList.get(2));;
+    // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus("flow0", "group0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED),
+            false, flowExecutionId - 16 * 60 * 1000);
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.ORCHESTRATED),
+            false, flowExecutionId - 16 * 60 * 1000);
+    Iterator<JobStatus> jobStatusIterator3 =
+        getMockJobStatus("flow2", "flow2", flowExecutionId+1, "job0", "group2", String.valueOf(ExecutionStatus.ORCHESTRATED),
+            false, flowExecutionId - 16 * 60 * 1000);
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
+        thenReturn(jobStatusIterator1).
+        thenReturn(jobStatusIterator2).
+        thenReturn(jobStatusIterator3);
+
+    // Run the thread once. All 3 jobs should be emitted an sla exceeded event
+    this._dagManagerThread.run();
+
+    String slakilledMeterName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorOne", ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER);
+    String slakilledMeterName2 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorTwo", ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER);
+    Assert.assertEquals(metricContext.getParent().get().getMeters().get(slakilledMeterName1).getCount(), 2);
+    Assert.assertEquals(metricContext.getParent().get().getMeters().get(slakilledMeterName2).getCount(), 1);
+    // Cleanup
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    Assert.assertEquals(this.jobToDag.size(), 0);
+    Assert.assertEquals(this.dagToJobs.size(), 0);
+  }
+
+  @Test (dependsOnMethods = "testJobKilledSLAMetricsArePerExecutor")
   public void testDagManagerWithBadFlowSLAConfig() throws URISyntaxException, IOException {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroup = "group0";
