@@ -208,14 +208,13 @@ public class YarnServiceTest {
    */
   @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testScaleUp() {
-    Resource resource = Resource.newInstance(16, 1);
+    Resource resource = Resource.newInstance(64, 1);
     this.yarnService.requestTargetNumberOfContainers(
         GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
 
     Assert.assertFalse(this.yarnService.getMatchingRequestsList(resource).isEmpty());
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 10);
     Assert.assertTrue(this.yarnService.waitForContainerCount(10, 60000));
-
+    Assert.assertEquals(this.yarnService.getContainerMap().size(), 10);
     // container request list that had entries earlier should now be empty
     Assert.assertEquals(this.yarnService.getMatchingRequestsList(resource).size(), 0);
   }
@@ -223,32 +222,29 @@ public class YarnServiceTest {
   @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleUp")
   public void testScaleDownWithInUseInstances() {
     Set<String> inUseInstances = new HashSet<>();
-
     for (int i = 1; i <= 8; i++) {
       inUseInstances.add("GobblinYarnTaskRunner_" + i);
     }
-    Resource resource = Resource.newInstance(16, 1);
+    Resource resource = Resource.newInstance(64, 1);
     this.yarnService.requestTargetNumberOfContainers(
         GobblinYarnTestUtils.createYarnContainerRequest(6, resource), inUseInstances);
-
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 6);
 
     // will only be able to shrink to 8
     Assert.assertTrue(this.yarnService.waitForContainerCount(8, 60000));
 
     // will not be able to shrink to 6 due to 8 in-use instances
     Assert.assertFalse(this.yarnService.waitForContainerCount(6, 10000));
-
+    Assert.assertEquals(this.yarnService.getContainerMap().size(), 8);
   }
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleDownWithInUseInstances")
   public void testScaleDown() throws Exception {
-    Resource resource = Resource.newInstance(16, 1);
+    Resource resource = Resource.newInstance(64, 1);
     this.yarnService.requestTargetNumberOfContainers(
         GobblinYarnTestUtils.createYarnContainerRequest(4, resource), Collections.EMPTY_SET);
 
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 4);
     Assert.assertTrue(this.yarnService.waitForContainerCount(4, 60000));
+    Assert.assertEquals(this.yarnService.getContainerMap().size(), 4);
   }
 
   // Keep this test last since it interferes with the container counts in the prior tests.
@@ -328,7 +324,7 @@ public class YarnServiceTest {
       return helixManager;
     }
 
-    protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
+    protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
         throws IOException {
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
               Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
