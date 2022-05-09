@@ -436,7 +436,7 @@ public class YarnService extends AbstractIdleService {
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
-    int numAllocatedContainers = Math.max(this.containerMap.size(), allocatedContainerCountMap.values().stream().mapToInt(Integer::intValue).sum());
+    int numAllocatedContainers = this.containerMap.size();
 
     // Request additional containers if the desired count is higher than the max of the current allocation or previously
     // requested amount. Note that there may be in-flight or additional allocations after numContainers has been computed
