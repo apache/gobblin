@@ -202,15 +202,6 @@ public class YarnService extends AbstractIdleService {
 
   private volatile boolean shutdownInProgress = false;
 
-  // The number of containers requested based on the desired target number of containers. This is used to determine
-  // how may additional containers to request since the the currently allocated amount may be less than this amount if we
-  // are waiting for containers to be allocated.
-  // The currently allocated amount may also be higher than this amount if YARN returned more than the requested number
-  // of containers.
-  @VisibleForTesting
-  @Getter(AccessLevel.PROTECTED)
-  private int numRequestedContainers = 0;
-
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus, HelixManager helixManager) throws Exception {
     this.applicationName = applicationName;
@@ -440,17 +431,12 @@ public class YarnService extends AbstractIdleService {
    * @param inUseInstances  a set of in use instances
    */
   public synchronized void requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
-    LOGGER.debug("Requesting numTargetContainers {}, current numRequestedContainers {} in use, instances {} map size is {}",
-        yarnContainerRequestBundle.getTotalContainers(), this.numRequestedContainers, inUseInstances, this.containerMap.size());
+    LOGGER.debug("Requesting numTargetContainers {}, in use instances count is {}, container map size is {}",
+        yarnContainerRequestBundle.getTotalContainers(), inUseInstances, this.containerMap.size());
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
     int numAllocatedContainers = this.containerMap.size();
-
-    // The number of allocated containers may be higher than the previously requested amount
-    // and there may be outstanding allocation requests, so the max of both counts is computed here
-    // and used to decide whether to allocate containers.
-    int numContainers = Math.max(numRequestedContainers, numAllocatedContainers);
 
     // Request additional containers if the desired count is higher than the max of the current allocation or previously
     // requested amount. Note that there may be in-flight or additional allocations after numContainers has been computed
@@ -462,7 +448,7 @@ public class YarnService extends AbstractIdleService {
       for(; requestedContainerCount < desiredContainerCount; requestedContainerCount++) {
         requestContainer(Optional.absent(), yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag));
       }
-      requestedContainerCountMap.put(currentHelixTag, requestedContainerCount);
+      requestedContainerCountMap.put(currentHelixTag, desiredContainerCount);
     }
 
     // If the total desired is lower than the currently allocated amount then release free containers.
@@ -473,17 +459,13 @@ public class YarnService extends AbstractIdleService {
       LOGGER.debug("Shrinking number of containers by {}", (numAllocatedContainers - numTargetContainers));
 
       List<Container> containersToRelease = new ArrayList<>();
-      int numToShutdown = numContainers - numTargetContainers;
+      int numToShutdown = numAllocatedContainers - numTargetContainers;
 
       // Look for eligible containers to release. If a container is in use then it is not released.
       for (Map.Entry<ContainerId, ContainerInfo> entry : this.containerMap.entrySet()) {
         ContainerInfo containerInfo = entry.getValue();
         if (!inUseInstances.contains(containerInfo.getHelixParticipantId())) {
           containersToRelease.add(containerInfo.getContainer());
-          String helixTag = containerInfo.getHelixTag();
-          if (!Strings.isNullOrEmpty(helixTag)) {
-            requestedContainerCountMap.put(helixTag, requestedContainerCountMap.get(helixTag) - 1);
-          }
         }
 
         if (containersToRelease.size() == numToShutdown) {
@@ -496,7 +478,6 @@ public class YarnService extends AbstractIdleService {
       this.eventBus.post(new ContainerReleaseRequest(containersToRelease));
     }
     this.yarnContainerRequest = yarnContainerRequestBundle;
-    this.numRequestedContainers = numTargetContainers;
     LOGGER.info("Current tag-container being requested:{}, tag-container allocated: {}",
         this.requestedContainerCountMap, this.allocatedContainerCountMap);
   }
