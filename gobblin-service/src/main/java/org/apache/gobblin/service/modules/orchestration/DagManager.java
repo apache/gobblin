@@ -357,6 +357,8 @@ public class DagManager extends AbstractIdleService {
 
         ContextAwareMeter allSuccessfulMeter = null;
         ContextAwareMeter allFailedMeter = null;
+        // TODO: create a map of RatioGauges for success/failed per executor, will require preprocessing of available executors
+        Map<String, ContextAwareMeter> startSlaExceededMeters = Maps.newConcurrentMap();
 
         if (instrumentationEnabled) {
           MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -381,7 +383,7 @@ public class DagManager extends AbstractIdleService {
         for (int i = 0; i < numThreads; i++) {
           DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
               runQueue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, failedDagIds, allSuccessfulMeter,
-              allFailedMeter, this.defaultJobStartSlaTimeMillis, quotaManager, i);
+              allFailedMeter, startSlaExceededMeters, this.defaultJobStartSlaTimeMillis, quotaManager, i);
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
@@ -442,6 +444,7 @@ public class DagManager extends AbstractIdleService {
     private final ContextAwareMeter allFailedMeter;
     private static final Map<String, ContextAwareMeter> groupSuccessfulMeters = Maps.newConcurrentMap();
     private static final Map<String, ContextAwareMeter> groupFailureMeters = Maps.newConcurrentMap();
+    private final Map<String, ContextAwareMeter> startSlaExceededMeters;
     private final UserQuotaManager quotaManager;
     private final JobStatusRetriever jobStatusRetriever;
     private final DagStateStore dagStateStore;
@@ -457,7 +460,8 @@ public class DagManager extends AbstractIdleService {
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
         boolean instrumentationEnabled, Set<String> failedDagIds, ContextAwareMeter allSuccessfulMeter,
-        ContextAwareMeter allFailedMeter, Long defaultJobStartSla, UserQuotaManager quotaManager, int dagMangerThreadId) {
+        ContextAwareMeter allFailedMeter, Map<String, ContextAwareMeter> startSlaExceededMeters,
+        Long defaultJobStartSla, UserQuotaManager quotaManager, int dagMangerThreadId) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
@@ -469,6 +473,7 @@ public class DagManager extends AbstractIdleService {
       this.allFailedMeter = allFailedMeter;
       this.defaultJobStartSlaTimeMillis = defaultJobStartSla;
       this.quotaManager = quotaManager;
+      this.startSlaExceededMeters = startSlaExceededMeters;
 
       if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -805,7 +810,9 @@ public class DagManager extends AbstractIdleService {
         String dagId = DagManagerUtils.generateDagId(node);
         this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
         this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
-
+        if (this.metricContext != null) {
+          this.getExecutorMeterForDag(node, ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER, startSlaExceededMeters).mark();
+        }
         return true;
       } else {
         return false;
@@ -1061,7 +1068,7 @@ public class DagManager extends AbstractIdleService {
           MetricRegistry.name(
               ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
               ServiceMetricNames.RUNNING_FLOWS_COUNTER,
-              dagNode.getValue().getSpecExecutor().getUri().toString()));
+              DagManagerUtils.getSpecExecutorName(dagNode)));
     }
 
     private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
@@ -1096,6 +1103,19 @@ public class DagManager extends AbstractIdleService {
       String flowGroup = DagManagerUtils.getFlowId(this.dags.get(dagId)).getFlowGroup();
       return meterMap.computeIfAbsent(flowGroup,
           group -> metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, group, meterName)));
+    }
+
+    /**
+     * Used to track metrics for different specExecutors to detect issues with the specExecutor itself
+     * @param dagNode
+     * @param meterName
+     * @param meterMap
+     * @return
+     */
+    private ContextAwareMeter getExecutorMeterForDag(DagNode<JobExecutionPlan> dagNode, String meterName, Map<String, ContextAwareMeter> meterMap) {
+      String executorName = DagManagerUtils.getSpecExecutorName(dagNode);
+      return meterMap.computeIfAbsent(executorName,
+          executorUri -> metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, executorUri, meterName)));
     }
 
     /**
