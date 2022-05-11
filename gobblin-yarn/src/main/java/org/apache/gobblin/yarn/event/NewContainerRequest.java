@@ -17,11 +17,9 @@
 
 package org.apache.gobblin.yarn.event;
 
-import lombok.Getter;
 import org.apache.hadoop.yarn.api.records.Container;
 
 import com.google.common.base.Optional;
-import org.apache.hadoop.yarn.api.records.Resource;
 
 
 /**
@@ -32,17 +30,9 @@ import org.apache.hadoop.yarn.api.records.Resource;
 public class NewContainerRequest {
 
   private final Optional<Container> replacedContainer;
-  @Getter
-  private final Optional<Resource> resource;
 
   public NewContainerRequest(Optional<Container> replacedContainer) {
     this.replacedContainer = replacedContainer;
-    this.resource = Optional.absent();
-  }
-
-  public NewContainerRequest(Optional<Container> replacedContainer, Optional<Resource> resource) {
-    this.replacedContainer = replacedContainer;
-    this.resource = resource;
   }
 
   /**

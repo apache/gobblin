@@ -26,7 +26,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -75,11 +74,5 @@ public class GobblinYarnTestUtils {
     Credentials credentials = new Credentials();
     credentials.addToken(token.getService(), token);
     credentials.writeTokenStorageFile(path, new Configuration());
-  }
-
-  public static YarnContainerRequestBundle createYarnContainerRequest(int n, Resource resource) {
-    YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
-    yarnContainerRequestBundle.add("GobblinKafkaStreaming", n, resource);
-    return yarnContainerRequestBundle;
   }
 }
