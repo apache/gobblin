@@ -64,6 +64,7 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
@@ -379,9 +380,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Since this topic has been flushed, there should be an event sent for previous failure, and the table
     // should be removed from the error map
     Assert.assertEquals(eventsSent.size(), 1);
-    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.FAILURE_EVENT_TABLE_NAME), "testIcebergTable");
-    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK), "50");
-    Assert.assertEquals(eventsSent.get(0).getMetadata().get(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK), "52");
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(MetadataWriterKeys.TABLE_NAME_KEY), "testIcebergTable");
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(MetadataWriterKeys.GMCE_LOW_WATERMARK), "50");
+    Assert.assertEquals(eventsSent.get(0).getMetadata().get(MetadataWriterKeys.GMCE_HIGH_WATERMARK), "52");
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().values().iterator().next().size(), 0);
 
     gmceWithMockWriter.getDatasetIdentifier().setNativeName("testDB/testFaultTolerant");
