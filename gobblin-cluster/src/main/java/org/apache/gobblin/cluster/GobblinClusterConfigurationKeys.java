@@ -84,7 +84,6 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobTag";
   public static final String HELIX_PLANNING_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobTag";
   public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
-  public static final String HELIX_DEFAULT_TAG = "GobblinHelixDefaultTag";
 
   // Helix job quota
   public static final String HELIX_JOB_TYPE_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobType";
@@ -184,13 +183,6 @@ public class GobblinClusterConfigurationKeys {
   // container can be replaced with another container e.g. Gobblin-on-Yarn mode.
   public static final String CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED = GOBBLIN_CLUSTER_PREFIX + "container.exitOnHealthCheckFailure";
   public static final boolean DEFAULT_CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED = false;
-
-  // Config to specify the resource requirement for each Gobblin job run, so that helix tasks within this job will
-  // be assigned to containers with desired resource. This config need to cooperate with helix job tag, so that helix
-  // cluster knows how to distribute tasks to correct containers.
-  public static final String HELIX_JOB_CONTAINER_MEMORY_MBS = GOBBLIN_CLUSTER_PREFIX + "job.container.memory.mbs";
-  public static final String HELIX_JOB_CONTAINER_CORES = GOBBLIN_CLUSTER_PREFIX + "job.container.cores";
-
 
 
   //Config to enable/disable reuse of existing Helix Cluster

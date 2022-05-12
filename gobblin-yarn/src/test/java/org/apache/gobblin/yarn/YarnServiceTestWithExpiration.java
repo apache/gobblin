@@ -33,6 +33,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -197,11 +198,10 @@ public class YarnServiceTestWithExpiration {
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testStartError() throws Exception{
-    Resource resource = Resource.newInstance(16, 1);
-    this.expiredYarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
+    this.expiredYarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 
-    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(resource).isEmpty());
+    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(64, 1).isEmpty());
+    Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
     AssertWithBackoff.create().logger(LOG).timeoutMs(60000).maxSleepMs(2000).backoffFactor(1.5)
         .assertTrue(new Predicate<Void>() {
@@ -234,7 +234,7 @@ public class YarnServiceTestWithExpiration {
       completedContainers.add(containerStatus);
     }
 
-    protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
+    protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
         throws IOException {
       try {
         Thread.sleep(1000);

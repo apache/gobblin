@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -208,43 +207,42 @@ public class YarnServiceTest {
    */
   @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testScaleUp() {
-    Resource resource = Resource.newInstance(64, 1);
-    this.yarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
+    this.yarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 
-    Assert.assertFalse(this.yarnService.getMatchingRequestsList(resource).isEmpty());
+    Assert.assertFalse(this.yarnService.getMatchingRequestsList(64, 1).isEmpty());
+    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 10);
     Assert.assertTrue(this.yarnService.waitForContainerCount(10, 60000));
-    Assert.assertEquals(this.yarnService.getContainerMap().size(), 10);
+
     // container request list that had entries earlier should now be empty
-    Assert.assertEquals(this.yarnService.getMatchingRequestsList(resource).size(), 0);
+    Assert.assertEquals(this.yarnService.getMatchingRequestsList(64, 1).size(), 0);
   }
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleUp")
   public void testScaleDownWithInUseInstances() {
     Set<String> inUseInstances = new HashSet<>();
+
     for (int i = 1; i <= 8; i++) {
       inUseInstances.add("GobblinYarnTaskRunner_" + i);
     }
-    Resource resource = Resource.newInstance(64, 1);
-    this.yarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(6, resource), inUseInstances);
+
+    this.yarnService.requestTargetNumberOfContainers(6, inUseInstances);
+
+    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 6);
 
     // will only be able to shrink to 8
     Assert.assertTrue(this.yarnService.waitForContainerCount(8, 60000));
 
     // will not be able to shrink to 6 due to 8 in-use instances
     Assert.assertFalse(this.yarnService.waitForContainerCount(6, 10000));
-    Assert.assertEquals(this.yarnService.getContainerMap().size(), 8);
+
   }
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleDownWithInUseInstances")
   public void testScaleDown() throws Exception {
-    Resource resource = Resource.newInstance(64, 1);
-    this.yarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(4, resource), Collections.EMPTY_SET);
+    this.yarnService.requestTargetNumberOfContainers(4, Collections.EMPTY_SET);
 
+    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 4);
     Assert.assertTrue(this.yarnService.waitForContainerCount(4, 60000));
-    Assert.assertEquals(this.yarnService.getContainerMap().size(), 4);
   }
 
   // Keep this test last since it interferes with the container counts in the prior tests.
@@ -281,23 +279,11 @@ public class YarnServiceTest {
         0), 0);
     Resource resource = Resource.newInstance(2048, 1);
     Container container = Container.newInstance(containerId, null, null, resource, null, null);
-    YarnService.ContainerInfo
-        containerInfo = new YarnService.ContainerInfo(container, "helixInstance1", "helixTag");
 
-    String command = yarnService.buildContainerCommand(containerInfo);
+    String command = yarnService.buildContainerCommand(container, "helixInstance1");
 
     // 1628 is from 2048 * 0.8 - 10
     Assert.assertTrue(command.contains("-Xmx1628"));
-  }
-
-  /**
-   * Test if requested resource exceed the resource limit, yarnService should fail.
-   */
-  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, expectedExceptions = IllegalArgumentException.class)
-  public void testExceedResourceLimit() {
-    Resource resource = Resource.newInstance(204800, 10240);
-    this.yarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
   }
 
    static class TestYarnService extends YarnService {
@@ -324,7 +310,7 @@ public class YarnServiceTest {
       return helixManager;
     }
 
-    protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
+    protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
         throws IOException {
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
               Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
@@ -333,8 +319,10 @@ public class YarnServiceTest {
     /**
      * Get the list of matching container requests for the specified resource memory and cores.
      */
-    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequestsList(Resource resource) {
+    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequestsList(int memory, int cores) {
+      Resource resource = Resource.newInstance(memory, cores);
       Priority priority = Priority.newInstance(0);
+
       return getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
     }
 
@@ -358,12 +346,13 @@ public class YarnServiceTest {
           Thread.currentThread().interrupt();
           break;
         }
-        ConcurrentMap<ContainerId, ContainerInfo> containerMap = getContainerMap();
+
         if (expectedCount == getContainerMap().size()) {
           success = true;
           break;
         }
       }
+
       return success;
     }
   }
