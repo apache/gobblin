@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.stream.WorkUnitChangeEvent;
@@ -186,6 +187,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private final AutomaticTroubleshooter troubleshooter;
 
+  protected final GobblinJobMetricReporter gobblinJobMetricsReporter;
+
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
     this(jobProps, metadataTags, null);
@@ -237,7 +240,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           });
 
       this.eventSubmitter = buildEventSubmitter(metadataTags);
-
       // Add all custom tags to the JobState so that tags are added to any new TaskState created
       GobblinMetrics.addCustomTagToState(this.jobContext.getJobState(), metadataTags);
 
@@ -247,6 +249,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       this.multiEventMetadataGenerator = new MultiEventMetadataGenerator(
           PropertiesUtils.getPropAsList(jobProps, ConfigurationKeys.EVENT_METADATA_GENERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY));
+
+      String jobMetricsReporterClassName = this.jobProps.contains(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY) ?
+          this.jobProps.getProperty(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY) : ConfigurationKeys.DEFAULT_JOB_METRICS_REPORTER_CLASS;
+      this.gobblinJobMetricsReporter =  GobblinConstructorUtils.invokeConstructor(GobblinJobMetricReporter.class, jobMetricsReporterClassName,
+          this.runtimeMetricContext);
+
     } catch (Exception e) {
       unlockJob();
       throw e;
@@ -469,6 +477,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         workUnitsCreationTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
 
+        this.gobblinJobMetricsReporter.reportWorkUnitCreationTimerMetrics(workUnitsCreationTimer, jobState);
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
@@ -476,6 +485,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           String errMsg = "Failed to get work units for job " + jobId;
           this.jobContext.getJobState().setJobFailureMessage(errMsg);
           this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(0, jobState);
           throw new JobException(errMsg);
         }
 
@@ -486,6 +496,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           jobState.setState(JobState.RunningState.COMMITTED);
           isWorkUnitsEmpty = true;
           this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(0, jobState);
           return;
         }
 
@@ -552,7 +563,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // If it is a streaming source, workunits cannot be counted
           this.jobContext.getJobState().setProp(NUM_WORKUNITS,
               workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
-
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(this.jobContext.getJobState().getPropAsInt(NUM_WORKUNITS), jobState);
           // dump the work unit if tracking logs are enabled
           if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
             workUnitStream = workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
@@ -676,21 +687,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } finally {
       // Register metrics then stop metrics reporting, metrics will flush and emit when the metricsContext is closed
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
-        if (jobState.getPropAsBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, true)) {
-          String workunitCreationGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX,
-              TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getJobName());
-          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
-          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
-              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
-          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
-
-          String workunitCountGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX,
-              JobEvent.WORK_UNITS_CREATED, jobState.getJobName());
-          ContextAwareGauge<Integer> workunitCountGauge = this.runtimeMetricContext.get()
-              .newContextAwareGauge(workunitCreationGaugeName, () -> Integer.valueOf(jobState.getProp(NUM_WORKUNITS)));
-          this.runtimeMetricContext.get().register(workunitCountGaugeName, workunitCountGauge);
-
-        }
         JobMetrics.remove(jobState);
       }
       MDC.remove(ConfigurationKeys.JOB_NAME_KEY);
