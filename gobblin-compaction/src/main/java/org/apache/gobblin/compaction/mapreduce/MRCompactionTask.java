@@ -30,15 +30,20 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.action.CompactionCompleteAction;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.compaction.suite.CompactionSuite;
 import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.mapreduce.MRTask;
+import org.apache.hadoop.fs.Path;
 
 
 
@@ -101,7 +106,8 @@ public class MRCompactionTask extends MRTask {
   public void onMRTaskComplete (boolean isSuccess, Throwable throwable) {
     if (isSuccess) {
       try {
-        setCounterInfo(taskContext.getTaskState());
+        TaskState taskState = taskContext.getTaskState();
+        setCounterInfo(taskState);
 
         List<CompactionCompleteAction> actions = this.suite.getCompactionCompleteActions();
         for (CompactionCompleteAction action: actions) {
@@ -109,6 +115,10 @@ public class MRCompactionTask extends MRTask {
           action.onCompactionJobComplete(dataset);
         }
         submitEvent(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME);
+        if (dataset instanceof FileSystemDataset) {
+          commitRunStartTimeInfo(taskState, (FileSystemDataset) dataset);
+        }
+
         super.onMRTaskComplete(true, null);
       } catch (IOException e) {
         submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
@@ -118,6 +128,22 @@ public class MRCompactionTask extends MRTask {
       submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
       super.onMRTaskComplete(false, throwable);
     }
+  }
+
+  /**
+   * Persist the run start time which is used to determine when the last successful compaction run started. This
+   * value is useful for limiting how often you recompact by verifying whether a dataset has recently been compacted.
+   * @param taskState
+   * @param dataset
+   * @throws IOException
+   */
+  private static void commitRunStartTimeInfo(TaskState taskState, FileSystemDataset dataset) throws IOException {
+    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(taskState).parse(dataset);
+    InputRecordCountHelper helper = new InputRecordCountHelper(taskState);
+    State compactionState = helper.loadState(new Path(result.getDstAbsoluteDir()));
+    compactionState.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME,
+        taskState.getProp(CompactionSource.COMPACTION_INIT_TIME));
+    helper.saveState(new Path(result.getDstAbsoluteDir()), compactionState);
   }
 
   private void setCounterInfo(TaskState taskState)
