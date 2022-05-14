@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
@@ -44,7 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
@@ -73,11 +71,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -250,9 +246,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           PropertiesUtils.getPropAsList(jobProps, ConfigurationKeys.EVENT_METADATA_GENERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY));
 
-      String jobMetricsReporterClassName = this.jobProps.contains(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY) ?
-          this.jobProps.getProperty(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY) : ConfigurationKeys.DEFAULT_JOB_METRICS_REPORTER_CLASS;
-      this.gobblinJobMetricsReporter =  GobblinConstructorUtils.invokeConstructor(GobblinJobMetricReporter.class, jobMetricsReporterClassName,
+      String jobMetricsReporterClassName = this.jobProps.getProperty(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY, ConfigurationKeys.DEFAULT_JOB_METRICS_REPORTER_CLASS);
+      this.gobblinJobMetricsReporter =  (GobblinJobMetricReporter) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(jobMetricsReporterClassName),
           this.runtimeMetricContext);
 
     } catch (Exception e) {

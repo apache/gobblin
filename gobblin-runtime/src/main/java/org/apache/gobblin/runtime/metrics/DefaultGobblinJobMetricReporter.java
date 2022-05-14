@@ -1,7 +1,7 @@
 package org.apache.gobblin.runtime.metrics;
 
 import com.codahale.metrics.MetricRegistry;
-import java.util.Optional;
+import com.google.common.base.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;

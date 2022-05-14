@@ -6,8 +6,8 @@ import org.apache.gobblin.runtime.JobState;
 
 public interface GobblinJobMetricReporter {
 
-  public void reportWorkUnitCreationTimerMetrics(TimingEvent workUnitsCreationTimer, JobState jobState);
+   void reportWorkUnitCreationTimerMetrics(TimingEvent workUnitsCreationTimer, JobState jobState);
 
-  public void reportWorkUnitCountMetrics(int workUnitCount, JobState jobState);
+   void reportWorkUnitCountMetrics(int workUnitCount, JobState jobState);
 
 }
