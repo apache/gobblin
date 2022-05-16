@@ -52,6 +52,7 @@ public class GobblinJobMetricReporterTest {
 
   @BeforeClass
   public void startUp() throws Exception {
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     this.launcherProps = new Properties();
     this.launcherProps.load(new FileReader("gobblin-test/resource/gobblin.test.properties"));
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
