@@ -608,7 +608,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       } catch (Throwable t) {
         jobState.setState(JobState.RunningState.FAILED);
-        String errMsg = "Failed to launch and run job " + jobId + " due to" + t.getMessage();
+        String errMsg = "Failed to launch and run job " + jobId + " due to " + t.getMessage();
         LOG.error(errMsg + ": " + t, t);
         this.jobContext.getJobState().setJobFailureException(t);
       } finally {

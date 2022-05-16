@@ -43,12 +43,21 @@ public class DatasetCleanerCli implements CliApplication {
 
   @Override
   public void run(String[] args) {
+    DatasetCleaner datasetCleaner = null;
     try {
       Properties properties = readProperties(parseConfigLocation(args));
-      DatasetCleaner datasetCleaner = new DatasetCleaner(FileSystem.get(new Configuration()), properties);
+      datasetCleaner = new DatasetCleaner(FileSystem.get(new Configuration()), properties);
       datasetCleaner.clean();
     } catch (IOException e) {
       throw new RuntimeException(e);
+    } finally {
+      if (datasetCleaner != null) {
+        try {
+          datasetCleaner.close();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 
