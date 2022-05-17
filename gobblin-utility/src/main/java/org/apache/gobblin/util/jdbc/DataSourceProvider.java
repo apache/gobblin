@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.util.jdbc;
 
+import java.time.Duration;
 import java.util.Properties;
 
 import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.dbcp.BasicDataSource;
 
@@ -34,6 +38,7 @@ import org.apache.gobblin.password.PasswordManager;
  * A provider class for {@link javax.sql.DataSource}s.
  */
 public class DataSourceProvider implements Provider<DataSource> {
+  private static final Logger LOG = LoggerFactory.getLogger(DataSourceProvider.class);
 
   public static final String GOBBLIN_UTIL_JDBC_PREFIX = "gobblin.util.jdbc.";
   public static final String CONN_DRIVER = GOBBLIN_UTIL_JDBC_PREFIX + "conn.driver";
@@ -54,7 +59,12 @@ public class DataSourceProvider implements Provider<DataSource> {
     this.basicDataSource.setDriverClassName(properties.getProperty(CONN_DRIVER, DEFAULT_CONN_DRIVER));
     // the validation query should work beyond mysql; still, to bypass for any reason, heed directive
     if (!Boolean.parseBoolean(properties.getProperty(SKIP_VALIDATION_QUERY, "false"))) {
-      this.basicDataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
+      // MySQL server can timeout a connection so need to validate connections before use
+      final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
+      LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
+      this.basicDataSource.setValidationQuery(validationQuery);
+      this.basicDataSource.setTestOnBorrow(true);
+      this.basicDataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(60).toMillis());
     }
     this.basicDataSource.setUrl(properties.getProperty(CONN_URL));
     if (properties.containsKey(USERNAME) && properties.containsKey(PASSWORD)) {

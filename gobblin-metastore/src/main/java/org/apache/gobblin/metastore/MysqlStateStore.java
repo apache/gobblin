@@ -32,11 +32,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
@@ -75,6 +79,7 @@ import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
  * @param <T> state object type
  **/
 public class MysqlStateStore<T extends State> implements StateStore<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(MysqlStateStore.class);
 
   /** Specifies which 'Job State' query columns receive search evaluation (with SQL `LIKE` operator). */
   protected enum JobStateSearchColumns {
@@ -200,10 +205,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
-    basicDataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
+    final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
+    LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
+    basicDataSource.setValidationQuery(validationQuery);
     basicDataSource.setTestOnBorrow(true);
     basicDataSource.setDefaultAutoCommit(false);
-    basicDataSource.setTimeBetweenEvictionRunsMillis(60000);
+    basicDataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(60).toMillis());
     basicDataSource.setUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
     basicDataSource.setUsername(passwordManager.readPassword(
         config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
