@@ -46,6 +46,8 @@ import java.util.stream.Stream;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
+
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -199,11 +201,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     tableCurrentWatermarkMap = new HashMap<>();
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
-    tags.add(new Tag<>(IcebergMCEMetadataKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
     metricContext = closer.register(
         GobblinMetricsRegistry.getInstance().getMetricContext(state, IcebergMetadataWriter.class, tags));
     this.eventSubmitter =
-        new EventSubmitter.Builder(this.metricContext, IcebergMCEMetadataKeys.METRICS_NAMESPACE_ICEBERG_WRITER).build();
+        new EventSubmitter.Builder(this.metricContext, MetadataWriterKeys.METRICS_NAMESPACE_ICEBERG_WRITER).build();
     this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_WHITELIST, ""),
         state.getProp(ICEBERG_REGISTRATION_BLACKLIST, ""));
 
@@ -924,28 +926,28 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
       String tableName, Map<String, String> props, Long highWaterMark) {
     GobblinEventBuilder gobblinTrackingEvent =
-        new GobblinEventBuilder(IcebergMCEMetadataKeys.ICEBERG_COMMIT_EVENT_NAME);
+        new GobblinEventBuilder(MetadataWriterKeys.ICEBERG_COMMIT_EVENT_NAME);
     long currentSnapshotID = snapshot.snapshotId();
     long endToEndLag = System.currentTimeMillis() - tableMetadata.lowestGMCEEmittedTime;
     TableIdentifier tid = TableIdentifier.of(dbName, tableName);
     String gmceTopicPartition = tableTopicPartitionMap.get(tid);
 
     //Add information to automatically trigger repair jon when data loss happen
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_NAME, gmceTopicPartition.split("-")[0]);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_PARTITION, gmceTopicPartition.split("-")[1]);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK, highWaterMark.toString());
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK,
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_NAME, gmceTopicPartition.split("-")[0]);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_PARTITION, gmceTopicPartition.split("-")[1]);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_HIGH_WATERMARK, highWaterMark.toString());
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_LOW_WATERMARK,
         tableMetadata.lowWatermark.get().toString());
 
     //Add information for lag monitoring
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.LAG_KEY_NAME, Long.toString(endToEndLag));
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.SNAPSHOT_KEY_NAME, Long.toString(currentSnapshotID));
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.MANIFEST_LOCATION, snapshot.manifestListLocation());
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.SNAPSHOT_INFORMATION_KEY_NAME,
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.LAG_KEY_NAME, Long.toString(endToEndLag));
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.SNAPSHOT_KEY_NAME, Long.toString(currentSnapshotID));
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.MANIFEST_LOCATION, snapshot.manifestListLocation());
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.SNAPSHOT_INFORMATION_KEY_NAME,
         Joiner.on(",").withKeyValueSeparator("=").join(snapshot.summary()));
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.TABLE_KEY_NAME, tableName);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATABASE_KEY_NAME, dbName);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATASET_HDFS_PATH, tableMetadata.datasetName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.ICEBERG_TABLE_KEY_NAME, tableName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.ICEBERG_DATABASE_KEY_NAME, dbName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATASET_HDFS_PATH, tableMetadata.datasetName);
     for (Map.Entry<String, String> entry : props.entrySet()) {
       if (entry.getKey().startsWith(OFFSET_RANGE_KEY_PREFIX)) {
         gobblinTrackingEvent.addMetadata(entry.getKey(), entry.getValue());

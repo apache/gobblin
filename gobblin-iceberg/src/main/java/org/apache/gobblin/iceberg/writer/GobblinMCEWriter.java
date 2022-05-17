@@ -62,6 +62,7 @@ import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.writer.HiveMetadataWriterWithPartitionInfoException;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metadata.DataFile;
@@ -153,7 +154,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         state.getPropAsInt(METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS, DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS);
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
-    tags.add(new Tag<>(IcebergMCEMetadataKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
     MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
     eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
   }
@@ -510,24 +511,24 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     log.warn(String.format("Sending GTEs to indicate table flush failure for %s.%s", exceptionList.get(0).dbName, exceptionList.get(0).tableName));
 
     for (GobblinMetadataException exception : exceptionList) {
-      GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(IcebergMCEMetadataKeys.METADATA_WRITER_FAILURE_EVENT);
+      GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(MetadataWriterKeys.METADATA_WRITER_FAILURE_EVENT);
 
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATASET_HDFS_PATH, exception.datasetPath);
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_DB_NAME, exception.dbName);
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_TABLE_NAME, exception.tableName);
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_NAME, exception.GMCETopicPartition.split("-")[0]);
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition.split("-")[1]);
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILED_WRITERS_KEY, Joiner.on(',').join(exception.failedWriters));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.OPERATION_TYPE_KEY, exception.operationType.toString());
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.ADDED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.addedPartitionValues));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DROPPED_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.droppedPartitionValues));
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.PARTITION_KEYS, Joiner.on(',').join(exception.partitionKeys.stream()
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATASET_HDFS_PATH, exception.datasetPath);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATABASE_NAME_KEY, exception.dbName);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.TABLE_NAME_KEY, exception.tableName);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_NAME, exception.GMCETopicPartition.split("-")[0]);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition.split("-")[1]);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_WRITERS_KEY, Joiner.on(',').join(exception.failedWriters));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.OPERATION_TYPE_KEY, exception.operationType.toString());
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_TO_ADD_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.addedPartitionValues));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_TO_DROP_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.droppedPartitionValues));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_KEYS, Joiner.on(',').join(exception.partitionKeys.stream()
           .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
 
       String message = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
-      gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.EXCEPTION_MESSAGE_KEY_NAME, message);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.EXCEPTION_MESSAGE_KEY_NAME, message);
 
       eventSubmitter.submit(gobblinTrackingEvent);
     }
