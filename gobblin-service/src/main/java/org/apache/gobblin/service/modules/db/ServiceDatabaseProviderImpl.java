@@ -31,7 +31,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
+import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;

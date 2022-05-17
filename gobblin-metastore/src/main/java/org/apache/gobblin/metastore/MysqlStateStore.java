@@ -54,10 +54,10 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
-import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.io.StreamUtils;
+import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
 
 /**
  * An implementation of {@link StateStore} backed by MySQL.
