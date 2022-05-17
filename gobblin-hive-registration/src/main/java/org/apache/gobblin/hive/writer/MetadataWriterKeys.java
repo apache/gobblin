@@ -36,6 +36,8 @@ public class MetadataWriterKeys {
   public static final String PARTITION_HDFS_PATH = "partitionHdfsPath";
   public static final String DATABASE_NAME_KEY = "databaseName";
   public static final String TABLE_NAME_KEY = "tableName";
+  public static final String HIVE_DATABASE_NAME_KEY = "hiveDatabaseName";
+  public static final String HIVE_TABLE_NAME_KEY = "hiveTableName";
   public static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
   public static final String EXCEPTION_MESSAGE_KEY_NAME = "exceptionMessage";
   public static final String FAILED_WRITERS_KEY = "failedWriters";

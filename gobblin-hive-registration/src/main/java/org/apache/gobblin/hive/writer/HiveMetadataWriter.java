@@ -387,8 +387,8 @@ public class HiveMetadataWriter implements MetadataWriter {
       HivePartitionOperation operation) {
     GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(MetadataWriterKeys.HIVE_COMMIT_EVENT_NAME);
 
-    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATABASE_NAME_KEY, dbName);
-    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.TABLE_NAME_KEY, tableName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_DATABASE_NAME_KEY, dbName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_TABLE_NAME_KEY, tableName);
     gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_KEYS, Joiner.on(',').join(hiveSpec.getTable().getPartitionKeys().stream()
         .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
     gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_VALUES_KEY, Joiner.on(',').join(partitionValues));
