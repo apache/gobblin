@@ -1014,7 +1014,7 @@ public class ConfigurationKeys {
   public static final String DATASET_BASE_OUTPUT_PATH_KEY = "gobblin.flow.dataset.baseOutputPath";
   public static final String DATASET_COMBINE_KEY = "gobblin.flow.dataset.combine";
   public static final String WHITELISTED_EDGE_IDS = "gobblin.flow.whitelistedEdgeIds";
-  public static final String GOBBLIN_FLOW_ISADHOC = "gobblin.internal.flow.isAdhoc";
+  public static final String GOBBLIN_OUTPUT_JOB_LEVEL_METRICS = "gobblin.job.outputJobLevelMetrics";
   /***
    * Configuration properties related to TopologySpec Store
    */
@@ -1131,4 +1131,8 @@ public class ConfigurationKeys {
    * */
   public static final String TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = "gobblin.troubleshooter.inMemoryIssueRepository.maxSize";
   public static final int DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = 100;
+
+  public static final String JOB_METRICS_REPORTER_CLASS_KEY = "gobblin.job.metrics.reporter.class";
+  public static final String DEFAULT_JOB_METRICS_REPORTER_CLASS = "org.apache.gobblin.runtime.metrics.DefaultGobblinJobMetricReporter";
+
 }
