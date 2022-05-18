@@ -680,7 +680,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     } finally {
-      // Register metrics then stop metrics reporting, metrics will flush and emit when the metricsContext is closed
+      // Stop metrics reporting
       if (this.jobContext.getJobMetricsOptional().isPresent()) {
         JobMetrics.remove(jobState);
       }
