@@ -30,7 +30,6 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobLauncherTestHelper;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.local.LocalJobLauncher;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,9 +38,7 @@ import org.testng.annotations.Test;
 
 
 /**
- * Unit test for {@link LocalJobLauncher}.
- *
- * @author Yinan Li
+ * Unit test for {@link GobblinJobMetricReporter and its implementation classes}.
  */
 @Test(groups = { "gobblin.runtime.local" })
 public class GobblinJobMetricReporterTest {

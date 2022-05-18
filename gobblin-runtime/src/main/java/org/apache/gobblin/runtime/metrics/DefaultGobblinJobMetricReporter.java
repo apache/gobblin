@@ -28,8 +28,8 @@ import org.apache.gobblin.runtime.JobState;
 
 
 /**
- * A metrics reporter that reports only workunitsCreationTimer - which is the current default behavior
- *
+ * A metrics reporter that reports only workunitsCreationTimer - which is the current default behavior for all Gobblin jobs not emitted by GaaS
+ * Emit metrics with JobMetrics as the prefix
  */
 public class DefaultGobblinJobMetricReporter implements GobblinJobMetricReporter {
 
