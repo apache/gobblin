@@ -26,6 +26,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
@@ -68,6 +69,7 @@ public abstract class HiveRegister implements Closeable {
   public static final String HIVE_PARTITION_COMPARATOR_TYPE = "hive.partition.comparator.type";
   public static final String DEFAULT_HIVE_PARTITION_COMPARATOR_TYPE = HivePartitionComparator.class.getName();
   public static final String HIVE_METASTORE_URI_KEY = "hive.metastore.uri";
+  public static final String HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY = "hiveRegister.close.timeout.seconds";
 
   protected static final String HIVE_DB_EXTENSION = ".db";
 
@@ -77,6 +79,7 @@ public abstract class HiveRegister implements Closeable {
   protected final Optional<String> hiveDbRootDir;
   protected final ListeningExecutorService executor;
   protected final Map<String, Future<Void>> futures = Maps.newConcurrentMap();
+  protected final long timeOutSeconds;
 
   protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
@@ -84,6 +87,7 @@ public abstract class HiveRegister implements Closeable {
     this.executor = ExecutorsUtils.loggingDecorator(ScalingThreadPoolExecutor
         .newScalingThreadPool(0, this.props.getNumThreads(), TimeUnit.SECONDS.toMillis(10),
             ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName()))));
+    this.timeOutSeconds = this.props.getPropAsLong(HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY, -1L);
   }
 
   /**
@@ -362,9 +366,13 @@ public abstract class HiveRegister implements Closeable {
       throws IOException {
     for (Map.Entry<String, Future<Void>> entry : this.futures.entrySet()) {
       try {
-        entry.getValue().get();
-      } catch (InterruptedException | ExecutionException ee) {
-        throw new IOException("Failed to finish registration for " + entry.getKey(), ee.getCause());
+        if (timeOutSeconds > 0L) {
+          entry.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
+        } else {
+          entry.getValue().get();
+        }
+      } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        throw new IOException("Failed to finish registration for " + entry.getKey(), e.getCause());
       }
     }
   }
