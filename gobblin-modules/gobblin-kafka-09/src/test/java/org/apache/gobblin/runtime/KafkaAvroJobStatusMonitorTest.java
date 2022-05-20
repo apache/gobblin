@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -355,6 +356,35 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
     toggleManagementExecutor.shutdownNow();
     jobStatusMonitor.shutDown();
+  }
+
+  @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
+  public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createGTE(TimingEvent.JOB_COMPLETION_PERCENTAGE, new HashMap<>())
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    // Verify we are able to process it without NPE
+    Assert.assertNull(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
