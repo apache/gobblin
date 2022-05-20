@@ -160,7 +160,7 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     try {
       KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
     } catch (IOException e) {
-      Assert.assertTrue(e.getCause().getMessage().contains("Data too long"));
+      Assert.assertTrue(e.getCause().getCause().getMessage().contains("Data too long"));
       return;
     }
     Assert.fail();

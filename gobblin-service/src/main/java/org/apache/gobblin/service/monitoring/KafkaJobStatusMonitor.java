@@ -267,7 +267,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
     } catch (Exception e) {
-      log.warn("Meet exception when adding jobStatus to state store", e);
+      log.warn("Meet exception when adding jobStatus to state store at "
+          + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
       throw new IOException(e);
     }
   }
