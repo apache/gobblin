@@ -72,6 +72,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testMultipleRemoveQuotasIdempotent() throws Exception {
+    // Test that multiple decrements cannot cause the number to decrease by more than 1
     List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
@@ -85,6 +86,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testExceedsFlowGroupQuotaThrowsException() throws Exception {
+    // Test flowgroup quotas
     List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user4", ConfigFactory.empty().withValue(
         ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group1")));
 
@@ -101,6 +103,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testUserAndFlowGroupQuotaMultipleUsersAdd() throws Exception {
+    // Test that user quota and group quotas can both be exceeded, and that decrementing one flow will change both quotas
     Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("1", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
     Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("2", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
