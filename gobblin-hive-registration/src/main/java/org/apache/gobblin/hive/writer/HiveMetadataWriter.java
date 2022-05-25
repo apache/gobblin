@@ -109,7 +109,6 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   public HiveMetadataWriter(State state) throws IOException {
     this.state = state;
-    this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(HIVE_REGISTRATION_WHITELIST, ""),
         state.getProp(HIVE_REGISTRATION_BLACKLIST, ""));
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
@@ -119,6 +118,10 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.latestSchemaMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
+    if (!state.contains(HiveRegister.HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY)) {
+      state.setProp(HiveRegister.HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY, timeOutSeconds);
+    }
+    this.hiveRegister = this.closer.register(HiveRegister.get(state));
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
     tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
