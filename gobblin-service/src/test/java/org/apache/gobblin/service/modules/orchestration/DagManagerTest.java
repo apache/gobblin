@@ -948,8 +948,7 @@ public class DagManagerTest {
 
   }
 
-//  @Test (dependsOnMethods = "testQuotaDecrement")
-  @Test
+  @Test (dependsOnMethods = "testQuotaDecrement")
   public void testQuotasRetryFlow() throws URISyntaxException, IOException {
     List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user", ConfigFactory.empty());
     //Add a dag to the queue of dags
@@ -1003,7 +1002,7 @@ public class DagManagerTest {
     this._dagManagerThread.run(); // cleanup
   }
 
-  @Test (dependsOnMethods = "testQuotaDecrement")
+  @Test (dependsOnMethods = "testQuotasRetryFlow")
   public void testEmitFlowMetricOnlyIfNotAdhoc() throws URISyntaxException, IOException {
 
     Long flowId = System.currentTimeMillis();
