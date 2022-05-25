@@ -58,7 +58,7 @@ public class UserQuotaManager {
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
     ImmutableMap.Builder<String, Integer> userMapBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<String, Integer> flowGroupMapBuilder = ImmutableMap.builder();
-    // Quotas will take form of user:flowGroup:<Quota>
+    // Quotas will take form of user:<Quota> and flowGroup:<Quota>
     for (String flowGroupQuota : ConfigUtils.getStringList(config, PER_FLOWGROUP_QUOTA)) {
       flowGroupMapBuilder.put(flowGroupQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(flowGroupQuota.split(QUOTA_SEPERATOR)[1]));
     }
@@ -75,6 +75,10 @@ public class UserQuotaManager {
    * @throws IOException if the quota is exceeded, and logs a statement
    */
   public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onInit) throws IOException {
+    // Dag is already being tracked, no need to double increment for retries and multihop flows
+    if (isDagCurrentlyRunning(dagNode)) {
+      return;
+    }
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
     String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
         ConfigurationKeys.FLOW_GROUP_KEY, "");
@@ -221,7 +225,7 @@ public class UserQuotaManager {
     return this.perFlowGroupQuota.getOrDefault(flowGroup, defaultQuota);
   }
 
-  public boolean isDagCurrentlyRunning(Dag.DagNode<JobExecutionPlan> dagNode) {
+  private boolean isDagCurrentlyRunning(Dag.DagNode<JobExecutionPlan> dagNode) {
     return this.runningDagIds.containsKey(DagManagerUtils.generateDagId(dagNode));
   }
 
