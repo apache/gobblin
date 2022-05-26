@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metastore.util;
+package org.apache.gobblin.util.jdbc;
 
 public final class MysqlDataSourceUtils {
   /**
