@@ -83,7 +83,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   // minimum container capacity to avoid bad topic schema causing us to request resources aggressively
   public static final String MINIMUM_CONTAINER_CAPACITY = GOBBLIN_KAFKA_PREFIX + "streaming.minimum.containerCapacity";
   public static final double DEFAULT_MINIMUM_CONTAINER_CAPACITY = 1;
-  public static final String BAD_TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME = "badTopicPartitionWithLowCapacity";
+  public static final String TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME = "topicPartitionWithLowCapacity";
   public static final String TOPIC_PARTITION = "topicPartition";
   public static final String TOPIC_PARTITION_CAPACITY = "topicPartitionCapacity";
 
@@ -258,7 +258,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         double realCapacity = watermark.getAvgConsumeRate() > 0 ? watermark.getAvgConsumeRate() : DEFAULT_CONTAINER_CAPACITY;
         if (realCapacity < minimumContainerCapacity) {
           if (this.metricContext.isPresent()) {
-            GobblinEventBuilder event = new GobblinEventBuilder(BAD_TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME);
+            GobblinEventBuilder event = new GobblinEventBuilder(TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME);
             event.addMetadata(TOPIC_PARTITION, topicPartition);
             event.addMetadata(TOPIC_PARTITION_CAPACITY, String.valueOf(realCapacity));
             this.eventSubmitter.submit(event);
