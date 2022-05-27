@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -41,39 +42,54 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class UserQuotaManager {
   public static final String PER_USER_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perUserQuota";
+  public static final String PER_FLOWGROUP_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perFlowGroupQuota";
   public static final String USER_JOB_QUOTA_KEY = DagManager.DAG_MANAGER_PREFIX + "defaultJobQuota";
   public static final String QUOTA_SEPERATOR = ":";
   public static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private final Map<String, Integer> proxyUserToJobCount = new ConcurrentHashMap<>();
+  private final Map<String, Integer> flowGroupToJobCount = new ConcurrentHashMap<>();
   private final Map<String, Integer> requesterToJobCount = new ConcurrentHashMap<>();
   private final Map<String, Integer> perUserQuota;
+  private final Map<String, Integer> perFlowGroupQuota;
   Map<String, Boolean> runningDagIds = new ConcurrentHashMap<>();
   private final int defaultQuota;
 
   UserQuotaManager(Config config) {
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
-    ImmutableMap.Builder<String, Integer> mapBuilder = ImmutableMap.builder();
-
-    for (String userQuota : ConfigUtils.getStringList(config, PER_USER_QUOTA)) {
-      mapBuilder.put(userQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(userQuota.split(QUOTA_SEPERATOR)[1]));
+    ImmutableMap.Builder<String, Integer> userMapBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, Integer> flowGroupMapBuilder = ImmutableMap.builder();
+    // Quotas will take form of user:<Quota> and flowGroup:<Quota>
+    for (String flowGroupQuota : ConfigUtils.getStringList(config, PER_FLOWGROUP_QUOTA)) {
+      flowGroupMapBuilder.put(flowGroupQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(flowGroupQuota.split(QUOTA_SEPERATOR)[1]));
     }
-    this.perUserQuota = mapBuilder.build();
+    // Keep quotas per user as well in form user:<Quota> which apply for all flowgroups
+    for (String userQuota : ConfigUtils.getStringList(config, PER_USER_QUOTA)) {
+      userMapBuilder.put(userQuota.split(QUOTA_SEPERATOR)[0], Integer.parseInt(userQuota.split(QUOTA_SEPERATOR)[1]));
+    }
+    this.perUserQuota = userMapBuilder.build();
+    this.perFlowGroupQuota = flowGroupMapBuilder.build();
   }
 
   /**
-   * Checks if the dagNode exceeds the statically configured user quota for both the proxy user and requester user
+   * Checks if the dagNode exceeds the statically configured user quota for both the proxy user, requester user, and flowGroup
    * @throws IOException if the quota is exceeded, and logs a statement
    */
   public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onInit) throws IOException {
+    // Dag is already being tracked, no need to double increment for retries and multihop flows
+    if (isDagCurrentlyRunning(dagNode)) {
+      return;
+    }
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
+    String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
+        ConfigurationKeys.FLOW_GROUP_KEY, "");
     String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
     boolean proxyUserCheck = true;
-    int proxyQuotaIncrement;
     Set<String> usersQuotaIncrement = new HashSet<>(); // holds the users for which quota is increased
     StringBuilder requesterMessage = new StringBuilder();
     runningDagIds.put(DagManagerUtils.generateDagId(dagNode), true);
     if (proxyUser != null) {
-      proxyQuotaIncrement = incrementJobCountAndCheckUserQuota(proxyUserToJobCount, proxyUser, dagNode);
+      int proxyQuotaIncrement = incrementJobCountAndCheckQuota(
+          DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), proxyUserToJobCount, dagNode, getQuotaForUser(proxyUser));
       proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds
       if (!proxyUserCheck) {
         // add 1 to proxyUserIncrement since count starts at 0, and is negative if quota is exceeded
@@ -90,7 +106,8 @@ public class UserQuotaManager {
       List<String> uniqueRequesters = RequesterService.deserialize(serializedRequesters).stream()
           .map(ServiceRequester::getName).distinct().collect(Collectors.toList());
       for (String requester : uniqueRequesters) {
-        int userQuotaIncrement = incrementJobCountAndCheckUserQuota(requesterToJobCount, requester, dagNode);
+        int userQuotaIncrement = incrementJobCountAndCheckQuota(
+            DagManagerUtils.getUserQuotaKey(requester, dagNode), requesterToJobCount, dagNode, getQuotaForUser(requester));
         boolean thisRequesterCheck = userQuotaIncrement >= 0;  // user quota check succeeds
         usersQuotaIncrement.add(requester);
         requesterCheck = requesterCheck && thisRequesterCheck;
@@ -102,11 +119,20 @@ public class UserQuotaManager {
       }
     }
 
+    int flowGroupQuotaIncrement = incrementJobCountAndCheckQuota(
+        DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), flowGroupToJobCount, dagNode, getQuotaForFlowGroup(flowGroup));
+    boolean flowGroupCheck = flowGroupQuotaIncrement >= 0;
+    if (!flowGroupCheck) {
+      requesterMessage.append(String.format(
+          "Quota exceeded for flowgroup %s on executor %s : quota=%s, requests above quota=%d%n",
+          flowGroup, specExecutorUri, getQuotaForFlowGroup(flowGroup), Math.abs(flowGroupQuotaIncrement)+1-getQuotaForFlowGroup(flowGroup)));
+    }
+
     // Throw errors for reach quota at the end to avoid inconsistent job counts
-    if ((!proxyUserCheck || !requesterCheck) && !onInit) {
+    if ((!proxyUserCheck || !requesterCheck || !flowGroupCheck) && !onInit) {
       // roll back the increased counts in this block
-      String userKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
-      decrementQuotaUsage(proxyUserToJobCount, userKey);
+      decrementQuotaUsage(proxyUserToJobCount, DagManagerUtils.getUserQuotaKey(proxyUser, dagNode));
+      decrementQuotaUsage(flowGroupToJobCount, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode));
       decrementQuotaUsageForUsers(usersQuotaIncrement);
       runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
       throw new IOException(requesterMessage.toString());
@@ -115,14 +141,12 @@ public class UserQuotaManager {
 
   /**
    * Increment quota by one for the given map and key.
-   * @return a negative number if quota is already reached for this user
-   *         a positive number if the quota is not reached for this user
+   * @return a negative number if quota is already reached
+   *         a positive number if the quota is not reached
    *         the absolute value of the number is the used quota before this increment request
    *         0 if quota usage is not changed
    */
-  private int incrementJobCountAndCheckUserQuota(Map<String, Integer> quotaMap, String user, Dag.DagNode<JobExecutionPlan> dagNode) {
-    String key = DagManagerUtils.getUserQuotaKey(user, dagNode);
-
+  private int incrementJobCountAndCheckQuota(String key, Map<String, Integer> quotaMap, Dag.DagNode<JobExecutionPlan> dagNode, int quotaForKey) {
     // Only increment job count for first attempt, since job is considered running between retries
     if (dagNode.getValue().getCurrentAttempts() != 1) {
       return 0;
@@ -138,7 +162,7 @@ public class UserQuotaManager {
       currentCount = 0;
     }
 
-    if (currentCount >= getQuotaForUser(user)) {
+    if (currentCount >= quotaForKey) {
       return -currentCount; // increment must have crossed the quota
     } else {
       return currentCount;
@@ -159,6 +183,9 @@ public class UserQuotaManager {
       String proxyUserKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
       decrementQuotaUsage(proxyUserToJobCount, proxyUserKey);
     }
+    String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
+        ConfigurationKeys.FLOW_GROUP_KEY, "");
+    decrementQuotaUsage(flowGroupToJobCount, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode));
     String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
     if (serializedRequesters != null) {
       try {
@@ -174,14 +201,14 @@ public class UserQuotaManager {
     return true;
   }
 
-  private void decrementQuotaUsage(Map<String, Integer> quotaMap, String user) {
+  private void decrementQuotaUsage(Map<String, Integer> quotaMap, String key) {
     Integer currentCount;
-    if (user == null) {
+    if (key == null) {
       return;
     }
     do {
-      currentCount = quotaMap.get(user);
-    } while (currentCount != null && currentCount > 0 && !quotaMap.replace(user, currentCount, currentCount - 1));
+      currentCount = quotaMap.get(key);
+    } while (currentCount != null && currentCount > 0 && !quotaMap.replace(key, currentCount, currentCount - 1));
   }
 
   private void decrementQuotaUsageForUsers(Set<String> requestersToDecreaseCount) {
@@ -192,6 +219,14 @@ public class UserQuotaManager {
 
   private int getQuotaForUser(String user) {
     return this.perUserQuota.getOrDefault(user, defaultQuota);
+  }
+
+  private int getQuotaForFlowGroup(String flowGroup) {
+    return this.perFlowGroupQuota.getOrDefault(flowGroup, defaultQuota);
+  }
+
+  private boolean isDagCurrentlyRunning(Dag.DagNode<JobExecutionPlan> dagNode) {
+    return this.runningDagIds.containsKey(DagManagerUtils.generateDagId(dagNode));
   }
 
 }

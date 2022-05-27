@@ -239,6 +239,9 @@ public class DagManagerUtils {
     return user + QUOTA_KEY_SEPERATOR + getSpecExecutorUri(dagNode);
   }
 
+  static String getFlowGroupQuotaKey(String flowGroup, DagNode<JobExecutionPlan> dagNode) {
+    return flowGroup + QUOTA_KEY_SEPERATOR + getSpecExecutorUri(dagNode);
+  }
   /**
    * Increment the value of {@link JobExecutionPlan#currentAttempts}
    */

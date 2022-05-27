@@ -161,8 +161,8 @@ public class DagManagerTest {
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
           addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
-          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build()
-          .withFallback(additionalConfig);
+          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
+      jobConfig = additionalConfig.withFallback(jobConfig);
       if ((i == 1) || (i == 2)) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       } else if (i == 3) {
@@ -949,6 +949,60 @@ public class DagManagerTest {
   }
 
   @Test (dependsOnMethods = "testQuotaDecrement")
+  public void testQuotasRetryFlow() throws URISyntaxException, IOException {
+    List<Dag<JobExecutionPlan>> dagList = buildDagList(2, "user", ConfigFactory.empty());
+    //Add a dag to the queue of dags
+    this.queue.offer(dagList.get(0));
+    Config jobConfig0 = dagList.get(0).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Config jobConfig1 = dagList.get(1).getNodes().get(0).getValue().getJobSpec().getConfig();
+    Iterator<JobStatus> jobStatusIterator0 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED), true);
+    // Cleanup the running job that is scheduled normally
+    Iterator<JobStatus> jobStatusIterator1 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.RUNNING), true);
+    Iterator<JobStatus> jobStatusIterator2 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED));
+    Iterator<JobStatus> jobStatusIterator3 =
+        getMockJobStatus("flow0", "group0", Long.valueOf(jobConfig0.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE));
+    Iterator<JobStatus> jobStatusIterator4 =
+        getMockJobStatus("flow1", "group1", Long.valueOf(jobConfig1.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group1", String.valueOf(ExecutionStatus.ORCHESTRATED));
+    Iterator<JobStatus> jobStatusIterator5 =
+        getMockJobStatus("flow1", "group1", Long.valueOf(jobConfig1.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)),
+            "job0", "group1", String.valueOf(ExecutionStatus.COMPLETE));
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow0"), Mockito.eq("group0"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator0)
+        .thenReturn(jobStatusIterator1)
+        .thenReturn(jobStatusIterator2)
+        .thenReturn(jobStatusIterator3);
+
+    Mockito.when(_jobStatusRetriever
+        .getJobStatusesForFlowExecution(Mockito.eq("flow1"), Mockito.eq("group1"), Mockito.anyLong(),
+            Mockito.anyString(), Mockito.anyString()))
+        .thenReturn(jobStatusIterator4)
+        .thenReturn(jobStatusIterator5);
+
+    // Dag1 is running
+    this._dagManagerThread.run();
+    // Dag1 fails and is orchestrated again
+    this._dagManagerThread.run();
+    // Dag1 is running again
+    this._dagManagerThread.run();
+    // Dag1 is marked as complete, should be able to run the next Dag without hitting the quota limit
+    this._dagManagerThread.run();
+
+    this.queue.offer(dagList.get(1));
+    this._dagManagerThread.run();
+    this._dagManagerThread.run(); // cleanup
+  }
+
+  @Test (dependsOnMethods = "testQuotasRetryFlow")
   public void testEmitFlowMetricOnlyIfNotAdhoc() throws URISyntaxException, IOException {
 
     Long flowId = System.currentTimeMillis();

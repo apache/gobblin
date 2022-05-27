@@ -21,6 +21,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.util.List;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.testng.Assert;
@@ -35,7 +36,8 @@ public class UserQuotaManagerTest {
   @BeforeClass
   public void setUp() {
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1"));
+        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1,user6:1"))
+        .withValue(UserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1,group2:2"));
     this._quotaManager = new UserQuotaManager(quotaConfig);
   }
 
@@ -55,7 +57,7 @@ public class UserQuotaManagerTest {
   }
 
   @Test
-  public void testExceedsQuotaThrowsException() throws Exception {
+  public void testExceedsUserQuotaThrowsException() throws Exception {
     List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
@@ -70,6 +72,7 @@ public class UserQuotaManagerTest {
 
   @Test
   public void testMultipleRemoveQuotasIdempotent() throws Exception {
+    // Test that multiple decrements cannot cause the number to decrease by more than 1
     List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
@@ -79,5 +82,56 @@ public class UserQuotaManagerTest {
     this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
     Assert.assertTrue(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
     Assert.assertFalse(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
+  }
+
+  @Test
+  public void testExceedsFlowGroupQuotaThrowsException() throws Exception {
+    // Test flowgroup quotas
+    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user4", ConfigFactory.empty().withValue(
+        ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group1")));
+
+    // Ensure that the current attempt is 1, normally done by DagManager
+    dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
+    dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
+
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    Assert.assertThrows(IOException.class, () -> {
+      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), false);
+    });
+  }
+
+
+  @Test
+  public void testUserAndFlowGroupQuotaMultipleUsersAdd() throws Exception {
+    // Test that user quota and group quotas can both be exceeded, and that decrementing one flow will change both quotas
+    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("1", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
+    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("2", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        1, "user6", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
+    Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("3", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        1, "user6", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group3")));
+    Dag<JobExecutionPlan> dag4 = DagManagerTest.buildDag("4", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
+    // Ensure that the current attempt is 1, normally done by DagManager
+    dag1.getNodes().get(0).getValue().setCurrentAttempts(1);
+    dag2.getNodes().get(0).getValue().setCurrentAttempts(1);
+    dag3.getNodes().get(0).getValue().setCurrentAttempts(1);
+    dag4.getNodes().get(0).getValue().setCurrentAttempts(1);
+
+    this._quotaManager.checkQuota(dag1.getNodes().get(0), false);
+    this._quotaManager.checkQuota(dag2.getNodes().get(0), false);
+
+    // Should fail due to user quota
+    Assert.assertThrows(IOException.class, () -> {
+      this._quotaManager.checkQuota(dag3.getNodes().get(0), false);
+    });
+    // Should fail due to flowgroup quota
+    Assert.assertThrows(IOException.class, () -> {
+      this._quotaManager.checkQuota(dag4.getNodes().get(0), false);
+    });
+    // should pass due to quota being released
+    this._quotaManager.releaseQuota(dag2.getNodes().get(0));
+    this._quotaManager.checkQuota(dag3.getNodes().get(0), false);
+    this._quotaManager.checkQuota(dag4.getNodes().get(0), false);
   }
 }
