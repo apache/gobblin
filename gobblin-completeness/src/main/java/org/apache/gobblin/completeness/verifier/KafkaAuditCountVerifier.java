@@ -45,6 +45,8 @@ public class KafkaAuditCountVerifier {
   public static final String REFERENCE_TIERS = COMPLETENESS_PREFIX + "reference.tiers";
   public static final String THRESHOLD = COMPLETENESS_PREFIX + "threshold";
   private static final double DEFAULT_THRESHOLD = 0.999;
+  public static final String COMPLETE_ON_NO_COUNTS = COMPLETENESS_PREFIX + "complete.on.no.counts";
+  private final boolean returnCompleteOnNoCounts;
 
   private final AuditCountClient auditCountClient;
   private final String srcTier;
@@ -67,6 +69,7 @@ public class KafkaAuditCountVerifier {
         state.getPropAsDouble(THRESHOLD, DEFAULT_THRESHOLD);
     this.srcTier = state.getProp(SOURCE_TIER);
     this.refTiers = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(state.getProp(REFERENCE_TIERS));
+    this.returnCompleteOnNoCounts = state.getPropAsBoolean(COMPLETE_ON_NO_COUNTS, false);
   }
 
   /**
@@ -119,6 +122,10 @@ public class KafkaAuditCountVerifier {
     Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
     log.info(String.format("Audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
     countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
+    if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
+      log.info(String.format("Found empty counts map for %s, returning 100% complete", datasetName));
+      return 1.0;
+    }
     double percent = -1;
     if (!countsByTier.containsKey(this.srcTier)) {
       throw new IOException(String.format("Source tier %s audit count cannot be retrieved for dataset %s between %s and %s", this.srcTier, datasetName, beginInMillis, endInMillis));

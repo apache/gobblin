@@ -790,28 +790,33 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Transaction transaction = tableMetadata.transaction.get();
         Map<String, String> props = tableMetadata.newProperties.or(
             Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties())));
+        String topicName = props.get(TOPIC_NAME_KEY);
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
           if (tableMetadata.completenessEnabled) {
-            String topicName = props.get(TOPIC_NAME_KEY);
             if(topicName == null) {
               log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s.%s",
                   TOPIC_NAME_KEY, dbName, tableName));
             } else {
-              long newCompletenessWatermark =
-                  computeCompletenessWatermark(topicName, tableMetadata.datePartitions, tableMetadata.prevCompletenessWatermark);
-              if(newCompletenessWatermark > tableMetadata.prevCompletenessWatermark) {
-                log.info(String.format("Updating %s for %s.%s to %s", COMPLETION_WATERMARK_KEY, dbName, tableName, newCompletenessWatermark));
-                props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-                props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
-                tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
-              }
+              checkAndUpdateCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
             }
           }
         }
         if (tableMetadata.deleteFiles.isPresent()) {
           tableMetadata.deleteFiles.get().commit();
         }
+        // Check and update completion watermark when there are no files to be registered, typically for quiet topics
+        // The logic is to check the next window from previous completion watermark and update the watermark if there are no audit counts
+        if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
+            && tableMetadata.completenessEnabled) {
+          log.info(String.format("Checking kafka audit for %s upon change_property ", topicName));
+          SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
+          ZonedDateTime prevWatermarkDT = ZonedDateTime.ofInstant(Instant.ofEpochMilli(tableMetadata.prevCompletenessWatermark),
+              ZoneId.of(this.timeZone));
+          timestamps.add(TimeIterator.inc(prevWatermarkDT, TimeIterator.Granularity.valueOf(this.auditCheckGranularity), 1));
+          checkAndUpdateCompletenessWatermark(tableMetadata, topicName, timestamps, props);
+        }
+
         //Set high waterMark
         Long highWatermark = tableCurrentWatermarkMap.get(tid);
         props.put(String.format(GMCE_HIGH_WATERMARK_KEY, tableTopicPartitionMap.get(tid)), highWatermark.toString());
@@ -826,16 +831,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
             conf.getInt(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX,
                 TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)));
         //Set data offset range
-        boolean containOffsetRange = setDatasetOffsetRange(tableMetadata, props);
-        String topicName = tableName;
-        if (containOffsetRange) {
-          String topicPartitionString = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
-          //In case the topic name is not the table name or the topic name contains '-'
-          topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
-        }
+        setDatasetOffsetRange(tableMetadata, props);
         //Update schema(commit)
         updateSchema(tableMetadata, props, topicName);
-
         //Update properties
         UpdateProperties updateProperties = transaction.updateProperties();
         props.forEach(updateProperties::set);
@@ -867,6 +865,26 @@ public class IcebergMetadataWriter implements MetadataWriter {
   @Override
   public void reset(String dbName, String tableName) throws IOException {
       this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
+  }
+
+  /**
+   * Update TableMetadata with the new completion watermark upon a successful audit check
+   * @param tableMetadata metadata of table
+   * @param topic topic name
+   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
+   * @param props table properties map
+   */
+  private void checkAndUpdateCompletenessWatermark(TableMetadata tableMetadata, String topic, SortedSet<ZonedDateTime> timestamps,
+      Map<String, String> props) {
+    long newCompletenessWatermark =
+        computeCompletenessWatermark(topic, timestamps, tableMetadata.prevCompletenessWatermark);
+    if (newCompletenessWatermark > tableMetadata.prevCompletenessWatermark) {
+      log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY, tableMetadata.table.get().name(),
+          newCompletenessWatermark));
+      props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
+      props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
+      tableMetadata.newCompletenessWatermark = newCompletenessWatermark;
+    }
   }
 
   /**

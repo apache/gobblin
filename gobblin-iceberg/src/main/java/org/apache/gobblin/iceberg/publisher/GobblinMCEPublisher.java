@@ -99,6 +99,8 @@ public class GobblinMCEPublisher extends DataPublisher {
         newFiles = computeDummyFile(state);
         if (!newFiles.isEmpty()) {
           this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE);
+        } else {
+          log.info("No dummy file created. Not sending GMCE");
         }
       } else {
         this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
