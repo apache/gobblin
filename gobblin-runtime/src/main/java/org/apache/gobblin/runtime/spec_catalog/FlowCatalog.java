@@ -364,17 +364,18 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
 
     if (isCompileSuccessful(schedulerResponse.getValue())) {
-      if (schedulerResponse.getValue().contains(QuotaExceededException.class.getSimpleName())) {
-        responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>(schedulerResponse.getValue()));
-      }
       synchronized (syncObject) {
         try {
-          if (!flowSpec.isExplain()) {
-            long startTime = System.currentTimeMillis();
-            specStore.addSpec(spec);
-            metrics.updatePutSpecTime(startTime);
+          if (schedulerResponse.getValue().contains(QuotaExceededException.class.getSimpleName())) {
+            responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>(schedulerResponse.getValue()));
+          } else {
+            if (!flowSpec.isExplain()) {
+              long startTime = System.currentTimeMillis();
+              specStore.addSpec(spec);
+              metrics.updatePutSpecTime(startTime);
+            }
+            responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
           }
-          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
         } catch (IOException e) {
           throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
         } finally {
