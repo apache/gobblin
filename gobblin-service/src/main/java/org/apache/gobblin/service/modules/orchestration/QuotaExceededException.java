@@ -22,6 +22,6 @@ import java.io.IOException;
 public class QuotaExceededException extends IOException {
 
   public QuotaExceededException(String message) {
-    super(QuotaExceededException.class.getSimpleName() + ": " + message);
+    super(message);
   }
 }

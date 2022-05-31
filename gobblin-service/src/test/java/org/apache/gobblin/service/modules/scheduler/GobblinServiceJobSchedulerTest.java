@@ -338,13 +338,14 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
     AddSpecResponse<String> response1 = scheduler.onAddSpec(flowSpec1);
+    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
 
-    Assert.assertEquals(response1.getValue(), "QuotaExceededException: Quota exceeded for flowgroup group1 on executor jobExecutor : quota=1, requests above quota=1\n");
+    Assert.assertEquals(response1.getValue(), "org.apache.gobblin.service.modules.orchestration.QuotaExceededException: Quota exceeded for flowgroup group1 on executor jobExecutor : quota=1, requests above quota=1\n");
+    // Second flow should not be added to scheduled flows since it was rejected
+    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // set scheduler to be inactive and unschedule flows
     scheduler.setActive(false);
-
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
-    Assert.assertEquals(schedulerService.getScheduler().getJobGroupNames().size(), 0);
   }
 
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {

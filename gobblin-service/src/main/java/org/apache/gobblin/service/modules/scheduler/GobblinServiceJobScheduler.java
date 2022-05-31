@@ -326,6 +326,18 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return new AddSpecResponse<>(response);
     }
 
+    // Check quota limits against run immediately flows or adhoc flows before saving the schedule
+    if (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+      try {
+        if (quotaManager.isPresent()) {
+          quotaManager.get().checkQuota(dag.getNodes().get(0), false);
+        }
+      } catch (QuotaExceededException e) {
+        _log.info(e.toString());
+        return new AddSpecResponse<>(e.toString());
+      }
+    }
+
     // todo : we should probably not schedule a flow if it is a runOnce flow
     this.scheduledFlowSpecs.put(flowSpecUri.toString(), addedSpec);
 
@@ -340,25 +352,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
       if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
         _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-        try {
-          if (quotaManager.isPresent()) {
-            quotaManager.get().checkQuota(dag.getNodes().get(0), false);
-          }
-        } catch (QuotaExceededException e) {
-          return new AddSpecResponse<>(e.getMessage());
-        }
         this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
       }
     } else {
       _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-      try {
-        if (quotaManager.isPresent()) {
-          quotaManager.get().checkQuota(dag.getNodes().get(0), false);
-        }
-      } catch (QuotaExceededException e) {
-        _log.info(e.toString());
-        return new AddSpecResponse<>(e.toString());
-      }
       this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
     }
 
