@@ -39,6 +39,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
+
+
 @Slf4j
 public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsV2ResourceHandler {
 
@@ -60,9 +63,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    FlowStatusId flowStatusId = new FlowStatusId()
-        .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
-        .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
+    FlowStatusId flowStatusId =
+        new FlowStatusId().setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY)).setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
     if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
     } else {
@@ -77,6 +79,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
 
     Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
+    // Values is either true, false, or an exception class + message
+    AddSpecResponse<String> response = responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
     HttpStatus httpStatus;
 
     if (flowConfig.hasExplain() && flowConfig.isExplain()) {
@@ -88,8 +92,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
           addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);
       httpStatus = HttpStatus.S_200_OK;
-    } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
+    } else if (Boolean.parseBoolean(response.getValue())) {
       httpStatus = HttpStatus.S_201_CREATED;
+    } else if (response.getValue().contains(QuotaExceededException.class.getSimpleName())) {
+      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, response.getValue());
     } else {
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }

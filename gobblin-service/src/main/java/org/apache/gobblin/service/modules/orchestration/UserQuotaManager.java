@@ -17,6 +17,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.HashSet;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.RequesterService;
@@ -40,6 +42,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * is exceeded, then the execution will fail without running on the underlying executor
  */
 @Slf4j
+@Singleton
 public class UserQuotaManager {
   public static final String PER_USER_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perUserQuota";
   public static final String PER_FLOWGROUP_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perFlowGroupQuota";
@@ -54,7 +57,8 @@ public class UserQuotaManager {
   Map<String, Boolean> runningDagIds = new ConcurrentHashMap<>();
   private final int defaultQuota;
 
-  UserQuotaManager(Config config) {
+  @Inject
+  public UserQuotaManager(Config config) {
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
     ImmutableMap.Builder<String, Integer> userMapBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<String, Integer> flowGroupMapBuilder = ImmutableMap.builder();
@@ -72,9 +76,9 @@ public class UserQuotaManager {
 
   /**
    * Checks if the dagNode exceeds the statically configured user quota for both the proxy user, requester user, and flowGroup
-   * @throws IOException if the quota is exceeded, and logs a statement
+   * @throws QuotaExceededException if the quota is exceeded, and logs a statement
    */
-  public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onInit) throws IOException {
+  public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode, boolean onInit) throws QuotaExceededException {
     // Dag is already being tracked, no need to double increment for retries and multihop flows
     if (isDagCurrentlyRunning(dagNode)) {
       return;
@@ -103,8 +107,16 @@ public class UserQuotaManager {
     boolean requesterCheck = true;
 
     if (serializedRequesters != null) {
-      List<String> uniqueRequesters = RequesterService.deserialize(serializedRequesters).stream()
-          .map(ServiceRequester::getName).distinct().collect(Collectors.toList());
+      List<String> uniqueRequesters;
+      try {
+        uniqueRequesters = RequesterService.deserialize(serializedRequesters)
+            .stream()
+            .map(ServiceRequester::getName)
+            .distinct()
+            .collect(Collectors.toList());
+      } catch (IOException e) {
+        throw new RuntimeException("Could not process requesters due to ", e);
+      }
       for (String requester : uniqueRequesters) {
         int userQuotaIncrement = incrementJobCountAndCheckQuota(
             DagManagerUtils.getUserQuotaKey(requester, dagNode), requesterToJobCount, dagNode, getQuotaForUser(requester));
@@ -135,7 +147,7 @@ public class UserQuotaManager {
       decrementQuotaUsage(flowGroupToJobCount, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode));
       decrementQuotaUsageForUsers(usersQuotaIncrement);
       runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
-      throw new IOException(requesterMessage.toString());
+      throw new QuotaExceededException(requesterMessage.toString());
     }
   }
 

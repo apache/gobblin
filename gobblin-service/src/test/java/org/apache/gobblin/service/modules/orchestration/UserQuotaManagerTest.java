@@ -52,8 +52,6 @@ public class UserQuotaManagerTest {
     this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), true);
     // Should not be throwing the exception
     this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), true);
-
-    // TODO: add verification when adding a public method for getting the current count and quota per user
   }
 
   @Test

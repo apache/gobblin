@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -360,8 +361,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
     }
+    AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
 
-    if (isCompileSuccessful(responseMap)) {
+    if (isCompileSuccessful(schedulerResponse.getValue())) {
+      if (schedulerResponse.getValue().contains(QuotaExceededException.class.getSimpleName())) {
+        responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>(schedulerResponse.getValue()));
+      }
       synchronized (syncObject) {
         try {
           if (!flowSpec.isExplain()) {
@@ -382,13 +387,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     return responseMap;
-  }
-
-  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    // If we cannot get the response from the scheduler, assume that the flow failed compilation
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
-    return isCompileSuccessful(addSpecResponse.getValue());
   }
 
   public static boolean isCompileSuccessful(String dag) {

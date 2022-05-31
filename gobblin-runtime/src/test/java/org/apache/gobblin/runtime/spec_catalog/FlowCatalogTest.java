@@ -21,6 +21,7 @@ import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
@@ -105,19 +106,24 @@ public class FlowCatalogTest {
     return initFlowSpec(specStore, uri, "flowName");
   }
 
-  /**
-   * Create FLowSpec with specified URI and SpecStore location.
-   */
+    /**
+     * Create FLowSpec with specified URI and SpecStore location.
+     */
   public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
+    return initFlowSpec(specStore, uri, flowName, "", ConfigFactory.empty());
+  }
+
+  public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName, String flowGroup, Config additionalConfigs) {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
     properties.put("job.name", flowName);
-    properties.put("job.group", flowName);
+    properties.put("job.group", flowGroup);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
     properties.put("job.schedule", "0 0 0 ? * * 2050");
-    Config config = ConfigUtils.propertiesToConfig(properties);
-
+    Config defaults = ConfigUtils.propertiesToConfig(properties);
+    Config config = additionalConfigs.withFallback(defaults);
     SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);
 
     FlowSpec.Builder flowSpecBuilder = null;
