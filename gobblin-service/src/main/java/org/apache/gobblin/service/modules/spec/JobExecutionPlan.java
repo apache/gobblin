@@ -60,6 +60,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
 @EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
+  private static final int MAX_JOB_NAME_LENGTH = 255;
 
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
@@ -108,8 +109,13 @@ public class JobExecutionPlan {
 
       // Modify the job name to include the flow group, flow name, edge id, and a random string to avoid collisions since
       // job names are assumed to be unique within a dag.
-      jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId, flowInputPath.hashCode());
-
+      int hash = flowInputPath.hashCode();
+      jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId, hash);
+      // jobNames are commonly used as a directory name, which is limited to 255 characters
+      if (jobName.length() >= MAX_JOB_NAME_LENGTH) {
+        // shorten job length to be 128 characters (flowGroup) + (hashed) flowName, hashCode length
+        jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName.hashCode(), hash);
+      }
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
 
