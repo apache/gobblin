@@ -113,8 +113,8 @@ public class JobExecutionPlan {
       jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId, hash);
       // jobNames are commonly used as a directory name, which is limited to 255 characters
       if (jobName.length() >= MAX_JOB_NAME_LENGTH) {
-        // shorten job length to be 128 characters (flowGroup) + hashCode length
-        jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, hash);
+        // shorten job length to be 128 characters (flowGroup) + (hashed) flowName, hashCode length
+        jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName.hashCode(), hash);
       }
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
