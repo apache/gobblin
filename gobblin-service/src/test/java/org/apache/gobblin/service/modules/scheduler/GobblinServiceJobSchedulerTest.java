@@ -340,7 +340,7 @@ public class GobblinServiceJobSchedulerTest {
     AddSpecResponse<String> response1 = scheduler.onAddSpec(flowSpec1);
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
 
-    Assert.assertEquals(response1.getValue(), "org.apache.gobblin.service.modules.orchestration.QuotaExceededException: Quota exceeded for flowgroup group1 on executor jobExecutor : quota=1, requests above quota=1\n");
+    Assert.assertEquals(response1.getValue(), "org.apache.gobblin.exception.QuotaExceededException: Quota exceeded for flowgroup group1 on executor jobExecutor : quota=1, requests above quota=1\n");
     // Second flow should not be added to scheduled flows since it was rejected
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // set scheduler to be inactive and unschedule flows
@@ -394,7 +394,6 @@ public class GobblinServiceJobSchedulerTest {
         withTemplate(new URI("job_" + id)).build();
     SpecExecutor specExecutor = InMemorySpecExecutor.createDummySpecExecutor(new URI("jobExecutor"));
     JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
-    jobExecutionPlan.setCurrentAttempts(1);
     jobExecutionPlans.add(jobExecutionPlan);
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }

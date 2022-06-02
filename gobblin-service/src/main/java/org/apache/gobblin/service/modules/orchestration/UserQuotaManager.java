@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -160,7 +161,7 @@ public class UserQuotaManager {
    */
   private int incrementJobCountAndCheckQuota(String key, Map<String, Integer> quotaMap, Dag.DagNode<JobExecutionPlan> dagNode, int quotaForKey) {
     // Only increment job count for first attempt, since job is considered running between retries
-    if (dagNode.getValue().getCurrentAttempts() != 1) {
+    if (dagNode.getValue().getCurrentAttempts() > 1) {
       return 0;
     }
 

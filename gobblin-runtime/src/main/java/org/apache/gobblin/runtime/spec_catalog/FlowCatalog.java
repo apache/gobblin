@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.hadoop.hdfs.protocol.QuotaExceededException;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
