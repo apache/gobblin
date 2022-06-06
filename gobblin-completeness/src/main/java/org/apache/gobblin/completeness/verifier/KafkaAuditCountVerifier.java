@@ -123,7 +123,7 @@ public class KafkaAuditCountVerifier {
     log.info(String.format("Audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
     countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
     if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
-      log.info(String.format("Found empty counts map for %s, returning 100% complete", datasetName));
+      log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
       return 1.0;
     }
     double percent = -1;
