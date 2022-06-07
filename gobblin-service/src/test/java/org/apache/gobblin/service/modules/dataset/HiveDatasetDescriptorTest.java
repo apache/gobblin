@@ -36,8 +36,8 @@ public class HiveDatasetDescriptorTest {
 
   @Test
   public void objectCreation() throws IOException {
-    SqlDatasetDescriptor descriptor1 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.IS_PARTITIONED_KEY, ConfigValueFactory.fromAnyRef(true)));
-    SqlDatasetDescriptor descriptor2 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.IS_PARTITIONED_KEY, ConfigValueFactory.fromAnyRef(false)));
+    SqlDatasetDescriptor descriptor1 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.PARTITION_COLUMN, ConfigValueFactory.fromAnyRef("datepartition1")));
+    SqlDatasetDescriptor descriptor2 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.PARTITION_COLUMN, ConfigValueFactory.fromAnyRef("datepartition2")));
 
     Assert.assertNotEquals(descriptor1, descriptor2);
   }

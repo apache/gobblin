@@ -39,16 +39,14 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 /**
  * As of now, {@link HiveDatasetDescriptor} has same implementation as that of {@link SqlDatasetDescriptor}.
- * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
- * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
+ * Fields {@link HiveDatasetDescriptor#partitionColumn} and {@link HiveDatasetDescriptor#partitionFormat}
+ * are used for methods 'equals' and 'hashCode'.
  */
 @EqualsAndHashCode (exclude = {"whitelistBlacklist"}, callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
-  static final String IS_PARTITIONED_KEY = "isPartitioned";
   static final String PARTITION_COLUMN = "partition.column";
   static final String PARTITION_FORMAT = "partition.format";
   static final String CONFLICT_POLICY = "conflict.policy";
-  private final boolean isPartitioned;
   private final String partitionColumn;
   private final String partitionFormat;
   private final String conflictPolicy;
@@ -56,17 +54,10 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
 
   public HiveDatasetDescriptor(Config config) throws IOException {
     super(config);
-    this.isPartitioned = ConfigUtils.getBoolean(config, IS_PARTITIONED_KEY, true);
 
-    if (isPartitioned) {
-      partitionColumn = ConfigUtils.getString(config, PARTITION_COLUMN, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_KEY_NAME);
-      partitionFormat = ConfigUtils.getString(config, PARTITION_FORMAT, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_VALUE_DATE_TIME_PATTERN);
-      conflictPolicy = HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS.name();
-    } else {
-      partitionColumn = "";
-      partitionFormat = "";
-      conflictPolicy = HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE.name();
-    }
+    partitionColumn = ConfigUtils.getString(config, PARTITION_COLUMN, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_KEY_NAME);
+    partitionFormat = ConfigUtils.getString(config, PARTITION_FORMAT, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_VALUE_DATE_TIME_PATTERN);
+    conflictPolicy = HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE_AND_PARTITIONS.name();
 
     whitelistBlacklist = new WhitelistBlacklist(config.withValue(WhitelistBlacklist.WHITELIST,
         ConfigValueFactory.fromAnyRef(createHiveDatasetWhitelist())));
@@ -102,10 +93,6 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   protected boolean isPathContaining(DatasetDescriptor other) {
     String otherPath = other.getPath();
     if (otherPath == null) {
-      return false;
-    }
-
-    if (this.isPartitioned != ((HiveDatasetDescriptor) other).isPartitioned) {
       return false;
     }
 
