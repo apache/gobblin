@@ -98,7 +98,10 @@ public class GobblinMCEPublisher extends DataPublisher {
         // There'll be only one dummy file here. This file is parsed for DB and table name calculation.
         newFiles = computeDummyFile(state);
         if (!newFiles.isEmpty()) {
+          log.info("Dummy file: " + newFiles.keySet().iterator().next());
           this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE);
+        } else {
+          log.info("No dummy file created. Not sending GMCE");
         }
       } else {
         this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
