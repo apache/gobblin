@@ -363,9 +363,11 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
     AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
 
+    // Check that the flow configuration is valid and matches to a corresponding edge
     if (isCompileSuccessful(schedulerResponse.getValue())) {
       synchronized (syncObject) {
         try {
+          // Even if the flow is valid, reject the flow if there are not enough resources available to run it
           if (schedulerResponse.getValue().contains(QuotaExceededException.class.getSimpleName())) {
             responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>(schedulerResponse.getValue()));
           } else {
