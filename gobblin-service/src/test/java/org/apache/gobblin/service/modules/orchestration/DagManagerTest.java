@@ -990,10 +990,19 @@ public class DagManagerTest {
 
     // Dag1 is running
     this._dagManagerThread.run();
+    SortedMap<String, Counter> allCounters = metricContext.getParent().get().getCounters();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
     // Dag1 fails and is orchestrated again
     this._dagManagerThread.run();
     // Dag1 is running again
     this._dagManagerThread.run();
+    Assert.assertEquals(allCounters.get(MetricRegistry.name(
+        ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ServiceMetricNames.SERVICE_USERS,
+        "user")).getCount(), 1);
     // Dag1 is marked as complete, should be able to run the next Dag without hitting the quota limit
     this._dagManagerThread.run();
 
