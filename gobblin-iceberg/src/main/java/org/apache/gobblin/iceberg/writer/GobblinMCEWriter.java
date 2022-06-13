@@ -383,7 +383,6 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       lastException.droppedPartitionValues.addAll(((HiveMetadataWriterWithPartitionInfoException) e).droppedPartitionValues);
     }
     this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
-    tableOperationTypeMap.remove(tableString);
     log.error(String.format("Meet exception when flush table %s", tableString), e);
     if (datasetErrorMap.size() > maxErrorDataset) {
       //Fail the job if the error size exceeds some number
