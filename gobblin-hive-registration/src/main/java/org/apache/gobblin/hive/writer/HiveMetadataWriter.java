@@ -138,7 +138,9 @@ public class HiveMetadataWriter implements MetadataWriter {
       //iterator all execution to get the result to make sure they all succeeded
       for (HashMap.Entry<List<String>, ListenableFuture<Void>> execution : executionMap.entrySet()) {
         try {
+          log.debug("Start registering partition during hive write for db: " + dbName + " table: " + tableName + " partition: " + Joiner.on(",").join(execution.getKey()));
           execution.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
+          log.debug("Finish registering partition during hive write for db: " + dbName + " table: " + tableName + " partition: " + Joiner.on(",").join(execution.getKey()));
         } catch (TimeoutException e) {
           // Since TimeoutException should always be a transient issue, throw RuntimeException which will fail/retry container
           throw new RuntimeException("Timeout waiting for result of registration for table " + tableKey, e);
@@ -151,6 +153,8 @@ public class HiveMetadataWriter implements MetadataWriter {
           HiveSpec hiveSpec = specMaps.get(tableKey).getIfPresent(execution.getKey());
           if (hiveSpec != null) {
             eventSubmitter.submit(buildCommitEvent(dbName, tableName, execution.getKey(), hiveSpec, HivePartitionOperation.ADD_OR_MODIFY));
+            log.debug("Submitted hive commit event during hive flush for db: " + dbName + " table: " + tableName + " partition: "
+                + Joiner.on(",").join(execution.getKey()));
           }
         }
       }
@@ -279,8 +283,11 @@ public class HiveMetadataWriter implements MetadataWriter {
         this.currentExecutionMap.computeIfAbsent(tableKey, s -> new HashMap<>());
     if (executionMap.containsKey(partitionValue)) {
       try {
+        log.debug("Start registering partition during hive write for db: " + dbName + " table: " + tableName + " partition: " + Joiner.on(",").join(partitionValue));
         executionMap.get(partitionValue).get(timeOutSeconds, TimeUnit.SECONDS);
+        log.debug("Finish registering partition during hive write for db: " + dbName + " table: " + tableName + " partition: " + Joiner.on(",").join(partitionValue));
         eventSubmitter.submit(buildCommitEvent(dbName, tableName, partitionValue, spec, HivePartitionOperation.ADD_OR_MODIFY));
+        log.debug("Submitted hive commit event during hive write for db: " + dbName + " table: " + tableName + " partition: " + Joiner.on(",").join(partitionValue));
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
         log.error("Error when getting the result of registration for table " + tableKey);
         throw new RuntimeException(e);
