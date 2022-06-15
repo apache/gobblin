@@ -963,7 +963,8 @@ public class DagManager extends AbstractIdleService {
         // By this point the quota is allocated, so it's imperative to increment as missing would introduce the potential to decrement below zero upon quota release.
         // Quota release is guaranteed, despite failure, because exception handling within would mark the job FAILED.
         // When the ensuing kafka message spurs DagManager processing, the quota is released and the counts decremented
-        if (this.metricContext != null) {
+        // Ensure that we do not double increment for flows that are retried
+        if (this.metricContext != null && dagNode.getValue().getCurrentAttempts() == 1) {
           getRunningJobsCounter(dagNode).inc();
           getRunningJobsCounterForUser(dagNode).forEach(ContextAwareCounter::inc);
         }
