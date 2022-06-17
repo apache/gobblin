@@ -448,14 +448,7 @@ public class YarnService extends AbstractIdleService {
       for(; requestedContainerCount < desiredContainerCount; requestedContainerCount++) {
         requestContainer(Optional.absent(), yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag));
       }
-      requestedContainerCountMap.put(currentHelixTag, desiredContainerCount);
-    }
-
-    // If a requested tag is not presented in the new request, update the requested count to 0 as we should release them
-    for(String requestedHelixTag : requestedContainerCountMap.keySet()) {
-      if(!yarnContainerRequestBundle.getHelixTagContainerCountMap().containsKey(requestedHelixTag)) {
-        requestedContainerCountMap.put(requestedHelixTag, 0);
-      }
+      requestedContainerCountMap.put(currentHelixTag, requestedContainerCount);
     }
 
     // If the total desired is lower than the currently allocated amount then release free containers.
@@ -473,6 +466,8 @@ public class YarnService extends AbstractIdleService {
         ContainerInfo containerInfo = entry.getValue();
         if (!inUseInstances.contains(containerInfo.getHelixParticipantId())) {
           containersToRelease.add(containerInfo.getContainer());
+          requestedContainerCountMap.put(containerInfo.getHelixTag(),
+              requestedContainerCountMap.get(containerInfo.getHelixTag()) - 1);
         }
 
         if (containersToRelease.size() == numToShutdown) {
