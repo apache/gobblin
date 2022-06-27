@@ -18,6 +18,7 @@ package org.apache.gobblin.service;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringEscapeUtils;
@@ -64,7 +65,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
     FlowStatusId flowStatusId =
-        new FlowStatusId().setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY)).setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
+        new FlowStatusId().setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
+                          .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
     if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
     } else {
@@ -78,8 +80,15 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
           "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
     }
 
-    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
-    // Values is either true, false, or an exception class + message
+    Map<String, AddSpecResponse> responseMap = new HashMap<>();
+    try {
+      responseMap = this.flowCatalog.put(flowSpec, triggerListener);
+    } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      if (e instanceof QuotaExceededException) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+      }
+    }
     AddSpecResponse<String> response = responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
     HttpStatus httpStatus;
 
@@ -94,8 +103,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       httpStatus = HttpStatus.S_200_OK;
     } else if (Boolean.parseBoolean(response.getValue())) {
       httpStatus = HttpStatus.S_201_CREATED;
-    } else if (response.getValue().contains(QuotaExceededException.class.getSimpleName())) {
-      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, response.getValue());
     } else {
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }

@@ -328,14 +328,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Check quota limits against run immediately flows or adhoc flows before saving the schedule
     if (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-      try {
-        if (quotaManager.isPresent()) {
-          // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
+      if (quotaManager.isPresent()) {
+        // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
+        try {
           quotaManager.get().checkQuota(dag.getNodes().get(0), false);
+        } catch (QuotaExceededException e) {
+          throw new RuntimeException(e);
         }
-      } catch (QuotaExceededException e) {
-        _log.info(e.toString());
-        return new AddSpecResponse<>(e.toString());
       }
     }
 

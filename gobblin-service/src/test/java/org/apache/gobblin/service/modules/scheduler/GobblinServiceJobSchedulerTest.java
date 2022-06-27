@@ -83,7 +83,7 @@ public class GobblinServiceJobSchedulerTest {
    * Test whenever JobScheduler is calling setActive, the FlowSpec is loading into scheduledFlowSpecs (eventually)
    */
   @Test
-  public void testJobSchedulerInit() throws Exception {
+  public void testJobSchedulerInit() throws Throwable {
     // Mock a FlowCatalog.
     File specDir = Files.createTempDir();
 
@@ -164,7 +164,7 @@ public class GobblinServiceJobSchedulerTest {
    * Test that flowSpecs that throw compilation errors do not block the scheduling of other flowSpecs
    */
   @Test
-  public void testJobSchedulerInitWithFailedSpec() throws Exception {
+  public void testJobSchedulerInitWithFailedSpec() throws Throwable {
     // Mock a FlowCatalog.
     File specDir = Files.createTempDir();
 
@@ -228,7 +228,7 @@ public class GobblinServiceJobSchedulerTest {
    * Test that flowSpecs that throw compilation errors do not block the scheduling of other flowSpecs
    */
   @Test
-  public void testJobSchedulerUnschedule() throws Exception {
+  public void testJobSchedulerUnschedule() throws Throwable {
     // Mock a FlowCatalog.
     File specDir = Files.createTempDir();
 
@@ -338,10 +338,9 @@ public class GobblinServiceJobSchedulerTest {
     scheduler.setActive(true);
 
     scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
-    AddSpecResponse<String> response1 = scheduler.onAddSpec(flowSpec1);
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
+    Assert.assertThrows(QuotaExceededException.class, () -> scheduler.onAddSpec(flowSpec1));
 
-    Assert.assertTrue(response1.getValue().contains(QuotaExceededException.class.getSimpleName()));
+    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // Second flow should not be added to scheduled flows since it was rejected
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // set scheduler to be inactive and unschedule flows

@@ -48,7 +48,7 @@ public interface SpecCatalogListener {
       _addedSpec = addedSpec;
     }
 
-    @Override public AddSpecResponse apply(SpecCatalogListener listener) {
+     public AddSpecResponse apply(SpecCatalogListener listener) {
       return listener.onAddSpec(_addedSpec);
     }
   }

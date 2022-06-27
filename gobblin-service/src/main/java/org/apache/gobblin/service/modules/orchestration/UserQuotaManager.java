@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -108,16 +107,7 @@ public class UserQuotaManager {
     boolean requesterCheck = true;
 
     if (serializedRequesters != null) {
-      List<String> uniqueRequesters;
-      try {
-        uniqueRequesters = RequesterService.deserialize(serializedRequesters)
-            .stream()
-            .map(ServiceRequester::getName)
-            .distinct()
-            .collect(Collectors.toList());
-      } catch (IOException e) {
-        throw new RuntimeException("Could not process requesters due to ", e);
-      }
+      List<String> uniqueRequesters = DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters);
       for (String requester : uniqueRequesters) {
         int userQuotaIncrement = incrementJobCountAndCheckQuota(
             DagManagerUtils.getUserQuotaKey(requester, dagNode), requesterToJobCount, dagNode, getQuotaForUser(requester));
@@ -161,6 +151,8 @@ public class UserQuotaManager {
    */
   private int incrementJobCountAndCheckQuota(String key, Map<String, Integer> quotaMap, Dag.DagNode<JobExecutionPlan> dagNode, int quotaForKey) {
     // Only increment job count for first attempt, since job is considered running between retries
+    // Include the scenario where currentAttempts is 0 (when checked by the scheduler)
+    // but it will not double increment due to first ensuring that the dag is not already incremented
     if (dagNode.getValue().getCurrentAttempts() > 1) {
       return 0;
     }

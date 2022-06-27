@@ -226,7 +226,7 @@ public class OrchestratorTest {
   }
 
   @Test (dependsOnMethods = "createTopologySpec")
-  public void createFlowSpec() throws Exception {
+  public void createFlowSpec() throws Throwable {
     // Since only 1 Topology with 1 SpecProducer has been added in previous test
     // .. it should be available and responsible for our new FlowSpec
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();

@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -147,7 +148,7 @@ public class FlowCatalogTest {
   }
 
   @Test
-  public void createFlowSpec() {
+  public void createFlowSpec() throws Throwable {
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
@@ -205,7 +206,7 @@ public class FlowCatalogTest {
   }
 
   @Test (dependsOnMethods = "deleteFlowSpec")
-  public void testRejectBadFlow() {
+  public void testRejectBadFlow() throws Throwable {
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
     int i=0;
@@ -229,7 +230,7 @@ public class FlowCatalogTest {
   }
 
   @Test (dependsOnMethods = "testRejectBadFlow")
-  public void testRejectMissingListener() {
+  public void testRejectMissingListener() throws Throwable {
     flowCatalog.removeListener(this.mockListener);
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
@@ -248,6 +249,32 @@ public class FlowCatalogTest {
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
     Assert.assertEquals(flowCatalog.getSize(), 0);
+  }
+
+  @Test (dependsOnMethods = "testRejectMissingListener")
+  public void testRejectQuotaExceededFlow() {
+    Collection<Spec> specs = flowCatalog.getSpecs();
+    logger.info("[Before Create] Number of specs: " + specs.size());
+    int i=0;
+    for (Spec spec : specs) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+    }
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
+
+    // Create and add Spec
+    FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
+
+    // Assume that spec is rejected
+    when(this.mockListener.onAddSpec(any())).thenThrow(new RuntimeException(new QuotaExceededException("error")));
+    try {
+      Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
+    } catch (Throwable e) {
+      Assert.assertTrue(e instanceof QuotaExceededException);
+    }
+    // Spec should be rejected from being stored
+    specs = flowCatalog.getSpecs();
+    Assert.assertEquals(specs.size(), 0);
   }
 
   public static URI computeFlowSpecURI() {

@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.exception.QuotaExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -343,7 +342,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    * @param triggerListener True if listeners should be notified.
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
-  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
+  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -356,9 +355,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
-      // If flow fails compilation, the result will have a non-empty string with the error
       for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+      }
+      // If flow fails compilation, the result will have a non-empty string with the error
+      if (response.getValue().getFailures().size() > 0) {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
+          throw entry.getValue().getError().getCause();
+        }
+        return responseMap;
       }
     }
     AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
@@ -367,17 +372,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     if (isCompileSuccessful(schedulerResponse.getValue())) {
       synchronized (syncObject) {
         try {
-          // Even if the flow is valid, reject the flow if there are not enough resources available to run it
-          if (schedulerResponse.getValue().contains(QuotaExceededException.class.getSimpleName())) {
-            responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>(schedulerResponse.getValue()));
-          } else {
-            if (!flowSpec.isExplain()) {
-              long startTime = System.currentTimeMillis();
-              specStore.addSpec(spec);
-              metrics.updatePutSpecTime(startTime);
-            }
-            responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+          if (!flowSpec.isExplain()) {
+            long startTime = System.currentTimeMillis();
+            specStore.addSpec(spec);
+            metrics.updatePutSpecTime(startTime);
           }
+          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
         } catch (IOException e) {
           throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
         } finally {
@@ -397,7 +397,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public Map<String, AddSpecResponse> put(Spec spec) {
+  public Map<String, AddSpecResponse> put(Spec spec) throws Throwable {
     return put(spec, true);
   }
 
