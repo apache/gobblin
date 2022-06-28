@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import lombok.Getter;
@@ -52,11 +53,12 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 /**
  * A {@link HiveFileSet} for Hive partitions. Creates {@link CopyEntity}s for a single Hive partition.
  */
+@SuppressWarnings("UnstableApiUsage")
 @Getter
 @Slf4j
 public class HivePartitionFileSet extends HiveFileSet {
 
-  private HiveCopyEntityHelper hiveCopyEntityHelper;
+  private final HiveCopyEntityHelper hiveCopyEntityHelper;
   private final Partition partition;
   private final Properties properties;
   private Optional<Partition> existingTargetPartition;
@@ -94,6 +96,10 @@ public class HivePartitionFileSet extends HiveFileSet {
 
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.EXISTING_PARTITION);
       if (this.existingTargetPartition.isPresent()) {
+        if (hiveCopyEntityHelper.getExistingEntityPolicy() == HiveCopyEntityHelper.ExistingEntityPolicy.ABORT) {
+          IOException e = new IOException("Existing partition found, and existing entity policy set to abort, so aborting. Existing partition: " + this.existingTargetPartition.get());
+          return emptyIfAllowPartialSuccessOrRethrow(e);
+        }
         hiveCopyEntityHelper.getTargetPartitions().remove(this.partition.getValues());
         try {
           checkPartitionCompatibility(targetPartition, this.existingTargetPartition.get());
@@ -103,12 +109,7 @@ public class HivePartitionFileSet extends HiveFileSet {
             log.error("Source and target partitions are not compatible. Aborting copy of partition " + this.partition,
                 ioe);
             // Silence error and continue processing workunits if we allow partial success
-            if (ConfigUtils.getString(hiveCopyEntityHelper.getConfiguration().getConfig(), ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
-                JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.toString()).equals(JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS.toString())) {
-              return Lists.newArrayList();
-            } else {
-              throw ioe;
-            }
+            return emptyIfAllowPartialSuccessOrRethrow(ioe);
           }
           log.warn("Source and target partitions are not compatible. Will override target partition: " + ioe.getMessage());
           log.debug("Incompatibility details: ", ioe);
@@ -191,9 +192,7 @@ public class HivePartitionFileSet extends HiveFileSet {
       targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
           Long.toString(this.hiveCopyEntityHelper.getStartTime()));
       targetPartition.setLocation(targetLocation.toString());
-      /**
-       * Only set the this constants when source partition has it.
-       */
+       // Only set the this constants when source partition has it.
       targetPartition.getTPartition().getSd().getSerdeInfo().getParameters()
           .computeIfPresent(HiveConstants.PATH, (k,v) -> targetLocation.toString());
       targetPartition.getTPartition().unsetCreateTime();
@@ -210,4 +209,21 @@ public class HivePartitionFileSet extends HiveFileSet {
       throw new HiveTableLocationNotMatchException(desiredTargetPartition.getDataLocation(), existingTargetPartition.getDataLocation());
     }
   }
-}
+
+  private Collection<CopyEntity> emptyIfAllowPartialSuccessOrRethrow(IOException e) throws IOException {
+    if (allowPartialSuccess()) {
+      log.error("Error copying data, but continuing due to configs allowing partial success.", e);
+      return Collections.emptyList();
+    } else {
+      throw e;
+    }
+  }
+
+  /**
+   * Jobs can be configured to degrade gracefully and commit whatever tasks were successful.
+   */
+  private boolean allowPartialSuccess() {
+    return ConfigUtils.getString(hiveCopyEntityHelper.getConfiguration().getConfig(), ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+        JobCommitPolicy.COMMIT_ON_FULL_SUCCESS.toString()).equals(JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS.toString());
+    }
+  }

@@ -25,6 +25,8 @@ import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.metadata.Table;
 
 
 /**
@@ -42,4 +44,13 @@ public class TestUtils {
         newSubscopedBuilder(new JobScopeInstance("jobName", "testJob")));
   }
 
+  public static Table createTestTable() {
+    Table table = new Table("testDb","table1");
+    table.setDataLocation(createTestPath());
+    return table;
+  }
+
+  public static Path createTestPath() {
+    return new Path("/testPath/db/table");
+  }
 }
