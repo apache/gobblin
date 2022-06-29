@@ -89,7 +89,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
         throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
       }
     }
-    AddSpecResponse<String> response = responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
     HttpStatus httpStatus;
 
     if (flowConfig.hasExplain() && flowConfig.isExplain()) {
