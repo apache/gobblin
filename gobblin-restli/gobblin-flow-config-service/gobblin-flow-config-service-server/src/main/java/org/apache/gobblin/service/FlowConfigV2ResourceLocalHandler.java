@@ -101,7 +101,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
           addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);
       httpStatus = HttpStatus.S_200_OK;
-    } else if (Boolean.parseBoolean(response.getValue())) {
+    } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));

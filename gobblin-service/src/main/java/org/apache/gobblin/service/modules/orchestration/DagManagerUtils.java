@@ -352,9 +352,9 @@ public class DagManagerUtils {
           .map(ServiceRequester::getName)
           .distinct()
           .collect(Collectors.toList());
+      return uniqueRequesters;
     } catch (IOException e) {
       throw new RuntimeException("Could not process requesters due to ", e);
     }
-    return uniqueRequesters;
   }
 }
