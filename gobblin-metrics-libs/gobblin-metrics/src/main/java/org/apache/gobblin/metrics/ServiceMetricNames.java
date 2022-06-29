@@ -42,6 +42,7 @@ public class ServiceMetricNames {
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
   public static final String SUCCESSFUL_FLOW_METER = "SuccessfulFlows";
   public static final String START_SLA_EXCEEDED_FLOWS_METER = "StartSLAExceededFlows";
+  public static final String SLA_EXCEEDED_FLOWS_METER = "SlaExceededFlows";
   public static final String FAILED_FLOW_METER = "FailedFlows";
   public static final String SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX + ".ScheduledFlows";
   public static final String NON_SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX + ".NonScheduledFlows";
@@ -50,6 +51,7 @@ public class ServiceMetricNames {
   public static final String SERVICE_USERS = "ServiceUsers";
   public static final String COMPILED = "Compiled";
   public static final String RUNNING_STATUS = "RunningStatus";
+  public static final String JOBS_SENT_TO_SPEC_EXECUTOR = "JobsSentToSpecExecutor";
 
   public static final String HELIX_LEADER_STATE = "HelixLeaderState";
 }
