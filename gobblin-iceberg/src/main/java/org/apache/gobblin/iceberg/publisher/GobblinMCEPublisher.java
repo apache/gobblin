@@ -78,6 +78,8 @@ public class GobblinMCEPublisher extends DataPublisher {
   private static final PathFilter HIDDEN_FILES_FILTER = new HiddenFilter();
   private static final Metrics DUMMY_METRICS = new Metrics(100000000L, null, null, null, null);
 
+  public static final String SERIALIZED_AUDIT_MAP_KEY = "serializedAuditMap";
+
   public GobblinMCEPublisher(State state) throws IOException {
 
     this(state, GobblinMCEProducer.getGobblinMCEProducer(state));
@@ -99,12 +101,14 @@ public class GobblinMCEPublisher extends DataPublisher {
         newFiles = computeDummyFile(state);
         if (!newFiles.isEmpty()) {
           log.info("Dummy file: " + newFiles.keySet().iterator().next());
-          this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE);
+          this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE,
+              state.getProp(SERIALIZED_AUDIT_MAP_KEY));
         } else {
           log.info("No dummy file created. Not sending GMCE");
         }
       } else {
-        this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
+        this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY,
+            state.getProp(SERIALIZED_AUDIT_MAP_KEY));
       }
     }
   }

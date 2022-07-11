@@ -94,8 +94,13 @@ public abstract class GobblinMCEProducer implements Closeable {
    */
   public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
       Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource) throws IOException {
+    sendGMCE(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource, null);
+  }
+
+  public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
+      Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource, String serializedAuditMap) throws IOException {
     GobblinMetadataChangeEvent gmce =
-        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource);
+        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource, serializedAuditMap);
     underlyingSendGMCE(gmce);
   }
 
@@ -166,7 +171,7 @@ public abstract class GobblinMCEProducer implements Closeable {
 
   public GobblinMetadataChangeEvent getGobblinMetadataChangeEvent(Map<Path, Metrics> newFiles, List<String> oldFiles,
       List<String> oldFilePrefixes, Map<String, String> offsetRange, OperationType operationType,
-      SchemaSource schemaSource) {
+      SchemaSource schemaSource, String serializedAuditMap) {
     if (!verifyInput(newFiles, oldFiles, oldFilePrefixes, operationType)) {
       return null;
     }
@@ -182,6 +187,9 @@ public abstract class GobblinMCEProducer implements Closeable {
       gmceBuilder.setOldFilePrefixes(oldFilePrefixes);
     }
     gmceBuilder.setOperationType(operationType);
+    if (serializedAuditMap != null) {
+      gmceBuilder.setAuditCountMap(serializedAuditMap);
+    }
     return gmceBuilder.build();
   }
 
