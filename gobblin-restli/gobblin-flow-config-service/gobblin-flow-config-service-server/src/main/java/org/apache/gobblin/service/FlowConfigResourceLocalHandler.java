@@ -136,10 +136,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } else {
       try {
         this.flowCatalog.put(flowSpec, triggerListener);
+      } catch (QuotaExceededException e) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
       } catch (Throwable e) {
-        if (e instanceof QuotaExceededException) {
-          throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
-        }
+        // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
       }
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
     }
@@ -177,10 +177,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     }
     try {
       this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
+    } catch (QuotaExceededException e) {
+      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch (Throwable e) {
-      if (e instanceof QuotaExceededException) {
-        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
-      }
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
     }
     return new UpdateResponse(HttpStatus.S_200_OK);
   }

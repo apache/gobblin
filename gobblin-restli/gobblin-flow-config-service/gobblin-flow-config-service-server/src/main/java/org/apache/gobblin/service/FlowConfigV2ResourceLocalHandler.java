@@ -83,11 +83,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     try {
       responseMap = this.flowCatalog.put(flowSpec, triggerListener);
-    } catch (Throwable e) {
-      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
-      if (e instanceof QuotaExceededException) {
+    } catch (QuotaExceededException e) {
         throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
-      }
+      } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
     }
     HttpStatus httpStatus;
 
