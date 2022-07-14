@@ -331,6 +331,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
       case add_files: {
         updateTableProperty(tableSpec, tid);
         addFiles(gmce, newSpecsMap, table, tableMetadata);
+        if (gmce.getAuditCountMap() != null && auditWhitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(),
+            tableSpec.getTable().getTableName())) {
+          tableMetadata.serializedAuditCountMaps.add(gmce.getAuditCountMap());
+        }
         if (gmce.getTopicPartitionOffsetsRange() != null) {
           mergeOffsets(gmce, tid);
         }
@@ -644,9 +648,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table,
       Map<String, Collection<HiveSpec>> newSpecsMap,
       TableMetadata tableMetadata) {
-    if (gmce.getAuditCountMap() != null) {
-      tableMetadata.serializedAuditCountMaps.add(gmce.getAuditCountMap());
-    }
     return getIcebergDataFilesToBeAdded(table, tableMetadata, gmce, gmce.getNewFiles(), table.spec(), newSpecsMap,
         IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
         .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null);
@@ -802,9 +803,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         String topic = props.get(TOPIC_NAME_KEY);
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
-          if (auditWhitelistBlacklist.acceptTable(dbName, tableName)) {
-            sendAuditCounts(topic, tableMetadata.serializedAuditCountMaps);
-          }
+          sendAuditCounts(topic, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
             checkAndUpdateCompletenessWatermark(tableMetadata, topic, tableMetadata.datePartitions, props);
           }
