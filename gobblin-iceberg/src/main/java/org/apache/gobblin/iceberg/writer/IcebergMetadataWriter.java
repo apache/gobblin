@@ -145,8 +145,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final static String DEFAULT_EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "3d";
   private static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
   private static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
-  private static final String ICEBERG_REGISTRATION_AUDIT_BLACKLIST = "iceberg.registration.audit.blacklist";
-  private static final String ICEBERG_REGISTRATION_AUDIT_WHITELIST = "iceberg.registration.audit.whitelist";
+  private static final String ICEBERG_REGISTRATION_AUDIT_COUNT_BLACKLIST = "iceberg.registration.audit.count.blacklist";
+  private static final String ICEBERG_REGISTRATION_AUDIT_COUNT_WHITELIST = "iceberg.registration.audit.count.whitelist";
   private static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
   private static final String CREATE_TABLE_TIME = "iceberg.create.table.time";
   private static final String SCHEMA_CREATION_TIME_KEY = "schema.creation.time";
@@ -213,8 +213,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         new EventSubmitter.Builder(this.metricContext, MetadataWriterKeys.METRICS_NAMESPACE_ICEBERG_WRITER).build();
     this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_WHITELIST, ""),
         state.getProp(ICEBERG_REGISTRATION_BLACKLIST, ""));
-    this.auditWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_AUDIT_WHITELIST, ""),
-        state.getProp(ICEBERG_REGISTRATION_AUDIT_BLACKLIST, ""));
+    this.auditWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_AUDIT_COUNT_WHITELIST, ""),
+        state.getProp(ICEBERG_REGISTRATION_AUDIT_COUNT_BLACKLIST, ""));
 
     // Use rw-lock to make it thread-safe when flush and write(which is essentially aggregate & reading metadata),
     // are called in separate threads.
@@ -644,7 +644,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table,
       Map<String, Collection<HiveSpec>> newSpecsMap,
       TableMetadata tableMetadata) {
-    tableMetadata.serializedAuditCountMaps.add(gmce.getAuditCountMap());
+    if (gmce.getAuditCountMap() != null) {
+      tableMetadata.serializedAuditCountMaps.add(gmce.getAuditCountMap());
+    }
     return getIcebergDataFilesToBeAdded(table, tableMetadata, gmce, gmce.getNewFiles(), table.spec(), newSpecsMap,
         IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
         .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null);
@@ -1092,7 +1094,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
-  public void sendAuditCounts(String topicName, List<String> serializedAuditCountMaps) {
+  /**
+   * Method to send audit counts given a topic name and a list of serialized audit count maps. Called only when new files
+   * are added. Default is no-op, must be implemented in a subclass.
+   */
+  public void sendAuditCounts(String topicName, Collection<String> serializedAuditCountMaps) {
   }
 
   @Override

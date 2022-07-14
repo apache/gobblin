@@ -187,9 +187,7 @@ public abstract class GobblinMCEProducer implements Closeable {
       gmceBuilder.setOldFilePrefixes(oldFilePrefixes);
     }
     gmceBuilder.setOperationType(operationType);
-    if (serializedAuditMap != null) {
-      gmceBuilder.setAuditCountMap(serializedAuditMap);
-    }
+    gmceBuilder.setAuditCountMap(serializedAuditMap);
     return gmceBuilder.build();
   }
 
