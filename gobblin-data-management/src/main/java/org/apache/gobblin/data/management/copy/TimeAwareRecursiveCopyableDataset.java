@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
