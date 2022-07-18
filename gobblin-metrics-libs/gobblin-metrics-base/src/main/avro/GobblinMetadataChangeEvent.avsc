@@ -286,6 +286,13 @@
         "default": null,
         "doc": "Array of the metadata writers that are allowed to consume this GMCE. If this field is missing, all metadata writers are allowed.",
         "optional": true
+      },
+      {
+        "name": "auditCountMap",
+        "type": ["null","string"],
+        "default": null,
+        "doc": "Serialized map of audit count",
+        "optional": true
       }
     ]
   }

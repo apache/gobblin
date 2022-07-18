@@ -145,6 +145,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final static String DEFAULT_EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "3d";
   private static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
   private static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
+  private static final String ICEBERG_REGISTRATION_AUDIT_COUNT_BLACKLIST = "iceberg.registration.audit.count.blacklist";
+  private static final String ICEBERG_REGISTRATION_AUDIT_COUNT_WHITELIST = "iceberg.registration.audit.count.whitelist";
   private static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
   private static final String CREATE_TABLE_TIME = "iceberg.create.table.time";
   private static final String SCHEMA_CREATION_TIME_KEY = "schema.creation.time";
@@ -174,6 +176,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   protected final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
   private final WhitelistBlacklist whitelistBlacklist;
+  private final WhitelistBlacklist auditWhitelistBlacklist;
   private final Closer closer = Closer.create();
 
   // Mapping between table-id and currently processed watermark
@@ -191,8 +194,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final boolean useDataLocationAsTableLocation;
   private final ParallelRunner parallelRunner;
   private FsPermission permission;
+  protected State state;
 
   public IcebergMetadataWriter(State state) throws IOException {
+    this.state = state;
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
     conf = HadoopUtils.getConfFromState(state);
     initializeCatalog();
@@ -208,6 +213,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         new EventSubmitter.Builder(this.metricContext, MetadataWriterKeys.METRICS_NAMESPACE_ICEBERG_WRITER).build();
     this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_WHITELIST, ""),
         state.getProp(ICEBERG_REGISTRATION_BLACKLIST, ""));
+    this.auditWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_REGISTRATION_AUDIT_COUNT_WHITELIST, ""),
+        state.getProp(ICEBERG_REGISTRATION_AUDIT_COUNT_BLACKLIST, ""));
 
     // Use rw-lock to make it thread-safe when flush and write(which is essentially aggregate & reading metadata),
     // are called in separate threads.
@@ -324,6 +331,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
       case add_files: {
         updateTableProperty(tableSpec, tid);
         addFiles(gmce, newSpecsMap, table, tableMetadata);
+        if (gmce.getAuditCountMap() != null && auditWhitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(),
+            tableSpec.getTable().getTableName())) {
+          tableMetadata.serializedAuditCountMaps.add(gmce.getAuditCountMap());
+        }
         if (gmce.getTopicPartitionOffsetsRange() != null) {
           mergeOffsets(gmce, tid);
         }
@@ -792,6 +803,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         String topic = props.get(TOPIC_NAME_KEY);
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
+          sendAuditCounts(topic, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
             checkAndUpdateCompletenessWatermark(tableMetadata, topic, tableMetadata.datePartitions, props);
           }
@@ -1081,6 +1093,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  /**
+   * Method to send audit counts given a topic name and a list of serialized audit count maps. Called only when new files
+   * are added. Default is no-op, must be implemented in a subclass.
+   */
+  public void sendAuditCounts(String topicName, Collection<String> serializedAuditCountMaps) {
+  }
+
   @Override
   public void close() throws IOException {
     this.closer.close();
@@ -1114,6 +1133,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<Long> lowWatermark = Optional.absent();
     long completionWatermark = DEFAULT_COMPLETION_WATERMARK;
     SortedSet<ZonedDateTime> datePartitions = new TreeSet<>(Collections.reverseOrder());
+    List<String> serializedAuditCountMaps = new ArrayList<>();
 
     @Setter
     String datasetName;
@@ -1175,6 +1195,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       this.lowestGMCEEmittedTime = Long.MAX_VALUE;
       this.lowWatermark = Optional.of(lowWaterMark);
       this.datePartitions.clear();
+      this.serializedAuditCountMaps.clear();
     }
   }
 }

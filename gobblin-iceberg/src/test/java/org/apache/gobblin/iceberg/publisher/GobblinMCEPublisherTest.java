@@ -172,14 +172,14 @@ public class GobblinMCEPublisherTest {
     GobblinMCEProducer producer = Mockito.mock(GobblinMCEProducer.class);
     Mockito.doCallRealMethod()
         .when(producer)
-        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any());
+        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any(), any());
     Mockito.doAnswer(new Answer() {
       @Override
       public Object answer(InvocationOnMock invocation) throws Throwable {
         Object[] args = invocation.getArguments();
         GobblinMetadataChangeEvent gmce =
             producer.getGobblinMetadataChangeEvent((Map<Path, Metrics>) args[0], null, null,
-                (Map<String, String>) args[1], OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
+                (Map<String, String>) args[1], OperationType.add_files, SchemaSource.SCHEMAREGISTRY, null);
         Assert.assertEquals(gmce.getNewFiles().size(), 1);
         FileSystem fs = FileSystem.get(new Configuration());
         Assert.assertEquals(gmce.getNewFiles().get(0).getFilePath(),
@@ -201,14 +201,14 @@ public class GobblinMCEPublisherTest {
     GobblinMCEProducer producer = Mockito.mock(GobblinMCEProducer.class);
     Mockito.doCallRealMethod()
         .when(producer)
-        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any());
+        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any(), any());
     Mockito.doAnswer(new Answer() {
       @Override
       public Object answer(InvocationOnMock invocation) throws Throwable {
         Object[] args = invocation.getArguments();
         GobblinMetadataChangeEvent gmce =
             producer.getGobblinMetadataChangeEvent((Map<Path, Metrics>) args[0], null, null,
-                (Map<String, String>) args[1], OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
+                (Map<String, String>) args[1], OperationType.add_files, SchemaSource.SCHEMAREGISTRY, null);
         Assert.assertEquals(gmce.getNewFiles().size(), 1);
         FileSystem fs = FileSystem.get(new Configuration());
         Charset charset = Charset.forName("UTF-8");
@@ -236,14 +236,14 @@ public class GobblinMCEPublisherTest {
     GobblinMCEProducer producer = Mockito.mock(GobblinMCEProducer.class);
     Mockito.doCallRealMethod()
         .when(producer)
-        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any());
+        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any(), any());
     Mockito.doAnswer(new Answer() {
       @Override
       public Object answer(InvocationOnMock invocation) throws Throwable {
         Object[] args = invocation.getArguments();
         GobblinMetadataChangeEvent gmce =
             producer.getGobblinMetadataChangeEvent((Map<Path, Metrics>) args[0], null, null,
-                (Map<String, String>) args[1], OperationType.change_property, SchemaSource.NONE);
+                (Map<String, String>) args[1], OperationType.change_property, SchemaSource.NONE, null);
         Assert.assertEquals(gmce.getNewFiles().size(), 1);
         Assert.assertNull(gmce.getOldFiles());
         Assert.assertNull(gmce.getOldFilePrefixes());

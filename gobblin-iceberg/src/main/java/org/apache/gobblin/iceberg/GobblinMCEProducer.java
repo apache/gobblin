@@ -82,6 +82,10 @@ public abstract class GobblinMCEProducer implements Closeable {
     this.metricContext = Instrumented.getMetricContext(state, this.getClass());
   }
 
+  public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
+      Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource) throws IOException {
+    sendGMCE(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource, null);
+  }
 
   /**
    * This method will use the files to compute the table name and dataset name, for each table it will generate one GMCE and send that to kafka so
@@ -90,12 +94,14 @@ public abstract class GobblinMCEProducer implements Closeable {
    * @param oldFiles the list of old file to be dropped
    * @param offsetRange offset range of the new data, can be null
    * @param operationType The opcode of gmce emitted by this method.
+   * @param serializedAuditCountMap Audit count map to be used by {@link org.apache.gobblin.iceberg.writer.IcebergMetadataWriter} to track iceberg
+   *                                registration counts
    * @throws IOException
    */
   public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
-      Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource) throws IOException {
+      Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource, String serializedAuditCountMap) throws IOException {
     GobblinMetadataChangeEvent gmce =
-        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource);
+        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource, serializedAuditCountMap);
     underlyingSendGMCE(gmce);
   }
 
@@ -166,7 +172,7 @@ public abstract class GobblinMCEProducer implements Closeable {
 
   public GobblinMetadataChangeEvent getGobblinMetadataChangeEvent(Map<Path, Metrics> newFiles, List<String> oldFiles,
       List<String> oldFilePrefixes, Map<String, String> offsetRange, OperationType operationType,
-      SchemaSource schemaSource) {
+      SchemaSource schemaSource, String serializedAuditCountMap) {
     if (!verifyInput(newFiles, oldFiles, oldFilePrefixes, operationType)) {
       return null;
     }
@@ -182,6 +188,7 @@ public abstract class GobblinMCEProducer implements Closeable {
       gmceBuilder.setOldFilePrefixes(oldFilePrefixes);
     }
     gmceBuilder.setOperationType(operationType);
+    gmceBuilder.setAuditCountMap(serializedAuditCountMap);
     return gmceBuilder.build();
   }
 
