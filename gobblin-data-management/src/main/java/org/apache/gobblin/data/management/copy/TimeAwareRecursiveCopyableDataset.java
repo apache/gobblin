@@ -191,7 +191,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
       Iterator<FileStatus> folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
       while (folderIterator.hasNext()) {
         Path folderPath = folderIterator.next().getPath();
-        String datePath = folderPath.getName().split("/")[folderPath.getName().split("/").length -1];
+        String datePath = folderPath.getName();
         try {
           LocalDateTime folderDate = formatter.parseLocalDateTime(datePath);
           if (folderDate.isAfter(startDate) && folderDate.isBefore(endDate)) {
