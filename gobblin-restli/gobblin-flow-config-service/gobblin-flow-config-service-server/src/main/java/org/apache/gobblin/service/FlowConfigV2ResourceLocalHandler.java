@@ -85,8 +85,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     } catch (QuotaExceededException e) {
         throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
-      } catch (Throwable e) {
+    } catch (Throwable e) {
       // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
     }
     HttpStatus httpStatus;
 
