@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,7 +45,7 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
-
+@Slf4j
 public class TimeAwareRecursiveCopyableDatasetTest {
   private FileSystem fs;
   private Path baseDir1;

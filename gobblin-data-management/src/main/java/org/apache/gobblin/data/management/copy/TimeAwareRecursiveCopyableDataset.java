@@ -53,16 +53,17 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private final String datePattern;
   private final Period lookbackPeriod;
   private final LocalDateTime currentTime;
-  private final DatePattern patternQualifier;
-
-  enum DatePattern {
-    SECONDLY, MINUTELY, HOURLY, DAILY
-  }
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
     this.lookbackTime = properties.getProperty(LOOKBACK_TIME_KEY);
-    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays()
+        .appendSuffix("d")
+        .appendHours()
+        .appendSuffix("h")
+        .appendMinutes()
+        .appendSuffix("m")
+        .toFormatter();
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
 
@@ -70,61 +71,10 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
         DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
         : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
 
-    this.patternQualifier = this.validateLookbackWithDatePatternFormat(this.datePattern, this.lookbackTime);
-    if (this.patternQualifier == null) {
-      throw new IllegalArgumentException("Could not validate date format with lookback time");
-    }
+    this.validateLookbackWithDatePatternFormat(this.datePattern, this.lookbackTime);
   }
 
-  /**
-   * TODO: Replace it with {@link org.apache.gobblin.time.TimeIterator} as {@link LocalDateTime} will not adjust time
-   * to a given time zone
-   */
-  public static class DateRangeIterator implements Iterator {
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private DatePattern datePattern;
-
-    public DateRangeIterator(LocalDateTime startDate, LocalDateTime endDate, DatePattern datePattern) {
-      this.startDate = startDate;
-      this.endDate = endDate;
-      this.datePattern = datePattern;
-    }
-
-    @Override
-    public boolean hasNext() {
-      return !startDate.isAfter(endDate);
-    }
-
-    @Override
-    public LocalDateTime next() {
-      LocalDateTime dateTime = startDate;
-
-      switch (datePattern) {
-        case SECONDLY:
-          startDate = startDate.plusSeconds(1);
-          break;
-        case MINUTELY:
-          startDate = startDate.plusMinutes(1);
-          break;
-        case HOURLY:
-          startDate = startDate.plusHours(1);
-          break;
-        case DAILY:
-          startDate = startDate.plusDays(1);
-          break;
-      }
-
-      return dateTime;
-    }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  private DatePattern validateLookbackWithDatePatternFormat(String datePattern, String lookbackTime) {
+  void validateLookbackWithDatePatternFormat(String datePattern, String lookbackTime) {
     DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
     LocalDateTime refDateTime = new LocalDateTime(2017, 01, 31, 10, 59, 59);
     String refDateTimeString = refDateTime.toString(formatter);
@@ -132,31 +82,40 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
 
     // Validate that the lookback is supported for the time format
     if (!refDateTime.withSecondOfMinute(0).toString(formatter).equals(refDateTimeString)) {
-      formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").appendSeconds().appendSuffix("s");
+      formatterBuilder = new PeriodFormatterBuilder().appendDays()
+          .appendSuffix("d")
+          .appendHours()
+          .appendSuffix("h")
+          .appendMinutes()
+          .appendSuffix("m")
+          .appendSeconds()
+          .appendSuffix("s");
       if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
-        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely or secondly format, check %s", LOOKBACK_TIME_KEY));
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely or secondly format, check %s",
+            LOOKBACK_TIME_KEY));
       }
-      return DatePattern.SECONDLY;
     } else if (!refDateTime.withMinuteOfHour(0).toString(formatter).equals(refDateTimeString)) {
-      formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m");
+      formatterBuilder = new PeriodFormatterBuilder().appendDays()
+          .appendSuffix("d")
+          .appendHours()
+          .appendSuffix("h")
+          .appendMinutes()
+          .appendSuffix("m");
       if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
-        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely format, check %s", LOOKBACK_TIME_KEY));
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely format, check %s",
+            LOOKBACK_TIME_KEY));
       }
-      return DatePattern.MINUTELY;
     } else if (!refDateTime.withHourOfDay(0).toString(formatter).equals(refDateTimeString)) {
       formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h");
       if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
         throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly format, check %s", LOOKBACK_TIME_KEY));
       }
-      return DatePattern.HOURLY;
-    } else if (!refDateTime.withDayOfMonth(1).toString(formatter).equals(refDateTimeString) ) {
+    } else if (!refDateTime.withDayOfMonth(1).toString(formatter).equals(refDateTimeString)) {
       formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d");
       if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
         throw new IllegalArgumentException(String.format("Expected lookback time to be in daily format, check %s", LOOKBACK_TIME_KEY));
       }
-      return DatePattern.DAILY;
     }
-    return null;
   }
 
   private boolean lookbackTimeMatchesFormat(PeriodFormatterBuilder formatterBuilder, String lookbackTime) {
@@ -170,36 +129,40 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
 
   @Override
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
-    DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
-    LocalDateTime endDate = currentTime;
-    LocalDateTime startDate = endDate.minus(this.lookbackPeriod);
-    List<FileStatus> fileStatuses = Lists.newArrayList();
+    return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1);
+  }
 
-    // Data inside of nested folders representing timestamps need to be fetched differently
-    if (datePattern.contains(FileSystems.getDefault().getSeparator())) {
-      // Use an iterator that traverses through all times from lookback to current time, based on format
-      DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, this.patternQualifier);
-      while (dateRangeIterator.hasNext()) {
-        Path pathWithDateTime = new Path(path, dateRangeIterator.next().toString(formatter));
-        if (!fs.exists(pathWithDateTime)) {
-          continue;
-        }
-        fileStatuses.addAll(super.getFilesAtPath(fs, pathWithDateTime, fileFilter));
-      }
-    } else {
-      // Look at the top level directories and compare if those fit into the date format
-      Iterator<FileStatus> folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
+  private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter, int level) throws IOException {
+    List<FileStatus> fileStatuses = Lists.newArrayList();
+    Iterator<FileStatus> folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
+
+    // Check if at the lowest level/granularity of the date folder
+    if (this.datePattern.split(FileSystems.getDefault().getSeparator()).length == level) {
+      LocalDateTime endDate = currentTime;
+      DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
+      // Truncate the start date to the most granular unit of time in the datepattern
+      LocalDateTime startDate = formatter.parseLocalDateTime(endDate.minus(this.lookbackPeriod).toString(this.datePattern));
       while (folderIterator.hasNext()) {
         Path folderPath = folderIterator.next().getPath();
-        String datePath = folderPath.getName();
+        String datePath = traversedDatePath.isEmpty() ? folderPath.getName() : new Path(traversedDatePath, folderPath.getName()).toString();
         try {
           LocalDateTime folderDate = formatter.parseLocalDateTime(datePath);
-          if (folderDate.isAfter(startDate) && folderDate.isBefore(endDate)) {
+          if (!folderDate.isBefore(startDate) && !folderDate.isAfter(endDate)) {
             fileStatuses.addAll(super.getFilesAtPath(fs, folderPath, fileFilter));
           }
         } catch (IllegalArgumentException e) {
-          log.warn(String.format("Folder at path %s is not convertible to format %s. Please confirm that argument %s is valid", datePath, this.datePattern, DATE_PATTERN_KEY));
+          log.warn(String.format(
+              "Folder at path %s is not convertible to format %s. Please confirm that argument %s is valid", datePath,
+              this.datePattern, DATE_PATTERN_KEY));
         }
+      }
+    } else {
+      // folder has a format such as yyyy/mm/dd/hh, so recursively find date paths
+      while (folderIterator.hasNext()) {
+        // Start building the date from top-down
+        String nextDate = folderIterator.next().getPath().getName();
+        String datePath = traversedDatePath.isEmpty() ?  nextDate : new Path(traversedDatePath, nextDate).toString();
+        fileStatuses.addAll(recursivelyGetFilesAtDatePath(fs, new Path(path, nextDate), datePath, fileFilter, level + 1));
       }
     }
     return fileStatuses;
