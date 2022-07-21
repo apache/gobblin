@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,12 +45,13 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
-
+@Slf4j
 public class TimeAwareRecursiveCopyableDatasetTest {
   private FileSystem fs;
   private Path baseDir1;
   private Path baseDir2;
   private Path baseDir3;
+  private Path baseDir4;
 
   private static final String NUM_LOOKBACK_DAYS_STR = "2d";
   private static final Integer NUM_LOOKBACK_DAYS = 2;
@@ -85,6 +87,12 @@ public class TimeAwareRecursiveCopyableDatasetTest {
       fs.delete(baseDir3, true);
     }
     fs.mkdirs(baseDir3);
+
+    baseDir4 = new Path("/tmp/src/ds3/daily");
+    if (fs.exists(baseDir4)) {
+      fs.delete(baseDir4, true);
+    }
+    fs.mkdirs(baseDir4);
     PeriodFormatter formatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
     Period period = formatter.parsePeriod(NUM_LOOKBACK_DAYS_HOURS_STR);
   }
@@ -216,6 +224,40 @@ public class TimeAwareRecursiveCopyableDatasetTest {
       Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
     }
 
+    // test ds of daily/yyyy-MM-dd-HH-mm-ss
+    datePattern = "yyyy-MM-dd-HH-mm-ss";
+    formatter = DateTimeFormat.forPattern(datePattern);
+    endDate = LocalDateTime.now(DateTimeZone.forID(TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE));
+
+    candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_DAILY_DIRS; i++) {
+      String startDate = endDate.minusDays(i).withMinuteOfHour(random.nextInt(60)).withSecondOfMinute(random.nextInt(60)).toString(formatter);
+      if (i == 0) {
+        // avoid future dates on minutes, so have consistency test result
+        startDate = endDate.minusHours(i).withMinuteOfHour(0).withSecondOfMinute(0).toString(formatter);
+      }
+      Path subDirPath = new Path(baseDir4, new Path(startDate));
+      fs.mkdirs(subDirPath);
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_DAYS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
+    }
+
+    properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, "2d1h");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy-MM-dd-HH-mm-ss");
+
+    dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir4, properties,
+        new Path("/tmp/src/ds3/daily"));
+
+    fileStatusList = dataset.getFilesAtPath(fs, baseDir4, pathFilter);
+
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_DAYS + 1);
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
   }
 
   @Test (expectedExceptions = IllegalArgumentException.class)
@@ -244,5 +286,6 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     this.fs.delete(baseDir1, true);
     this.fs.delete(baseDir2, true);
     this.fs.delete(baseDir3, true);
+    this.fs.delete(baseDir4, true);
   }
 }
