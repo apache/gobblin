@@ -129,19 +129,20 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
 
   @Override
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
-    return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1);
+    LocalDateTime endDate = currentTime;
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
+    LocalDateTime startDate = formatter.parseLocalDateTime(endDate.minus(this.lookbackPeriod).toString(this.datePattern));
+    return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
   }
 
-  private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter, int level) throws IOException {
+  private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
+      int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
     Iterator<FileStatus> folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
 
     // Check if at the lowest level/granularity of the date folder
     if (this.datePattern.split(FileSystems.getDefault().getSeparator()).length == level) {
-      LocalDateTime endDate = currentTime;
-      DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
       // Truncate the start date to the most granular unit of time in the datepattern
-      LocalDateTime startDate = formatter.parseLocalDateTime(endDate.minus(this.lookbackPeriod).toString(this.datePattern));
       while (folderIterator.hasNext()) {
         Path folderPath = folderIterator.next().getPath();
         String datePath = traversedDatePath.isEmpty() ? folderPath.getName() : new Path(traversedDatePath, folderPath.getName()).toString();
@@ -162,7 +163,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
         // Start building the date from top-down
         String nextDate = folderIterator.next().getPath().getName();
         String datePath = traversedDatePath.isEmpty() ?  nextDate : new Path(traversedDatePath, nextDate).toString();
-        fileStatuses.addAll(recursivelyGetFilesAtDatePath(fs, new Path(path, nextDate), datePath, fileFilter, level + 1));
+        fileStatuses.addAll(recursivelyGetFilesAtDatePath(fs, new Path(path, nextDate), datePath, fileFilter, level + 1, startDate, endDate, formatter));
       }
     }
     return fileStatuses;
