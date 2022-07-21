@@ -80,7 +80,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
           "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
     }
 
-    Map<String, AddSpecResponse> responseMap = new HashMap<>();
+    Map<String, AddSpecResponse> responseMap;
     try {
       responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     } catch (QuotaExceededException e) {
