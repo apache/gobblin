@@ -57,7 +57,8 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Build repository
         run: |
-          ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
+          ./gradlew --no-daemon clean build -x test -x rat -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain \
+          -x checkstyleJmh -x checkstyleTest -x checkstyleMainGeneratedDataTemplate -x checkstyleMainGeneratedRest -Dorg.gradle.parallel=true
       - name: Verify Dependencies
         run: |
           # Since dependencies are cached, check after building if they are valid or not
@@ -86,7 +87,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Run CheckStyle and FindBugs
         run: |
-          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
+          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh 
 
   run_tests:
     timeout-minutes: 120
