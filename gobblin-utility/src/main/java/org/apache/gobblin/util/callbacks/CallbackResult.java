@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.util.callbacks;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.google.common.base.Preconditions;
@@ -64,7 +63,7 @@ public class CallbackResult<R> {
       R res = execFuture.get();
       return createSuccessful(res);
     }
-    catch (ExecutionException e) {
+    catch (Exception e) {
       if (execFuture.isCancelled()) {
         return createCancelled();
       }

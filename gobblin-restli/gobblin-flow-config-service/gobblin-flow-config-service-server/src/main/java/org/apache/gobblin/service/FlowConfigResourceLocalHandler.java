@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
@@ -133,7 +134,15 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     if (!flowConfig.hasSchedule() && this.flowCatalog.exists(flowSpec.getUri())) {
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
-      this.flowCatalog.put(flowSpec, triggerListener);
+      try {
+        this.flowCatalog.put(flowSpec, triggerListener);
+      } catch (QuotaExceededException e) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+      } catch (Throwable e) {
+        // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+        log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
+        throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      }
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
     }
   }
@@ -168,8 +177,15 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
       flowConfig = originalFlowConfig;
     }
-
-    this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
+    try {
+      this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
+    } catch (QuotaExceededException e) {
+      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+    } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      log.warn(String.format("Failed to add flow configuration %s.%sto catalog due to", flowId.getFlowGroup(), flowId.getFlowName()), e);
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+    }
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
 

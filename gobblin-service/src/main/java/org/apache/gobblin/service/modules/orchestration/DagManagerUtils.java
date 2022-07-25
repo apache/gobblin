@@ -18,6 +18,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +33,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import java.util.stream.Collectors;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -41,6 +43,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
+import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
@@ -338,6 +341,20 @@ public class DagManagerUtils {
       }
 
       eventSubmitter.get().getTimingEvent(flowEvent).stop(flowMetadata);
+    }
+  }
+
+  static List<String> getDistinctUniqueRequesters(String serializedRequesters) {
+    List<String> uniqueRequesters;
+    try {
+      uniqueRequesters = RequesterService.deserialize(serializedRequesters)
+          .stream()
+          .map(ServiceRequester::getName)
+          .distinct()
+          .collect(Collectors.toList());
+      return uniqueRequesters;
+    } catch (IOException e) {
+      throw new RuntimeException("Could not process requesters due to ", e);
     }
   }
 }

@@ -36,9 +36,12 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+
+
 @Slf4j
 public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsV2ResourceHandler {
 
@@ -60,9 +63,9 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    FlowStatusId flowStatusId = new FlowStatusId()
-        .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
-        .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
+    FlowStatusId flowStatusId =
+        new FlowStatusId().setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
+                          .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
     if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
     } else {
@@ -76,7 +79,16 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
           "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
     }
 
-    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
+    Map<String, AddSpecResponse> responseMap;
+    try {
+      responseMap = this.flowCatalog.put(flowSpec, triggerListener);
+    } catch (QuotaExceededException e) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+    } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+    }
     HttpStatus httpStatus;
 
     if (flowConfig.hasExplain() && flowConfig.isExplain()) {

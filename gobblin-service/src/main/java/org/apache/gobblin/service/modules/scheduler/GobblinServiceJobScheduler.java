@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
@@ -54,6 +55,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -91,6 +93,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<FlowCatalog> flowCatalog;
   protected final Optional<HelixManager> helixManager;
   protected final Orchestrator orchestrator;
+  protected final Optional<UserQuotaManager> quotaManager;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
   @Getter
@@ -119,7 +122,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Inject
   public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName, Config config,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
-      Orchestrator orchestrator, SchedulerService schedulerService, Optional<Logger> log) throws Exception {
+      Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -130,14 +133,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
+    this.quotaManager = quotaManager;
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager,
-      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
+      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager,
       SchedulerService schedulerService,  Optional<Logger> log) throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
-        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log), schedulerService, log);
+        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log), schedulerService, quotaManager, log);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -320,6 +324,18 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}, master: {}",
           addedSpec, isExplain, compileSuccess, this.isActive);
       return new AddSpecResponse<>(response);
+    }
+
+    // Check quota limits against run immediately flows or adhoc flows before saving the schedule
+    if (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+      if (quotaManager.isPresent()) {
+        // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
+        try {
+          quotaManager.get().checkQuota(dag.getNodes().get(0), false);
+        } catch (QuotaExceededException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
 
     // todo : we should probably not schedule a flow if it is a runOnce flow

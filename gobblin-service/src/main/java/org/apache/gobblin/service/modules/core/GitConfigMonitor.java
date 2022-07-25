@@ -108,7 +108,7 @@ public class GitConfigMonitor extends GitMonitoringService {
             .withVersion(SPEC_VERSION)
             .withDescription(SPEC_DESCRIPTION)
             .build());
-      } catch (IOException e) {
+      } catch (Throwable e) {
         log.warn("Could not load config file: " + configFilePath);
       }
     }

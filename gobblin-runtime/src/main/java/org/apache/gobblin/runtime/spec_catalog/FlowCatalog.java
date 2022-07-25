@@ -342,7 +342,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    * @param triggerListener True if listeners should be notified.
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
-  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
+  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -355,13 +355,21 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
-      // If flow fails compilation, the result will have a non-empty string with the error
       for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
+      // If flow fails compilation, the result will have a non-empty string with the error
+      if (response.getValue().getFailures().size() > 0) {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
+          throw entry.getValue().getError().getCause();
+        }
+        return responseMap;
+      }
     }
+    AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
 
-    if (isCompileSuccessful(responseMap)) {
+    // Check that the flow configuration is valid and matches to a corresponding edge
+    if (isCompileSuccessful(schedulerResponse.getValue())) {
       synchronized (syncObject) {
         try {
           if (!flowSpec.isExplain()) {
@@ -384,19 +392,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return responseMap;
   }
 
-  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    // If we cannot get the response from the scheduler, assume that the flow failed compilation
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
-    return isCompileSuccessful(addSpecResponse.getValue());
-  }
-
   public static boolean isCompileSuccessful(String dag) {
     return dag != null && !dag.contains(ConfigException.class.getSimpleName());
   }
 
   @Override
-  public Map<String, AddSpecResponse> put(Spec spec) {
+  public Map<String, AddSpecResponse> put(Spec spec) throws Throwable {
     return put(spec, true);
   }
 

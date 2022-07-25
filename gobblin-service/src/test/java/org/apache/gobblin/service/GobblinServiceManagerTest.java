@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jgit.api.Git;
@@ -162,7 +164,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
-
+    serviceCoreProperties.put(UserQuotaManager.PER_USER_QUOTA, "testUser:1");
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
 
     // Create a bare repository
@@ -308,6 +310,25 @@ public class GobblinServiceManagerTest {
   }
 
   @Test (dependsOnMethods = "testRunOnceJob")
+  public void testRunQuotaExceeds() throws Exception {
+    Map<String, String> props = flowProperties;
+    props.put(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_USER_TO_PROXY_KEY, "testUser");
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
+
+    this.flowConfigClient.createFlowConfig(flowConfig);
+
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
+
+    try {
+      this.flowConfigClient.createFlowConfig(flowConfig2);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.SERVICE_UNAVAILABLE_503);
+    }
+  }
+
+  @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties)).setExplain(true);
