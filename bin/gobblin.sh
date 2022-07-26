@@ -332,7 +332,8 @@ function build_classpath(){
     GOBBLIN_CLASSPATH=${GOBBLIN_JARS}:${GOBBLIN_HADOOP_CLASSPATH}
 
     if [[ -n "$EXTRA_JARS" ]]; then
-        GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:"$EXTRA_JARS"
+        # EXTRA_JARS has comma separated jars. Replace commas with colon for the classpath.
+        GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:${EXTRA_JARS//,/:}
     fi
 
     GOBBLIN_CLASSPATH=${GOBBLIN_CONF}:${GOBBLIN_CLASSPATH}
