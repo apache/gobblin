@@ -36,7 +36,7 @@ options:
                 watermarks                  Inspect streaming watermarks
                 job-store-schema-manager    Database job history store schema manager
 
-    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
+    --conf-dir <gobblin-conf-dir-path> Gobblin config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
     --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'.
     --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to "-Xmx1g -Xms512m".
     --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH.
@@ -187,7 +187,7 @@ Argument Options:
     <execution-mode>                   standalone, cluster-master, cluster-worker, aws,
                                                  yarn, mapreduce, service-manager.
 
-    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
+    --conf-dir <gobblin-conf-dir-path> Gobblin config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
     --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'.    --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to "-Xmx1g -Xms512m".
     --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH.
     --enable-gc-logs                   enables gc logs & dumps.
@@ -249,10 +249,10 @@ Argument Options:
 Gobblin System Configurations
 ----------------------
 
-Following values can be override by setting it in `gobblin-env.sh`
+Following values can be overridden by setting it in `gobblin-env.sh`
 
-`GOBBLIN_LOGS` : by default the logs are written to `$GOBBLIN_HOME/logs`, it can be override by setting `GOBBLIN_LOGS`\
-`GOBBLIN_VERSION` : by default gobblin version is set by the build process, it can be override by setting `GOBBLIN_VERSION`\
+`GOBBLIN_LOGS` : by default the logs are written to `$GOBBLIN_HOME/logs`, it can be overridden by setting `GOBBLIN_LOGS`\
+`GOBBLIN_VERSION` : by default gobblin version is set by the build process, it can be overridden by setting `GOBBLIN_VERSION`\
 
 
 All Gobblin system configurations details can be found here: [Configuration Properties Glossary](user-guide/Configuration-Properties-Glossary).
