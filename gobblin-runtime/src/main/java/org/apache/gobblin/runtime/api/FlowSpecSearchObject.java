@@ -57,6 +57,8 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   private final Boolean isRunImmediately;
   private final String owningGroup;
   private final String propertyFilter;
+  private final int start;
+  private final int count;
 
   public static FlowSpecSearchObject fromFlowId(FlowId flowId) {
     return FlowSpecSearchObject.builder().flowGroup(flowId.getFlowGroup()).flowName(flowId.getFlowName()).build();
@@ -116,6 +118,14 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       conditions.add("owning_group = ?");
     }
 
+    if (this.getStart() != -1) {
+      conditions.add("start = ?");
+    }
+
+    if (this.getCount() != -1) {
+      conditions.add("count = ?");
+    }
+
     // If the propertyFilter is myKey=myValue, it looks for a config where key is `myKey` and value contains string `myValue`.
     // If the propertyFilter string does not have `=`, it considers the string as a key and just looks for its existence.
     // Multiple occurrences of `=` in  propertyFilter are not supported and ignored completely.
@@ -139,6 +149,9 @@ public class FlowSpecSearchObject implements SpecSearchObject {
     if (conditions.size() == 0) {
       throw new IOException("At least one condition is required to query flow configs.");
     }
+
+//    log.info("IN AUGMENT BASE");
+//    log.info(baseStatement + String.join(" AND ", conditions));
 
     return baseStatement + String.join(" AND ", conditions);
   }
@@ -190,6 +203,14 @@ public class FlowSpecSearchObject implements SpecSearchObject {
 
     if (this.getOwningGroup() != null) {
       statement.setString(++i, this.getOwningGroup());
+    }
+
+    if (this.getStart() != -1) {
+      statement.setInt(++i, this.getStart());
+    }
+
+    if (this.getCount() != -1) {
+      statement.setInt(++i, this.getCount());
     }
   }
 }

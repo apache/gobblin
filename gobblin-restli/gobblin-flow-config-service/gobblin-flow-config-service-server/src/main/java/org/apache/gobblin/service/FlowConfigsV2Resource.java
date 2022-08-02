@@ -57,6 +57,7 @@ import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
+import retrofit.http.Query;
 
 
 /**
@@ -106,6 +107,10 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
+    LOG.info("GETALL");
+    LOG.info("PagingContext getAll " + pagingContext.toString());
+    int start = pagingContext.getStart();
+    int count = pagingContext.getCount();
     return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
   }
 
@@ -127,7 +132,8 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
     FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
         templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-        isRunImmediately, owningGroup, propertyFilter);
+        isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount());
+    LOG.info("PagingContext filterFlows " + context.toString());
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 

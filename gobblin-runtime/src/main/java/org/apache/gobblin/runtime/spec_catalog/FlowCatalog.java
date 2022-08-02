@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
+import com.linkedin.restli.server.annotations.RestMethod;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -29,6 +30,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -294,6 +297,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
     }
   }
+//  static defaults or
+//      if (these parameters are passed, else fall back to defaults)
+
 
   @Override
   public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) {
