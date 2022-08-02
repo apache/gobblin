@@ -106,7 +106,10 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
-    return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, null, null,
+        null, null, null, null, null, null,
+        null, null, null, pagingContext.getStart(), pagingContext.getCount(), true);
+    return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 
   /**
@@ -127,7 +130,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
     FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
         templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-        isRunImmediately, owningGroup, propertyFilter);
+        isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), false);
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 

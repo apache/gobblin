@@ -31,6 +31,7 @@ import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecSerDe;
@@ -138,7 +139,8 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
   /** Support search, unlike base class (presumably via a {@link org.apache.gobblin.runtime.api.FlowSpecSearchObject}). */
   @Override
   public Collection<Spec> getSpecsImpl(SpecSearchObject specSearchObject) throws IOException {
-    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getStatementBase), statement -> {
+    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(
+        ((FlowSpecSearchObject)specSearchObject).getGetAll() ? this.sqlStatements.getAllStatement : this.sqlStatements.getStatementBase), statement -> {
       specSearchObject.completePreparedStatement(statement);
       return retrieveSpecs(statement);
     });
