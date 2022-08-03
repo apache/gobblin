@@ -69,6 +69,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   public String augmentBaseGetStatement(String baseStatement)
       throws IOException {
     List<String> conditions = new ArrayList<>();
+    List<String> limitAndOffset = new ArrayList<>();
 
     /*
      * IMPORTANT: the order of `conditions` added must align with the order of parameter binding later in `completePreparedStatement`!
@@ -118,12 +119,11 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       conditions.add("owning_group = ?");
     }
 
-    if (this.getStart() != -1) {
-      conditions.add("start = ?");
-    }
-
-    if (this.getCount() != -1) {
-      conditions.add("count = ?");
+    if (this.getCount() != 0) {
+      limitAndOffset.add("LIMIT ?");
+      if (this.getStart() != 0) {
+        limitAndOffset.add("OFFSET ?");
+      }
     }
 
     // If the propertyFilter is myKey=myValue, it looks for a config where key is `myKey` and value contains string `myValue`.
@@ -150,10 +150,10 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       throw new IOException("At least one condition is required to query flow configs.");
     }
 
-//    log.info("IN AUGMENT BASE");
-//    log.info(baseStatement + String.join(" AND ", conditions));
+    log.info("IN AUGMENT BASE SPECSEARCHOBJECT");
+    log.info(baseStatement + String.join(" AND ", conditions) + " " + String.join(" ", limitAndOffset));
 
-    return baseStatement + String.join(" AND ", conditions);
+    return baseStatement + String.join(" AND ", conditions) + " " + String.join(" ", limitAndOffset);
   }
 
   @Override
@@ -205,12 +205,11 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       statement.setString(++i, this.getOwningGroup());
     }
 
-    if (this.getStart() != -1) {
-      statement.setInt(++i, this.getStart());
-    }
-
-    if (this.getCount() != -1) {
+    if (this.getCount() != 0) {
       statement.setInt(++i, this.getCount());
+      if (this.getStart() != 0) {
+        statement.setInt(++i, this.getStart());
+      }
     }
   }
 }

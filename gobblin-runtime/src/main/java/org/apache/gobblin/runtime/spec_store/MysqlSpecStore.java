@@ -31,7 +31,6 @@ import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecSerDe;
@@ -70,7 +69,6 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
       + "tag VARCHAR(128) NOT NULL, modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE "
       + "CURRENT_TIMESTAMP, isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), spec LONGBLOB, "
       + "spec_json JSON, PRIMARY KEY (spec_uri))";
-  private static final String SPECIFIC_GET_ALL_STATEMENT_LIMIT_OFFSET = "SELECT spec_uri, spec FROM %s ORDER BY modified_time DESC LIMIT %d OFFSET %d";
 
   /** Bundle all changes following from schema differences against the base class. */
   protected class SpecificSqlStatements extends SqlStatements {
@@ -121,8 +119,6 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
     protected String getTablelessGetAllStatement() { return MysqlSpecStore.SPECIFIC_GET_ALL_STATEMENT; }
     @Override
     protected String getTablelessCreateTableStatement() { return MysqlSpecStore.SPECIFIC_CREATE_TABLE_STATEMENT; }
-    @Override
-    protected String getTablelessGetAllStatementLimitOffset () { return MysqlSpecStore.SPECIFIC_GET_ALL_STATEMENT_LIMIT_OFFSET; }
   }
 
 
@@ -143,33 +139,10 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
   /** Support search, unlike base class (presumably via a {@link org.apache.gobblin.runtime.api.FlowSpecSearchObject}). */
   @Override
   public Collection<Spec> getSpecsImpl(SpecSearchObject specSearchObject) throws IOException {
-    log.info("IN GETSPECSIMPL");
-    log.info(specSearchObject.toString());
-    int start = ((FlowSpecSearchObject)specSearchObject).getStart();
-    int count = ((FlowSpecSearchObject)specSearchObject).getCount();
-    log.info("START SPEC RECEIVED WAS: " + start);
-    log.info("COUNT SPEC RECEIVED WAS: " + count);
-
-    if (count != 0) {
-      log.info("Paginated MySQL call GET ALL");
-      log.info("THIS.COUNT = " + this.count);
-      this.count = count;
-      this.start = start;
-      log.info("THIS.COUNT AFTERWARDS = " + this.count);
-      log.info(this.sqlStatements.getAllStatementLimitOffset);
-
-      return withPreparedStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getAllStatementLimitOffset),
-          statement -> {
-            specSearchObject.completePreparedStatement(statement);
-            return retrieveSpecs(statement);
-          });
-    }
-//    else {
-      return withPreparedStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getStatementBase),
-          statement -> {
-            specSearchObject.completePreparedStatement(statement);
-            return retrieveSpecs(statement);
-          });
-//    }
+    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(this.sqlStatements.getStatementBase),
+        statement -> {
+          specSearchObject.completePreparedStatement(statement);
+          return retrieveSpecs(statement);
+        });
   }
 }
