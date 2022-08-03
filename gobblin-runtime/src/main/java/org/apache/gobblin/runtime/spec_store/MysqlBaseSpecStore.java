@@ -85,7 +85,6 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
         + ") NOT NULL, tag VARCHAR(128) NOT NULL, modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE "
         + "CURRENT_TIMESTAMP, spec LONGBLOB, PRIMARY KEY (spec_uri))";
-//  private static final String GET_ALL_STATEMENT_LIMIT_OFFSET_BASE = "SELECT spec_uri, spec FROM %s WHERE ORDER BY modified_time DESC ";
 
   /**
    * The main point of difference with base classes is the DB schema and hence certain of the DML and queries.  Given the interrelation
@@ -101,7 +100,6 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlBaseSpecStore.this.tableName);
     public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlBaseSpecStore.this.tableName);
-//    public final String getAllStatementLimitOffset = String.format(getTablelessGetAllStatementLimitOffset(), MysqlBaseSpecStore.this.tableName);
 
     public void completeInsertPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
       URI specUri = spec.getUri();
@@ -125,7 +123,6 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     protected String getTablelessGetAllURIsWithTagStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
     protected String getTablelessGetSizeStatement() { return MysqlBaseSpecStore.GET_SIZE_STATEMENT; }
     protected String getTablelessCreateTableStatement() { return MysqlBaseSpecStore.CREATE_TABLE_STATEMENT; }
-//    protected String getTablelessGetAllStatementLimitOffset() { return MysqlBaseSpecStore.GET_ALL_STATEMENT_LIMIT_OFFSET_BASE; }
   }
 
 

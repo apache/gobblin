@@ -74,7 +74,6 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
   protected class SpecificSqlStatements extends SqlStatements {
     @Override
     public void completeInsertPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
-      log.info("COMPLETE INSERT PREPARED STATEMENT");
       FlowSpec flowSpec = (FlowSpec) spec;
       URI specUri = flowSpec.getUri();
       Config flowConfig = flowSpec.getConfig();
