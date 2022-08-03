@@ -150,9 +150,6 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       throw new IOException("At least one condition is required to query flow configs.");
     }
 
-    log.info("IN AUGMENT BASE SPECSEARCHOBJECT");
-    log.info(baseStatement + String.join(" AND ", conditions) + " " + String.join(" ", limitAndOffset));
-
     return baseStatement + String.join(" AND ", conditions) + " " + String.join(" ", limitAndOffset);
   }
 

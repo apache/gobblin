@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
-import com.linkedin.restli.server.annotations.RestMethod;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
