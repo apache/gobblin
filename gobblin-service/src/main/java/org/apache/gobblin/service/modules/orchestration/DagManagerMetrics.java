@@ -65,16 +65,14 @@ public class DagManagerMetrics {
   private final Map<String, ContextAwareMeter> executorStartSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorJobSentMeters = Maps.newConcurrentMap();
-  private boolean instrumentationEnabled;
   MetricContext metricContext;
 
-  public DagManagerMetrics(MetricContext metricContext, boolean instrumentationEnabled) {
+  public DagManagerMetrics(MetricContext metricContext) {
     this.metricContext = metricContext;
-    this.instrumentationEnabled = instrumentationEnabled;
   }
 
   public void activate() {
-    if (this.instrumentationEnabled) {
+    if (this.metricContext != null) {
       allSuccessfulMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ServiceMetricNames.SUCCESSFUL_FLOW_METER));
       allFailedMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,

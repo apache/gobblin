@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -100,7 +101,7 @@ public class DagManagerTest {
     Config quotaConfig = ConfigFactory.empty()
         .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
     this._gobblinServiceQuotaManager = new UserQuotaManager(quotaConfig);
-    this._dagManagerMetrics = new DagManagerMetrics(metricContext, true);
+    this._dagManagerMetrics = new DagManagerMetrics(metricContext);
     this._dagManagerMetrics.activate();
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
         resumeQueue, true, new HashSet<>(), this._dagManagerMetrics, START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
@@ -705,15 +706,15 @@ public class DagManagerTest {
     // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
     Iterator<JobStatus> jobStatusIterator1 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.ORCHESTRATED),
-            false, flowExecutionId - 16 * 60 * 1000);
+            false, flowExecutionId - Duration.ofMinutes(16).toMillis());
     // This is for the second Dag that does not match the SLA so should schedule normally
     Iterator<JobStatus> jobStatusIterator2 =
         getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.ORCHESTRATED),
-            false, flowExecutionId - 10 * 60 * 1000);
+            false, flowExecutionId - Duration.ofMinutes(10).toMillis());
     // Let the first job get reported as cancel due to SLA kill on start and clean up
     Iterator<JobStatus> jobStatusIterator3 =
         getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.CANCELLED),
-            false, flowExecutionId - 16 * 60 * 1000);
+            false, flowExecutionId - Duration.ofMinutes(16).toMillis());
     // Cleanup the running job that is scheduled normally
     Iterator<JobStatus> jobStatusIterator4 =
         getMockJobStatus(flowName1, flowGroup1, flowExecutionId+1, jobName0, flowGroup1, String.valueOf(ExecutionStatus.COMPLETE));
@@ -753,6 +754,8 @@ public class DagManagerTest {
   @Test (dependsOnMethods = "testJobStartSLAKilledDag")
   public void testJobKilledSLAMetricsArePerExecutor() throws URISyntaxException, IOException {
     long flowExecutionId = System.currentTimeMillis();
+    // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
+    long startOrchestrationTime = flowExecutionId - Duration.ofMinutes(16).toMillis();
     Config executorOneConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorOne"))
         .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
@@ -768,16 +771,15 @@ public class DagManagerTest {
     this.queue.offer(dagList.get(0));
     this.queue.offer(dagList.get(1));
     this.queue.offer(dagList.get(2));;
-    // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
     Iterator<JobStatus> jobStatusIterator1 =
         getMockJobStatus("flow0", "group0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED),
-            false, flowExecutionId - 16 * 60 * 1000);
+            false, startOrchestrationTime);
     Iterator<JobStatus> jobStatusIterator2 =
         getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.ORCHESTRATED),
-            false, flowExecutionId - 16 * 60 * 1000);
+            false, startOrchestrationTime);
     Iterator<JobStatus> jobStatusIterator3 =
         getMockJobStatus("flow2", "flow2", flowExecutionId+1, "job0", "group2", String.valueOf(ExecutionStatus.ORCHESTRATED),
-            false, flowExecutionId - 16 * 60 * 1000);
+            false, startOrchestrationTime);
 
     Mockito.when(_jobStatusRetriever
         .getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
@@ -785,7 +787,7 @@ public class DagManagerTest {
         thenReturn(jobStatusIterator2).
         thenReturn(jobStatusIterator3);
 
-    // Run the thread once. All 3 jobs should be emitted a sla exceeded event
+    // Run the thread once. All 3 jobs should be emitted an SLA exceeded event
     this._dagManagerThread.run();
 
     String slakilledMeterName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorOne", ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER);
@@ -1064,7 +1066,7 @@ public class DagManagerTest {
 
   @Test (dependsOnMethods = "testEmitFlowMetricOnlyIfNotAdhoc")
   public void testJobSlaKilledMetrics() throws URISyntaxException, IOException {
-    long flowExecutionId = System.currentTimeMillis() - 10 * 60 * 1000;
+    long flowExecutionId = System.currentTimeMillis() - Duration.ofMinutes(20).toMillis();
     Config executorOneConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorOne"))
         .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
@@ -1083,24 +1085,24 @@ public class DagManagerTest {
     this.queue.offer(dagList.get(0));
     this.queue.offer(dagList.get(1));
     this.queue.offer(dagList.get(2));;
-    // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
+    // Set orchestration time to be 20 minutes in the past, the job should be marked as SLA killed
     Iterator<JobStatus> jobStatusIterator1 =
         getMockJobStatus("flow0", "group0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.RUNNING),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator2 =
-        getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.RUNNING),
+        getMockJobStatus("flow1", "flow1", flowExecutionId, "job0", "group1", String.valueOf(ExecutionStatus.RUNNING),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator3 =
-        getMockJobStatus("flow2", "flow2", flowExecutionId+1, "job0", "group2", String.valueOf(ExecutionStatus.RUNNING),
+        getMockJobStatus("flow2", "flow2", flowExecutionId, "job0", "group2", String.valueOf(ExecutionStatus.RUNNING),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator4 =
-        getMockJobStatus("flow0", "flow0", flowExecutionId+1, "job0", "group0", String.valueOf(ExecutionStatus.CANCELLED),
+        getMockJobStatus("flow0", "flow0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.CANCELLED),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator5 =
-        getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.CANCELLED),
+        getMockJobStatus("flow1", "flow1", flowExecutionId, "job0", "group1", String.valueOf(ExecutionStatus.CANCELLED),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator6 =
-        getMockJobStatus("flow2", "flow2", flowExecutionId+1, "job0", "group2", String.valueOf(ExecutionStatus.CANCELLED),
+        getMockJobStatus("flow2", "flow2", flowExecutionId, "job0", "group2", String.valueOf(ExecutionStatus.CANCELLED),
             false, flowExecutionId);
 
     Mockito.when(_jobStatusRetriever
@@ -1109,13 +1111,16 @@ public class DagManagerTest {
         thenReturn(jobStatusIterator2).
         thenReturn(jobStatusIterator3).
         thenReturn(jobStatusIterator4).
-        thenReturn(jobStatusIterator5);
+        thenReturn(jobStatusIterator5).
+        thenReturn(jobStatusIterator6);
 
-    // Run the thread once. All 3 jobs should be emitted a sla exceeded event
+    // Run the thread once. All 3 jobs should be emitted an SLA exceeded event
+    this._dagManagerThread.run();
     this._dagManagerThread.run();
 
     String slakilledMeterName1 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorOne", ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER);
     String slakilledMeterName2 = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorTwo", ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER);
+    String failedFlowGauge = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group1","flow1", ServiceMetricNames.RUNNING_STATUS);
 
     String slakilledGroupName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group0", ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER);
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(slakilledMeterName1).getCount(), 2);
@@ -1124,13 +1129,14 @@ public class DagManagerTest {
     // Cleanup
     this._dagManagerThread.run();
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(allSlaKilledMeterName).getCount(), previousSlaKilledCount + 3);
+    Assert.assertEquals(metricContext.getParent().get().getGauges().get(failedFlowGauge).getValue(), -1);
 
     Assert.assertEquals(this.dags.size(), 0);
     Assert.assertEquals(this.jobToDag.size(), 0);
     Assert.assertEquals(this.dagToJobs.size(), 0);
   }
 
-  @Test //(dependsOnMethods = "testJobSlaKilledMetrics")
+  @Test (dependsOnMethods = "testJobSlaKilledMetrics")
   public void testPerExecutorMetricsSuccessFails() throws URISyntaxException, IOException {
     long flowExecutionId = System.currentTimeMillis();
     Config executorOneConfig = ConfigFactory.empty()
@@ -1154,7 +1160,7 @@ public class DagManagerTest {
     this.queue.offer(dagList.get(2));;
     // The start time should be 16 minutes ago, which is past the start SLA so the job should be cancelled
     Iterator<JobStatus> jobStatusIterator1 =
-        getMockJobStatus("flow0", "group0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED),
+        getMockJobStatus( "flow0", "group0", flowExecutionId, "job0", "group0", String.valueOf(ExecutionStatus.ORCHESTRATED),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator2 =
         getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.ORCHESTRATED),
@@ -1163,7 +1169,7 @@ public class DagManagerTest {
         getMockJobStatus("flow2", "flow2", flowExecutionId+1, "job0", "group2", String.valueOf(ExecutionStatus.ORCHESTRATED),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator4 =
-        getMockJobStatus("flow0", "flow0", flowExecutionId+1, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE),
+        getMockJobStatus( "flow0", "flow0", flowExecutionId+1, "job0", "group0", String.valueOf(ExecutionStatus.COMPLETE),
             false, flowExecutionId);
     Iterator<JobStatus> jobStatusIterator5 =
         getMockJobStatus("flow1", "flow1", flowExecutionId+1, "job0", "group1", String.valueOf(ExecutionStatus.FAILED),
@@ -1191,12 +1197,15 @@ public class DagManagerTest {
 
     String slaSuccessfulFlowsExecutorOneMeterName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorOne", ServiceMetricNames.SUCCESSFUL_FLOW_METER);
     String slaFailedFlowsExecutorOneMeterName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "executorOne", ServiceMetricNames.FAILED_FLOW_METER);
+    String failedFlowGauge = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group1", "flow1", ServiceMetricNames.RUNNING_STATUS);
+
     this._dagManagerThread.run();
 
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(slaSuccessfulFlowsExecutorOneMeterName).getCount(), 1);
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(slaFailedFlowsExecutorOneMeterName).getCount(), 1);
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(allSuccessfulFlowsMeterName).getCount(), previousSuccessCount + 2);
     Assert.assertEquals(metricContext.getParent().get().getMeters().get(previousJobSentToExecutorMeterName).getCount(), previousJobSentToExecutorCount + 2);
+    Assert.assertEquals(metricContext.getParent().get().getGauges().get(failedFlowGauge).getValue(), -1);
     // Cleanup
     this._dagManagerThread.run();
 

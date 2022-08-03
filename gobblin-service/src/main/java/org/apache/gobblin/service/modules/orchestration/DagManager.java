@@ -197,7 +197,7 @@ public class DagManager extends AbstractIdleService {
     } else {
       this.eventSubmitter = Optional.absent();
     }
-    this.dagManagerMetrics = new DagManagerMetrics(metricContext, instrumentationEnabled);
+    this.dagManagerMetrics = new DagManagerMetrics(metricContext);
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     this.jobStatusRetriever = jobStatusRetriever;
@@ -1037,12 +1037,7 @@ public class DagManager extends AbstractIdleService {
         }
         Dag<JobExecutionPlan> dag = this.dags.get(dagId);
         String status = TimingEvent.FlowTimings.FLOW_FAILED;
-        if (TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-          this.dagManagerMetrics.emitFlowSlaExceededMetrics(DagManagerUtils.getFlowId(dag));
-        } else if (!TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-          dagManagerMetrics.emitFlowFailedMetrics(DagManagerUtils.getFlowId(this.dags.get(dagId)));
-        }
-        addFailedDag(dagId);
+        addFailedDag(dagId, dag);
         log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
         // send an event before cleaning up dag
         DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), status);
@@ -1056,15 +1051,8 @@ public class DagManager extends AbstractIdleService {
         if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
           String status = TimingEvent.FlowTimings.FLOW_SUCCEEDED;
           if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
-            if (TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-              this.dagManagerMetrics.emitFlowSlaExceededMetrics(DagManagerUtils.getFlowId(dag));
-            } else if (!TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-              this.dagManagerMetrics.conditionallyMarkFlowAsState(DagManagerUtils.getFlowId(this.dags.get(dagId)),
-                  DagManager.FlowState.FAILED);
-              dagManagerMetrics.emitFlowFailedMetrics(DagManagerUtils.getFlowId(this.dags.get(dagId)));
-            }
             status = TimingEvent.FlowTimings.FLOW_FAILED;
-            addFailedDag(dagId);
+            addFailedDag(dagId, dag);
             this.failedDagIdsFinishAllPossible.remove(dagId);
           } else {
             dagManagerMetrics.emitFlowSuccessMetrics(DagManagerUtils.getFlowId(this.dags.get(dagId)));
@@ -1084,7 +1072,8 @@ public class DagManager extends AbstractIdleService {
     /**
      * Add a dag to failed dag state store
      */
-    private synchronized void addFailedDag(String dagId) {
+    private synchronized void addFailedDag(String dagId, Dag<JobExecutionPlan> dag) {
+      FlowId flowId = DagManagerUtils.getFlowId(dag);
       try {
         log.info("Adding dag " + dagId + " to failed dag state store");
         this.failedDagStateStore.writeCheckpoint(this.dags.get(dagId));
@@ -1092,6 +1081,12 @@ public class DagManager extends AbstractIdleService {
         log.error("Failed to add dag " + dagId + " to failed dag state store", e);
       }
       this.failedDagIds.add(dagId);
+      if (TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
+        this.dagManagerMetrics.emitFlowSlaExceededMetrics(flowId);
+      } else if (!TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
+        dagManagerMetrics.emitFlowFailedMetrics(flowId);
+      }
+      this.dagManagerMetrics.conditionallyMarkFlowAsState(flowId, DagManager.FlowState.FAILED);
     }
 
     /**
