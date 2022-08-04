@@ -63,7 +63,8 @@ public class MysqlSpecStoreTest {
   private final URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
   private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
   private final URI uri4 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg4").setFlowGroup("fn4"));
-  private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
+  private final URI uri5 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg5").setFlowGroup("fn5"));
+  private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4, flowSpec5;
 
   public MysqlSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -238,6 +239,23 @@ public class MysqlSpecStoreTest {
     List<URI> result = new ArrayList<>();
     this.specStore.getSpecURIsWithTag("dr").forEachRemaining(result::add);
     Assert.assertEquals(result.size(), 2);
+  }
+
+  @Test (dependsOnMethods = "testGetSpec")
+  public void testGetSpecPaginate() throws Exception {
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(2).start(0).build();
+    Collection<Spec> specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 2);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec4));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().count(2).start(1).build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 2);
+    Assert.assertFalse(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertTrue(specs.contains(this.flowSpec4));
   }
 
   @Test (expectedExceptions = {IOException.class})
