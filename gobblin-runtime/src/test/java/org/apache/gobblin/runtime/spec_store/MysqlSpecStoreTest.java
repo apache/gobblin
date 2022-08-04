@@ -147,7 +147,7 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
   }
 
-  @Test //(dependsOnMethods = "testAddSpec")
+  @Test (dependsOnMethods = "testAddSpec")
   public void testGetSpec() throws Exception {
     testAddSpec();
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
