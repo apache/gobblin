@@ -59,6 +59,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   private final String propertyFilter;
   private final int start;
   private final int count;
+  private final Boolean getAll;
 
   public static FlowSpecSearchObject fromFlowId(FlowId flowId) {
     return FlowSpecSearchObject.builder().flowGroup(flowId.getFlowGroup()).flowName(flowId.getFlowName()).build();
@@ -120,7 +121,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
     }
 
     if (this.getCount() != 0) {
-      limitAndOffset.add("LIMIT ?");
+      limitAndOffset.add("ORDER BY modified_time DESC LIMIT ?");
       if (this.getStart() != 0) {
         limitAndOffset.add("OFFSET ?");
       }
@@ -146,7 +147,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       }
     }
 
-    if (conditions.size() == 0) {
+    if (conditions.size() == 0 && !this.getGetAll()) {
       throw new IOException("At least one condition is required to query flow configs.");
     }
 
