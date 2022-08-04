@@ -130,7 +130,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
     FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
         templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-        isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), false);
+        isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), null);
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 

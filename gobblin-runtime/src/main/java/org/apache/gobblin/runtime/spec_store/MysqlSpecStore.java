@@ -139,8 +139,9 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
   /** Support search, unlike base class (presumably via a {@link org.apache.gobblin.runtime.api.FlowSpecSearchObject}). */
   @Override
   public Collection<Spec> getSpecsImpl(SpecSearchObject specSearchObject) throws IOException {
-    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(
-        ((FlowSpecSearchObject)specSearchObject).getGetAll() ? this.sqlStatements.getAllStatement : this.sqlStatements.getStatementBase), statement -> {
+    Boolean ifGetAll = ((FlowSpecSearchObject)specSearchObject).getGetAll();
+    return withPreparedStatement(specSearchObject.augmentBaseGetStatement(ifGetAll == null ? this.sqlStatements.getStatementBase :
+        ifGetAll ? this.sqlStatements.getAllStatement : this.sqlStatements.getStatementBase), statement -> {
       specSearchObject.completePreparedStatement(statement);
       return retrieveSpecs(statement);
     });

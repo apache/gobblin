@@ -147,7 +147,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       }
     }
 
-    if (conditions.size() == 0 && !this.getGetAll()) {
+    if (conditions.size() == 0 && (!this.getGetAll() || this.getGetAll() == null)) {
       throw new IOException("At least one condition is required to query flow configs.");
     }
 
