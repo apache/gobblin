@@ -47,6 +47,7 @@ VERBOSE=0
 ENABLE_GC_LOGS=0
 CMD_PARAMS=''
 LOG_TO_STDOUT=0
+RUN_IN_BACKGROUND=0
 
 # Gobblin Commands, Modes & respective Classes
 GOBBLIN_MODE_TYPE=''
@@ -134,6 +135,7 @@ function print_gobblin_service_usage() {
     echo "    --fs <file system URL>                Only for mapreduce mode: Target file system, if not set, taken from \${HADOOP_HOME}/conf."
     echo "    --job-conf-file <job-conf-file-path>  Only for mapreduce mode: configuration file for the job to run"
     echo "    --log-to-stdout                     Outputs to stdout rather than to a log file"
+    echo "    --run-in-background                   Run the Gobblin command in background (using 'nohup' and '&'). Not applicable when using --log-to-stdout."
     echo "    --help                                Display this help."
     echo "    --verbose                             Display full command used to start the process."
 }
@@ -228,6 +230,9 @@ do
         ;;
         --log-to-stdout)
             LOG_TO_STDOUT=1
+        ;;
+        --run-in-background)
+            RUN_IN_BACKGROUND=1
         ;;
         *)
             CMD_PARAMS="$CMD_PARAMS $1"
@@ -481,8 +486,11 @@ function start() {
         fi
         if [[ LOG_TO_STDOUT -eq 1 ]]; then
           $GOBBLIN_COMMAND
-        else
+        elif [[ $RUN_IN_BACKGROUND -eq 1 ]]; then
           nohup $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE} &
+        else
+          # do not run in background
+          $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE}
         fi
         PID=$!
         echo $PID >> $PID_FILE
