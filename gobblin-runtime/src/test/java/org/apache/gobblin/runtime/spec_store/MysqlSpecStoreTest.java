@@ -87,6 +87,7 @@ public class MysqlSpecStoreTest {
         .withConfig(ConfigBuilder.create()
             .addPrimitive("key", "value")
             .addPrimitive("key3", "value3")
+            .addPrimitive("filter.this.flow", true)
             .addPrimitive("config.with.dot", "value4")
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
@@ -98,6 +99,7 @@ public class MysqlSpecStoreTest {
     flowSpec2 = FlowSpec.builder(this.uri2)
         .withConfig(ConfigBuilder.create().addPrimitive("converter", "value1,value2,value3")
             .addPrimitive("key3", "value3")
+            .addPrimitive("filter.this.flow", true)
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg2")
@@ -107,6 +109,7 @@ public class MysqlSpecStoreTest {
         .build();
     flowSpec3 = FlowSpec.builder(this.uri3)
         .withConfig(ConfigBuilder.create().addPrimitive("key3", "value3")
+            .addPrimitive("filter.this.flow", true)
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg3")
@@ -149,7 +152,6 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods = "testAddSpec")
   public void testGetSpec() throws Exception {
-    testAddSpec();
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
     Assert.assertEquals(result, this.flowSpec1);
 
@@ -238,23 +240,31 @@ public class MysqlSpecStoreTest {
     Assert.assertTrue(this.specStore.exists(uri6));
     List<URI> result = new ArrayList<>();
     this.specStore.getSpecURIsWithTag("dr").forEachRemaining(result::add);
+    Assert.assertEquals(result.size(), 2);
   }
 
   @Test (dependsOnMethods = "testGetSpec")
   public void testGetFilterSpecPaginate() throws Exception {
-    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(2).start(0).build();
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(1).start(0).propertyFilter("filter.this.flow").build();
     Collection<Spec> specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertFalse(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec4));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().count(1).start(1).propertyFilter("filter.this.flow").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertFalse(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec4));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().count(5).start(0).propertyFilter("filter.this.flow").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
-
-    flowSpecSearchObject = FlowSpecSearchObject.builder().count(2).start(1).build();
-    specs = this.specStore.getSpecs(flowSpecSearchObject);
-    Assert.assertEquals(specs.size(), 2);
-    Assert.assertFalse(specs.contains(this.flowSpec1));
-    Assert.assertTrue(specs.contains(this.flowSpec2));
-    Assert.assertTrue(specs.contains(this.flowSpec4));
   }
 
   @Test (dependsOnMethods =  "testGetSpec")
