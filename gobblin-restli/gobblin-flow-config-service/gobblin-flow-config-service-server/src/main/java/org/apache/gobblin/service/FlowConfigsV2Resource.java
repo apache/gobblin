@@ -25,7 +25,6 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
