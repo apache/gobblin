@@ -120,10 +120,10 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       conditions.add("owning_group = ?");
     }
 
-    if (this.getCount() != 0) {
-      limitAndOffset.add("ORDER BY modified_time DESC LIMIT ?");
-      if (this.getStart() != 0) {
-        limitAndOffset.add("OFFSET ?");
+    if (this.getCount() > 0) {
+      limitAndOffset.add(" ORDER BY modified_time DESC LIMIT ?");
+      if (this.getStart() > 0) {
+        limitAndOffset.add(" OFFSET ?");
       }
     }
 
@@ -151,7 +151,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       throw new IOException("At least one condition is required to query flow configs.");
     }
 
-    return baseStatement + String.join(" AND ", conditions) + " " + String.join(" ", limitAndOffset);
+    return baseStatement + String.join(" AND ", conditions) + String.join(" ", limitAndOffset);
   }
 
   @Override

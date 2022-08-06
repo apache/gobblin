@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,10 +107,14 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
-    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, null, null,
-        null, null, null, null, null, null,
-        null, null, null, pagingContext.getStart(), pagingContext.getCount(), true);
-    return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
+    if (!pagingContext.hasCount() && !pagingContext.hasStart())
+      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+    else {
+      FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, null, null,
+          null, null, null, null, null, null,
+          null, null, null, pagingContext.getStart(), pagingContext.getCount(), true);
+      return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
+    }
   }
 
   /**
@@ -128,9 +133,18 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("isRunImmediately") Boolean isRunImmediately,
       @Optional @QueryParam("owningGroup") String owningGroup,
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
-    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
-        templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-        isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), null);
+    FlowSpecSearchObject flowSpecSearchObject;
+    if (!context.hasCount() && !context.hasStart()){
+      flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
+          templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
+          isRunImmediately, owningGroup, propertyFilter, -1, -1, null);
+    }
+    else {
+      flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
+          templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
+          isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), null);
+    }
+
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 
