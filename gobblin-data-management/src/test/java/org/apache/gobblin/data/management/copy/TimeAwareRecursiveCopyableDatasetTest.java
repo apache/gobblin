@@ -318,6 +318,18 @@ public class TimeAwareRecursiveCopyableDatasetTest {
 
   }
 
+  @Test (expectedExceptions = IllegalArgumentException.class)
+  public void testIllegalTimezoneProperty() throws IOException {
+    //Lookback time = "4h"
+    Properties properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_HOURS_STR);
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd/HH");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_TIMEZONE_KEY, "InvalidTimeZone");
+
+    TimeAwareRecursiveCopyableDataset dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir3, properties,
+        new Path("/tmp/src/ds2/daily"));
+  }
+
   @AfterClass
   public void clean() throws IOException {
     //Delete tmp directories
