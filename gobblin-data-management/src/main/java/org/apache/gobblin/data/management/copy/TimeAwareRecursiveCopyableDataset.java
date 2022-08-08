@@ -68,7 +68,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
 
     this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
-        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
+        DateTimeZone.forID(properties.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
         : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
 
     this.validateLookbackWithDatePatternFormat(this.datePattern, this.lookbackTime);

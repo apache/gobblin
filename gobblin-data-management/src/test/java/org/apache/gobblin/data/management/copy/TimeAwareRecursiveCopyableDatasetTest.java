@@ -260,6 +260,44 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     }
   }
 
+  @Test
+  public void testTimezoneProperty() throws IOException {
+    // Test in UTC instead of default time
+    String datePattern = "yyyy/MM/dd/HH";
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    // Ensure that the files are created in UTC time
+    LocalDateTime endDate = LocalDateTime.now(DateTimeZone.forID("UTC"));
+
+    Set<String> candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_HOURLY_DIRS; i++) {
+      String startDate = endDate.minusHours(i).toString(formatter);
+      Path subDirPath = new Path(baseDir1, new Path(startDate));
+      fs.mkdirs(subDirPath);
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_HOURS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
+    }
+
+    //Lookback time = "4h"
+    Properties properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_HOURS_STR);
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd/HH");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_TIMEZONE_KEY, "UTC");
+
+    PathFilter pathFilter = new HiddenFilter();
+    TimeAwareRecursiveCopyableDataset dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir1, properties,
+        new Path("/tmp/src/*/hourly"));
+    List<FileStatus> fileStatusList = dataset.getFilesAtPath(fs, baseDir1, pathFilter);
+
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_HOURS + 1);
+
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
+  }
+
   @Test (expectedExceptions = IllegalArgumentException.class)
   public void testInstantiationError() {
     //Daily directories, but look back time has days and hours. We should expect an assertion error.
