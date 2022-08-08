@@ -52,6 +52,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private final String lookbackTime;
   private final String datePattern;
   private final Period lookbackPeriod;
+  private final DateTimeZone dateTimeZone;
   private final LocalDateTime currentTime;
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
@@ -66,11 +67,9 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
         .toFormatter();
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
-
-    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
-        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
-        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
-
+    this.dateTimeZone = DateTimeZone.forID(properties
+        .getProperty(DATE_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_PATTERN_TIMEZONE));
+    this.currentTime = LocalDateTime.now(this.dateTimeZone);
     this.validateLookbackWithDatePatternFormat(this.datePattern, this.lookbackTime);
   }
 
