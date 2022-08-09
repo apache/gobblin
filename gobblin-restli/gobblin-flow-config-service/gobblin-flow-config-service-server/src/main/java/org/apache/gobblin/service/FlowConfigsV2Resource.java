@@ -106,13 +106,11 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
+    // Check to see if the count and start parameters are user defined or default from the framework
     if (!pagingContext.hasCount() && !pagingContext.hasStart())
       return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
     else {
-      FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, null, null,
-          null, null, null, null, null, null,
-          null, null, null, pagingContext.getStart(), pagingContext.getCount(), true);
-      return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
+      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs(pagingContext.getStart(), pagingContext.getCount());
     }
   }
 
@@ -133,15 +131,16 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("owningGroup") String owningGroup,
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
     FlowSpecSearchObject flowSpecSearchObject;
+    // Check to see if the count and start parameters are user defined or default from the framework
     if (!context.hasCount() && !context.hasStart()){
       flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
           templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-          isRunImmediately, owningGroup, propertyFilter, -1, -1, null);
+          isRunImmediately, owningGroup, propertyFilter, -1, -1);
     }
     else {
       flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
           templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-          isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount(), null);
+          isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount());
     }
 
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);

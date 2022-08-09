@@ -59,7 +59,6 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   private final String propertyFilter;
   private final int start;
   private final int count;
-  private final Boolean getAll;
 
   public static FlowSpecSearchObject fromFlowId(FlowId flowId) {
     return FlowSpecSearchObject.builder().flowGroup(flowId.getFlowGroup()).flowName(flowId.getFlowName()).build();
@@ -147,10 +146,9 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       }
     }
 
-    if (conditions.size() == 0 && (this.getGetAll() == null || !this.getGetAll())) {
+    if (conditions.size() == 0 && limitAndOffset.size() == 0) {
       throw new IOException("At least one condition is required to query flow configs.");
     }
-
     return baseStatement + String.join(" AND ", conditions) + String.join(" ", limitAndOffset);
   }
 
@@ -203,9 +201,9 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       statement.setString(++i, this.getOwningGroup());
     }
 
-    if (this.getCount() != 0) {
+    if (this.getCount() != -1) {
       statement.setInt(++i, this.getCount());
-      if (this.getStart() != 0) {
+      if (this.getStart() != -1) {
         statement.setInt(++i, this.getStart());
       }
     }

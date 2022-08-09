@@ -113,6 +113,13 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   }
 
   /**
+   * Get all flow configs in between start and start + count - 1
+   */
+  public Collection<FlowConfig> getAllFlowConfigs(int start, int count) {
+    return flowCatalog.getAllSpecs(start, count).stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
+  }
+
+  /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {

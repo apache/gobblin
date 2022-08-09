@@ -269,7 +269,7 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods =  "testGetSpec")
   public void testGetAllSpecPaginate() throws Exception {
-    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(10).start(0).getAll(true).build();
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(10).start(0).build();
     Collection<Spec> specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));

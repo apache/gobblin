@@ -272,6 +272,25 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
+  public Collection<Spec> getSpecsImpl(int start, int count) throws IOException {
+    List<String> limitAndOffset = new ArrayList<>();
+    if (count > 0) {
+      limitAndOffset.add(" ORDER BY modified_time DESC LIMIT");
+      limitAndOffset.add(String.valueOf(count));
+      if (start > 0) {
+        limitAndOffset.add("OFFSET");
+        limitAndOffset.add(String.valueOf(start));
+      }
+    }
+    String finalizedStatement = this.sqlStatements.getAllStatement + String.join(" ", limitAndOffset);
+    return withPreparedStatement(finalizedStatement, statement -> {
+      log.info("GETSPECS CORRECTLY");
+      log.info(finalizedStatement);
+      return retrieveSpecs(statement);
+    });
+  }
+
+  @Override
   public Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsWithTagStatement, statement -> {
       statement.setString(1, tag);

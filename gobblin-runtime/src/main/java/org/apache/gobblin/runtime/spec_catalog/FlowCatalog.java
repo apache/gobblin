@@ -312,6 +312,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  public Collection<Spec> getAllSpecs(int start, int count) {
+    try {
+      return specStore.getSpecs(start, count);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve all specs from Spec stores", e);
+    }
+  }
+
   /**
    * A wrapper of getSpecs that handles {@link SpecNotFoundException} properly.
    * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
