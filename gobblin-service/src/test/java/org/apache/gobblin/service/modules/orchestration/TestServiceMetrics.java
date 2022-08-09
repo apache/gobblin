@@ -29,7 +29,7 @@ public class TestServiceMetrics {
   @Test
   public void matchesTest() {
 
-    MetricNameRegexFilter metricNameRegexForDagManager = DagManager.getMetricsFilterForDagManager();
+    MetricNameRegexFilter metricNameRegexForDagManager = DagManagerMetrics.getMetricsFilterForDagManager();
     Assert.assertTrue(metricNameRegexForDagManager.matches("GobblinService.testGroup.testFlow.RunningStatus", mock(Metric.class)));
     Assert.assertTrue(metricNameRegexForDagManager.matches("GobblinService.test..RunningStatus", mock(Metric.class)));
     Assert.assertFalse(metricNameRegexForDagManager.matches("test3.RunningStatus", mock(Metric.class)));
