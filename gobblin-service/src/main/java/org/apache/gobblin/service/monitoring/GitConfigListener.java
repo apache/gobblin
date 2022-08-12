@@ -38,6 +38,9 @@ import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
 
+/**
+ * Listener for {@link GitConfigMonitor} to apply changes in Git to a {@link FlowCatalog} for adding and removing jobs
+ */
 @Slf4j
 public class GitConfigListener implements GitDiffListener {
   private static final int CONFIG_FILE_DEPTH = 3;

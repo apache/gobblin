@@ -30,8 +30,10 @@ import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
 
+/**
+ * Listener for {@link GitFlowGraphMonitor} to apply changes from Git to a {@link FlowGraph}
+ */
 public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDiffListener {
-
 
   public GitFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String folderName, String javaPropsExtentions,

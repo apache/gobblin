@@ -20,6 +20,9 @@ package org.apache.gobblin.service.monitoring;
 import org.eclipse.jgit.diff.DiffEntry;
 
 
+/**
+ * Listener for {@link GitMonitoringService} to apply changes detected from Git.
+ */
 public interface GitDiffListener {
 
   void addChange(DiffEntry change);

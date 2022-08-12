@@ -70,6 +70,12 @@ import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 
+/**
+ * Base monitoring service that polls git and applies changes to each of its listeners
+ * Implementation classes should also define {@link GitDiffListener} to apply changes from git
+ * It is possible to have multiple listeners to the same repository, and each can apply their own changes, but
+ * determining if a change is made and their order is centrally controlled by processGitConfigChanges()
+ */
 @Slf4j
 public abstract class GitMonitoringService extends AbstractIdleService {
   private static final String REMOTE_NAME = "origin";
@@ -173,7 +179,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
 
   /** Start the service. */
   @Override
-  public void startUp() {
+  protected void startUp() {
     log.info("Starting the " + getClass().getSimpleName());
     log.info("Polling git with interval {} ", this.pollingInterval);
 

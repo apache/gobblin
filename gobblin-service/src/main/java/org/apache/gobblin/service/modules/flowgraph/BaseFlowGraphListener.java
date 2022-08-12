@@ -44,6 +44,11 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 
+/**
+ * Provides the common set of functionalities needed by listeners of {@link FlowGraphMonitor} to read changes in files and
+ * apply them to a {@link FlowGraph}
+ * Assumes that the directory structure between flowgraphs configuration files are the same.
+ */
 @Slf4j
 public abstract class BaseFlowGraphListener {
   protected FlowGraph flowGraph;
@@ -257,7 +262,7 @@ public abstract class BaseFlowGraphListener {
    * @param edgeFilePath path of the edge file
    * @return config with overridden edge properties
    */
-  protected Config getEdgeConfigWithOverrides(Config edgeConfig, Path edgeFilePath) {
+  private Config getEdgeConfigWithOverrides(Config edgeConfig, Path edgeFilePath) {
     String source = edgeFilePath.getParent().getParent().getName();
     String destination = edgeFilePath.getParent().getName();
     String edgeName = Files.getNameWithoutExtension(edgeFilePath.getName());
@@ -273,7 +278,7 @@ public abstract class BaseFlowGraphListener {
    * @param edgeConfig containing the logical names of SpecExecutors for this edge.
    * @return a {@link List<SpecExecutor>}s for this edge.
    */
-  protected List<SpecExecutor> getSpecExecutors(Config edgeConfig) throws URISyntaxException {
+  private List<SpecExecutor> getSpecExecutors(Config edgeConfig) throws URISyntaxException {
     //Get the logical names of SpecExecutors where the FlowEdge can be executed.
     List<String> specExecutorNames = ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
     //Load all the SpecExecutor configurations for this FlowEdge from the SpecExecutor Catalog.
@@ -292,7 +297,7 @@ public abstract class BaseFlowGraphListener {
    * @param edgeName simple name of the edge (e.g. file name without extension of the edge file)
    * @return a string label identifying the edge
    */
-  protected String getEdgeId(String source, String destination, String edgeName) {
+  private String getEdgeId(String source, String destination, String edgeName) {
     return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(source, destination, edgeName);
   }
 
