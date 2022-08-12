@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.monitoring;
 
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;

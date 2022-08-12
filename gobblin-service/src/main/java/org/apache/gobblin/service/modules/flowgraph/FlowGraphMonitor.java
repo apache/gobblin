@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.modules.flowgraph;
 
-import org.eclipse.jgit.diff.DiffEntry;
+import com.google.common.util.concurrent.Service;
 
 
-public interface GitDiffListener {
+public interface FlowGraphMonitor extends Service {
 
-  void addChange(DiffEntry change);
+  void setActive(boolean value);
 
-  void removeChange(DiffEntry change);
 }

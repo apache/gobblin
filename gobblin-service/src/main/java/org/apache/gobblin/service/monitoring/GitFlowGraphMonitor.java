@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.monitoring;
 
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;

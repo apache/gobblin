@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.monitoring;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 import java.io.ByteArrayInputStream;
