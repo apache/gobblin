@@ -1015,6 +1015,14 @@ public class ConfigurationKeys {
   public static final String DATASET_COMBINE_KEY = "gobblin.flow.dataset.combine";
   public static final String WHITELISTED_EDGE_IDS = "gobblin.flow.whitelistedEdgeIds";
   public static final String GOBBLIN_OUTPUT_JOB_LEVEL_METRICS = "gobblin.job.outputJobLevelMetrics";
+
+  /**
+   * Configuration properties related to flowGraphs
+   */
+
+  public static final String JAVA_PROPS_EXTENSIONS = "javaPropsExtensions";
+  public static final String HOCON_FILE_EXTENSIONS = "hoconFileExtensions";
+
   /***
    * Configuration properties related to TopologySpec Store
    */
