@@ -77,7 +77,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       + "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT_BASE = "SELECT spec_uri, spec FROM %s WHERE ";
-  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
+  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
@@ -284,8 +284,6 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     }
     String finalizedStatement = this.sqlStatements.getAllStatement + String.join(" ", limitAndOffset);
     return withPreparedStatement(finalizedStatement, statement -> {
-      log.info("GETSPECS CORRECTLY");
-      log.info(finalizedStatement);
       return retrieveSpecs(statement);
     });
   }

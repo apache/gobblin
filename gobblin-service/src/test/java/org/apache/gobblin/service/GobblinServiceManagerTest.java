@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -86,8 +87,12 @@ public class GobblinServiceManagerTest {
   private static final String TEST_GROUP_NAME = "testGroup";
   private static final String TEST_FLOW_NAME = "testFlow";
   private static final String TEST_FLOW_NAME2 = "testFlow2";
+  private static final String TEST_FLOW_NAME3 = "testFlow3";
+  private static final String TEST_FLOW_NAME4 = "testFlow4";
   private static final FlowId TEST_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
   private static final FlowId TEST_FLOW_ID2 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME2);
+  private static final FlowId TEST_FLOW_ID3 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME3);
+  private static final FlowId TEST_FLOW_ID4 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME4);
   private static final FlowId UNCOMPILABLE_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME)
       .setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW);
 
@@ -142,6 +147,10 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
     serviceCoreProperties.put(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, FLOW_SPEC_STORE_DIR);
+    serviceCoreProperties.put(FlowCatalog.FLOWSPEC_STORE_CLASS_KEY, "org.apache.gobblin.runtime.spec_store.MysqlSpecStore");
+    serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, "flow_spec_store");
+    serviceCoreProperties.put(FlowCatalog.FLOWSPEC_SERDE_CLASS_KEY, "org.apache.gobblin.runtime.spec_serde.GsonFlowSpecSerDe");
+
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY, TEST_GOBBLIN_EXECUTOR_NAME);
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
         "StandaloneTestExecutor");
@@ -394,6 +403,79 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
   }
 
+  @Test (dependsOnMethods = "testGetAll")
+  public void testGetAllPaginated() throws Exception {
+    // Order of the flows by descending modified_time should be testFlow4, testFlow3, testFlow2, testFlow
+
+    // Sleep the thread so the flowConfigs are added one after the after so has different modified_time field
+    Thread.sleep(2000);
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig2);
+    Thread.sleep(2000);
+
+    FlowConfig flowConfig3 = new FlowConfig().setId(TEST_FLOW_ID3)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig3);
+    Thread.sleep(2000);
+
+    FlowConfig flowConfig4 = new FlowConfig().setId(TEST_FLOW_ID4)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig4);
+    Thread.sleep(2000);
+
+    // Check that there are a total of 4 flowConfigs by using the default getAll call
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getAllFlowConfigs();
+    Assert.assertEquals(flowConfigs.size(), 4);
+
+    // Check that there are a total of 4 flowConfigs using new getAll call
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(0,20);
+    Assert.assertEquals(flowConfigs.size(), 4);
+
+    // Attempt pagination with one element from the start of the specStore configurations stored
+    // Start at index 0 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(0,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow4");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 1
+    // Start at index 1 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(1,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow3");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 2
+    // Start at index 2 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(2,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow2");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 3
+    // Start at index 2 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(3,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow");
+
+    // Attempt pagination with 20 element from the specStore configurations stored with offset of 1
+    // Start at index 1 and return 20 elements if there exists 20 elements.
+    // But only 4 total elements, return 3 elements since offset by 1
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(1,20);
+    Assert.assertEquals(flowConfigs.size(), 3);
+    List flowNameArray = new ArrayList();
+    List expectedResults = new ArrayList();
+    expectedResults.add("testFlow3");
+    expectedResults.add("testFlow2");
+    expectedResults.add("testFlow");
+
+    for (FlowConfig fc : flowConfigs) {
+      flowNameArray.add(fc.getId().getFlowName());
+    }
+    Assert.assertEquals(flowNameArray, expectedResults);
+  }
+
   @Test (dependsOnMethods = "testCreateAgain", enabled = false)
   public void testGetFilteredFlows() throws Exception {
     // Not implemented for FsSpecStore
@@ -410,6 +492,8 @@ null, null, null, null);
         TEST_SCHEDULE, null, null, null);
     Assert.assertEquals(flowConfigs.size(), 2);
   }
+
+//  @ Test (dependsOnMethods = "")
 
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {

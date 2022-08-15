@@ -132,6 +132,8 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
     FlowSpecSearchObject flowSpecSearchObject;
     // Check to see if the count and start parameters are user defined or default from the framework
+    // Start is the index of the first specStore configurations to return
+    // Count is the total number of specStore configurations to return
     if (!context.hasCount() && !context.hasStart()){
       flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
           templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,

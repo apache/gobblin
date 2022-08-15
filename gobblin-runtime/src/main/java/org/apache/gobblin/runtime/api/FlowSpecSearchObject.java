@@ -201,9 +201,9 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       statement.setString(++i, this.getOwningGroup());
     }
 
-    if (this.getCount() != -1) {
+    if (this.getCount() > 0) {
       statement.setInt(++i, this.getCount());
-      if (this.getStart() != -1) {
+      if (this.getStart() > 0) {
         statement.setInt(++i, this.getStart());
       }
     }

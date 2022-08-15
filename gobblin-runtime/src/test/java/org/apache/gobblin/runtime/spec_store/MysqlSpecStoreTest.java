@@ -245,21 +245,37 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods = "testGetSpec")
   public void testGetFilterSpecPaginate() throws Exception {
-    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(1).start(0).propertyFilter("filter.this.flow").build();
+    /**
+     * Sorted order of the specStore configurations is flowSpec1, flowSpec2.
+     * flowSpec3 is not included as it is a 'corrupted' flowspec
+     * flowSpec4 is not included as it doesn't have the 'filter.this.flow' property
+     * Start is the offset of the first configuration to return
+     * Count is the total number of configurations to return
+     * PropertyFilter is the property to filter by
+     */
+
+    // Start of 0 and count of 1 means start from index 0, and return one configuration only
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().start(0).count(1).propertyFilter("filter.this.flow").build();
     Collection<Spec> specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 1);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertFalse(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    flowSpecSearchObject = FlowSpecSearchObject.builder().count(1).start(1).propertyFilter("filter.this.flow").build();
+    // Start of 1 and count of 1 means start from index 1, and return one configuration only
+    flowSpecSearchObject = FlowSpecSearchObject.builder().start(1).count(1).propertyFilter("filter.this.flow").build();
     specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 1);
     Assert.assertFalse(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    flowSpecSearchObject = FlowSpecSearchObject.builder().count(5).start(0).propertyFilter("filter.this.flow").build();
+    /**
+     * Start of 0 and count of 5 means start from index 0, and return five configuration only
+     * Total of 3 flowSpecs in the DB, but flowSpec4 doesn't have 'filter.this.flow' filter so only returns 2 flowSpecs
+     * flowSpec1 and flowSpec2 match all the criteria
+     */
+    flowSpecSearchObject = FlowSpecSearchObject.builder().start(0).count(5).propertyFilter("filter.this.flow").build();
     specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
@@ -269,12 +285,39 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods =  "testGetSpec")
   public void testGetAllSpecPaginate() throws Exception {
-    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().count(10).start(0).build();
-    Collection<Spec> specs = this.specStore.getSpecs(flowSpecSearchObject);
+    /**
+     * Sorted order of the specStore configurations is flowSpec1, flowSpec2, flowSpec4
+     */
+    testAddSpec();
+    testGetSpec();
+    // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
+    Collection<Spec> specs = this.specStore.getSpecs(0,10);
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertTrue(specs.contains(this.flowSpec4));
+
+    // Return all flowSpecs using the default get all specs function. Testing default functionality of returning everything
+    specs = this.specStore.getSpecs();
+    Assert.assertEquals(specs.size(), 3);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertTrue(specs.contains(this.flowSpec4));
+
+    // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
+    specs = this.specStore.getSpecs(0,2);
+    Assert.assertEquals(specs.size(), 2);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec4));
+
+    // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
+    // Check that functionality for not including a start value is the same as including start value of 0
+    specs = this.specStore.getSpecs(-1, 2);
+    Assert.assertEquals(specs.size(), 2);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec4));
   }
 
   @Test (expectedExceptions = {IOException.class})
