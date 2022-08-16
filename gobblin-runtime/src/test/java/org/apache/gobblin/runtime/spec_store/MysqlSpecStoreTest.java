@@ -288,8 +288,6 @@ public class MysqlSpecStoreTest {
     /**
      * Sorted order of the specStore configurations is flowSpec1, flowSpec2, flowSpec4
      */
-    testAddSpec();
-    testGetSpec();
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
     Collection<Spec> specs = this.specStore.getSpecs(0,10);
     Assert.assertEquals(specs.size(), 3);
