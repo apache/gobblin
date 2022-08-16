@@ -190,7 +190,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
     }
 
     if (this.getSchedule() != null) {
-      statement.setString(++i, this.getModifiedTimestamp());
+      statement.setString(++i, this.getSchedule());
     }
 
     if (this.getIsRunImmediately() != null) {

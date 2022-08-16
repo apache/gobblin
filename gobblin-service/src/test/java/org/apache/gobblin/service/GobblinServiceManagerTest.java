@@ -408,24 +408,23 @@ public class GobblinServiceManagerTest {
     // Order of the flows by descending modified_time should be testFlow4, testFlow3, testFlow2, testFlow
 
     // Sleep the thread so the flowConfigs are added one after the after so has different modified_time field
-    Thread.sleep(2000);
-    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+    Thread.sleep(1000);
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2).setOwningGroup("Filter.this")
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
         .setProperties(new StringMap(flowProperties));
     this.flowConfigClient.createFlowConfig(flowConfig2);
-    Thread.sleep(2000);
+    Thread.sleep(1000);
 
-    FlowConfig flowConfig3 = new FlowConfig().setId(TEST_FLOW_ID3)
+    FlowConfig flowConfig3 = new FlowConfig().setId(TEST_FLOW_ID3).setOwningGroup("Keep.this")
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
         .setProperties(new StringMap(flowProperties));
     this.flowConfigClient.createFlowConfig(flowConfig3);
-    Thread.sleep(2000);
+    Thread.sleep(1000);
 
-    FlowConfig flowConfig4 = new FlowConfig().setId(TEST_FLOW_ID4)
+    FlowConfig flowConfig4 = new FlowConfig().setId(TEST_FLOW_ID4).setOwningGroup("Keep.this")
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
         .setProperties(new StringMap(flowProperties));
     this.flowConfigClient.createFlowConfig(flowConfig4);
-    Thread.sleep(2000);
 
     // Check that there are a total of 4 flowConfigs by using the default getAll call
     Collection<FlowConfig> flowConfigs = this.flowConfigClient.getAllFlowConfigs();
@@ -469,7 +468,6 @@ public class GobblinServiceManagerTest {
     expectedResults.add("testFlow3");
     expectedResults.add("testFlow2");
     expectedResults.add("testFlow");
-
     for (FlowConfig fc : flowConfigs) {
       flowNameArray.add(fc.getId().getFlowName());
     }
@@ -493,7 +491,42 @@ null, null, null, null);
     Assert.assertEquals(flowConfigs.size(), 2);
   }
 
-//  @ Test (dependsOnMethods = "")
+  @Test (dependsOnMethods = "testGetAllPaginated")
+  public void testGetFilteredFlowsPaginated() throws Exception {
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    // Start at index 0 and return 1 element
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 0, 1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow4");
+
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    // Start at index 1 and return 1 element
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 1, 1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow3");
+
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    // Start at index 0 and return 20 element if exists. In this case, only 2 items so return all two items
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 0, 20);
+    Assert.assertEquals(flowConfigs.size(), 2);
+
+    List flowNameArray = new ArrayList();
+    List expectedResults = new ArrayList();
+    expectedResults.add("testFlow4");
+    expectedResults.add("testFlow3");
+    for (FlowConfig fc : flowConfigs) {
+      flowNameArray.add(fc.getId().getFlowName());
+    }
+    Assert.assertEquals(flowNameArray, expectedResults);
+
+    // Clean up the flowConfigs added in for the pagination tests
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID3);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
+  }
 
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
