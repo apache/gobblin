@@ -43,4 +43,6 @@ public interface PathAlterationListener {
   void onDirectoryDelete(final Path directory);
 
   void onFileDelete(final Path path);
+
+  void onCheckDetectedChange();
 }

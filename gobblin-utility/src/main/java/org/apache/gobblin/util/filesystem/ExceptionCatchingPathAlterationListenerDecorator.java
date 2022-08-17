@@ -111,4 +111,13 @@ public class ExceptionCatchingPathAlterationListenerDecorator implements PathAlt
       log.error("onFileDelete failure: ", exc);
     }
   }
+
+  @Override
+  public void onCheckDetectedChange() {
+    try {
+      this.underlying.onCheckDetectedChange();
+    } catch (Throwable exc) {
+      log.error("onFileDelete failure: ", exc);
+    }
+  }
 }

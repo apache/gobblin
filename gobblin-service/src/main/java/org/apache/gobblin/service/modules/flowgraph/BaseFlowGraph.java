@@ -237,6 +237,24 @@ public class BaseFlowGraph implements FlowGraph {
     }
   }
 
+  @Override
+  public void copyGraph(FlowGraph graph) {
+    if (graph instanceof BaseFlowGraph) {
+      BaseFlowGraph baseFlowGraph = (BaseFlowGraph) graph;
+      try {
+        rwLock.writeLock().lock();
+        this.dataNodeAliasMap = baseFlowGraph.dataNodeAliasMap;
+        this.flowEdgeMap = baseFlowGraph.flowEdgeMap;
+        this.dataNodeMap = baseFlowGraph.dataNodeMap;
+        this.nodesToEdges = baseFlowGraph.nodesToEdges;
+      } finally {
+        rwLock.writeLock().unlock();
+      }
+    } else {
+      throw new UnsupportedOperationException("BaseFlowGraph can only clone other instances of BaseFlowGraph");
+    }
+  }
+
   /**{@inheritDoc}**/
   @Override
   public FlowGraphPath findPath(FlowSpec flowSpec) throws PathFinder.PathFinderException, ReflectiveOperationException {

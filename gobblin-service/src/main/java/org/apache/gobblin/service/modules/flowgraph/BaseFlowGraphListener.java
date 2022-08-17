@@ -95,7 +95,7 @@ public abstract class BaseFlowGraphListener {
    * to instantiate a {@link DataNode} from the node config file.
    * @param path of node to add
    */
-  protected void addDataNode(String path) {
+  protected void addDataNode(FlowGraph graph, String path) {
     if (checkFilePath(path, NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -103,7 +103,7 @@ public abstract class BaseFlowGraphListener {
         Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
-        if (!this.flowGraph.addDataNode(dataNode)) {
+        if (!graph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
         } else {
           log.info("Added Datanode {} to FlowGraph", dataNode.getId());
@@ -119,12 +119,12 @@ public abstract class BaseFlowGraphListener {
    * {@link DataNode} from the node config file and uses it to delete the associated {@link DataNode}.
    * @param path of node to delete
    */
-  protected void removeDataNode(String path) {
+  protected void removeDataNode(FlowGraph graph, String path) {
     if (checkFilePath(path, NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.baseDirectory, path);
       Config config = getNodeConfigWithOverrides(ConfigFactory.empty(), nodeFilePath);
       String nodeId = config.getString(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY);
-      if (!this.flowGraph.deleteDataNode(nodeId)) {
+      if (!graph.deleteDataNode(nodeId)) {
         log.warn("Could not remove DataNode {} from FlowGraph; skipping", nodeId);
       } else {
         log.info("Removed DataNode {} from FlowGraph", nodeId);
@@ -137,7 +137,7 @@ public abstract class BaseFlowGraphListener {
    * provided by the {@link FlowGraph} to build a {@link FlowEdge} from the edge config file.
    * @param path of edge to add
    */
-  protected void addFlowEdge(String path) {
+  protected void addFlowEdge(FlowGraph graph, String path) {
     if (checkFilePath(path, EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -148,7 +148,7 @@ public abstract class BaseFlowGraphListener {
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
         if (flowTemplateCatalog.isPresent()) {
           FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowTemplateCatalog.get(), specExecutors);
-          if (!this.flowGraph.addFlowEdge(edge)) {
+          if (!graph.addFlowEdge(edge)) {
             log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
           } else {
             log.info("Added edge {} to FlowGraph", edge.getId());
@@ -168,13 +168,13 @@ public abstract class BaseFlowGraphListener {
    * {@link FlowEdge}.
    * @param path of edge to delete
    */
-  protected void removeFlowEdge(String path) {
+  protected void removeFlowEdge(FlowGraph graph, String path) {
     if (checkFilePath(path, EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
         Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
         String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
-        if (!this.flowGraph.deleteFlowEdge(edgeId)) {
+        if (!graph.deleteFlowEdge(edgeId)) {
           log.warn("Could not remove edge {} from FlowGraph; skipping", edgeId);
         } else {
           log.info("Removed edge {} from FlowGraph", edgeId);
@@ -197,7 +197,7 @@ public abstract class BaseFlowGraphListener {
 
     Path filePath = new Path(file);
     String fileExtension = Files.getFileExtension(filePath.getName());
-    if (filePath.depth() != depth || !checkFileLevelRelativeToRoot(filePath, depth)
+    if (!checkFileLevelRelativeToRoot(filePath, depth)
         || !(this.javaPropsExtensions.contains(fileExtension) || this.hoconFileExtensions.contains(fileExtension))) {
       log.warn("Changed file does not conform to directory structure and file name format, skipping: "
           + filePath);
@@ -212,7 +212,7 @@ public abstract class BaseFlowGraphListener {
    * @param depth expected depth of the file
    * @return true if the file conforms to the expected hierarchy
    */
-  private boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
+  protected boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
     if (filePath == null) {
       return false;
     }

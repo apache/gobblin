@@ -85,6 +85,13 @@ public interface FlowGraph {
   public Collection<FlowEdge> getEdges(DataNode node);
 
   /**
+   * Atomically copies another flowgraph nodes and edges
+   * @param graph
+   * @throws UnsupportedOperationException
+   */
+  public void copyGraph(FlowGraph graph) throws UnsupportedOperationException;
+
+  /**
    * A method that takes a {@link FlowSpec} containing the source and destination {@link DataNode}s, as well as the
    * source and target {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}s, and returns a sequence
    * of fully resolved {@link org.apache.gobblin.runtime.api.JobSpec}s that will move the source dataset

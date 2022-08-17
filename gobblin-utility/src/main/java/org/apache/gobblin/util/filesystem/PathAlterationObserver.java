@@ -43,9 +43,9 @@ public class PathAlterationObserver {
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
   private final FileSystem fs;
-
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
 
+  private boolean changeApplied = false;
   /**
    * Final processing.
    */
@@ -163,13 +163,12 @@ public class PathAlterationObserver {
   /**
    * Check whether the file and its children have been created, modified or deleted.
    */
-  public void checkAndNotify()
+  public synchronized void checkAndNotify()
       throws IOException {
     /* fire onStart() */
     for (final PathAlterationListener listener : listeners.values()) {
       listener.onStart(this);
     }
-
     /* fire directory/file events */
     final Path rootPath = rootEntry.getPath();
 
@@ -187,6 +186,14 @@ public class PathAlterationObserver {
     for (final PathAlterationListener listener : listeners.values()) {
       listener.onStop(this);
     }
+
+    if (this.changeApplied) {
+      for (final PathAlterationListener listener : listeners.values()) {
+        // Fire onCheckDetectedChange to notify when one check contains any number of changes
+        listener.onCheckDetectedChange();
+      }
+    }
+    this.changeApplied = false;
   }
 
   /**
@@ -265,8 +272,8 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-  private void doCreate(final FileStatusEntry entry) {
-
+  protected void doCreate(final FileStatusEntry entry) {
+    this.changeApplied = true;
     for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryCreate(entry.getPath());
@@ -289,6 +296,7 @@ public class PathAlterationObserver {
   private void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
     if (entry.refresh(path)) {
+      this.changeApplied = true;
       for (final PathAlterationListener listener : listeners.values()) {
         if (entry.isDirectory()) {
           listener.onDirectoryChange(path);
@@ -304,8 +312,9 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-  private void doDelete(final FileStatusEntry entry) {
-    for (final PathAlterationListener listener : listeners.values()) {
+   private void doDelete(final FileStatusEntry entry) {
+     this.changeApplied = true;
+     for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryDelete(entry.getPath());
       } else {

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.monitoring;
+package org.apache.gobblin.service.modules.flowgraph;
 
 import java.net.URI;
 import java.util.Map;
@@ -26,11 +26,10 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphListener;
-import org.apache.gobblin.service.modules.flowgraph.DataNode;
-import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
-import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+
+import org.apache.gobblin.service.monitoring.GitDiffListener;
+import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 
 
 /**
@@ -54,9 +53,9 @@ public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDi
   public void addChange(DiffEntry change) {
     Path path = new Path(change.getNewPath());
     if (path.depth() == NODE_FILE_DEPTH) {
-      addDataNode(change.getNewPath());
+      addDataNode(this.flowGraph, change.getNewPath());
     } else if (path.depth() == EDGE_FILE_DEPTH) {
-      addFlowEdge(change.getNewPath());
+      addFlowEdge(this.flowGraph, change.getNewPath());
     }
   }
 
@@ -69,9 +68,9 @@ public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDi
   public void removeChange(DiffEntry change) {
     Path path = new Path(change.getOldPath());
     if (path.depth() == NODE_FILE_DEPTH) {
-      removeDataNode(change.getOldPath());
+      removeDataNode(this.flowGraph, change.getOldPath());
     } else if (path.depth() == EDGE_FILE_DEPTH) {
-      removeFlowEdge(change.getOldPath());
+      removeFlowEdge(this.flowGraph, change.getOldPath());
     }
   }
 }
