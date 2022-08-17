@@ -275,7 +275,8 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   public Collection<Spec> getSpecsImpl(int start, int count) throws IOException {
     List<String> limitAndOffset = new ArrayList<>();
     if (count > 0) {
-      limitAndOffset.add(" ORDER BY modified_time DESC, spec_uri LIMIT");
+      // Order by two fields to make a full order by
+      limitAndOffset.add(" ORDER BY modified_time DESC, spec_uri ASC LIMIT");
       limitAndOffset.add(String.valueOf(count));
       if (start > 0) {
         limitAndOffset.add("OFFSET");
