@@ -39,7 +39,7 @@ import org.eclipse.jgit.diff.DiffEntry;
 
 
 /**
- * Listener for {@link GitConfigMonitor} to apply changes in Git to a {@link FlowCatalog} for adding and removing jobs
+ * Listener for {@link GitConfigMonitor} to apply changes from Git to a {@link FlowCatalog} for adding and removing jobs
  */
 @Slf4j
 public class GitConfigListener implements GitDiffListener {

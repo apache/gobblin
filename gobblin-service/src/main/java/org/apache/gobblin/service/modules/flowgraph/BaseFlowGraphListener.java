@@ -223,29 +223,6 @@ public abstract class BaseFlowGraphListener {
   }
 
   /**
-   * Load the node file.
-   * @param filePath path of the node file relative to the repository root
-   * @return the configuration object
-   * @throws IOException
-   */
-  protected Config loadNodeFileWithOverrides(Path filePath) throws IOException {
-    Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
-    return getNodeConfigWithOverrides(nodeConfig, filePath);
-  }
-
-
-  /**
-   * Load the edge file.
-   * @param filePath path of the edge file relative to the repository root
-   * @return the configuration object
-   * @throws IOException
-   */
-  protected Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
-    Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
-    return getEdgeConfigWithOverrides(edgeConfig, filePath);
-  }
-
-  /**
    * Helper that overrides the data.node.id property with name derived from the node file path
    * @param nodeConfig node config
    * @param nodeFilePath path of the node file
@@ -288,6 +265,29 @@ public abstract class BaseFlowGraphListener {
       specExecutors.add(this.topologySpecMap.get(specExecutorUri).getSpecExecutor());
     }
     return specExecutors;
+  }
+
+  /**
+   * Load the node file.
+   * @param filePath path of the node file relative to the repository root
+   * @return the configuration object
+   * @throws IOException
+   */
+  protected Config loadNodeFileWithOverrides(Path filePath) throws IOException {
+    Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
+    return getNodeConfigWithOverrides(nodeConfig, filePath);
+  }
+
+
+  /**
+   * Load the edge file.
+   * @param filePath path of the edge file relative to the repository root
+   * @return the configuration object
+   * @throws IOException
+   */
+  protected Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
+    Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
+    return getEdgeConfigWithOverrides(edgeConfig, filePath);
   }
 
   /**

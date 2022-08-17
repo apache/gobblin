@@ -20,8 +20,15 @@ package org.apache.gobblin.service.modules.flowgraph;
 import com.google.common.util.concurrent.Service;
 
 
+/**
+ * A service that listens to an external service or filesystem (Git, FS) to apply changes to the flowgraph without having to restart GaaS
+ */
 public interface FlowGraphMonitor extends Service {
 
+  /**
+   * Indicates that the service is ready to load the flowgraph
+   * @param value whether GaaS is ready
+   */
   void setActive(boolean value);
 
 }
