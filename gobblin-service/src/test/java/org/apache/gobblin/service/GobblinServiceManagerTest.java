@@ -525,7 +525,7 @@ null, null, null, null);
     // Clean up the flowConfigs added in for the pagination tests
     this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
     this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID3);
-    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID4);
   }
 
   @Test (dependsOnMethods = "testGet")

@@ -120,7 +120,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
     }
 
     if (this.getCount() > 0) {
-      limitAndOffset.add(" ORDER BY modified_time DESC LIMIT ?");
+      limitAndOffset.add(" ORDER BY modified_time DESC, spec_uri LIMIT ?");
       if (this.getStart() > 0) {
         limitAndOffset.add(" OFFSET ?");
       }
