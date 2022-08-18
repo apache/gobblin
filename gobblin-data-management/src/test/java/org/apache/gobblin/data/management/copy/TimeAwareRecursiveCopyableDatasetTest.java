@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -173,6 +174,10 @@ public class TimeAwareRecursiveCopyableDatasetTest {
         candidateFiles.add(filePath.toString());
       }
     }
+    // Edge case: test that files that do not match dateformat but within the folders searched by the timeaware finder is ignored
+    File f = new File(baseDir2.toString() + "/metadata.test");
+
+    f.createNewFile();
 
     properties = new Properties();
     properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_DAYS_STR);

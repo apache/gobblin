@@ -209,7 +209,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
     } catch (IOException e) {
-      log.info(String.format("Could not find any files on target path due to %s. Returning an empty list of files.", e.getClass().getCanonicalName()));
+      log.warn(String.format("Could not find any files on fs %s path %s due to the following exception. Returning an empty list of files.", fs.getUri(), path), e);
       return Lists.newArrayList();
     }
   }
