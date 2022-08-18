@@ -138,8 +138,13 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
-    Iterator<FileStatus> folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
-
+    Iterator<FileStatus> folderIterator;
+    try {
+      folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
+    } catch (IOException e) {
+      log.warn(String.format("Error while listing paths at %s due to ", path), e);
+      return fileStatuses;
+    }
     // Check if at the lowest level/granularity of the date folder
     if (this.datePattern.split(FileSystems.getDefault().getSeparator()).length == level) {
       // Truncate the start date to the most granular unit of time in the datepattern
