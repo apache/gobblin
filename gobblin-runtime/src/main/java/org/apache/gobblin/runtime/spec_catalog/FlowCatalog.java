@@ -313,6 +313,23 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   /**
+   * A function to get all specs in the {@link SpecStore} between the provided start index and (start + count - 1) index, inclusive.
+   * This enables pagination so getting SpecStore object will not timeout, and can be tuned to how many results is desired at any one time.
+   * The {@link Spec} in {@link SpecStore} are sorted in descending order of the modified_time while paginating.
+   *
+   * @param start The start index.
+   * @param count The total number of records to get.
+   * @return A collection of specs between start and start + count - 1, inclusive.
+   */
+  public Collection<Spec> getAllSpecs(int start, int count) {
+    try {
+      return specStore.getSpecs(start, count);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve specs from Spec stores between " + start + " and " + (start + count - 1), e);
+    }
+  }
+
+  /**
    * A wrapper of getSpecs that handles {@link SpecNotFoundException} properly.
    * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
    * need to implement specific catch-block logic.

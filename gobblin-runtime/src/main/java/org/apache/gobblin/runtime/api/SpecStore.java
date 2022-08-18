@@ -116,6 +116,12 @@ public interface SpecStore {
    */
   Collection<Spec> getSpecs() throws IOException;
 
+  /***
+   * Get all {@link Spec}s from the {@link SpecStore} with pagination input.
+   * @throws IOException Exception in retrieving {@link Spec}s.
+   */
+  Collection<Spec> getSpecs(int start, int count) throws IOException;
+
   /**
    * Return an iterator of Spec URIs(Spec identifiers)
    */

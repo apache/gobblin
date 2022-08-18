@@ -99,6 +99,11 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
     return this.localHandler.getAllFlowConfigs();
   }
 
+  @Override
+  public Collection<FlowConfig> getAllFlowConfigs(int start, int count) {
+    return this.localHandler.getAllFlowConfigs(start, count);
+  }
+
   /**
    * Adding {@link FlowConfig} should check if current node is active (master).
    * If current node is active, call {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)} directly.
