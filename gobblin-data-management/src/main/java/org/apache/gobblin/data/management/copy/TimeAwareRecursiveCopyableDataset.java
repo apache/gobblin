@@ -137,13 +137,13 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
-    if (!fs.exists(path)) {
-      return fileStatuses;
-    }
     Iterator<FileStatus> folderIterator;
     try {
+      if (!fs.exists(path)) {
+        return fileStatuses;
+      }
       folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
-    } catch (IOException e) {
+    } catch (Exception e) {
       log.warn(String.format("Error while listing paths at %s due to ", path), e);
       return fileStatuses;
     }
