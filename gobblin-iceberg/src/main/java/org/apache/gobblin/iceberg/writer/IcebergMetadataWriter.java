@@ -871,7 +871,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         log.info("There's no transaction initiated for the table {}", tid.toString());
       }
     } catch (RuntimeException e) {
-      throw new RuntimeException(String.format("Fail to flush table %s %s", dbName, tableName), e);
+      throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
     } catch (Exception e) {
       throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
     } finally {
