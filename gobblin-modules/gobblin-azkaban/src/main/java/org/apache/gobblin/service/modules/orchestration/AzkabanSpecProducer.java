@@ -55,7 +55,7 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
 
       _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (IOException | EncoderException e) {
-      if (this._attempted == Boolean.FALSE) {
+      if (this._attempted.equals(Boolean.FALSE)) {
         this._attempted = Boolean.TRUE;
         if (log.isPresent()) {
           log.get().error("Could not authenticate with Azkaban due to: {}", e.toString());
