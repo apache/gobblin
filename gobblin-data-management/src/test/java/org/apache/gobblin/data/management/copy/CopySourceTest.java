@@ -16,6 +16,8 @@
  */
 
 package org.apache.gobblin.data.management.copy;
+import com.google.common.base.Optional;
+import com.google.common.collect.SetMultimap;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -28,6 +30,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
@@ -337,6 +342,41 @@ public class CopySourceTest {
 
     for (int i = 0; i < 3; i++) {
       Assert.assertEquals(datasetPaths.contains(tempDirRoot + "/targetPath/testDB/table" + i), true);
+    }
+  }
+
+  @Test (expectedExceptions = RuntimeException.class)
+  public void testGetWorkUnitsExecutionFastFailure() {
+
+    SourceState state = new SourceState();
+
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
+    state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
+    state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY,
+        TestCopyablePartitionableDatasedFinder.class.getCanonicalName());
+    state.setProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, MockedFileSetWorkUnitGenerator.class.getName());
+    state.setProp(ConfigurationKeys.WORK_UNIT_FAST_FAIL_ENABLED, true);
+
+    CopySource source = new CopySource();
+
+    List<WorkUnit> workunits = source.getWorkunits(state);
+    Assert.assertNull(workunits);
+  }
+
+  class MockedFileSetWorkUnitGenerator extends CopySource.FileSetWorkUnitGenerator {
+
+    public MockedFileSetWorkUnitGenerator(CopyableDatasetBase copyableDataset, FileSet<CopyEntity> fileSet, State state,
+        FileSystem targetFs, SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList,
+        Optional<CopyableFileWatermarkGenerator> watermarkGenerator, long minWorkUnitWeight,
+        Optional<LineageInfo> lineageInfo) {
+      super(copyableDataset, fileSet, state, targetFs, workUnitList, watermarkGenerator, minWorkUnitWeight,
+          lineageInfo);
+    }
+
+    @Override
+    public Void call(){
+      return null;
     }
   }
 }
