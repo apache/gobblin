@@ -43,6 +43,7 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   // Session Id for GaaS User
   private String _sessionId;
   private Config _config;
+  private Boolean _attempted = Boolean.FALSE;
 
   public AzkabanSpecProducer(Config config, Optional<Logger> log) {
     this._config = config;
@@ -54,7 +55,15 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
 
       _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (IOException | EncoderException e) {
-      throw new RuntimeException("Could not authenticate with Azkaban", e);
+      if (this._attempted == Boolean.FALSE) {
+        this._attempted = Boolean.TRUE;
+        if (log.isPresent()) {
+          log.get().error("Could not authenticate with Azkaban due to: {}", e.toString());
+        }
+      }
+      else {
+        throw new RuntimeException("Could not authenticate with Azkaban", e);
+      }
     }
   }
 
