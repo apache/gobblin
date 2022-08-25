@@ -183,6 +183,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     // todo: should we check quota here?
     return new AddSpecResponse<>(response);
   }
+
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof FlowSpec) {
