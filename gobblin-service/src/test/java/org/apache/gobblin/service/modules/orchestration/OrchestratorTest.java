@@ -119,7 +119,6 @@ public class OrchestratorTest {
         Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
-
     // Start application
     this.serviceLauncher.start();
     // Create Spec to play with
@@ -152,6 +151,32 @@ public class OrchestratorTest {
   }
 
   private FlowSpec initFlowSpec() {
+    Properties properties = new Properties();
+    String flowName = "test_flowName";
+    String flowGroup = "test_flowGroup";
+    properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
+    properties.put("job.name", flowName);
+    properties.put("job.group", flowGroup);
+    properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
+    properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put("job.schedule", "0 0 0 ? * * 2050");
+    ;
+    properties.put("gobblin.flow.sourceIdentifier", "source");
+    properties.put("gobblin.flow.destinationIdentifier", "destination");
+    Config config = ConfigUtils.propertiesToConfig(properties);
+
+    FlowSpec.Builder flowSpecBuilder = null;
+    flowSpecBuilder = FlowSpec.builder(computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
+            FLOW_SPEC_GROUP_DIR))
+        .withConfig(config)
+        .withDescription(SPEC_DESCRIPTION)
+        .withVersion(SPEC_VERSION)
+        .withTemplate(URI.create("templateURI"));
+    return flowSpecBuilder.build();
+  }
+
+  private FlowSpec initBadFlowSpec() {
     Properties properties = new Properties();
     properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", "source:destination");
@@ -245,6 +270,9 @@ public class OrchestratorTest {
     // Make sure FlowCatalog Listener is empty
     Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should not know about "
         + "any Flow before addition");
+    // Make sure we cannot add flow to specCatalog it flowSpec cannot compile
+    Assert.expectThrows(Exception.class,() -> this.flowCatalog.put(initBadFlowSpec()));
+    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after adding bad flow spec");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);

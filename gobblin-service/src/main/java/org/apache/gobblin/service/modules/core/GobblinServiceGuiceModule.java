@@ -72,7 +72,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
@@ -135,6 +135,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
         .to(serviceConfig.isFlowCatalogLocalCommit());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
+        .to(serviceConfig.isWarmStandbyEnabled());
 
     binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
     binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);

@@ -111,7 +111,7 @@ public class GobblinServiceJobSchedulerTest {
 
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(quotaManager), null);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(quotaManager), null, false);
 
     SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
@@ -197,7 +197,7 @@ public class GobblinServiceJobSchedulerTest {
 
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), null);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), null, false);
 
     SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
@@ -260,7 +260,7 @@ public class GobblinServiceJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), schedulerService );
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), schedulerService, false);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -328,9 +328,9 @@ public class GobblinServiceJobSchedulerTest {
     when(mockSpecCompiler.compileFlow(flowSpec1)).thenReturn(mockDag1);
 
     SchedulerService schedulerService = new SchedulerService(new Properties());
-    // Mock a GaaS scheduler.
+    // Mock a GaaS scheduler not in warm standby mode
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new UserQuotaManager(quotaConfig)), Optional.absent());
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new UserQuotaManager(quotaConfig)), Optional.absent(), false);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -345,6 +345,22 @@ public class GobblinServiceJobSchedulerTest {
     // set scheduler to be inactive and unschedule flows
     scheduler.setActive(false);
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
+
+    //Mock a GaaS scheduler in warm standby mode, where we don't check quota
+    GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new UserQuotaManager(quotaConfig)), Optional.absent(), true);
+
+    schedulerWithWarmStandbyEnabled.startUp();
+    schedulerWithWarmStandbyEnabled.setActive(true);
+
+    schedulerWithWarmStandbyEnabled.onAddSpec(flowSpec0); //Ignore the response for this request
+    Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 1);
+    schedulerWithWarmStandbyEnabled.onAddSpec(flowSpec1);
+    // Second flow should be added to scheduled flows since no quota check in this case
+    Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 2);
+    // set scheduler to be inactive and unschedule flows
+    schedulerWithWarmStandbyEnabled.setActive(false);
+    Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 0);
   }
 
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
@@ -353,8 +369,8 @@ public class GobblinServiceJobSchedulerTest {
 
     public TestGobblinServiceJobScheduler(String serviceName, Config config,
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
-        SchedulerService schedulerService) throws Exception {
-      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent());
+        SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
+      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent(), isWarmStandbyEnabled);
       if (schedulerService != null) {
         hasScheduler = true;
       }

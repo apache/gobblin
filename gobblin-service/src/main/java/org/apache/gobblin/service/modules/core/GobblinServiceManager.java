@@ -393,7 +393,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     registerServicesInLauncher();
 
     // Register Scheduler to listen to changes in Flows
-    if (configuration.isSchedulerEnabled()) {
+    // In warm standby mode, instead of scheduler we will add orchestrator as listener
+    if (configuration.isSchedulerEnabled() && !configuration.isWarmStandbyEnabled()) {
       this.flowCatalog.addListener(this.scheduler);
     }
   }
@@ -479,6 +480,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     //Activate the SpecCompiler, after the topologyCatalog has been initialized.
     this.orchestrator.getSpecCompiler().setActive(true);
+    if(configuration.isWarmStandbyEnabled()) {
+      this.flowCatalog.addListener(this.orchestrator);
+    }
 
     //Activate the DagManager service, after the topologyCatalog has been initialized.
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){

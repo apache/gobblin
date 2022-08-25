@@ -95,7 +95,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       //This is an Explain request. So no resource is actually created.
       //Enrich original FlowConfig entity by adding the compiledFlow to the properties map.
       StringMap props = flowConfig.getProperties();
-      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
+      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_RESPONSE, null);
       props.put("gobblin.flow.compiled",
           addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);

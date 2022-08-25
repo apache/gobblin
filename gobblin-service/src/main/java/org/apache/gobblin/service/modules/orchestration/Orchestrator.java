@@ -169,6 +169,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
+    } else if (addedSpec instanceof FlowSpec) {
+      _log.info("New Spec detected of type FlowSpec: " + addedSpec);
+      return this.specCompiler.onAddSpec(addedSpec);
     }
     return new AddSpecResponse(null);
   }
@@ -183,6 +186,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
     if (topologyCatalog.isPresent()) {
+      //todo: de-risk: flow spec and topology spec share same uri?
       this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
     }
   }
@@ -191,6 +195,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
     _log.info("Spec changed: " + updatedSpec);
+    if (updatedSpec instanceof FlowSpec) {
+      onAddSpec(updatedSpec);
+    }
 
     if (!(updatedSpec instanceof TopologySpec)) {
       return;
