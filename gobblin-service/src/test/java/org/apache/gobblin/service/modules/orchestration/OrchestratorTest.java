@@ -103,14 +103,10 @@ public class OrchestratorTest {
         Optional.of(logger));
     this.serviceLauncher.addService(topologyCatalog);
 
+    // Test warm standby flow catalog, which has orchestrator as listener
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties),
-        Optional.of(logger));
+        Optional.of(logger), Optional.<MetricContext>absent(), true, true);
 
-    this.mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
-
-    this.flowCatalog.addListener(mockListener);
     this.serviceLauncher.addService(flowCatalog);
     this.mockStatusGenerator = mock(FlowStatusGenerator.class);
 
