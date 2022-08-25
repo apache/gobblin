@@ -177,6 +177,7 @@ public class OrchestratorTest {
   }
 
   private FlowSpec initBadFlowSpec() {
+    // Bad Flow Spec as we don't set the job name,  and will fail the compilation
     Properties properties = new Properties();
     properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", "source:destination");
