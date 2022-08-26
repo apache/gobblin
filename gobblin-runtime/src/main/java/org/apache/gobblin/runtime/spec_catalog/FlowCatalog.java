@@ -402,7 +402,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         try {
           if (!flowSpec.isExplain()) {
             long startTime = System.currentTimeMillis();
-            System.out.println("here");
             specStore.addSpec(spec);
             metrics.updatePutSpecTime(startTime);
           }
