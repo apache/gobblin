@@ -431,7 +431,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
+        taskDriver.stop(workflowId);
         LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
         //Wait until the cancelled job is complete.
         waitForJobCompletion(deleteJobArrival.getJobName());

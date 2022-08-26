@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -26,9 +32,20 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import lombok.Getter;
 import org.apache.avro.Schema;
 import org.apache.curator.test.TestingServer;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.FsDatasetStateStore;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,27 +61,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
-import lombok.Getter;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.FsDatasetStateStore;
-import org.apache.gobblin.runtime.JobContext;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.listeners.AbstractJobListener;
-import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -175,7 +171,7 @@ public class GobblinHelixJobLauncherTest {
     this.thread.start();
   }
 
-  private Properties generateJobProperties(Config baseConfig, String jobNameSuffix, String jobIdSuffix) {
+  static public Properties generateJobProperties(Config baseConfig, String jobNameSuffix, String jobIdSuffix) {
     Properties properties = ConfigUtils.configToProperties(baseConfig);
 
     String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY) + jobNameSuffix;
@@ -188,7 +184,7 @@ public class GobblinHelixJobLauncherTest {
 
     // expiry time should be more than the time needed for the job to complete
     // otherwise JobContext will become null. This is how Helix work flow works.
-    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "5");
+    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "15");
 
     return properties;
   }
