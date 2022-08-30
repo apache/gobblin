@@ -17,24 +17,14 @@
 
 package org.apache.gobblin.cluster;
 
-import com.google.common.base.Optional;
-import com.google.common.eventbus.EventBus;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
-import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
-import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -49,11 +39,25 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+import com.google.common.eventbus.EventBus;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
+import org.apache.gobblin.scheduler.SchedulerService;
+
+
 /**
  * Unit tests for {@link org.apache.gobblin.cluster.GobblinHelixJobScheduler}.
  *
  */
-@Test(groups = { "gobblin.cluster" })
+@Test(groups = {"gobblin.cluster"})
 public class GobblinHelixJobSchedulerTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinHelixJobSchedulerTest.class);
 
@@ -71,12 +75,13 @@ public class GobblinHelixJobSchedulerTest {
   private final String workflowIdSuffix2 = "_1504201348472";
 
   @BeforeClass
-  public void setUp() throws Exception {
+  public void setUp()
+      throws Exception {
     TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
-    URL url = GobblinHelixJobLauncherTest.class.getClassLoader().getResource(
-        GobblinHelixJobLauncherTest.class.getSimpleName() + ".conf");
+    URL url = GobblinHelixJobLauncherTest.class.getClassLoader()
+        .getResource(GobblinHelixJobLauncherTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.appWorkDir = new Path(GobblinHelixJobLauncherTest.class.getSimpleName());
@@ -85,13 +90,11 @@ public class GobblinHelixJobSchedulerTest {
     File sourceJsonFile = new File(this.appWorkDir.toString(), TestHelper.TEST_JOB_NAME + ".json");
     TestHelper.createSourceJsonFile(sourceJsonFile);
 
-    baseConfig = ConfigFactory.parseURL(url)
-        .withValue("gobblin.cluster.zk.connection.string",
-            ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+    baseConfig = ConfigFactory.parseURL(url).withValue("gobblin.cluster.zk.connection.string",
+        ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
             ConfigValueFactory.fromAnyRef(sourceJsonFile.getAbsolutePath()))
-        .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true"))
-        .resolve();
+        .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true")).resolve();
 
     String zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
@@ -127,31 +130,35 @@ public class GobblinHelixJobSchedulerTest {
   }
 
   @Test
-  public void testNewJobAndUpdate() throws Exception {
+  public void testNewJobAndUpdate()
+      throws Exception {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
         ConfigValueFactory.fromAnyRef("/tmp/" + GobblinHelixJobScheduler.class.getSimpleName()));
     SchedulerService schedulerService = new SchedulerService(new Properties());
     NonObservingFSJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
     jobCatalog.startAsync();
-    GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), this.helixManager, java.util.Optional
-        .empty(), new EventBus(),
-        appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
+    GobblinHelixJobScheduler jobScheduler =
+        new GobblinHelixJobScheduler(ConfigFactory.empty(), this.helixManager, java.util.Optional.empty(),
+            new EventBus(), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
 
-    final Properties properties1 = GobblinHelixJobLauncherTest.generateJobProperties(this.baseConfig, "1", workflowIdSuffix1);
+    final Properties properties1 =
+        GobblinHelixJobLauncherTest.generateJobProperties(this.baseConfig, "1", workflowIdSuffix1);
     properties1.setProperty(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
 
-    NewJobConfigArrivalEvent newJobConfigArrivalEvent = new NewJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1);
+    NewJobConfigArrivalEvent newJobConfigArrivalEvent =
+        new NewJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1);
     jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-    properties1.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_" + properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY) + workflowIdSuffix2);
+    properties1.setProperty(ConfigurationKeys.JOB_ID_KEY,
+        "job_" + properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY) + workflowIdSuffix2);
     Map<String, String> workflowIdMap;
     this.helixManager.connect();
 
     String workFlowId = null;
-    long endTime= System.currentTimeMillis() + 15000;
+    long endTime = System.currentTimeMillis() + 15000;
     while (System.currentTimeMillis() < endTime) {
       workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(this.helixManager,
           Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
-      if(workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
+      if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
         workFlowId = workflowIdMap.get(newJobConfigArrivalEvent.getJobName());
         break;
       }
@@ -160,24 +167,25 @@ public class GobblinHelixJobSchedulerTest {
     Assert.assertNotNull(workFlowId);
     Assert.assertTrue(workFlowId.endsWith(workflowIdSuffix1));
 
-    jobScheduler.handleUpdateJobConfigArrival(new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
+    jobScheduler.handleUpdateJobConfigArrival(
+        new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
     this.helixManager.connect();
-    endTime= System.currentTimeMillis() + 15000;
+    endTime = System.currentTimeMillis() + 15000;
     while (System.currentTimeMillis() < endTime) {
       workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(this.helixManager,
           Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
-      if(workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
+      if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
         workFlowId = workflowIdMap.get(newJobConfigArrivalEvent.getJobName());
         break;
       }
       Thread.sleep(100);
     }
     Assert.assertTrue(workFlowId.endsWith(workflowIdSuffix2));
-
   }
 
   @AfterClass
-  public void tearDown() throws IOException {
+  public void tearDown()
+      throws IOException {
     try {
       this.gobblinTaskRunner.stop();
       this.thread.join();
