@@ -17,32 +17,31 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
-
 
 /**
  * Service that monitors for changes to {@link org.apache.gobblin.service.modules.flowgraph.FlowGraph} from a git repository.
@@ -120,15 +119,19 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
     }
 
     List<DiffEntry> changes = this.gitRepo.getChanges();
-    Collections.sort(changes, (o1, o2) -> {
-      Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
-      Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
-      return o1Depth.compareTo(o2Depth);
-    });
+    Collections.sort(changes, new GitFlowgraphComparator());
     processGitConfigChangesHelper(changes);
     //Decrements the latch count. The countdown latch is initialized to 1. So after the first time the latch is decremented,
     // the following operation should be a no-op.
     this.initComplete.countDown();
+  }
+
+  class GitFlowgraphComparator implements Comparator<DiffEntry> {
+    public int compare(DiffEntry o1, DiffEntry o2) {
+      Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
+      Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
+      return o1Depth.compareTo(o2Depth);
+    }
   }
 
 }

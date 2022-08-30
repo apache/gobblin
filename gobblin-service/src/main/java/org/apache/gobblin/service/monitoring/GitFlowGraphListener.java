@@ -17,17 +17,20 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.base.Optional;
 import java.net.URI;
 import java.util.Map;
+
+import org.eclipse.jgit.diff.DiffEntry;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphListener;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
-import org.apache.hadoop.fs.Path;
-import org.eclipse.jgit.diff.DiffEntry;
 
 
 /**

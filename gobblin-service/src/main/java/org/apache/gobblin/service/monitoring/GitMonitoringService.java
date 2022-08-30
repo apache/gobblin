@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.util.concurrent.AbstractIdleService;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -50,6 +49,7 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.util.FS;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
