@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Comparator;
@@ -126,7 +127,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
     this.initComplete.countDown();
   }
 
-  class GitFlowgraphComparator implements Comparator<DiffEntry> {
+  static class GitFlowgraphComparator implements Comparator<DiffEntry>, Serializable {
     public int compare(DiffEntry o1, DiffEntry o2) {
       Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
       Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
