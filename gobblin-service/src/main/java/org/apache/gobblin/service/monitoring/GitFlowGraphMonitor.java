@@ -20,7 +20,6 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -120,7 +119,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
     }
 
     List<DiffEntry> changes = this.gitRepo.getChanges();
-    Collections.sort(changes, new GitFlowgraphComparator());
+    changes.sort(new GitFlowgraphComparator());
     processGitConfigChangesHelper(changes);
     //Decrements the latch count. The countdown latch is initialized to 1. So after the first time the latch is decremented,
     // the following operation should be a no-op.
