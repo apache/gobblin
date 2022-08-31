@@ -96,6 +96,9 @@ public class HiveMetadataWriter implements MetadataWriter {
   /* Mapping from tableIdentifier to a cache, key'ed by a list of partitions with value as HiveSpec object. */
   private final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
 
+  // Used to store the relationship between table and the gmce topicPartition
+  private final HashMap<String, String> tableTopicPartitionMap;
+
   /* Mapping from tableIdentifier to latest schema observed. */
   private final HashMap<String, String> latestSchemaMap;
   private final long timeOutSeconds;
@@ -116,6 +119,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.latestSchemaMap = new HashMap<>();
+    this.tableTopicPartitionMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
     if (!state.contains(HiveRegister.HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY)) {
@@ -169,7 +173,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
-      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
+      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec, String gmceTopicPartition) throws IOException {
     String dbName = tableSpec.getTable().getDbName();
     String tableName = tableSpec.getTable().getTableName();
     String tableKey = tableNameJoiner.join(dbName, tableName);
@@ -184,6 +188,8 @@ public class HiveMetadataWriter implements MetadataWriter {
       latestSchemaMap.put(tableKey,
           existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     }
+
+    tableTopicPartitionMap.put(tableKey, gmceTopicPartition);
 
     //Calculate the topic name from gmce, fall back to topic.name in hive spec which can also be null
     //todo: make topicName fall back to topic.name in hive spec so that we can also get schema for re-write operation
@@ -366,7 +372,7 @@ public class HiveMetadataWriter implements MetadataWriter {
         (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
     if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
       try {
-        write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
+        write(gmce, newSpecsMap, oldSpecsMap, tableSpec, recordEnvelope.getWatermark().getSource());
       } catch (IOException e) {
         throw new HiveMetadataWriterWithPartitionInfoException(getPartitionValues(newSpecsMap), getPartitionValues(oldSpecsMap), e);
       }
@@ -397,6 +403,11 @@ public class HiveMetadataWriter implements MetadataWriter {
     gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_VALUES_KEY, Joiner.on(',').join(partitionValues));
     gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_PARTITION_OPERATION_KEY, operation.name());
     gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_HDFS_PATH, hiveSpec.getPath().toString());
+
+    String gmceTopicPartition = tableTopicPartitionMap.get(tableNameJoiner.join(dbName, tableName));
+    if (gmceTopicPartition != null) {
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_EVENT_GMCE_TOPIC_NAME, gmceTopicPartition.split("-")[0]);
+    }
 
     return gobblinTrackingEvent;
   }
