@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import org.apache.commons.codec.EncoderException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -43,26 +42,17 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   // Session Id for GaaS User
   private String _sessionId;
   private Config _config;
-  private Boolean _attempted = Boolean.FALSE;
 
   public AzkabanSpecProducer(Config config, Optional<Logger> log) {
     this._config = config;
     try {
-      // Initialize Azkaban client / producer and cache credentials
-      String azkabanUsername = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
-      String azkabanPassword = getAzkabanPassword(_config);
-      String azkabanServerUrl = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
-
-      _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
-    } catch (IOException | EncoderException e) {
-      if (this._attempted.equals(Boolean.FALSE)) {
-        this._attempted = Boolean.TRUE;
-        if (log.isPresent()) {
-          log.get().error("Could not authenticate with Azkaban due to: {}", e.toString());
-        }
-      }
-      else {
-        throw new RuntimeException("Could not authenticate with Azkaban", e);
+      attemptAzkabanAuthentication();
+    }
+    catch (RuntimeException e) {
+      // Allow Azkaban authentication errors on start up, but just log the error so GaaS can still start
+      _sessionId = null;
+      if (log.isPresent()) {
+        log.get().error("Could not authenticate with Azkaban due to: {}".format(e.toString()));
       }
     }
   }
@@ -93,6 +83,18 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
   public Future<?> addSpec(Spec addedSpec) {
     // If project already exists, execute it
     try {
+      // If encountered Azkaban authentication issue on start up, attempt authentication again.
+      // If still fails, only fail this specific flow
+      if (_sessionId == null) {
+        try {
+          attemptAzkabanAuthentication();
+        }
+        catch (RuntimeException e) {
+          throw new RuntimeException(("Could not authenticate with Azkaban for: {} due to {} ".format(
+              String.valueOf(addedSpec), e)));
+        }
+      }
+
       AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig((JobSpec) addedSpec);
       boolean azkabanProjectExists = AzkabanJobHelper.isAzkabanJobPresent(_sessionId, azkabanProjectConfig);
 
@@ -190,5 +192,18 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
 
     // Change schedule
     AzkabanJobHelper.changeJobSchedule(sessionId, azkabanProjectId, azkabanProjectConfig);
+  }
+
+  private void attemptAzkabanAuthentication() throws RuntimeException {
+    try {
+      // Initialize Azkaban client / producer and cache credentials
+      String azkabanUsername = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
+      String azkabanPassword = getAzkabanPassword(this._config);
+      String azkabanServerUrl = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
+
+      _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
