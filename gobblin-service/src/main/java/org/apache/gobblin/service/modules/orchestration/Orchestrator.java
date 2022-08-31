@@ -75,7 +75,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * Orchestrator that is a {@link SpecCatalogListener}. It listens to changes
- * to {@link TopologyCatalog} and updates {@link SpecCompiler} state.
+ * to {@link TopologyCatalog} and updates {@link SpecCompiler} state
+ * Also it listens to {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} and use the compiler to compile the new flow spec.
  */
 @Alpha
 @Singleton
@@ -186,7 +187,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
     if (topologyCatalog.isPresent()) {
-      //todo: de-risk: flow spec and topology spec share same uri?
       this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
     }
   }

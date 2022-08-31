@@ -162,7 +162,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
   private  AddSpecResponse onAddFlowSpec(FlowSpec flowSpec) {
     Properties flowSpecProperties = flowSpec.getConfigAsProperties();
-    if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && org.apache.commons.lang.StringUtils.isNotBlank(
+    if (topologySpecMap.containsKey(flowSpec.getUri())) {
+      log.error("flow spec uir: {} is the same as one of the spec executors uris, ignore the flow", flowSpec.getUri());
+      flowSpec.getCompilationErrors().add(new FlowSpec.CompilationError(0, "invalid flow spec uri " + flowSpec.getUri() + " because it is the same as one of the spec executors uri"));
+      return null;
+    }
+    if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils.isNotBlank(
         flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
       try {
         new CronExpression(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
