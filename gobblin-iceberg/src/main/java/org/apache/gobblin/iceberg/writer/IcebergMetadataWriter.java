@@ -1082,7 +1082,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
           write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
           tableCurrentWatermarkMap.put(tid, currentOffset);
         } else {
-          log.warn(String.format("Skip processing record %s since it has lower watermark", genericRecord.toString()));
+          log.warn(String.format("Skip processing record for table: %s.%s, GMCE offset: %d, GMCE partition: %s since it has lower watermark",
+              dbName, tableName, currentOffset, topicPartition));
         }
       } else {
         log.info(String.format("Skip table %s.%s since it's not selected", tableSpec.getTable().getDbName(),

@@ -47,6 +47,7 @@ public class MetadataWriterKeys {
   public static final String FAILED_TO_DROP_PARTITION_VALUES_KEY = "failedToDropPartitionValues";
   public static final String PARTITION_KEYS = "partitionKeys";
   public static final String HIVE_PARTITION_OPERATION_KEY = "hivePartitionOperation";
+  public static final String HIVE_EVENT_GMCE_TOPIC_NAME = "kafkaTopic";
 
   private MetadataWriterKeys() {
   }
