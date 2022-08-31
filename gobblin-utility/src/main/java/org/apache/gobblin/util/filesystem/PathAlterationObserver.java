@@ -161,7 +161,7 @@ public class PathAlterationObserver {
   }
 
   /**
-   * Check whether the file and its chlidren have been created, modified or deleted.
+   * Check whether the file and its children have been created, modified or deleted.
    */
   public void checkAndNotify()
       throws IOException {

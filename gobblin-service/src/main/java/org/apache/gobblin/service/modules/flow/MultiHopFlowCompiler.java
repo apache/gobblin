@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
@@ -59,7 +60,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
+import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
@@ -87,7 +88,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Getter
   private CountDownLatch initComplete = new CountDownLatch(1);
 
-  private GitFlowGraphMonitor gitFlowGraphMonitor;
+  private FlowGraphMonitor flowGraphMonitor;
 
   private ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
@@ -148,8 +149,14 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       throw new RuntimeException(e);
     }
 
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowTemplateCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
-    this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor, flowTemplateCatalog.get()));
+    try {
+      String flowGraphMonitorClassName = ConfigUtils.getString(this.config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY, GitFlowGraphMonitor.class.getCanonicalName());
+      this.flowGraphMonitor = (FlowGraphMonitor) ConstructorUtils.invokeConstructor(Class.forName(new ClassAliasResolver<>(FlowGraphMonitor.class).resolve(
+        flowGraphMonitorClassName)), gitFlowGraphConfig, flowTemplateCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+    this.serviceManager = new ServiceManager(Lists.newArrayList(this.flowGraphMonitor, flowTemplateCatalog.get()));
     addShutdownHook();
     //Start the git flow graph monitor
     try {
@@ -175,8 +182,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Override
   public void setActive(boolean active) {
     super.setActive(active);
-    if (this.gitFlowGraphMonitor != null) {
-      this.gitFlowGraphMonitor.setActive(active);
+    if (this.flowGraphMonitor != null) {
+      this.flowGraphMonitor.setActive(active);
     }
   }
 

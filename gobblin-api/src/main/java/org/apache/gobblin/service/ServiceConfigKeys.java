@@ -47,6 +47,7 @@ public class ServiceConfigKeys {
   public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
   public static final String HELIX_INSTANCE_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helixInstanceName";
   public static final String GOBBLIN_SERVICE_FLOWSPEC = GOBBLIN_SERVICE_PREFIX + "flowSpec";
+  public static final String GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraph.class";
 
   // Helix message sub types for FlowSpec
   public static final String HELIX_FLOWSPEC_ADD = "FLOWSPEC_ADD";
