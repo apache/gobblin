@@ -75,7 +75,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * Orchestrator that is a {@link SpecCatalogListener}. It listens to changes
- * to {@link TopologyCatalog} and updates {@link SpecCompiler} state.
+ * to {@link TopologyCatalog} and updates {@link SpecCompiler} state
+ * Also it listens to {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} and use the compiler to compile the new flow spec.
  */
 @Alpha
 @Singleton
@@ -169,6 +170,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
+    } else if (addedSpec instanceof FlowSpec) {
+      _log.info("New Spec detected of type FlowSpec: " + addedSpec);
+      return this.specCompiler.onAddSpec(addedSpec);
     }
     return new AddSpecResponse(null);
   }
@@ -191,6 +195,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
     _log.info("Spec changed: " + updatedSpec);
+    if (updatedSpec instanceof FlowSpec) {
+      onAddSpec(updatedSpec);
+    }
 
     if (!(updatedSpec instanceof TopologySpec)) {
       return;

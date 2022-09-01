@@ -133,7 +133,8 @@ public class FlowSpec implements Configurable, Spec {
   public static class CompilationError {
     public int errorPriority;
     public String errorMessage;
-    CompilationError(Config config, String src, String dst, String errorMessage) {
+
+    public CompilationError(Config config, String src, String dst, String errorMessage) {
       errorPriority = 0;
       if (!src.equals(ConfigUtils.getString(config, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))){
         errorPriority++;
@@ -144,7 +145,13 @@ public class FlowSpec implements Configurable, Spec {
       }
       this.errorMessage = errorMessage;
     }
+
+    public CompilationError(int errorPriority, String errorMessage) {
+      this.errorPriority = errorPriority;
+      this.errorMessage = errorMessage;
+    }
   }
+
 
   public String toShortString() {
     return getUri().toString() + "/" + getVersion();

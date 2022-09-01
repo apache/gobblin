@@ -41,6 +41,9 @@ public class GobblinServiceConfiguration {
   private final String serviceId;
 
   @Getter
+  private final boolean isWarmStandbyEnabled;
+
+  @Getter
   private final boolean isTopologyCatalogEnabled;
 
   @Getter
@@ -102,6 +105,8 @@ public class GobblinServiceConfiguration {
       flowCatalogLocalCommit = false;
       isGitConfigMonitorEnabled = false;
     }
+
+    this.isWarmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
 
     this.isHelixManagerEnabled = config.hasPath(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY);
     this.isDagManagerEnabled =

@@ -28,7 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +87,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
+  protected final boolean isWarmStandbyEnabled;
   @Getter
   protected final SpecStore specStore;
   // a map which keeps a handle of condition variables for each spec being added to the flow catalog
@@ -98,17 +101,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public FlowCatalog(Config config, Optional<Logger> log) {
-    this(config, log, Optional.<MetricContext>absent(), true);
+    this(config, log, Optional.<MetricContext>absent(), true, false);
   }
 
   @Inject
-  public FlowCatalog(Config config, GobblinInstanceEnvironment env) {
+  public FlowCatalog(Config config, GobblinInstanceEnvironment env, @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled) {
     this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
-        env.isInstrumentationEnabled());
+        env.isInstrumentationEnabled(), isWarmStandbyEnabled);
   }
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext,
-      boolean instrumentationEnabled) {
+      boolean instrumentationEnabled, boolean isWarmStandbyEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new SpecCatalogListenersList(log);
     if (instrumentationEnabled) {
@@ -121,6 +124,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.metricContext = null;
       this.metrics = null;
     }
+    this.isWarmStandbyEnabled = isWarmStandbyEnabled;
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
 
@@ -383,10 +387,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         return responseMap;
       }
     }
-    AddSpecResponse<String> schedulerResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
+    AddSpecResponse<String> compileResponse;
+    if (isWarmStandbyEnabled) {
+      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS, new AddSpecResponse<>(null));
+      //todo: do we check quota here? or in compiler? Quota manager need dag to check quota which is not accessable from this class
+    } else {
+      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
+    }
+    responseMap.put(ServiceConfigKeys.COMPILATION_RESPONSE, compileResponse);
 
     // Check that the flow configuration is valid and matches to a corresponding edge
-    if (isCompileSuccessful(schedulerResponse.getValue())) {
+    if (isCompileSuccessful(compileResponse.getValue())) {
       synchronized (syncObject) {
         try {
           if (!flowSpec.isExplain()) {
