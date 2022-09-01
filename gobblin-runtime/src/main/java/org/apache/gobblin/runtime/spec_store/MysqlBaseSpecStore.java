@@ -75,6 +75,9 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) "
       + "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
+  // Keep previous syntax that update only update spec and spec_json
+  //todo: do we need change this behavior so that everything can be updated
+  protected static final String UPDATE_STATEMENT = "UPDATE %s SET spec=?,spec_json=? WHERE spec_uri=? AND UNIX_TIMESTAMP(modified_time) < ?";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT_BASE = "SELECT spec_uri, spec FROM %s WHERE ";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
@@ -91,6 +94,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
    * between statements, collect them within this inner class that enables selective, per-statement override, and delivers them as a unit.
    */
   protected class SqlStatements {
+    public final String updateStatement = String.format(getTablelessUpdateStatement(), MysqlBaseSpecStore.this.tableName);
     public final String existsStatement = String.format(getTablelessExistsStatement(), MysqlBaseSpecStore.this.tableName);
     public final String insertStatement = String.format(getTablelessInsertStatement(), MysqlBaseSpecStore.this.tableName);
     public final String deleteStatement = String.format(getTablelessDeleteStatement(), MysqlBaseSpecStore.this.tableName);
@@ -115,6 +119,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     }
 
     protected String getTablelessExistsStatement() { return MysqlBaseSpecStore.EXISTS_STATEMENT; }
+    protected String getTablelessUpdateStatement() { return MysqlBaseSpecStore.UPDATE_STATEMENT; }
     protected String getTablelessInsertStatement() { return MysqlBaseSpecStore.INSERT_STATEMENT; }
     protected String getTablelessDeleteStatement() { return MysqlBaseSpecStore.DELETE_STATEMENT; }
     protected String getTablelessGetStatementBase() { return MysqlBaseSpecStore.GET_STATEMENT_BASE; }

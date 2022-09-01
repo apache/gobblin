@@ -79,6 +79,16 @@ public interface SpecStore {
   Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException;
 
   /***
+   * Update {@link Spec} in the {@link SpecStore} when current version is smaller than {@link version}.
+   * @param spec {@link Spec} to be updated.
+   * @param version largest version that current spec should be
+   * @throws IOException Exception in updating the {@link Spec}.
+   * @return Updated {@link Spec}.
+   * @throws SpecNotFoundException If {@link Spec} being updated is not present in store.
+   */
+  default Spec updateSpec(Spec spec, long version) throws IOException, SpecNotFoundException {return updateSpec(spec);};
+
+  /***
    * Retrieve the latest version of the {@link Spec} by URI from the {@link SpecStore}.
    * @param specUri URI for the {@link Spec} to be retrieved.
    * @throws IOException Exception in retrieving the {@link Spec}.

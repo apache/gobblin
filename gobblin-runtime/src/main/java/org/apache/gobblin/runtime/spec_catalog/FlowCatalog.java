@@ -364,6 +364,64 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
   public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
+    Map<String, AddSpecResponse> responseMap = updateHelper(spec, triggerListener);
+    AddSpecResponse<String> compileResponse = responseMap.get(ServiceConfigKeys.COMPILATION_RESPONSE);
+    // Check that the flow configuration is valid and matches to a corresponding edge
+    if (isCompileSuccessful(compileResponse.getValue())) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      Object syncObject = getSyncObject(flowSpec.getUri().toString());
+      synchronized (syncObject) {
+        try {
+          if (!flowSpec.isExplain()) {
+            long startTime = System.currentTimeMillis();
+            specStore.addSpec(spec);
+            metrics.updatePutSpecTime(startTime);
+          }
+          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+        } finally {
+          syncObject.notifyAll();
+          this.specSyncObjects.remove(flowSpec.getUri().toString());
+        }
+      }
+    } else {
+      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
+    }
+
+    return responseMap;
+  }
+
+  public Map<String, AddSpecResponse> update(Spec spec, boolean triggerListener, long version) throws Throwable {
+    Map<String, AddSpecResponse> responseMap = updateHelper(spec, triggerListener);
+    AddSpecResponse<String> compileResponse = responseMap.get(ServiceConfigKeys.COMPILATION_RESPONSE);
+    // Check that the flow configuration is valid and matches to a corresponding edge
+    if (isCompileSuccessful(compileResponse.getValue())) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      Object syncObject = getSyncObject(flowSpec.getUri().toString());
+      synchronized (syncObject) {
+        try {
+          if (!flowSpec.isExplain()) {
+            long startTime = System.currentTimeMillis();
+            specStore.updateSpec(spec, version);
+            metrics.updatePutSpecTime(startTime);
+          }
+          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+        } finally {
+          syncObject.notifyAll();
+          this.specSyncObjects.remove(flowSpec.getUri().toString());
+        }
+      }
+    } else {
+      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
+    }
+
+    return responseMap;
+  }
+
+  private Map<String, AddSpecResponse> updateHelper(Spec spec, boolean triggerListener) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -395,28 +453,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
     }
     responseMap.put(ServiceConfigKeys.COMPILATION_RESPONSE, compileResponse);
-
-    // Check that the flow configuration is valid and matches to a corresponding edge
-    if (isCompileSuccessful(compileResponse.getValue())) {
-      synchronized (syncObject) {
-        try {
-          if (!flowSpec.isExplain()) {
-            long startTime = System.currentTimeMillis();
-            specStore.addSpec(spec);
-            metrics.updatePutSpecTime(startTime);
-          }
-          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
-        } catch (IOException e) {
-          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
-        } finally {
-          syncObject.notifyAll();
-          this.specSyncObjects.remove(flowSpec.getUri().toString());
-        }
-      }
-    } else {
-      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
-    }
-
     return responseMap;
   }
 
