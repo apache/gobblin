@@ -19,25 +19,26 @@ package org.apache.gobblin.service.modules.restli;
 
 import com.google.common.base.Optional;
 import com.linkedin.data.transform.DataProcessingException;
+import com.linkedin.restli.common.ComplexResourceKey;
+import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.util.PatchApplier;
-import java.io.IOException;
 import java.util.Properties;
 import javax.inject.Inject;
 import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
 import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.helix.HelixManager;
 
 @Slf4j
@@ -54,21 +55,12 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
   @Override
   public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header)
       throws FlowConfigLoggedException {
-    String flowName = flowId.getFlowName();
-    String flowGroup = flowId.getFlowGroup();
-
-
-    try {
-        return this.localHandler.deleteFlowConfig(flowId, header);
-    } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "Cannot delete flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
-    }
+    return this.localHandler.deleteFlowConfig(flowId, header);
   }
 
   @Override
-  public UpdateResponse partialUpdateFlowConfig(FlowId flowId,
-      PatchRequest<FlowConfig> flowConfig) throws FlowConfigLoggedException {
+  public UpdateResponse  partialUpdateFlowConfig(FlowId flowId,
+      PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
     long version = System.currentTimeMillis() / 1000;
     FlowConfig flowConfig = getFlowConfig(flowId);
 
@@ -79,20 +71,17 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
     }
 
     return updateFlowConfig(flowId, flowConfig, version);
-   //todo: consider contention
-    return null;
   }
 
   @Override
-  public updateFlowConfig(FlowId flowId,
+  public UpdateResponse updateFlowConfig(FlowId flowId,
       FlowConfig flowConfig) throws FlowConfigLoggedException {
     // We have version here to avoid update config happens at the same time on different hosts overwrite each other
     long version = System.currentTimeMillis() / 1000;
-    updateFlowConfig(flowId, flowConfig, version);
+    return updateFlowConfig(flowId, flowConfig, version);
   }
   public UpdateResponse updateFlowConfig(FlowId flowId,
       FlowConfig flowConfig, long version) throws FlowConfigLoggedException {
-   //todo: do we need to have version to avoid update config happens at the same time and overwrite each other?
     String flowName = flowId.getFlowName();
     String flowGroup = flowId.getFlowGroup();
 
@@ -101,17 +90,11 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
           "flowName and flowGroup cannot be changed in update", null);
     }
 
-    try {
       // We directly call localHandler to create flow config and put it in spec store
 
       //Instead of helix message, forwarding message is done by change stream of spec store
 
       return this.localHandler.updateFlowConfig(flowId, flowConfig, true, version);
-
-    } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "Cannot update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
-    }
   }
   /**
    * Adding {@link FlowConfig} call {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)} directly.
@@ -121,29 +104,23 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
   @Override
   public CreateResponse createFlowConfig(FlowConfig flowConfig)
       throws FlowConfigLoggedException {
-    return null;
-    String flowName = flowConfig.getId().getFlowName();
-    String flowGroup = flowConfig.getId().getFlowGroup();
 
     if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
           String.format("%s cannot be set by the user", ConfigurationKeys.FLOW_EXECUTION_ID_KEY), null);
     }
 
-    try {
-      CreateResponse response = null;
-      // We directly call localHandler to create flow config and put it in spec store
-      response = this.localHandler.createFlowConfig(flowConfig, true);
 
-      //Instead of helix message, forwarding message is done by change stream of spec store
+    CreateResponse response = null;
+    // We directly call localHandler to create flow config and put it in spec store
+    response = this.localHandler.createFlowConfig(flowConfig, true);
 
-      // Do actual work on remote node, directly return success
+    //Instead of helix message, forwarding message is done by change stream of spec store
 
-      return response == null ? new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()),
-          HttpStatus.S_201_CREATED) : response;
-    } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
-          "Cannot create flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
-    }
+    // Do actual work on remote node, directly return success
+
+    return response == null ? new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()),
+        HttpStatus.S_201_CREATED) : response;
+
   }
 }
