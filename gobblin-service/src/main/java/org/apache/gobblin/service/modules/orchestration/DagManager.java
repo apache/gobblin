@@ -350,16 +350,9 @@ public class DagManager extends AbstractIdleService {
 
        this.dagManagerMetrics.activate();
 
-        UserQuotaManager quotaManager = new UserQuotaManager(config);
-        // Before initializing the DagManagerThreads check which dags are currently running before shutdown
-        for (Dag<JobExecutionPlan> dag: dagStateStore.getDags()) {
-          for (DagNode<JobExecutionPlan> dagNode: dag.getNodes()) {
-            if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
-              // Add all the currently running Dags to the quota limit per user
-              quotaManager.checkQuota(dagNode, true);
-            }
-          }
-        }
+        UserQuotaManager quotaManager = new InMemoryUserQuotaManager(config);
+        quotaManager.init(dagStateStore.getDags());
+
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
         this.dagManagerThreads = new DagManagerThread[numThreads];
         for (int i = 0; i < numThreads; i++) {
@@ -911,7 +904,7 @@ public class DagManager extends AbstractIdleService {
       // Run this spec on selected executor
       SpecProducer<Spec> producer;
       try {
-        quotaManager.checkQuota(dagNode, false);
+        quotaManager.checkQuota(dagNode);
         producer = DagManagerUtils.getSpecProducer(dagNode);
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;

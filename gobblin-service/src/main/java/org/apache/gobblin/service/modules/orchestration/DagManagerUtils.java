@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -345,6 +346,10 @@ public class DagManagerUtils {
   }
 
   static List<String> getDistinctUniqueRequesters(String serializedRequesters) {
+    if (serializedRequesters == null) {
+      return Collections.emptyList();
+    }
+
     List<String> uniqueRequesters;
     try {
       uniqueRequesters = RequesterService.deserialize(serializedRequesters)

@@ -28,8 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+
+import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jgit.api.Git;
@@ -179,7 +180,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
-    serviceCoreProperties.put(UserQuotaManager.PER_USER_QUOTA, "testUser:1");
+    serviceCoreProperties.put(AbstractUserQuotaManager.PER_USER_QUOTA, "testUser:1");
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
 
     // Create a bare repository

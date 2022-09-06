@@ -35,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
@@ -336,8 +335,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       if (quotaManager.isPresent()) {
         // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
         try {
-          quotaManager.get().checkQuota(dag.getNodes().get(0), false);
-        } catch (QuotaExceededException e) {
+          quotaManager.get().checkQuota(dag.getNodes().get(0));
+        } catch (IOException e) {
           throw new RuntimeException(e);
         }
       }
