@@ -47,6 +47,8 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
+import org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
@@ -76,7 +78,7 @@ public class GobblinServiceJobSchedulerTest {
   private Config quotaConfig;
   @BeforeClass
   public void setUp() {
-    this.quotaConfig = ConfigFactory.empty().withValue(UserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1"));
+    this.quotaConfig = ConfigFactory.empty().withValue(AbstractUserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1"));
   }
   /**
    * Test whenever JobScheduler is calling setActive, the FlowSpec is loading into scheduledFlowSpecs (eventually)
@@ -107,7 +109,7 @@ public class GobblinServiceJobSchedulerTest {
     Assert.assertEquals(flowCatalog.getSpecs().size(), 2);
 
     Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
-    UserQuotaManager quotaManager = new UserQuotaManager(quotaConfig);
+    UserQuotaManager quotaManager = new InMemoryUserQuotaManager(quotaConfig);
 
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
@@ -197,7 +199,7 @@ public class GobblinServiceJobSchedulerTest {
 
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), null, false);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), null, false);
 
     SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
@@ -260,7 +262,7 @@ public class GobblinServiceJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new UserQuotaManager(quotaConfig)), schedulerService, false);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), schedulerService, false);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -330,7 +332,7 @@ public class GobblinServiceJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler not in warm standby mode
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new UserQuotaManager(quotaConfig)), Optional.absent(), false);
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -348,7 +350,7 @@ public class GobblinServiceJobSchedulerTest {
 
     //Mock a GaaS scheduler in warm standby mode, where we don't check quota
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new UserQuotaManager(quotaConfig)), Optional.absent(), true);
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true);
 
     schedulerWithWarmStandbyEnabled.startUp();
     schedulerWithWarmStandbyEnabled.setActive(true);

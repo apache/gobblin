@@ -200,7 +200,9 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
       OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);
-      binder.bind(UserQuotaManager.class);
+      binder.bind(UserQuotaManager.class)
+          .to(getClassByNameOrAlias(UserQuotaManager.class, serviceConfig.getInnerConfig(),
+              ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER));
     }
 
     if (serviceConfig.isGitConfigMonitorEnabled()) {

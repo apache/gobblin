@@ -29,16 +29,16 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
-public class UserQuotaManagerTest {
+public class InMemoryUserQuotaManagerTest {
 
-  UserQuotaManager _quotaManager;
+  InMemoryUserQuotaManager _quotaManager;
 
   @BeforeClass
   public void setUp() {
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1,user6:1"))
-        .withValue(UserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1,group2:2"));
-    this._quotaManager = new UserQuotaManager(quotaConfig);
+        .withValue(AbstractUserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1,user2:1,user3:1,user6:1"))
+        .withValue(AbstractUserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1,group2:2"));
+    this._quotaManager = new InMemoryUserQuotaManager(quotaConfig);
   }
 
   // Tests that if exceeding the quota on startup, do not throw an exception and do not decrement the counter
@@ -49,9 +49,8 @@ public class UserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), true);
     // Should not be throwing the exception
-    this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), true);
+    this._quotaManager.init(dags);
   }
 
   @Test
@@ -62,9 +61,9 @@ public class UserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), false);
+      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0));
     });
   }
 
@@ -77,7 +76,7 @@ public class UserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
     Assert.assertTrue(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
     Assert.assertFalse(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
   }
@@ -92,9 +91,9 @@ public class UserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0), false);
+    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0), false);
+      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0));
     });
   }
 
@@ -116,20 +115,20 @@ public class UserQuotaManagerTest {
     dag3.getNodes().get(0).getValue().setCurrentAttempts(1);
     dag4.getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dag1.getNodes().get(0), false);
-    this._quotaManager.checkQuota(dag2.getNodes().get(0), false);
+    this._quotaManager.checkQuota(dag1.getNodes().get(0));
+    this._quotaManager.checkQuota(dag2.getNodes().get(0));
 
     // Should fail due to user quota
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dag3.getNodes().get(0), false);
+      this._quotaManager.checkQuota(dag3.getNodes().get(0));
     });
     // Should fail due to flowgroup quota
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dag4.getNodes().get(0), false);
+      this._quotaManager.checkQuota(dag4.getNodes().get(0));
     });
     // should pass due to quota being released
     this._quotaManager.releaseQuota(dag2.getNodes().get(0));
-    this._quotaManager.checkQuota(dag3.getNodes().get(0), false);
-    this._quotaManager.checkQuota(dag4.getNodes().get(0), false);
+    this._quotaManager.checkQuota(dag3.getNodes().get(0));
+    this._quotaManager.checkQuota(dag4.getNodes().get(0));
   }
 }

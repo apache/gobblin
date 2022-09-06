@@ -99,8 +99,8 @@ public class DagManagerTest {
     this.resumeQueue = new LinkedBlockingQueue<>();
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     Config quotaConfig = ConfigFactory.empty()
-        .withValue(UserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
-    this._gobblinServiceQuotaManager = new UserQuotaManager(quotaConfig);
+        .withValue(AbstractUserQuotaManager.PER_USER_QUOTA, ConfigValueFactory.fromAnyRef("user:1"));
+    this._gobblinServiceQuotaManager = new InMemoryUserQuotaManager(quotaConfig);
     this._dagManagerMetrics = new DagManagerMetrics(metricContext);
     this._dagManagerMetrics.activate();
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
