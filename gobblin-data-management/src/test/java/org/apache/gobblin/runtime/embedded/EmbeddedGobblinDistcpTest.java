@@ -153,6 +153,42 @@ public class EmbeddedGobblinDistcpTest {
     fs.exists(new Path(TARGET_PATH));
   }
 
+  @Test(enabled = false)
+  public void icebergTest() throws Exception {
+    Statement statement = jdbcConnector.getConnection().createStatement();
+
+    // Start from a fresh Hive backup: No DB, no table.
+    // Create a DB.
+    statement.execute("CREATE database if not exists " + TEST_DB);
+
+    // Create a table.
+    String tableCreationSQL = "CREATE TABLE IF NOT EXISTS $testdb.$test_table (id int, name String)\n" + "STORED BY ICEBERG";
+    statement.execute(tableCreationSQL.replace("$testdb",TEST_DB).replace("$test_table", TEST_TABLE));
+
+    // Insert data
+    String dataInsertionSQL = "INSERT INTO TABLE $testdb.$test_table VALUES (1, 'one'), (2, 'two'), (3, 'three')";
+    statement.execute(dataInsertionSQL.replace("$testdb",TEST_DB).replace("$test_table", TEST_TABLE));
+    String templateLoc = "templates/icebergDistcp.template";
+
+    // Either of the "from" or "to" will be used here since it is a Hive Distcp.
+    EmbeddedGobblinDistcp embeddedHiveDistcp =
+        new EmbeddedGobblinDistcp(templateLoc, new Path("a"), new Path("b"));
+    embeddedHiveDistcp.setConfiguration("iceberg.dataset.copy.target.database", TARGET_DB);
+    embeddedHiveDistcp.setConfiguration("iceberg.dataset.copy.target.table.prefixReplacement", TARGET_PATH);
+
+    String dbPathTemplate = "/$testdb.db/$test_table";
+    String rootPathOfSourceDate = metaStoreClient.getConfigValue("hive.metastore.warehouse.dir", "")
+        .concat(dbPathTemplate.replace("$testdb", TEST_DB).replace("$test_table",TEST_TABLE)
+        );
+    embeddedHiveDistcp.setConfiguration("hive.dataset.copy.target.table.prefixToBeReplaced", rootPathOfSourceDate);
+    embeddedHiveDistcp.run();
+
+    // Verify the table is existed in the target and file exists in the target location.
+    // metaStoreClient.tableExists(TARGET_DB, TEST_TABLE);
+    //FileSystem fs = FileSystem.getLocal(new Configuration());
+    //fs.exists(new Path(TARGET_PATH));
+  }
+
   // Tearing down the Hive components from derby driver if there's anything generated through the test.
   @AfterClass
   public void hiveTearDown() throws Exception {

@@ -21,9 +21,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private final String inputTableName;
   private IcebergTable icebergTable;
   @Getter
-  protected static Properties properties;
+  protected Properties properties;
   @Getter
-  protected static FileSystem fs;
+  protected FileSystem fs;
 
   public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem fs) {
     this.dbName = db;
@@ -52,10 +52,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return new IcebergDataset(identifier.namespace().toString(), identifier.name());
   }
 
-  public static IcebergDataset of(String dbName, String tableName, IcebergTable icebergTable) {
-    return new IcebergDataset(dbName, tableName, icebergTable, properties, fs);
-  }
-
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
@@ -66,6 +62,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
       Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor)
       throws IOException {
-    return null;
+    return new IcebergCopyEntityHelper(this, configuration, targetFs).getCopyEntities(configuration);
   }
 }

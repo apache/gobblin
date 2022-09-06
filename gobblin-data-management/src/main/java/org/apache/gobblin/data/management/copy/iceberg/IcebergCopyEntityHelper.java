@@ -6,7 +6,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -18,20 +17,15 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
-import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
-import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveTargetPathHelper;
-import org.apache.gobblin.data.management.copy.hive.UnpartitionedTableFileSet;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.metadata.Partition;
 
 
 @Slf4j
@@ -47,9 +41,9 @@ public class IcebergCopyEntityHelper {
   private final String targetDatabase;
   /** Target metastore URI */
   public static final String TARGET_METASTORE_URI_KEY =
-      HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.metastore.uri";
+      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.metastore.uri";
   /** Target database name */
-  public static final String TARGET_DATABASE_KEY = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.target.database";
+  public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
   /**
    * Represents a source {@link FileStatus} and a {@link Path} destination.
@@ -66,7 +60,7 @@ public class IcebergCopyEntityHelper {
     this.targetFs = targetFs;
 
     this.sourceMetastoreURI =
-        Optional.fromNullable(this.icebergDataset.getProperties().getProperty(HiveDatasetFinder.HIVE_METASTORE_URI_KEY));
+        Optional.fromNullable(this.icebergDataset.getProperties().getProperty(IcebergDatasetFinder.ICEBERG_METASTORE_URI_KEY));
     this.targetMetastoreURI =
         Optional.fromNullable(this.icebergDataset.getProperties().getProperty(TARGET_METASTORE_URI_KEY));
     this.targetDatabase = Optional.fromNullable(this.icebergDataset.getProperties().getProperty(TARGET_DATABASE_KEY))
@@ -121,7 +115,7 @@ public class IcebergCopyEntityHelper {
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
 
-    Configuration hadoopConfiguration = new Configuration();
+    Configuration hadoopConfiguration = new Configuration(); // how is this hadoop conf set?
     FileSystem actualSourceFs;
 
 
@@ -130,7 +124,6 @@ public class IcebergCopyEntityHelper {
     }
 
     for(SourceAndDestination sourceAndDestination : dataFiles){
-      URI uri = sourceAndDestination.getSource().getPath().toUri();
       actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(hadoopConfiguration);
 
       // TODO source and destination filesystems needs to be verified
@@ -148,14 +141,15 @@ public class IcebergCopyEntityHelper {
   DatasetDescriptor getSourceDataset() {
     String sourceTable = icebergDataset.getDbName() + "." + icebergDataset.getInputTableName();
 
+    // TODO can we create an instance of Catalog and load the table instead?
     URI hiveMetastoreURI = null;
     if (sourceMetastoreURI.isPresent()) {
       hiveMetastoreURI = URI.create(sourceMetastoreURI.get());
     }
 
     DatasetDescriptor sourceDataset =
-        new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, hiveMetastoreURI, sourceTable);
-    sourceDataset.addMetadata(DatasetConstants.FS_URI, IcebergDataset.getFs().getUri().toString());
+        new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, hiveMetastoreURI, sourceTable);
+    sourceDataset.addMetadata(DatasetConstants.FS_URI, this.getIcebergDataset().getFs().getUri().toString());
     return sourceDataset;
   }
 
@@ -168,7 +162,7 @@ public class IcebergCopyEntityHelper {
     }
 
     DatasetDescriptor destinationDataset =
-        new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, hiveMetastoreURI, destinationTable);
+        new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, hiveMetastoreURI, destinationTable);
     destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
     return destinationDataset;
   }
