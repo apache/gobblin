@@ -281,6 +281,12 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.markMeter(flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
+    if (Boolean.parseBoolean(flowSpec.getConfigAsProperties().getProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW))) {
+      // todo : we should probably set it on all of the start nodes
+      jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties()
+          .setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
+    }
+
     return jobExecutionPlanDag;
   }
 
