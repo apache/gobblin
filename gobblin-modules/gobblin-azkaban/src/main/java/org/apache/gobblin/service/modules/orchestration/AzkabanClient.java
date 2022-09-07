@@ -117,7 +117,13 @@ public class AzkabanClient implements Closeable {
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(3))
         .build();
-    this.sessionId = this.sessionManager.fetchSession();
+    try {
+      this.sessionId = this.sessionManager.fetchSession();
+    }
+    catch (Exception e) {
+      this.sessionCreationTime = -1;
+      return;
+    }
     this.sessionCreationTime = System.nanoTime();
   }
 
@@ -130,10 +136,12 @@ public class AzkabanClient implements Closeable {
 
   private void initializeSessionManager() throws AzkabanClientException {
     if (sessionManager == null) {
-      this.sessionManager = new AzkabanSessionManager(this.httpClient,
-                                                      this.url,
-                                                      this.username,
-                                                      this.password);
+      try {
+        this.sessionManager = new AzkabanSessionManager(this.httpClient, this.url, this.username, this.password);
+      }
+      catch(Exception e) {
+        log.error(e.toString());
+      }
     }
   }
 
