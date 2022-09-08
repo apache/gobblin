@@ -122,11 +122,7 @@ public class AzkabanClient implements Closeable {
     } catch (Exception e) {
       this.sessionId = null;
       this.sessionCreationTime = -1;
-<<<<<<< HEAD
       log.error("Failed to fetch session in constructor due to: ", e);
-=======
-      log.error("Failed to fetch session in constructor due to " + e);
->>>>>>> c24a7d158 (Add logging when fails on constructor and initialization, but continue to local deploy)
       return;
     }
     this.sessionCreationTime = System.nanoTime();
@@ -141,19 +137,10 @@ public class AzkabanClient implements Closeable {
 
   private void initializeSessionManager() {
     if (sessionManager == null) {
-<<<<<<< HEAD
       this.sessionManager = new AzkabanSessionManager(this.httpClient,
                                                       this.url,
                                                       this.username,
                                                       this.password);
-=======
-      try {
-        this.sessionManager = new AzkabanSessionManager(this.httpClient, this.url, this.username, this.password);
-      }
-      catch(Exception e) {
-        log.error("Failed to initialize session manager due to: " + e);
-      }
->>>>>>> c24a7d158 (Add logging when fails on constructor and initialization, but continue to local deploy)
     }
   }
 
