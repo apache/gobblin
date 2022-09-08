@@ -139,9 +139,9 @@ public class AzkabanClient implements Closeable {
   private void initializeSessionManager() throws AzkabanClientException {
     if (sessionManager == null) {
       this.sessionManager = new AzkabanSessionManager(this.httpClient,
-          this.url,
-          this.username,
-          this.password);
+                                                      this.url,
+                                                      this.username,
+                                                      this.password);
     }
 
   private void intializeExecutorService() {
