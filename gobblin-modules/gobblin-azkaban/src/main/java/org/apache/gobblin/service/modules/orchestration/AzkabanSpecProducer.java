@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import org.apache.commons.codec.EncoderException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -47,17 +48,13 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
     this._config = config;
     try {
       // Initialize Azkaban client / producer and cache credentials
-      String azkabanUsername = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
-      String azkabanPassword = getAzkabanPassword(this._config);
-      String azkabanServerUrl = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
+      String azkabanUsername = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
+      String azkabanPassword = getAzkabanPassword(_config);
+      String azkabanServerUrl = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
 
       _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
-    } catch (Exception e) {
-      // Allow Azkaban authentication errors on start up, but just log the error so GaaS can still start
-      _sessionId = null;
-      if (log.isPresent()) {
-        log.get().error("Could not authenticate with Azkaban due to: ", e);
-      }
+    } catch (IOException | EncoderException e) {
+      throw new RuntimeException("Could not authenticate with Azkaban", e);
     }
   }
 
