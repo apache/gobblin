@@ -148,6 +148,9 @@ public class ServiceConfigKeys {
   public static final String QUOTA_MANAGER_CLASS = GOBBLIN_SERVICE_PREFIX + "quotaManager.class";
   public static final String DEFAULT_QUOTA_MANAGER = "org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager";
 
+  public static final String QUOTA_STORE_DB_TABLE_KEY = "quota.store.db.table";
+  public static final String DEFAULT_QUOTA_STORE_DB_TABLE = "quota_table";
+
   // Group Membership authentication service
   public static final String GROUP_OWNERSHIP_SERVICE_CLASS = GOBBLIN_SERVICE_PREFIX + "groupOwnershipService.class";
   public static final String DEFAULT_GROUP_OWNERSHIP_SERVICE = "org.apache.gobblin.service.NoopGroupOwnershipService";

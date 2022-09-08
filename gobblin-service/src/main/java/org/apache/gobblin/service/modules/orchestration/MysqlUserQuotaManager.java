@@ -34,8 +34,8 @@ import javax.inject.Singleton;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
@@ -83,15 +83,15 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   }
 
   /**
-   * Creating an instance of StateStore.
+   * Creating an instance of MysqlQuotaStore.
    */
   protected MysqlQuotaStore createQuotaStore(Config config) throws IOException {
-    String stateStoreTableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
-        ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
+    String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_STORE_DB_TABLE_KEY,
+        ServiceConfigKeys.DEFAULT_QUOTA_STORE_DB_TABLE);
 
     BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
 
-    return new MysqlQuotaStore(basicDataSource, stateStoreTableName);
+    return new MysqlQuotaStore(basicDataSource, quotaStoreTableName);
   }
 
   static class MysqlQuotaStore {
