@@ -136,15 +136,11 @@ public class AzkabanClient implements Closeable {
     }
   }
 
-  private void initializeSessionManager() throws AzkabanClientException {
-    if (sessionManager == null) {
-      try {
-        this.sessionManager = new AzkabanSessionManager(this.httpClient, this.url, this.username, this.password);
-      }
-      catch(Exception e) {
-        log.error("Failed to initialize session manager due to: ", e);
-      }
-    }
+  private void initializeSessionManager() {
+    this.sessionManager = new AzkabanSessionManager(this.httpClient,
+        this.url,
+        this.username,
+        this.password);
   }
 
   private void intializeExecutorService() {
