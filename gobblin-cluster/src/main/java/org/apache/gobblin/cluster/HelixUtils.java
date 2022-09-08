@@ -254,13 +254,13 @@ public class HelixUtils {
       Optional<Long> timeoutInSeconds, Long stoppingStateTimeoutInSeconds) throws InterruptedException, TimeoutException {
     log.info("Waiting for job {} to complete...", jobName);
     long endTime = 0;
-    long currentTimeMillis = System.currentTimeMillis();
+    long jobStartTimeMillis = System.currentTimeMillis();
 
     if (timeoutInSeconds.isPresent()) {
-      endTime = currentTimeMillis + timeoutInSeconds.get() * 1000;
+      endTime = jobStartTimeMillis + timeoutInSeconds.get() * 1000;
     }
 
-    long stoppingStateEndTime = currentTimeMillis + stoppingStateTimeoutInSeconds * 1000;
+    Long stoppingStateEndTime = null;
 
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
       WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
@@ -278,13 +278,16 @@ public class HelixUtils {
           case STOPPING:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(TimeUnit.SECONDS.toMillis(1L));
+            if (stoppingStateEndTime == null) {
+              stoppingStateEndTime = System.currentTimeMillis() + stoppingStateTimeoutInSeconds * 1000;
+            }
             // Workaround for a Helix bug where a job may be stuck in the STOPPING state due to an unresponsive task.
             if (System.currentTimeMillis() > stoppingStateEndTime) {
-              log.info("Deleting workflow {}", workFlowName);
+              log.info("Deleting workflow {} since it stuck in STOPPING state  for more than {} seconds", workFlowName, stoppingStateTimeoutInSeconds);
               new TaskDriver(helixManager).delete(workFlowName);
               log.info("Deleted workflow {}", workFlowName);
+              return;
             }
-            return;
           default:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(TimeUnit.SECONDS.toMillis(10L));
