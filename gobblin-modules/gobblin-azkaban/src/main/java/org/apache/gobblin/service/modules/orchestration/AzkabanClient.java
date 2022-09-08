@@ -121,6 +121,7 @@ public class AzkabanClient implements Closeable {
       this.sessionId = this.sessionManager.fetchSession();
     }
     catch (Exception e) {
+      this.sessionId = null;
       this.sessionCreationTime = -1;
       log.error("Failed to fetch session in constructor due to: ", e);
       return;
