@@ -47,9 +47,9 @@ public class AzkabanSpecProducer implements SpecProducer<Spec>, Closeable {
     this._config = config;
     try {
       // Initialize Azkaban client / producer and cache credentials
-      String azkabanUsername = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
-      String azkabanPassword = getAzkabanPassword(this._config);
-      String azkabanServerUrl = this._config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
+      String azkabanUsername = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
+      String azkabanPassword = getAzkabanPassword(_config);
+      String azkabanServerUrl = _config.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
 
       _sessionId = AzkabanAjaxAPIClient.authenticateAndGetSessionId(azkabanUsername, azkabanPassword, azkabanServerUrl);
     } catch (Exception e) {
