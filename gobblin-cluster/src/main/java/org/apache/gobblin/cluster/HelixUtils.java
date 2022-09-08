@@ -278,6 +278,7 @@ public class HelixUtils {
           case STOPPING:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(TimeUnit.SECONDS.toMillis(1L));
+            // TODO: fix the incorrect stoppingStateEndTime, and revisit GOBBLIN-1692
             // Workaround for a Helix bug where a job may be stuck in the STOPPING state due to an unresponsive task.
             if (System.currentTimeMillis() > stoppingStateEndTime) {
               log.info("Deleting workflow {}", workFlowName);

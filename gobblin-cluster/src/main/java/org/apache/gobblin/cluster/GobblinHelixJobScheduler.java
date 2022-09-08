@@ -112,6 +112,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
 
+  // Timeout set for method waitForJobCompletion to avoid infinite loop
+  private final long helixJobWaitCompletionTimeoutMillis;
+
   public GobblinHelixJobScheduler(Config sysConfig,
                                   HelixManager jobHelixManager,
                                   Optional<HelixManager> taskDriverHelixManager,
@@ -163,6 +166,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
+    this.helixJobWaitCompletionTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_WAIT_COMPLETION_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_WAIT_COMPLETION_TIMEOUT_SECONDS) * 1000;
   }
 
   @Override
@@ -349,15 +354,22 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
   }
 
-  private void waitForJobCompletion(String jobName) {
-    while (this.jobRunningMap.getOrDefault(jobName, false)) {
+  private boolean waitForJobCompletion(String jobName) {
+    long endTime= System.currentTimeMillis() + this.helixJobWaitCompletionTimeoutMillis;
+    while (System.currentTimeMillis() < endTime) {
       LOGGER.info("Waiting for job {} to stop...", jobName);
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        LOGGER.warn("Interrupted exception encountered: ", e);
+      if(this.jobRunningMap.getOrDefault(jobName, false)) {
+        try {
+          Thread.sleep(5000);
+        } catch (InterruptedException e) {
+          LOGGER.warn("Interrupted exception encountered: ", e);
+        }
+      } else {
+        LOGGER.info("Job {} has been stopped...", jobName);
+        return true;
       }
     }
+    return false;
   }
 
   @Subscribe
@@ -367,7 +379,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       unscheduleJob(deleteJobArrival.getJobName());
       cancelJobIfRequired(deleteJobArrival);
     } catch (JobException je) {
-      LOGGER.error("Failed to unschedule job " + deleteJobArrival.getJobName());
+      LOGGER.error("Failed to unschedule job {} due to {}", deleteJobArrival.getJobName(), je);
     }
   }
 
@@ -407,7 +419,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobSchedulerMetrics.numCancellationStart.decrementAndGet();
   }
 
-  private void cancelJobIfRequired(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
+  private void cancelJobIfRequired(DeleteJobConfigArrivalEvent deleteJobArrival)
+      throws JobException {
     Properties jobConfig = deleteJobArrival.getJobConfig();
     if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
         GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
@@ -431,10 +444,13 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
+        taskDriver.stop(workflowId);
         LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
         //Wait until the cancelled job is complete.
-        waitForJobCompletion(deleteJobArrival.getJobName());
+        if(!waitForJobCompletion(deleteJobArrival.getJobName())) {
+          throw (new JobException(String.format("Fail to stop the job %s with in %d milliseconds.",
+              deleteJobArrival.getJobName(), this.helixJobWaitCompletionTimeoutMillis)));
+        }
       } else {
         LOGGER.warn("Could not find Helix Workflow Id for job: {}", deleteJobArrival.getJobName());
       }
