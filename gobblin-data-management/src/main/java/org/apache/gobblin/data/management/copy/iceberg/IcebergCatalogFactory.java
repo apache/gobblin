@@ -15,32 +15,17 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package org.apache.gobblin.data.management.copy.iceberg;
 
-/** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.3.4"
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.hive.HiveCatalogs;
+
+
+/**
+ * Provides an {@link IcebergCatalog}.
+ */
+public class IcebergCatalogFactory {
+  public static IcebergCatalog create(Configuration configuration) {
+    return new IcebergHiveCatalog(HiveCatalogs.loadCatalog(configuration));
   }
 }
-apply plugin: "com.commercehub.gradle.plugin.avro"
- avro {stringType = "string"
- }
-*/
-
-dependencies {
-  compile project(":gobblin-metrics-libs:gobblin-metrics-base")
-
-  compile externalDependency.guava
-  compile externalDependency.metricsCore
-  compile externalDependency.slf4j
-  compile externalDependency.metricsGraphite
-
-  testCompile externalDependency.testng
-  testCompile externalDependency.mockito
-}
-
-ext.classification="library"

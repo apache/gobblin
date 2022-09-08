@@ -23,7 +23,7 @@
 
 buildscript {
     repositories {
-        jcenter()
+        gradlePluginPortal()
     }
     dependencies {
         // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
