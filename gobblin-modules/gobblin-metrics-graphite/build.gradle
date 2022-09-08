@@ -20,7 +20,7 @@ apply plugin: 'java'
 /** TODO: Re-enable avro auto-compile once Java 1.7 is fully supported by users.
 buildscript {
   repositories {
-    jcenter()
+    mavenCentral()
   }
   dependencies {
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.3.4"
