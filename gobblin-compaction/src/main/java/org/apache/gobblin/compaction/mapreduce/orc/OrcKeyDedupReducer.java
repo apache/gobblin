@@ -31,15 +31,18 @@ import org.apache.orc.mapred.OrcValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Check record duplicates in reducer-side.
  */
+@Slf4j
 public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcValue, NullWritable, OrcValue> {
   @VisibleForTesting
   public static final String ORC_DELTA_SCHEMA_PROVIDER =
       "org.apache.gobblin.compaction." + OrcKeyDedupReducer.class.getSimpleName() + ".deltaFieldsProvider";
   public static final String USING_WHOLE_RECORD_FOR_COMPARE = "usingWholeRecordForCompareInReducer";
+  private int recordCounter = 0;
 
   @Override
   protected void setOutValue(OrcValue valueToRetain) {
@@ -60,7 +63,19 @@ public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcVal
     Map<Integer, Integer> valuesToRetain = new HashMap<>();
     int valueHash = 0;
 
+    if (recordCounter == 0) {
+      log.info("Starting to reduce values for the first key {}", key);
+    }
+
     for (OrcValue value : values) {
+      if (recordCounter == 1) {
+        log.info("Reduced first value");
+      }
+      recordCounter++;
+      if (recordCounter % 1000 == 0) {
+        log.info("Reduced {} values so far", recordCounter);
+      }
+
       valueHash = ((OrcStruct) value.value).hashCode();
       if (valuesToRetain.containsKey(valueHash)) {
         valuesToRetain.put(valueHash, valuesToRetain.get(valueHash) + 1);
