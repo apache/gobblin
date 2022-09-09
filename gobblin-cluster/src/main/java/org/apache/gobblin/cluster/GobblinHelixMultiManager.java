@@ -29,12 +29,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.api.listeners.ControllerChangeListener;
 import org.apache.helix.api.listeners.LiveInstanceChangeListener;
+import org.apache.helix.manager.zk.ZKHelixAdmin;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
@@ -85,6 +87,9 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
    */
   @Getter
   private HelixManager jobClusterHelixManager = null;
+
+  @Getter
+  private HelixAdmin jobClusterHelixAdmin = null;
 
   /**
    * Helix manager to handle planning job distribution.
@@ -170,6 +175,16 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
         config.getString(clusterName), helixInstanceName, type, zkConnectionString);
   }
 
+  /**
+   * Build the {@link org.apache.helix.HelixAdmin} for the AM
+   */
+  protected static HelixAdmin buildHelixAdmin(Config cfg) {
+    String zkConnectionString = cfg.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    return new ZKHelixAdmin.Builder()
+        .setZkAddress(zkConnectionString)
+        .build();
+  }
+
   public void initialize() {
     if (this.dedicatedManagerCluster) {
       Preconditions.checkArgument(this.config.hasPath(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY));
@@ -183,6 +198,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       this.jobClusterHelixManager = buildHelixManager(this.config,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           InstanceType.ADMINISTRATOR);
+      this.jobClusterHelixAdmin = buildHelixAdmin(this.config);
 
       // This will create a dedicated controller for job distribution
       this.dedicatedJobClusterController = ConfigUtils.getBoolean(
@@ -225,6 +241,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           isHelixClusterManaged ? InstanceType.PARTICIPANT : InstanceType.CONTROLLER);
       this.jobClusterHelixManager = this.managerClusterHelixManager;
+      this.jobClusterHelixAdmin = buildHelixAdmin(this.config);
     }
   }
 

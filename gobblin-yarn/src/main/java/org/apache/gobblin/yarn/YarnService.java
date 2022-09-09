@@ -65,6 +65,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,7 @@ public class YarnService extends AbstractIdleService {
   private final Optional<String> containerJvmArgs;
   private final String containerTimezone;
   private final HelixManager helixManager;
+  private final HelixAdmin helixAdmin;
 
   @Getter(AccessLevel.PROTECTED)
   private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
@@ -201,7 +203,7 @@ public class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
-      FileSystem fs, EventBus eventBus, HelixManager helixManager) throws Exception {
+      FileSystem fs, EventBus eventBus, HelixManager helixManager, HelixAdmin helixAdmin) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -210,6 +212,7 @@ public class YarnService extends AbstractIdleService {
     this.eventBus = eventBus;
 
     this.helixManager = helixManager;
+    this.helixAdmin = helixAdmin;
 
     this.gobblinMetrics = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
         Optional.of(buildGobblinMetrics()) : Optional.<GobblinMetrics>absent();
@@ -338,6 +341,15 @@ public class YarnService extends AbstractIdleService {
         GobblinClusterUtils.getHostname(), -1, "");
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
+
+    // All previous helix instances should be purged on startup. Gobblin task runners are stateless from helix
+    // perspective because all important state is persisted separately in Workunit State Store or Watermark store.
+    // Offline duration of 0 means any offline instance should be purged (Note: there aren't any online instances
+    // when this code runs, this is during startup before any containers are allocated).
+    LOGGER.info("Purging offline helix instances before allocating containers for helixClusterName={}, connectionString={}", helixManager.getClusterName(), helixManager.getMetadataStoreConnectionString());
+    long offlineDuration = 0;
+    this.helixAdmin.purgeOfflineInstances(this.helixManager.getClusterName(), offlineDuration);
+    LOGGER.info("Finished purging offline helix instances");
 
     LOGGER.info("Requesting initial containers");
     requestInitialContainers(this.initialContainers);
