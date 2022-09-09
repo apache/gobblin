@@ -71,6 +71,9 @@ public class GobblinServiceConfiguration {
   private final boolean isHelixManagerEnabled;
 
   @Getter
+  private final boolean isSpecStoreChangeMonitorEnabled;
+
+  @Getter
   private final boolean flowCatalogLocalCommit;
 
   @Getter
@@ -119,6 +122,8 @@ public class GobblinServiceConfiguration {
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
     this.isTopologySpecFactoryEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY, true);
+    this.isSpecStoreChangeMonitorEnabled =
+        ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_SPEC_STORE_CHANGE_MONITOR_ENABLED_KEY, true);
     this.onlyAnnounceLeader = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER, false);
   }
 }

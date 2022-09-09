@@ -79,6 +79,7 @@ import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -219,6 +220,10 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isRestLIServerEnabled()) {
       binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
+    }
+
+    if (serviceConfig.isSpecStoreChangeMonitorEnabled()) {
+      binder.bind(SpecStoreChangeMonitor.class);
     }
 
     binder.bind(GobblinServiceManager.class);

@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime.spec_catalog;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -456,5 +457,16 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   public Object getSyncObject(String specUri) {
     return this.specSyncObjects.getOrDefault(specUri, null);
+  }
+
+  public Spec getSpecFromStore(String specUri) {
+    try {
+      URI uri = new URI(specUri);
+      return specStore.getSpec(uri);
+    } catch (SpecNotFoundException e) {
+      throw new RuntimeException("Could not find Spec from Spec Store for URI:  " + specUri, e);
+    } catch (IOException | URISyntaxException e) {
+      throw new RuntimeException("Failed to retrieve Spec from Spec Store for URI: " + specUri, e);
+    }
   }
 }

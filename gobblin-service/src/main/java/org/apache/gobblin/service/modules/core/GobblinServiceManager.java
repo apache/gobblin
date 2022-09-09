@@ -100,6 +100,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -210,6 +211,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   private final MetricContext metricContext;
   private final Metrics metrics;
+
+  @Inject
+  protected SpecStoreChangeMonitor specStoreChangeMonitor;
 
   @Inject
   protected GobblinServiceManager(GobblinServiceConfiguration configuration) throws Exception {
@@ -376,6 +380,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     if (configuration.isRestLIServerEnabled()) {
       this.serviceLauncher.addService(restliServer);
+    }
+
+    if (this.configuration.isSpecStoreChangeMonitorEnabled()) {
+      this.serviceLauncher.addService(specStoreChangeMonitor);
     }
   }
 
