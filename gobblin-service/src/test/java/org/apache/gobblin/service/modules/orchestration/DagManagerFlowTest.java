@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -25,6 +26,11 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -57,14 +63,37 @@ public class DagManagerFlowTest {
   MockedDagManager dagManager;
   int dagNumThreads;
   static final String ERROR_MESSAGE = "Waiting for the map to update";
+  private static final String USER = "testUser";
+  private static final String PASSWORD = "testPassword";
+  private static final String TABLE = "dag_action_store";
+  private static final String flowGroup = "testFlowGroup";
+  private static final String flowName = "testFlowName";
+  private static final String flowExecutionId = "12345677";
+  private static final String flowExecutionId_2 = "12345678";
+  private DagActionStore dagActionStore;
 
   @BeforeClass
-  public void setUp() {
+  public void setUp() throws Exception {
     Properties props = new Properties();
     props.put(DagManager.JOB_STATUS_POLLING_INTERVAL_KEY, 1);
-    dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), false);
+    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+
+    Config config = ConfigBuilder.create()
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .build();
+
+    dagActionStore = new MysqlDagActionStore(config);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
+    dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), Optional.of(dagActionStore), false);
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
+    Thread.sleep(10000);
+    // On active, should proceed request and delete action entry
+    Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
   }
 
   @Test
@@ -296,7 +325,11 @@ class CancelPredicate implements Predicate<Void> {
 class MockedDagManager extends DagManager {
 
   public MockedDagManager(Config config, boolean instrumentationEnabled) {
-    super(config, createJobStatusRetriever(), instrumentationEnabled);
+    super(config, createJobStatusRetriever(), Optional.absent(), instrumentationEnabled);
+  }
+
+  public MockedDagManager(Config config, Optional<DagActionStore> dagactionStore, boolean instrumentationEnabled) {
+    super(config, createJobStatusRetriever(), dagactionStore, instrumentationEnabled);
   }
 
   private static JobStatusRetriever createJobStatusRetriever() {

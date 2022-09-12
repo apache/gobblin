@@ -92,6 +92,23 @@ public class DagManagerUtils {
     return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
   }
 
+  /**
+   * Generate a dagId object from the given {@link Dag} instance.
+   * @param dag instance of a {@link Dag}.
+   * @return a DagId object associated corresponding to the {@link Dag} instance.
+   */
+  static DagManager.DagId generateDagIdObject(Dag<JobExecutionPlan> dag) {
+    return generateDagIdObject(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
+  }
+
+  private static DagManager.DagId generateDagIdObject(Config jobConfig) {
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+
+    return new DagManager.DagId(flowGroup, flowName, String.valueOf(flowExecutionId));
+  }
+
   static String generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
     return generateDagId(dagNode.getValue().getJobSpec().getConfig());
   }
@@ -105,6 +122,10 @@ public class DagManagerUtils {
   }
 
   static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
+    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+  }
+
+  static String generateDagId(String flowGroup, String flowName, String flowExecutionId) {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
   }
 

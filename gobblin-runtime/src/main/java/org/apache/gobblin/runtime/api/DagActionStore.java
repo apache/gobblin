@@ -89,6 +89,6 @@ public interface DagActionStore {
    * Get all {@link DagAction}s from the {@link DagActionStore}.
    * @throws IOException Exception in retrieving {@link DagAction}s.
    */
-  Collection<DagAction> getDagActions() throws IOException, SQLException;
+  Collection<DagAction> getDagActions() throws IOException;
 
 }

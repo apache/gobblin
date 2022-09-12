@@ -155,7 +155,7 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public Collection<DagAction> getDagActions() throws IOException, SQLException {
+  public Collection<DagAction> getDagActions() throws IOException {
     HashSet<DagAction> result = new HashSet<>();
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement getAllStatement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, tableName));

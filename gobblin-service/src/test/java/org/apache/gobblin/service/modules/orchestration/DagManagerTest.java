@@ -18,6 +18,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -75,8 +76,8 @@ public class DagManagerTest {
   private DagManagerMetrics _dagManagerMetrics;
   private DagManager.DagManagerThread _dagManagerThread;
   private LinkedBlockingQueue<Dag<JobExecutionPlan>> queue;
-  private LinkedBlockingQueue<String> cancelQueue;
-  private LinkedBlockingQueue<String> resumeQueue;
+  private LinkedBlockingQueue<DagManager.DagId> cancelQueue;
+  private LinkedBlockingQueue<DagManager.DagId> resumeQueue;
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
@@ -103,7 +104,8 @@ public class DagManagerTest {
     this._gobblinServiceQuotaManager = new InMemoryUserQuotaManager(quotaConfig);
     this._dagManagerMetrics = new DagManagerMetrics(metricContext);
     this._dagManagerMetrics.activate();
-    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
+    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore,
+        Optional.absent(), queue, cancelQueue,
         resumeQueue, true, new HashSet<>(), this._dagManagerMetrics, START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
@@ -443,7 +445,7 @@ public class DagManagerTest {
     Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
-    this.resumeQueue.offer(dagId);
+    this.resumeQueue.offer(DagManagerUtils.generateDagIdObject(dag));
 
     // Job2 rerunning
     this._dagManagerThread.run();
@@ -664,13 +666,13 @@ public class DagManagerTest {
     }
 
     // Cancel job2
-    this.cancelQueue.offer(dagId);
+    this.cancelQueue.offer(DagManagerUtils.generateDagIdObject(dag));
 
     this._dagManagerThread.run();
     Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
-    this.resumeQueue.offer(dagId);
+    this.resumeQueue.offer(DagManagerUtils.generateDagIdObject(dag));
 
     // Job2 rerunning
     this._dagManagerThread.run();

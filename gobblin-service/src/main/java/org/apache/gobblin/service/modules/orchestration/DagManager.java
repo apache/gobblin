@@ -18,9 +18,12 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Meter;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,8 +52,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigException;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,6 +64,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -156,9 +159,22 @@ public class DagManager extends AbstractIdleService {
     }
   }
 
+  @Getter
+  @EqualsAndHashCode
+  public static class DagId {
+    String flowGroup;
+    String flowName;
+    String flowExecutionId;
+    public DagId(String flowGroup, String flowName, String flowExecutionId) {
+      this.flowGroup = flowGroup;
+      this.flowName = flowName;
+      this.flowExecutionId = flowExecutionId;
+    }
+  }
+
   private final BlockingQueue<Dag<JobExecutionPlan>>[] runQueue;
-  private final BlockingQueue<String>[] cancelQueue;
-  private final BlockingQueue<String>[] resumeQueue;
+  private final BlockingQueue<DagId>[] cancelQueue;
+  private final BlockingQueue<DagId>[] resumeQueue;
   DagManagerThread[] dagManagerThreads;
 
   private final ScheduledExecutorService scheduledExecutorPool;
@@ -177,15 +193,16 @@ public class DagManager extends AbstractIdleService {
   private final Optional<EventSubmitter> eventSubmitter;
   private final long failedDagRetentionTime;
   private final DagManagerMetrics dagManagerMetrics;
+  private final Optional<DagActionStore> dagActionStore;
 
   private volatile boolean isActive = false;
 
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, boolean instrumentationEnabled) {
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<DagActionStore> dagActionStore, boolean instrumentationEnabled) {
     this.config = config;
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     this.runQueue = (BlockingQueue<Dag<JobExecutionPlan>>[]) initializeDagQueue(this.numThreads);
-    this.cancelQueue = (BlockingQueue<String>[]) initializeDagQueue(this.numThreads);
-    this.resumeQueue = (BlockingQueue<String>[]) initializeDagQueue(this.numThreads);
+    this.cancelQueue = (BlockingQueue<DagId>[]) initializeDagQueue(this.numThreads);
+    this.resumeQueue = (BlockingQueue<DagId>[]) initializeDagQueue(this.numThreads);
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
     this.retentionPollingInterval = ConfigUtils.getInt(config, FAILED_DAG_POLLING_INTERVAL, DEFAULT_FAILED_DAG_POLLING_INTERVAL);
@@ -197,6 +214,7 @@ public class DagManager extends AbstractIdleService {
     } else {
       this.eventSubmitter = Optional.absent();
     }
+    this.dagActionStore = dagActionStore;
     this.dagManagerMetrics = new DagManagerMetrics(metricContext);
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
@@ -224,9 +242,9 @@ public class DagManager extends AbstractIdleService {
     return queue;
   }
 
-  @Inject
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever) {
-    this(config, jobStatusRetriever, true);
+  @Inject(optional = true)
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<DagActionStore> dagActionStore) {
+    this(config, jobStatusRetriever, dagActionStore, true);
   }
 
   /** Do Nothing on service startup. Scheduling of {@link DagManagerThread}s and loading of any {@link Dag}s is done
@@ -296,7 +314,7 @@ public class DagManager extends AbstractIdleService {
   private void killFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
     int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
     String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
-    if (!this.cancelQueue[queueId].offer(dagId)) {
+    if (!this.cancelQueue[queueId].offer(new DagId(flowGroup, flowName, String.valueOf(flowExecutionId)))) {
       throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
     }
   }
@@ -316,7 +334,7 @@ public class DagManager extends AbstractIdleService {
     log.info("Received resume request for flow ({}, {}, {})", resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
     String dagId = DagManagerUtils.generateDagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
     int queueId = DagManagerUtils.getDagQueueId(resumeFlowEvent.getFlowExecutionId(), this.numThreads);
-    if (!this.resumeQueue[queueId].offer(dagId)) {
+    if (!this.resumeQueue[queueId].offer(new DagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(),String.valueOf(resumeFlowEvent.getFlowExecutionId())))) {
       log.warn("Could not add dag " + dagId + " to resume queue");
     }
   }
@@ -356,7 +374,7 @@ public class DagManager extends AbstractIdleService {
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
         this.dagManagerThreads = new DagManagerThread[numThreads];
         for (int i = 0; i < numThreads; i++) {
-          DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
+          DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore, dagActionStore,
               runQueue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, failedDagIds, this.dagManagerMetrics,
               this.defaultJobStartSlaTimeMillis, quotaManager, i);
           this.dagManagerThreads[i] = dagManagerThread;
@@ -368,6 +386,21 @@ public class DagManager extends AbstractIdleService {
         log.info("Loading " + dags.size() + " dags from dag state store");
         for (Dag<JobExecutionPlan> dag : dags) {
           addDag(dag, false, false);
+        }
+        if (dagActionStore.isPresent()) {
+          Collection<DagActionStore.DagAction> dagActions = dagActionStore.get().getDagActions();
+          for (DagActionStore.DagAction action : dagActions) {
+            switch (action.getDagActionValue()) {
+              case KILL:
+                this.handleKillFlowEvent(new KillFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
+                break;
+              case RESUME:
+                this.handleResumeFlowEvent(new ResumeFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
+                break;
+              default:
+                log.warn("Unsupported dagAction: " + action.getDagActionValue().toString());
+            }
+          }
         }
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
@@ -413,16 +446,17 @@ public class DagManager extends AbstractIdleService {
     private final DagStateStore dagStateStore;
     private final DagStateStore failedDagStateStore;
     private final BlockingQueue<Dag<JobExecutionPlan>> queue;
-    private final BlockingQueue<String> cancelQueue;
-    private final BlockingQueue<String> resumeQueue;
+    private final BlockingQueue<DagId> cancelQueue;
+    private final BlockingQueue<DagId> resumeQueue;
     private final Long defaultJobStartSlaTimeMillis;
+    private final Optional<DagActionStore> dagActionStore;
     private final Optional<Meter> dagManagerThreadHeartbeat;
     /**
      * Constructor.
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
-        BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
-        boolean instrumentationEnabled, Set<String> failedDagIds, DagManagerMetrics dagManagerMetrics,
+        Optional<DagActionStore> dagActionStore, BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<DagId> cancelQueue,
+        BlockingQueue<DagId> resumeQueue, boolean instrumentationEnabled, Set<String> failedDagIds, DagManagerMetrics dagManagerMetrics,
         Long defaultJobStartSla, UserQuotaManager quotaManager, int dagMangerThreadId) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
@@ -434,6 +468,7 @@ public class DagManager extends AbstractIdleService {
       this.dagManagerMetrics = dagManagerMetrics;
       this.defaultJobStartSlaTimeMillis = defaultJobStartSla;
       this.quotaManager = quotaManager;
+      this.dagActionStore = dagActionStore;
 
       if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -459,10 +494,11 @@ public class DagManager extends AbstractIdleService {
     @Override
     public void run() {
       try {
-        String nextDagToCancel = cancelQueue.poll();
+        DagId nextDagToCancel = cancelQueue.poll();
         //Poll the cancelQueue for a new Dag to cancel.
         if (nextDagToCancel != null) {
-          cancelDag(nextDagToCancel);
+          cancelDag(DagManagerUtils.generateDagId(nextDagToCancel.flowGroup, nextDagToCancel.flowName, nextDagToCancel.flowExecutionId));
+          clearUpDagAction(nextDagToCancel);
         }
 
         while (!queue.isEmpty()) {
@@ -478,7 +514,7 @@ public class DagManager extends AbstractIdleService {
         }
 
         while (!resumeQueue.isEmpty()) {
-          String dagId = resumeQueue.poll();
+          DagId dagId = resumeQueue.poll();
           beginResumingDag(dagId);
         }
 
@@ -498,18 +534,27 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
+    private void clearUpDagAction(DagId dagId) throws IOException {
+      if (this.dagActionStore.isPresent()) {
+        this.dagActionStore.get().deleteDagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId);
+      }
+    }
+
     /**
      * Begin resuming a dag by setting the status of both the dag and the failed/cancelled dag nodes to {@link ExecutionStatus#PENDING_RESUME},
      * and also sending events so that this status will be reflected in the job status state store.
      */
-    private void beginResumingDag(String dagId) throws IOException {
+    private void beginResumingDag(DagId dagIdToResume) throws IOException {
+      String dagId= DagManagerUtils.generateDagId(dagIdToResume.flowGroup, dagIdToResume.flowName, dagIdToResume.flowExecutionId);
       if (!this.failedDagIds.contains(dagId)) {
         log.warn("No dag found with dagId " + dagId + ", so cannot resume flow");
+        clearUpDagAction(dagIdToResume);
         return;
       }
       Dag<JobExecutionPlan> dag = this.failedDagStateStore.getDag(dagId);
       if (dag == null) {
         log.error("Dag " + dagId + " was found in memory but not found in failed dag state store");
+        clearUpDagAction(dagIdToResume);
         return;
       }
 
@@ -560,6 +605,7 @@ public class DagManager extends AbstractIdleService {
         if (dagReady) {
           this.dagStateStore.writeCheckpoint(dag.getValue());
           this.failedDagStateStore.cleanUp(dag.getValue());
+          clearUpDagAction(DagManagerUtils.generateDagIdObject(dag.getValue()));
           this.failedDagIds.remove(dag.getKey());
           this.resumingDags.remove(dag.getKey());
           initialize(dag.getValue());
