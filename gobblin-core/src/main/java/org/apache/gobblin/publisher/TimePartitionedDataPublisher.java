@@ -60,7 +60,7 @@ public class TimePartitionedDataPublisher extends BaseDataPublisher {
       Path outputPath = new Path(publisherOutput, pathSuffix);
 
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId), outputPath.getParent(),
-            this.permissions.get(branchId), this.retrierConfig);
+            this.permissions.get(branchId), this.retryerConfig);
 
       movePath(parallelRunner, workUnitState, status.getPath(), outputPath, branchId);
     }

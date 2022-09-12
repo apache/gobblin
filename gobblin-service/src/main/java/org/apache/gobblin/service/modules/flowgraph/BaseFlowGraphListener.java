@@ -15,172 +15,89 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.modules.flowgraph;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
+import java.util.Set;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.diff.DiffEntry;
+import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.service.modules.flowgraph.DataNode;
-import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
-import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
-import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
-import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PullFileLoader;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
+
 /**
- * Service that monitors for changes to {@link org.apache.gobblin.service.modules.flowgraph.FlowGraph} from a git repository.
- * The git repository must have an inital commit that has no files since that is used as a base for getting
- * the change list.
- * The {@link DataNode}s and {@link FlowEdge}s in FlowGraph need to be organized with the following directory structure on git:
- * <root_flowGraph_dir>/<nodeName>/<nodeName>.properties
- * <root_flowGraph_dir>/<nodeName1>/<nodeName2>/<edgeName>.properties
+ * Provides the common set of functionalities needed by listeners of {@link FlowGraphMonitor} to read changes in files and
+ * apply them to a {@link FlowGraph}
+ * Assumes that the directory structure between flowgraphs configuration files are the same.
  */
 @Slf4j
-public class GitFlowGraphMonitor extends GitMonitoringService {
-  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gobblin.service.gitFlowGraphMonitor";
-
-  private static final String PROPERTIES_EXTENSIONS = "properties";
-  private static final String CONF_EXTENSIONS = "conf";
+public abstract class BaseFlowGraphListener {
+  protected FlowGraph flowGraph;
+  protected static final int NODE_FILE_DEPTH = 3;
+  protected static final int EDGE_FILE_DEPTH = 4;
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
-  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
-  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
-  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";
 
-  private static final int NODE_FILE_DEPTH = 3;
-  private static final int EDGE_FILE_DEPTH = 4;
-  private static final int DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL = 60;
-
-  private static final Config DEFAULT_FALLBACK =
-      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
-          .put(ConfigurationKeys.GIT_MONITOR_REPO_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR)
-          .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
-          .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME)
-          .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
-          .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
-          .put(HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
-          .put(SHOULD_CHECKPOINT_HASHES, false)
-          .build());
+  final String baseDirectory;
+  private final Config emptyConfig = ConfigFactory.empty();
 
   private Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
-  private FlowGraph flowGraph;
   private final Map<URI, TopologySpec> topologySpecMap;
-  private final Config emptyConfig = ConfigFactory.empty();
-  private final CountDownLatch initComplete;
 
-  public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
-    super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
+  final String flowGraphFolderName;
+  final PullFileLoader pullFileLoader;
+  final Set<String> javaPropsExtensions;
+  final Set<String> hoconFileExtensions;
+
+  public BaseFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
+      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
+      String javaPropsExtentions, String hoconFileExtensions) {
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
-    this.initComplete = initComplete;
-  }
-
-  /**
-   * Determine if the service should poll Git. Current behavior is both master and slave(s) will poll Git for
-   * changes to {@link FlowGraph}.
-   */
-  @Override
-  public boolean shouldPollGit() {
-    return this.isActive;
-  }
-
-  /**
-   * Sort the changes in a commit so that changes to node files appear before changes to edge files. This is done so that
-   * node related changes are applied to the FlowGraph before edge related changes. An example where the order matters
-   * is the case when a commit adds a new node n2 as well as adds an edge from an existing node n1 to n2. To ensure that the
-   * addition of edge n1->n2 is successful, node n2 must exist in the graph and so needs to be added first. For deletions,
-   * the order does not matter and ordering the changes in the commit will result in the same FlowGraph state as if the changes
-   * were unordered. In other words, deletion of a node deletes all its incident edges from the FlowGraph. So processing an
-   * edge deletion later results in a no-op. Note that node and edge files do not change depth in case of modifications.
-   *
-   * If there are multiple commits between successive polls to Git, the re-ordering of changes across commits should not
-   * affect the final state of the FlowGraph. This is because, the order of changes for a given file type (i.e. node or edge)
-   * is preserved.
-   */
-  @Override
-  void processGitConfigChanges() throws GitAPIException, IOException {
-    if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().getAndSetShouldRefreshFlowGraph(false)) {
-      log.info("Change to template catalog detected, refreshing FlowGraph");
-      this.gitRepo.initRepository();
-    }
-
-    List<DiffEntry> changes = this.gitRepo.getChanges();
-    Collections.sort(changes, (o1, o2) -> {
-      Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
-      Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
-      return o1Depth.compareTo(o2Depth);
-    });
-    processGitConfigChangesHelper(changes);
-    //Decrements the latch count. The countdown latch is initialized to 1. So after the first time the latch is decremented,
-    // the following operation should be a no-op.
-    this.initComplete.countDown();
-  }
-
-  /**
-   * Add an element (i.e., a {@link DataNode}, or a {@link FlowEdge} to
-   * the {@link FlowGraph} for an added, updated or modified node or edge file.
-   * @param change
-   */
-  @Override
-  public void addChange(DiffEntry change) {
-    Path path = new Path(change.getNewPath());
-    if (path.depth() == NODE_FILE_DEPTH) {
-      addDataNode(change);
-    } else if (path.depth() == EDGE_FILE_DEPTH) {
-      addFlowEdge(change);
+    this.baseDirectory = baseDirectory;
+    this.flowGraphFolderName = flowGraphFolderName;
+    Path folderPath = new Path(baseDirectory, this.flowGraphFolderName);
+    this.javaPropsExtensions = Sets.newHashSet(javaPropsExtentions.split(","));
+    this.hoconFileExtensions = Sets.newHashSet(hoconFileExtensions.split(","));
+    try {
+      this.pullFileLoader = new PullFileLoader(folderPath,
+          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
+          this.javaPropsExtensions, this.hoconFileExtensions);
+    } catch (IOException e) {
+      throw new RuntimeException("Could not create pull file loader", e);
     }
   }
-
-  /**
-   * Remove an element (i.e. either a {@link DataNode} or a {@link FlowEdge} from the {@link FlowGraph} for
-   * a renamed or deleted {@link DataNode} or {@link FlowEdge} file.
-   * @param change
-   */
-  @Override
-  public void removeChange(DiffEntry change) {
-    Path path = new Path(change.getOldPath());
-    if (path.depth() == NODE_FILE_DEPTH) {
-      removeDataNode(change);
-    } else if (path.depth() == EDGE_FILE_DEPTH) {
-      removeFlowEdge(change);
-    }
-  }
-
   /**
    * Add a {@link DataNode} to the {@link FlowGraph}. The method uses the {@link FlowGraphConfigurationKeys#DATA_NODE_CLASS} config
    * to instantiate a {@link DataNode} from the node config file.
-   * @param change
+   * @param path of node to add
    */
-  private void addDataNode(DiffEntry change) {
-    if (checkFilePath(change.getNewPath(), NODE_FILE_DEPTH)) {
-      Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
+  protected void addDataNode(String path) {
+    if (checkFilePath(path, NODE_FILE_DEPTH)) {
+      Path nodeFilePath = new Path(this.baseDirectory, path);
       try {
         Config config = loadNodeFileWithOverrides(nodeFilePath);
         Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
@@ -192,7 +109,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           log.info("Added Datanode {} to FlowGraph", dataNode.getId());
         }
       } catch (Exception e) {
-        log.warn("Could not add DataNode defined in {} due to exception {}", change.getNewPath(), e);
+        log.warn("Could not add DataNode defined in {} due to exception {}", path, e);
       }
     }
   }
@@ -200,11 +117,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   /**
    * Remove a {@link DataNode} from the {@link FlowGraph}. The method extracts the nodeId of the
    * {@link DataNode} from the node config file and uses it to delete the associated {@link DataNode}.
-   * @param change
+   * @param path of node to delete
    */
-  private void removeDataNode(DiffEntry change) {
-    if (checkFilePath(change.getOldPath(), NODE_FILE_DEPTH)) {
-      Path nodeFilePath = new Path(this.repositoryDir, change.getOldPath());
+  protected void removeDataNode(String path) {
+    if (checkFilePath(path, NODE_FILE_DEPTH)) {
+      Path nodeFilePath = new Path(this.baseDirectory, path);
       Config config = getNodeConfigWithOverrides(ConfigFactory.empty(), nodeFilePath);
       String nodeId = config.getString(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY);
       if (!this.flowGraph.deleteDataNode(nodeId)) {
@@ -218,11 +135,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   /**
    * Add a {@link FlowEdge} to the {@link FlowGraph}. The method uses the {@link FlowEdgeFactory} instance
    * provided by the {@link FlowGraph} to build a {@link FlowEdge} from the edge config file.
-   * @param change
+   * @param path of edge to add
    */
-  private void addFlowEdge(DiffEntry change) {
-    if (checkFilePath(change.getNewPath(), EDGE_FILE_DEPTH)) {
-      Path edgeFilePath = new Path(this.repositoryDir, change.getNewPath());
+  protected void addFlowEdge(String path) {
+    if (checkFilePath(path, EDGE_FILE_DEPTH)) {
+      Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
         Config edgeConfig = loadEdgeFileWithOverrides(edgeFilePath);
         List<SpecExecutor> specExecutors = getSpecExecutors(edgeConfig);
@@ -237,10 +154,10 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
             log.info("Added edge {} to FlowGraph", edge.getId());
           }
         } else {
-          log.warn("Could not add edge defined in {} to FlowGraph as FlowTemplateCatalog is absent", change.getNewPath());
+          log.warn("Could not add edge defined in {} to FlowGraph as FlowTemplateCatalog is absent", path);
         }
       } catch (Exception e) {
-        log.warn("Could not add edge defined in {} due to exception {}", change.getNewPath(), e.getMessage());
+        log.warn("Could not add edge defined in {} due to exception {}", path, e.getMessage());
       }
     }
   }
@@ -249,11 +166,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * Remove a {@link FlowEdge} from the {@link FlowGraph}. The method uses {@link FlowEdgeFactory}
    * to construct the edgeId of the {@link FlowEdge} from the config file and uses it to delete the associated
    * {@link FlowEdge}.
-   * @param change
+   * @param path of edge to delete
    */
-  private void removeFlowEdge(DiffEntry change) {
-    if (checkFilePath(change.getOldPath(), EDGE_FILE_DEPTH)) {
-      Path edgeFilePath = new Path(this.repositoryDir, change.getOldPath());
+  protected void removeFlowEdge(String path) {
+    if (checkFilePath(path, EDGE_FILE_DEPTH)) {
+      Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
         Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
         String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
@@ -303,7 +220,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     for (int i = 0; i < depth - 1; i++) {
       path = path.getParent();
     }
-    if (!path.getName().equals(folderName)) {
+    if (!path.getName().equals(flowGraphFolderName)) {
       return false;
     }
     return true;
@@ -315,7 +232,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param nodeFilePath path of the node file
    * @return config with overridden data.node.id
    */
-  private Config getNodeConfigWithOverrides(Config nodeConfig, Path nodeFilePath) {
+  protected Config getNodeConfigWithOverrides(Config nodeConfig, Path nodeFilePath) {
     String nodeId = nodeFilePath.getParent().getName();
     return nodeConfig.withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef(nodeId));
   }
@@ -342,8 +259,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @param edgeConfig containing the logical names of SpecExecutors for this edge.
    * @return a {@link List<SpecExecutor>}s for this edge.
    */
-  private List<SpecExecutor> getSpecExecutors(Config edgeConfig)
-      throws URISyntaxException {
+  private List<SpecExecutor> getSpecExecutors(Config edgeConfig) throws URISyntaxException {
     //Get the logical names of SpecExecutors where the FlowEdge can be executed.
     List<String> specExecutorNames = ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
     //Load all the SpecExecutor configurations for this FlowEdge from the SpecExecutor Catalog.
@@ -361,10 +277,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @return the configuration object
    * @throws IOException
    */
-  private Config loadNodeFileWithOverrides(Path filePath) throws IOException {
+  protected Config loadNodeFileWithOverrides(Path filePath) throws IOException {
     Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getNodeConfigWithOverrides(nodeConfig, filePath);
   }
+
 
   /**
    * Load the edge file.
@@ -372,7 +289,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @return the configuration object
    * @throws IOException
    */
-  private Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
+  protected Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
     Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getEdgeConfigWithOverrides(edgeConfig, filePath);
   }

@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.io.File;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,9 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+
+import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
+import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jgit.api.Git;
@@ -57,7 +61,7 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.modules.core.GitConfigMonitor;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
@@ -84,8 +88,18 @@ public class GobblinServiceManagerTest {
   private static final String TEST_GROUP_NAME = "testGroup";
   private static final String TEST_FLOW_NAME = "testFlow";
   private static final String TEST_FLOW_NAME2 = "testFlow2";
+  private static final String TEST_FLOW_NAME3 = "testFlow3";
+  private static final String TEST_FLOW_NAME4 = "testFlow4";
+  private static final String TEST_FLOW_NAME5 = "testFlow5";
+  private static final String TEST_FLOW_NAME6 = "testFlow6";
+  private static final String TEST_FLOW_NAME7 = "testFlow7";
   private static final FlowId TEST_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
   private static final FlowId TEST_FLOW_ID2 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME2);
+  private static final FlowId TEST_FLOW_ID3 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME3);
+  private static final FlowId TEST_FLOW_ID4 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME4);
+  private static final FlowId TEST_FLOW_ID5 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME5);
+  private static final FlowId TEST_FLOW_ID6 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME6);
+  private static final FlowId TEST_FLOW_ID7 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME7);
   private static final FlowId UNCOMPILABLE_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME)
       .setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW);
 
@@ -140,6 +154,10 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
     serviceCoreProperties.put(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, FLOW_SPEC_STORE_DIR);
+    serviceCoreProperties.put(FlowCatalog.FLOWSPEC_STORE_CLASS_KEY, "org.apache.gobblin.runtime.spec_store.MysqlSpecStore");
+    serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, "flow_spec_store");
+    serviceCoreProperties.put(FlowCatalog.FLOWSPEC_SERDE_CLASS_KEY, "org.apache.gobblin.runtime.spec_serde.GsonFlowSpecSerDe");
+
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY, TEST_GOBBLIN_EXECUTOR_NAME);
     serviceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
         "StandaloneTestExecutor");
@@ -162,7 +180,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
-
+    serviceCoreProperties.put(AbstractUserQuotaManager.PER_USER_QUOTA, "testUser:1");
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
 
     // Create a bare repository
@@ -308,6 +326,25 @@ public class GobblinServiceManagerTest {
   }
 
   @Test (dependsOnMethods = "testRunOnceJob")
+  public void testRunQuotaExceeds() throws Exception {
+    Map<String, String> props = flowProperties;
+    props.put(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_USER_TO_PROXY_KEY, "testUser");
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
+
+    this.flowConfigClient.createFlowConfig(flowConfig);
+
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
+
+    try {
+      this.flowConfigClient.createFlowConfig(flowConfig2);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.SERVICE_UNAVAILABLE_503);
+    }
+  }
+
+  @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties)).setExplain(true);
@@ -448,7 +485,7 @@ null, null, null, null);
     File testFlowFile = new File(GIT_CLONE_DIR + "/gobblin-config/testGroup/testFlow.pull");
     testFlowFile.getParentFile().mkdirs();
 
-    Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value20\n", testFlowFile, Charsets.UTF_8);
+    Files.write("{\"id\":{\"flowName\":\"testFlow\",\"flowGroup\":\"testGroup\"},\"param1\":\"value20\"}", testFlowFile, Charsets.UTF_8);
 
     Collection<Spec> specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
     Assert.assertEquals(specs.size(), 0);
@@ -522,5 +559,134 @@ null, null, null, null);
     this.gobblinServiceManager.start();
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
         this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);
+  }
+
+  @Test (dependsOnMethods = "testGitCreate")
+  public void testGetAllPaginated() throws Exception {
+    // Order of the flows by descending modified_time, and ascending flow.name should be: testFlow, testFlow2, testFlow3, testFlow4
+    FlowConfig flowConfig1 = new FlowConfig().setId(TEST_FLOW_ID)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig1);
+
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig2);
+
+    FlowConfig flowConfig3 = new FlowConfig().setId(TEST_FLOW_ID3)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig3);
+
+    FlowConfig flowConfig4 = new FlowConfig().setId(TEST_FLOW_ID4)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig4);
+
+    // Check that there are a total of 4 flowConfigs by using the default getAll call
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getAllFlowConfigs();
+    Assert.assertEquals(flowConfigs.size(), 4);
+
+    // Check that there are a total of 4 flowConfigs using new getAll call
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(0,20);
+    Assert.assertEquals(flowConfigs.size(), 4);
+
+    // Attempt pagination with one element from the start of the specStore configurations stored
+    // Start at index 0 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(0,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 1
+    // Start at index 1 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(1,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow2");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 2
+    // Start at index 2 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(2,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow3");
+
+    // Attempt pagination with one element from the specStore configurations stored with offset of 3
+    // Start at index 2 and return 1 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(3,1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow4");
+
+    // Attempt pagination with 20 element from the specStore configurations stored with offset of 1
+    // Start at index 1 and return 20 elements if there exists 20 elements.
+    // But only 4 total elements, return 3 elements since offset by 1
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(1,20);
+    Assert.assertEquals(flowConfigs.size(), 3);
+    List flowNameArray = new ArrayList();
+    List expectedResults = new ArrayList();
+    expectedResults.add("testFlow2");
+    expectedResults.add("testFlow3");
+    expectedResults.add("testFlow4");
+    for (FlowConfig fc : flowConfigs) {
+      flowNameArray.add(fc.getId().getFlowName());
+    }
+    Assert.assertEquals(flowNameArray, expectedResults);
+
+    // Clean up the flowConfigs added in for the pagination tests
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID3);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID4);
+  }
+
+  @Test (dependsOnMethods = "testGitCreate")
+  public void testGetFilteredFlowsPaginated() throws Exception {
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID5).setOwningGroup("Filter.this")
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig2);
+
+    FlowConfig flowConfig3 = new FlowConfig().setId(TEST_FLOW_ID6).setOwningGroup("Keep.this")
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig3);
+
+    FlowConfig flowConfig4 = new FlowConfig().setId(TEST_FLOW_ID7).setOwningGroup("Keep.this")
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig4);
+
+    // Start at index 0 and return 1 element
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 0, 1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow6");
+
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    // Start at index 1 and return 1 element
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 1, 1);
+    Assert.assertEquals(flowConfigs.size(), 1);
+    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow7");
+
+    // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
+    // Start at index 0 and return 20 element if exists. In this case, only 2 items so return all two items
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, "Keep.this", null, 0, 20);
+    Assert.assertEquals(flowConfigs.size(), 2);
+
+    List flowNameArray = new ArrayList();
+    List expectedResults = new ArrayList();
+    expectedResults.add("testFlow6");
+    expectedResults.add("testFlow7");
+    for (FlowConfig fc : flowConfigs) {
+      flowNameArray.add(fc.getId().getFlowName());
+    }
+    Assert.assertEquals(flowNameArray, expectedResults);
+
+    // Clean up the flowConfigs added in for the pagination tests
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID5);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID6);
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID7);
   }
 }

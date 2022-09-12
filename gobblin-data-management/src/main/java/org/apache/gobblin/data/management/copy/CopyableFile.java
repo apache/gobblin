@@ -17,16 +17,27 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.hadoop.fs.FileChecksum;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.dataset.DatasetConstants;
@@ -35,11 +46,6 @@ import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
-import org.apache.hadoop.fs.FileChecksum;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 
 
 /**
@@ -349,6 +355,36 @@ public class CopyableFile extends CopyEntity implements File {
     while (PathUtils.isAncestor(toPath, currentPath.getParent())) {
       ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
       currentPath = currentPath.getParent();
+    }
+
+    return ownerAndPermissions;
+  }
+
+  public static Map<String, OwnerAndPermission> resolveReplicatedAncestorOwnerAndPermissionsRecursively(FileSystem sourceFs, Path fromPath,
+      Path toPath, CopyConfiguration copyConfiguration) throws IOException {
+    Preconditions.checkArgument(sourceFs.getFileStatus(fromPath).isDirectory(), "Source path must be a directory.");
+
+    Map<String, OwnerAndPermission> ownerAndPermissions = Maps.newHashMap();
+
+    // We only pass directories to this method anyways. Those directories themselves need permissions set.
+    Path currentOriginPath = fromPath;
+    Path currentTargetPath = toPath;
+
+    if (!PathUtils.isAncestor(currentTargetPath, currentOriginPath)) {
+      throw new IOException(String.format("currentTargetPath %s must be an ancestor of currentOriginPath %s.", currentTargetPath, currentOriginPath));
+    }
+
+    while (PathUtils.isAncestor(currentTargetPath, currentOriginPath.getParent())) {
+      ownerAndPermissions.put(PathUtils.getPathWithoutSchemeAndAuthority(currentOriginPath).toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentOriginPath, copyConfiguration));
+      currentOriginPath = currentOriginPath.getParent();
+    }
+
+    // Walk through the parents and preserve the permissions from Origin -> Target as we go in lockstep.
+    while (currentOriginPath != null && currentTargetPath != null
+        && currentOriginPath.getName().equals(currentTargetPath.getName())) {
+      ownerAndPermissions.put(PathUtils.getPathWithoutSchemeAndAuthority(currentOriginPath).toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentOriginPath, copyConfiguration));
+      currentOriginPath = currentOriginPath.getParent();
+      currentTargetPath = currentTargetPath.getParent();
     }
 
     return ownerAndPermissions;

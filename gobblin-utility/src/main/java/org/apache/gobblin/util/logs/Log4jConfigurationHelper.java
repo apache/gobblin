@@ -20,10 +20,13 @@ package org.apache.gobblin.util.logs;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.Map.Entry;
 import java.util.Properties;
 
+import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.apache.log4j.PropertyConfigurator;
 
 import com.google.common.io.Closer;
@@ -35,6 +38,8 @@ import com.google.common.io.Closer;
  * @author Yinan Li
  */
 public class Log4jConfigurationHelper {
+  private static final Logger LOG = Logger.getLogger(Log4jConfigurationHelper.class);
+  public static final String LOG_LEVEL_OVERRIDE_MAP = "log.levelOverride.map";
 
   /**
    * Update the log4j configuration.
@@ -65,6 +70,18 @@ public class Log4jConfigurationHelper {
       throw closer.rethrow(t);
     } finally {
       closer.close();
+    }
+  }
+
+  // change log level of any class using this config
+  // e.g. log.levelOverride.map=org.apache.gobblin=debug,org.apache.kafka=trace
+  public static void setLogLevel(Collection<String> logClassesAndLevelString) {
+    for (String logClassAndLevelString : logClassesAndLevelString) {
+      String[] logClassAndLevel = logClassAndLevelString.split("=");
+      if (logClassAndLevel.length != 2) {
+        LOG.warn("Invalid value for config " + LOG_LEVEL_OVERRIDE_MAP);
+      }
+      Logger.getLogger(logClassAndLevel[0]).setLevel(Level.toLevel(logClassAndLevel[1]));
     }
   }
 }

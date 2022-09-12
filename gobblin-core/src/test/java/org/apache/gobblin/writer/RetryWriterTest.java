@@ -34,8 +34,10 @@ public class RetryWriterTest {
   public void retryTest() throws IOException {
     DataWriter<Void> writer = mock(DataWriter.class);
     doThrow(new RuntimeException()).when(writer).writeEnvelope(any(RecordEnvelope.class));
+    State state = new State();
+    state.setProp(RetryWriter.RETRY_MAX_ATTEMPTS, "5");
 
-    DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, new State());
+    DataWriterWrapperBuilder<Void> builder = new DataWriterWrapperBuilder<>(writer, state);
     DataWriter<Void> retryWriter = builder.build();
     try {
       retryWriter.writeEnvelope(new RecordEnvelope<>(null));

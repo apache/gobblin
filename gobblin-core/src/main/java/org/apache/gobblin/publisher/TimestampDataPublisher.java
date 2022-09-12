@@ -53,7 +53,7 @@ public class TimestampDataPublisher extends BaseDataPublisher {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     if (!this.publisherFileSystemByBranches.get(branchId).exists(publisherOutputDir)) {
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.permissions.get(branchId), this.retrierConfig);
+          publisherOutputDir, this.permissions.get(branchId), this.retryerConfig);
     }
     super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
   }
@@ -75,7 +75,7 @@ public class TimestampDataPublisher extends BaseDataPublisher {
 
     if (!this.publisherFileSystemByBranches.get(branchId).exists(newDst)) {
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-          newDst.getParent(), this.permissions.get(branchId), this.retrierConfig);
+          newDst.getParent(), this.permissions.get(branchId), this.retryerConfig);
     }
 
     super.movePath(parallelRunner, state, src, newDst, branchId);

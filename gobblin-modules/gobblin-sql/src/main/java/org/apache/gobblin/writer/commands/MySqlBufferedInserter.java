@@ -33,18 +33,30 @@ import lombok.ToString;
 /**
  * The implementation of JdbcBufferedInserter for MySQL.
  * This purpose of buffered insert is mainly for performance reason and the implementation is based on the
- * reference manual http://dev.mysql.com/doc/refman/5.0/en/insert-speed.html
+ * reference manual https://dev.mysql.com/doc/refman/8.0/en/
+ *
+ * This class supports two types of insertions for MySQL 1) standard insertion - only supports records with unique
+ * primary keys and fails on attempted insertion of a duplicate record 2) replace insertion - inserts new records as
+ * normal but allows for value overwrites for duplicate inserts (by primary key)
+ *
+ * Note that replacement occurs at 'record-level', so if there are duplicates in the same input then they will replace
+ * each other in a non-deterministic order.
  */
 @ToString
 public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
 
   private static final Logger LOG = LoggerFactory.getLogger(MySqlBufferedInserter.class);
 
+  protected static final String REPLACE_STATEMENT_PREFIX_FORMAT = "REPLACE INTO %s.%s (%s) VALUES ";
+
   private final int maxParamSize;
 
-  public MySqlBufferedInserter(State state, Connection conn) {
+  private final boolean overwriteRecords;
+
+  public MySqlBufferedInserter(State state, Connection conn, boolean overwriteRecords) {
     super(state, conn);
     this.maxParamSize = state.getPropAsInt(WRITER_JDBC_MAX_PARAM_SIZE, DEFAULT_WRITER_JDBC_MAX_PARAM_SIZE);
+    this.overwriteRecords = overwriteRecords;
   }
 
   @Override
@@ -85,5 +97,13 @@ public class MySqlBufferedInserter extends BaseJdbcBufferedInserter {
     }
     this.batchSize = actualBatchSize;
     super.initializeBatch(databaseName, table);
+  }
+
+  @Override
+  /**
+   * Use separate insertion statement if data overwrites are allowed
+   */
+  protected String createInsertStatementStr(String databaseName, String table) {
+    return String.format(this.overwriteRecords ? REPLACE_STATEMENT_PREFIX_FORMAT : INSERT_STATEMENT_PREFIX_FORMAT, databaseName, table, JOINER_ON_COMMA.join(this.columnNames));
   }
 }

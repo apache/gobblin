@@ -29,12 +29,12 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.ZNRecord;
-import org.apache.helix.manager.zk.ChainedPathZkSerializer;
-import org.apache.helix.manager.zk.PathBasedZkSerializer;
 import org.apache.helix.manager.zk.ZNRecordStreamingSerializer;
 import org.apache.helix.manager.zk.ZkClient;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.zookeeper.datamodel.serializer.ChainedPathZkSerializer;
+import org.apache.helix.zookeeper.zkclient.serialize.PathBasedZkSerializer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,8 +89,8 @@ public class ClusterIntegrationTest {
         IntegrationJobCancelSuite.TASK_STATE_FILE)
         .withValue(SleepingTask.SLEEP_TIME_IN_SECONDS, ConfigValueFactory.fromAnyRef(100));
     this.suite = new IntegrationJobCancelSuite(jobConfigOverrides);
-    HelixManager helixManager = getHelixManager();
     suite.startCluster();
+    HelixManager helixManager = getHelixManager();
     helixManager.connect();
 
     ExecutorService executor = Executors.newSingleThreadExecutor();

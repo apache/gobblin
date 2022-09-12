@@ -33,7 +33,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
-import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
@@ -198,19 +197,22 @@ public class YarnServiceTestWithExpiration {
 
   @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testStartError() throws Exception{
-    this.expiredYarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
+    Resource resource = Resource.newInstance(16, 1);
+    this.expiredYarnService.requestTargetNumberOfContainers(
+        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
 
-    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(64, 1).isEmpty());
-    Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
+    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(resource).isEmpty());
 
-    try {
-      Thread.sleep(20000);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-    //Since it may retry to request the container and start again, so the number may lager than 10
-    Assert.assertTrue(this.expiredYarnService.completedContainers.size() >= 10);
-    Assert.assertTrue(this.expiredYarnService.startErrorContainers.size() >= 10);
+    AssertWithBackoff.create().logger(LOG).timeoutMs(60000).maxSleepMs(2000).backoffFactor(1.5)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            //Since it may retry to request the container and start again, so the number may lager than 10
+            return expiredYarnService.completedContainers.size() >= 10
+                && expiredYarnService.startErrorContainers.size() >= 10;
+          }
+        }, "Waiting for container completed");
+
   }
 
   private static class TestExpiredYarnService extends YarnServiceTest.TestYarnService {
@@ -232,7 +234,7 @@ public class YarnServiceTestWithExpiration {
       completedContainers.add(containerStatus);
     }
 
-    protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
+    protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
         throws IOException {
       try {
         Thread.sleep(1000);
@@ -240,7 +242,7 @@ public class YarnServiceTestWithExpiration {
         Thread.currentThread().interrupt();
       }
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
-          Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
+          Arrays.asList("sleep", "600"), Collections.emptyMap(), null, Collections.emptyMap());
     }
     private class TestNMClientCallbackHandler extends YarnService.NMClientCallbackHandler {
       @Override

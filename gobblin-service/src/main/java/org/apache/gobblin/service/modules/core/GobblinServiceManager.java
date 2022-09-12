@@ -31,12 +31,14 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.api.listeners.ControllerChangeListener;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -196,6 +198,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   @Inject
   protected ServiceDatabaseManager databaseManager;
+
+  @Inject(optional=true)
+  @Getter
+  protected Optional<UserQuotaManager> quotaManager;
 
   protected Optional<HelixLeaderState> helixLeaderGauges;
 
@@ -388,7 +394,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     registerServicesInLauncher();
 
     // Register Scheduler to listen to changes in Flows
-    if (configuration.isSchedulerEnabled()) {
+    // In warm standby mode, instead of scheduler we will add orchestrator as listener
+    if(configuration.isWarmStandbyEnabled()) {
+      this.flowCatalog.addListener(this.orchestrator);
+    } else if (configuration.isSchedulerEnabled()) {
       this.flowCatalog.addListener(this.scheduler);
     }
   }
@@ -417,12 +426,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     if (this.helixManager.isPresent()) {
       // Subscribe to leadership changes
-      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
-        @Override
-        public void onControllerChange(NotificationContext changeContext) {
-          handleLeadershipChange(changeContext);
-        }
-      });
+      this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
 
 
       // Update for first time since there might be no notification

@@ -27,6 +27,7 @@ dependencies {
 
   compile externalDependency.guava
   compile externalDependency.metricsCore
+  compile externalDependency.metricsJmx
   compile externalDependency.slf4j
   compile externalDependency.jodaTime
   compile externalDependency.commonsLang3

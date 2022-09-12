@@ -159,8 +159,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.rowBatch = typeDescription.createRowBatch(this.batchSize);
     this.deepCleanBatch = properties.getPropAsBoolean(ORC_WRITER_DEEP_CLEAN_EVERY_BATCH, false);
 
-    log.info("Start to construct a ORC-Native Writer, with batchSize:" + batchSize + ", enable batchDeepClean:"
-        + deepCleanBatch + "\n, schema in input format:" + this.inputSchema);
+    log.info("Created ORC writer, batch size: {}, {}: {}",
+            batchSize, OrcConf.ROWS_BETWEEN_CHECKS.name(), properties.getProp(OrcConf.ROWS_BETWEEN_CHECKS.name(),
+                    OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue().toString()));
 
     // Create file-writer
     Configuration conf = new Configuration();

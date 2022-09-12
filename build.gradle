@@ -31,7 +31,6 @@ buildscript {
   dependencies {
     classpath 'org.apache.ant:ant:1.9.4'
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
-    classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
     classpath 'io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE'
     classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.8'
     classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"

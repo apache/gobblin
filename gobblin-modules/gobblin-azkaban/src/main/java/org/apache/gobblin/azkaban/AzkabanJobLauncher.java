@@ -74,6 +74,7 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.TimeRangeChecker;
 import org.apache.gobblin.util.hadoop.TokenUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 
 import static org.apache.gobblin.runtime.AbstractJobLauncher.resolveGobblinJobTemplateIfNecessary;
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
@@ -101,10 +102,13 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final Logger LOG = Logger.getLogger(AzkabanJobLauncher.class);
 
   public static final String GOBBLIN_LOG_LEVEL_KEY = "gobblin.log.levelOverride";
+  public static final String LOG_LEVEL_OVERRIDE_MAP = "log.levelOverride.map";
+
   public static final String GOBBLIN_CUSTOM_JOB_LISTENERS = "gobblin.custom.job.listeners";
 
   private static final String HADOOP_FS_DEFAULT_NAME = "fs.default.name";
   private static final String AZKABAN_LINK_JOBEXEC_URL = "azkaban.link.jobexec.url";
+  private static final String AZKABAN_LINK_JOBEXEC_PROXY_URL = "azkaban.link.jobexec.proxyUrl";
   private static final String AZKABAN_FLOW_EXEC_ID = "azkaban.flow.execid";
   private static final String MAPREDUCE_JOB_CREDENTIALS_BINARY = "mapreduce.job.credentials.binary";
 
@@ -137,6 +141,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);
       Logger.getLogger("org.apache.gobblin").setLevel(logLevel);
     }
+
+    Log4jConfigurationHelper.setLogLevel(PropertiesUtils.getPropAsList(props, Log4jConfigurationHelper.LOG_LEVEL_OVERRIDE_MAP, ""));
 
     this.props = new Properties();
     this.props.putAll(props);
@@ -379,12 +385,22 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps) {
     List<Tag<?>> metadataTags = Lists.newArrayList();
     String jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID, "");
-    String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, "");
+    // Display the proxy URL in the metadata tag if it exists
+    String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_PROXY_URL, jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, ""));
 
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
         jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
         jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+
+    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
+          "false"));
+    }
 
     // use job execution id if flow execution id is not present
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,

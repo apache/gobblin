@@ -268,7 +268,7 @@ public class FSSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+  public Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException {
     throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
   }
 
@@ -355,6 +355,11 @@ public class FSSpecStore extends InstrumentedSpecStore {
 
   public int getSizeImpl() throws IOException {
     return getSizeImpl(this.fsSpecStoreDirPath);
+  }
+
+  @Override
+  public Collection<Spec> getSpecsImpl(int start, int count) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
   }
 
   private int getSizeImpl(Path directory) throws IOException {

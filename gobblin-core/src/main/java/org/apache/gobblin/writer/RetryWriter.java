@@ -174,7 +174,12 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
 
     long multiplier = state.getPropAsLong(RETRY_MULTIPLIER, 500L);
     long maxWaitMsPerInterval = state.getPropAsLong(RETRY_MAX_WAIT_MS_PER_INTERVAL, 10000);
-    int maxAttempts = state.getPropAsInt(RETRY_MAX_ATTEMPTS, 5);
+    // Setting retry attempts to 1 because Retrying is not possible for every kind of source and target record types
+    // e.g. 1) if the source and destination are InputStream and OutputStream respectively as in the case of
+    // FileAwareInputStreamDataWriter, we may need to reset the InputStream to the beginning, which, depending upon the
+    // implementation of InputStream is not always possible, 2) we need to reopen the InputStream which is closed in
+    // the finally block of writeImpl after the first attempt.
+    int maxAttempts = state.getPropAsInt(RETRY_MAX_ATTEMPTS, 1);
     return RetryerBuilder.<Void> newBuilder()
         .retryIfException(transients)
         .withWaitStrategy(WaitStrategies.exponentialWait(multiplier, maxWaitMsPerInterval, TimeUnit.MILLISECONDS)) //1, 2, 4, 8, 16 seconds delay

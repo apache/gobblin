@@ -35,7 +35,7 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,15 +131,15 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   }
 
   @Override
-  protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+  protected MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new ControllerUserDefinedMessageHandlerFactory();
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private class ControllerUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -178,7 +178,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
       }
 
       @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         String messageSubType = this._message.getMsgSubType();
 
         if (messageSubType.equalsIgnoreCase(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {

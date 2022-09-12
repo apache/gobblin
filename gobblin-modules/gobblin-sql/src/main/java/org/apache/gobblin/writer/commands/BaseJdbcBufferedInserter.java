@@ -34,10 +34,11 @@ import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 
+import lombok.ToString;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 import org.apache.gobblin.converter.jdbc.JdbcEntryDatum;
-import lombok.ToString;
 
 
 /**

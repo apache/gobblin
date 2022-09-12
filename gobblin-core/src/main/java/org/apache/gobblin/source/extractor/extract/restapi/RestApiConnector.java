@@ -17,10 +17,13 @@
 
 package org.apache.gobblin.source.extractor.extract.restapi;
 
+import com.google.common.io.Closer;
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -53,7 +56,7 @@ import lombok.extern.slf4j.Slf4j;
  * A class for connecting to Rest APIs, construct queries and getting responses.
  */
 @Slf4j
-public abstract class RestApiConnector {
+public abstract class RestApiConnector implements Closeable {
 
   public static final String REST_API_CONNECTOR_CLASS = "rest.api.connector.class";
 
@@ -68,6 +71,7 @@ public abstract class RestApiConnector {
   protected long createdAt;
   protected String instanceUrl;
   protected String updatedQuery;
+  protected Closer closer = Closer.create();
 
   protected final State state;
 
@@ -75,6 +79,16 @@ public abstract class RestApiConnector {
     this.state = state;
     this.authTokenTimeout =
         state.getPropAsInt(ConfigurationKeys.SOURCE_CONN_TIMEOUT, ConfigurationKeys.DEFAULT_CONN_TIMEOUT);
+  }
+
+  @Override
+  public void close() throws IOException {
+    // This is to close any idle connections opening by the httpClient
+    this.closer.close();
+    if (this.getHttpClient() != null && !(this.getHttpClient() instanceof Closeable)) {
+      log.warn("httpClient is not closable, we will only close the idle connections");
+      this.getHttpClient().getConnectionManager().closeIdleConnections(0, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**
@@ -133,6 +147,9 @@ public abstract class RestApiConnector {
           .setStatePropertiesPrefix(ConfigurationKeys.SOURCE_CONN_PREFIX)
           .configure(this.state)
           .createClient();
+      if (httpClient instanceof Closeable) {
+        this.closer.register((Closeable)httpClient);
+      }
     }
     return this.httpClient;
   }
@@ -178,7 +195,9 @@ public abstract class RestApiConnector {
         if (httpEntity != null) {
           EntityUtils.consume(httpEntity);
         }
-        // httpResponse.close();
+        if (httpResponse instanceof Closeable) {
+          this.closer.register((Closeable)httpResponse);
+        }
       } catch (Exception e) {
         throw new RestApiProcessingException("Failed to consume httpEntity; error - " + e.getMessage(), e);
       }

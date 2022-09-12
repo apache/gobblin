@@ -33,9 +33,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
@@ -78,12 +75,12 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   protected static final Joiner JOINER = Joiner.on('.').skipNulls();
   protected static final String METRIC_KEY_PREFIX = "gobblin.metrics";
   protected static final String EVENTS_QUALIFIER = "events";
-  private static final Logger LOGGER = LoggerFactory.getLogger(EventReporter.class);
   public static final int DEFAULT_QUEUE_CAPACITY = 100;
   public static final String QUEUE_CAPACITY_KEY = ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".queue.capacity";
   public static final int DEFAULT_QUEUE_OFFER_TIMEOUT_SECS = 10;
   public static final String QUEUE_OFFER_TIMOUT_SECS_KEY = ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".queue.offer.timeout.secs";
   private static final String NULL_STRING = "null";
+  public static final int REPORT_TIMEOUT_SECS = 60;
 
   private final MetricContext metricContext;
   private final BlockingQueue<GobblinTrackingEvent> reportingQueue;
@@ -108,7 +105,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     this.closer = Closer.create();
     this.immediateReportExecutor = MoreExecutors.getExitingExecutorService(
         (ThreadPoolExecutor) Executors.newFixedThreadPool(1,
-            ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("EventReporter-" + builder.name + "-%d"))),
+            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("EventReporter-" + builder.name + "-%d"))),
         5, TimeUnit.MINUTES);
 
     this.metricContext = builder.context;
@@ -144,9 +141,11 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
     if (this.reportingQueue.size() > this.queueCapacity * 2 / 3) {
+      log.info("Trigger immediate run to report the event since queue is almost full");
       immediatelyScheduleReport();
     }
     try {
+      log.debug(String.format("Offering one event to the metrics queue with event name: %s", event.getName()));
       if (!this.reportingQueue.offer(sanitizeEvent(event), this.queueOfferTimeoutSecs, TimeUnit.SECONDS)) {
         log.error("Enqueuing of event {} at reporter with class {} timed out. Sending of events is probably stuck.",
             event, this.getClass().getCanonicalName());
@@ -235,11 +234,14 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   @Override
   public void close() {
     try {
+      log.info(String.format("Closing event reporter %s", this.getClass().getCanonicalName()));
       this.metricContext.removeNotificationTarget(this.notificationTargetKey);
+      this.immediateReportExecutor.awaitTermination(REPORT_TIMEOUT_SECS, TimeUnit.SECONDS);
+      log.info(String.format("Flush out %s events before closing the reporter", this.reportingQueue.size()));
       report();
       this.closer.close();
     } catch (Exception e) {
-      LOGGER.warn("Exception when closing EventReporter", e);
+      log.warn("Exception when closing EventReporter", e);
     } finally {
       super.close();
     }

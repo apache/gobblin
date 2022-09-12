@@ -17,7 +17,10 @@
 
 package org.apache.gobblin.runtime;
 
+import com.github.rholder.retry.RetryException;
+import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,16 +30,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.source.InfiniteSource;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
@@ -65,11 +71,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -92,7 +96,6 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -180,6 +183,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private final AutomaticTroubleshooter troubleshooter;
 
+  protected final GobblinJobMetricReporter gobblinJobMetricsReporter;
+
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
     this(jobProps, metadataTags, null);
@@ -231,7 +236,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           });
 
       this.eventSubmitter = buildEventSubmitter(metadataTags);
-
       // Add all custom tags to the JobState so that tags are added to any new TaskState created
       GobblinMetrics.addCustomTagToState(this.jobContext.getJobState(), metadataTags);
 
@@ -241,6 +245,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       this.multiEventMetadataGenerator = new MultiEventMetadataGenerator(
           PropertiesUtils.getPropAsList(jobProps, ConfigurationKeys.EVENT_METADATA_GENERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY));
+
+      String jobMetricsReporterClassName = this.jobProps.getProperty(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY, ConfigurationKeys.DEFAULT_JOB_METRICS_REPORTER_CLASS);
+      this.gobblinJobMetricsReporter =  (GobblinJobMetricReporter) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(jobMetricsReporterClassName),
+          this.runtimeMetricContext);
+
     } catch (Exception e) {
       unlockJob();
       throw e;
@@ -258,6 +267,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       Authenticator.setDefault(authenticator);
     }
   }
+
+  /**
+   * Handle {@link WorkUnitChangeEvent}, by default it will do nothing
+   */
+  @Subscribe
+  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent)
+      throws InvocationTargetException {
+    LOG.info("start to handle workunit change event");
+    try {
+      this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
+      this.addTasksToCurrentJob(workUnitChangeEvent.getNewWorkUnits());
+    } catch (Exception e) {
+      //todo: emit some event to indicate there is an error handling this event that may cause starvation
+      throw new InvocationTargetException(e);
+    }
+  }
+
+  protected void removeTasksFromCurrentJob(List<String> taskIdsToRemove) throws IOException, ExecutionException,
+                                                                                RetryException {}
+  protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) throws IOException, ExecutionException,
+                                                                            RetryException {}
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
@@ -401,7 +431,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
     boolean isWorkUnitsEmpty = false;
-
+    TimingEvent workUnitsCreationTimer =
+        this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
     try {
       MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
       MDC.put(ConfigurationKeys.JOB_KEY_KEY, this.jobContext.getJobKey());
@@ -424,9 +455,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           executeUnfinishedCommitSequences(jobState.getJobName());
         }
 
-        TimingEvent workUnitsCreationTimer =
-            this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
         Source<?, ?> source = this.jobContext.getSource();
+        if (source instanceof InfiniteSource) {
+          ((InfiniteSource) source).getEventBus().register(this);
+        } else if (source instanceof SourceDecorator) {
+          if (((SourceDecorator<?, ?>) source).getEventBus() != null) {
+            ((SourceDecorator<?, ?>) source).getEventBus().register(this);
+          }
+        }
         WorkUnitStream workUnitStream;
         if (source instanceof WorkUnitStreamSource) {
           workUnitStream = ((WorkUnitStreamSource) source).getWorkunitStream(jobState);
@@ -436,16 +472,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         workUnitsCreationTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
 
-        if (this.runtimeMetricContext.isPresent()) {
-          String workunitCreationGaugeName = MetricRegistry
-              .name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
-                  jobState.getJobName());
-          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
-          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
-              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
-          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
-        }
-
+        this.gobblinJobMetricsReporter.reportWorkUnitCreationTimerMetrics(workUnitsCreationTimer, jobState);
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
@@ -453,6 +480,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           String errMsg = "Failed to get work units for job " + jobId;
           this.jobContext.getJobState().setJobFailureMessage(errMsg);
           this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(0, jobState);
           throw new JobException(errMsg);
         }
 
@@ -463,6 +491,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           jobState.setState(JobState.RunningState.COMMITTED);
           isWorkUnitsEmpty = true;
           this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(0, jobState);
           return;
         }
 
@@ -529,7 +558,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           // If it is a streaming source, workunits cannot be counted
           this.jobContext.getJobState().setProp(NUM_WORKUNITS,
               workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
-
+          this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(this.jobContext.getJobState().getPropAsInt(NUM_WORKUNITS), jobState);
           // dump the work unit if tracking logs are enabled
           if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
             workUnitStream = workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
@@ -574,7 +603,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       } catch (Throwable t) {
         jobState.setState(JobState.RunningState.FAILED);
-        String errMsg = "Failed to launch and run job " + jobId + " due to" + t.getMessage();
+        String errMsg = "Failed to launch and run job " + jobId + " due to " + t.getMessage();
         LOG.error(errMsg + ": " + t, t);
         this.jobContext.getJobState().setJobFailureException(t);
       } finally {
@@ -1002,8 +1031,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       LOG.error("Failed to clean leftover staging data", t);
     }
   }
-
-
 
   private static String getJobIdPrefix(String jobId) {
     return jobId.substring(0, jobId.lastIndexOf(Id.Job.SEPARATOR) + 1);

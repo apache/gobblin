@@ -33,6 +33,8 @@ public class IngestionRecordCountProviderTest {
     IngestionRecordCountProvider filenameRecordCountProvider = new IngestionRecordCountProvider();
     Assert.assertEquals(IngestionRecordCountProvider.constructFilePath("/a/b/c.avro", 123), "/a/b/c.123.avro");
     Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("/a/b/c.123.avro")), 123);
+    Assert.assertEquals(IngestionRecordCountProvider.containsRecordCount("/a/b/c.123.avro"), true);
+    Assert.assertEquals(IngestionRecordCountProvider.containsRecordCount("/a/b/c.xyz.avro"), false);
   }
 
 }

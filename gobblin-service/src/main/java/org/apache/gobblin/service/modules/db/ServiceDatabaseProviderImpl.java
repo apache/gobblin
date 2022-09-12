@@ -20,6 +20,9 @@ package org.apache.gobblin.service.modules.db;
 import java.time.Duration;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.commons.dbcp2.BasicDataSource;
 
 import com.typesafe.config.Config;
@@ -31,13 +34,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import org.apache.gobblin.metastore.util.MysqlDataSourceUtils;
+import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
+  private static final Logger LOG = LoggerFactory.getLogger(ServiceDatabaseProviderImpl.class);
 
   private final Configuration configuration;
   private BasicDataSource dataSource;
@@ -63,8 +67,10 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     dataSource.setUsername(configuration.getUserName());
     dataSource.setPassword(configuration.getPassword());
 
-    // MySQL server can timeout a connection so we need to validate connections.
-    dataSource.setValidationQuery(MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY);
+    // MySQL server can timeout a connection so need to validate connections before use
+    final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
+    LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
+    dataSource.setValidationQuery(validationQuery);
     dataSource.setValidationQueryTimeout(5);
 
     // To improve performance, we only check connections on creation, and set a maximum connection lifetime
@@ -87,7 +93,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     private String password;
 
     @Builder.Default
-    private Duration maxConnectionLifetime = Duration.ofMinutes(1);
+    private Duration maxConnectionLifetime = Duration.ofMillis(-1);
 
     @Builder.Default
     private int maxConnections = 100;

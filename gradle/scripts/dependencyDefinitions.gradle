@@ -67,7 +67,7 @@ ext.externalDependency = [
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
     "hdrHistogram": "org.hdrhistogram:HdrHistogram:2.1.11",
-    "helix": "org.apache.helix:helix-core:0.9.4",
+    "helix": "org.apache.helix:helix-core:1.0.2",
     "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
     "hiveJdbc": "org.apache.hive:hive-jdbc:" + hiveVersion,
@@ -110,6 +110,7 @@ ext.externalDependency = [
     "metricsCore": "io.dropwizard.metrics:metrics-core:" + dropwizardMetricsVersion,
     "metricsJvm": "io.dropwizard.metrics:metrics-jvm:" + dropwizardMetricsVersion,
     "metricsGraphite": "io.dropwizard.metrics:metrics-graphite:" + dropwizardMetricsVersion,
+    "metricsJmx": "io.dropwizard.metrics:metrics-jmx:" + dropwizardMetricsVersion,
     "jsch": "com.jcraft:jsch:0.1.54",
     "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
@@ -206,8 +207,8 @@ ext.externalDependency = [
         "org.slf4j:slf4j-log4j12:" + slf4jVersion
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
-    "testContainers": "org.testcontainers:testcontainers:1.15.3",
-    "testContainersMysql": "org.testcontainers:mysql:1.15.3"
+    "testContainers": "org.testcontainers:testcontainers:1.17.3",
+    "testContainersMysql": "org.testcontainers:mysql:1.17.3"
 ]
 
 if (!isDefaultEnvironment)

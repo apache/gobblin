@@ -26,6 +26,7 @@ import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
+import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -78,7 +80,11 @@ public abstract class AbstractPathFinder implements PathFinder {
   protected FlowSpec flowSpec;
   protected Config flowConfig;
 
-  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec) throws ReflectiveOperationException {
+    this(flowGraph, flowSpec, new HashMap<>());
+  }
+
+  AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec, Map<String, String> dataNodeAliasMap)
       throws ReflectiveOperationException {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
@@ -86,9 +92,9 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.flowConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
 
     //Get src/dest DataNodes from the flow config
-    String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
+    String srcNodeId = FlowConfigUtils.getDataNode(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, dataNodeAliasMap);
+    List<String> destNodeIds = FlowConfigUtils.getDataNodes(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, dataNodeAliasMap);
 
-    List<String> destNodeIds = ConfigUtils.getStringList(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     this.srcNode = this.flowGraph.getNode(srcNodeId);
     Preconditions.checkArgument(srcNode != null, "Flowgraph does not have a node with id " + srcNodeId);
     for (String destNodeId : destNodeIds) {
@@ -210,7 +216,7 @@ public abstract class AbstractPathFinder implements PathFinder {
             try {
               flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
             } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
-              this.flowSpec.getCompilationErrors().add("Error compiling edge " + flowEdge.toString() + ": " + e.toString());
+              flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), "Error compiling edge " + flowEdge.toString() + ": " + e.toString());
               continue;
             }
 

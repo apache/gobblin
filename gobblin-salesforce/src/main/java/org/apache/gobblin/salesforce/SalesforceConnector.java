@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.salesforce;
 
+import java.io.Closeable;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
@@ -95,7 +97,11 @@ public class SalesforceConnector extends RestApiConnector {
     try {
       HttpPost post = new HttpPost(host + DEFAULT_AUTH_TOKEN_PATH);
       post.setEntity(new UrlEncodedFormEntity(formParams));
-      return getHttpClient().execute(post).getEntity();
+      HttpResponse httpResponse= getHttpClient().execute(post);
+      if (httpResponse instanceof Closeable) {
+        this.closer.register((Closeable) httpResponse);
+      }
+      return httpResponse.getEntity();
     } catch (Exception e) {
       throw new RestApiConnectionException("Failed to authenticate salesforce host:"
           + host + "; error-" + e.getMessage(), e);

@@ -175,7 +175,7 @@ public class GobblinHelixJobLauncherTest {
     this.thread.start();
   }
 
-  private Properties generateJobProperties(Config baseConfig, String jobNameSuffix, String jobIdSuffix) {
+  static Properties generateJobProperties(Config baseConfig, String jobNameSuffix, String jobIdSuffix) {
     Properties properties = ConfigUtils.configToProperties(baseConfig);
 
     String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY) + jobNameSuffix;

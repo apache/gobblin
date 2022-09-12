@@ -835,17 +835,25 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       BatchInfo bulkBatchInfo = this.bulkConnection.createBatchFromStream(this.bulkJob, bout);
 
-      int waitMilliSeconds = 60 * 1000; // wait 1 minute
-
       // Get batch info with complete resultset (info id - refers to the resultset id corresponding to entire resultset)
       bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
 
       // wait for completion, failure, or formation of PK chunking batches
       // if it is InProgress or Queued, continue to wait.
+      int count = 0;
+      long minWaitTimeInMilliSeconds = super.workUnitState.getPropAsLong(
+          ConfigurationKeys.EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS_KEY,
+          ConfigurationKeys.DEFAULT_EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS);
+      long maxWaitTimeInMilliSeconds = super.workUnitState.getPropAsLong(
+          ConfigurationKeys.EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS_KEY,
+          ConfigurationKeys.DEFAULT_EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS);
       while (bulkBatchInfo.getState() == BatchStateEnum.InProgress || bulkBatchInfo.getState() == BatchStateEnum.Queued) {
+        log.info("Waiting for bulk resultSetIds");
+        // Exponential backoff
+        long waitMilliSeconds = Math.min((long) (Math.pow(2, count) * minWaitTimeInMilliSeconds), maxWaitTimeInMilliSeconds);
         Thread.sleep(waitMilliSeconds);
         bulkBatchInfo = this.bulkConnection.getBatchInfo(this.bulkJob.getId(), bulkBatchInfo.getId());
-        log.info("Waiting for bulk resultSetIds");
+        count++;
       }
 
       // Wait for pk chunking batches
@@ -886,6 +894,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       log.info("Closing salesforce bulk job connection");
       this.bulkConnection.closeJob(this.getBulkJobId());
     }
+    this.sfConnector.close();
   }
 
   private static List<Command> constructGetCommand(String restQuery) {

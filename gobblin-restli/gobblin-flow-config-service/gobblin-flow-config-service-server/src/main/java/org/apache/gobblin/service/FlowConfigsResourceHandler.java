@@ -41,6 +41,10 @@ public interface FlowConfigsResourceHandler {
    * Get all {@link FlowConfig}
    */
   Collection<FlowConfig> getAllFlowConfigs();
+  /**
+   * Get all {@link FlowConfig} with pagination
+   */
+  Collection<FlowConfig> getAllFlowConfigs(int start, int count);
 
   /**
    * Add {@link FlowConfig}

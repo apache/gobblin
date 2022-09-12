@@ -15,14 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.utils;
+package org.apache.gobblin.hive.writer;
 
-/**
- * These names are used for dependency injection, when we need to inject different instances of the same type,
- * or inject constants.
- * */
-public final class InjectionNames {
-  public static final String SERVICE_NAME = "serviceName";
-  public static final String FORCE_LEADER = "forceLeader";
-  public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
+import java.io.IOException;
+import java.util.Set;
+
+
+public class HiveMetadataWriterWithPartitionInfoException extends IOException {
+  public Set<String> addedPartitionValues;
+  public Set<String> droppedPartitionValues;
+
+  HiveMetadataWriterWithPartitionInfoException(Set<String> addedPartitionValues, Set<String> droppedPartitionValues, Exception exception) {
+    super(exception);
+    this.addedPartitionValues = addedPartitionValues;
+    this.droppedPartitionValues = droppedPartitionValues;
+  }
 }
