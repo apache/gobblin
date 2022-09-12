@@ -210,12 +210,13 @@ public class GobblinTaskRunnerTest {
     Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
     this.suite = new TaskAssignmentAfterConnectionRetry(jobConfigOverrides);
 
+    suite.startCluster();
+
     String zkConnectString = suite.getManagerConfig().getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     String clusterName = suite.getManagerConfig().getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     //A test manager instance for observing the state of the cluster
     HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager", InstanceType.SPECTATOR, zkConnectString);
 
-    suite.startCluster();
 
     helixManager.connect();
 

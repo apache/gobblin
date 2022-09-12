@@ -64,11 +64,13 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
 
     Optional<Table> existingTargetTable = this.helper.getExistingTargetTable();
     if (existingTargetTable.isPresent()) {
-      if (!this.helper.getTargetTable().getDataLocation().equals(existingTargetTable.get().getDataLocation())) {
+      // Use update policy if user defined table path for their copy location does not match pre-existing table path
+      if (!HiveUtils.areTablePathsEquivalent(this.helper.getTargetFs(), this.helper.getTargetTable().getDataLocation(),
+          existingTargetTable.get().getDataLocation())) {
         switch (this.helper.getExistingEntityPolicy()){
           case UPDATE_TABLE:
             // Update the location of files while keep the existing table entity.
-            log.warn("Source table will not be deregistered while file locaiton has been changed, update source table's"
+            log.warn("Source table will not be deregistered while file location has been changed, update source table's"
                 + " file location to" + this.helper.getTargetTable().getDataLocation());
             existingTargetTable = Optional.absent();
             break ;
@@ -81,12 +83,10 @@ public class UnpartitionedTableFileSet extends HiveFileSet {
             existingTargetTable = Optional.absent();
             break ;
           default:
-            log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable(),
-                new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
-                    existingTargetTable.get().getDataLocation()));
+            log.error("Source and target table are not compatible. Aborting copy of table " + this.helper.getTargetTable());
             multiTimer.close();
-
-            return Lists.newArrayList();
+            throw new HiveTableLocationNotMatchException(this.helper.getTargetTable().getDataLocation(),
+                    existingTargetTable.get().getDataLocation());
         }
       }
     }

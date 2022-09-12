@@ -18,10 +18,13 @@
 package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,11 +37,11 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
+@Slf4j
 public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset {
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
   public static final String DATE_PATTERN_KEY = CONFIG_PREFIX + ".date.pattern";
@@ -49,134 +52,126 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private final String lookbackTime;
   private final String datePattern;
   private final Period lookbackPeriod;
-  private final boolean isPatternDaily;
-  private final boolean isPatternHourly;
-  private final boolean isPatternMinutely;
+  private final DateTimeZone dateTimeZone;
   private final LocalDateTime currentTime;
-  private final DatePattern pattern;
-
-  enum DatePattern {
-    MINUTELY, HOURLY, DAILY
-  }
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
     this.lookbackTime = properties.getProperty(LOOKBACK_TIME_KEY);
-    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays()
+        .appendSuffix("d")
+        .appendHours()
+        .appendSuffix("h")
+        .appendMinutes()
+        .appendSuffix("m")
+        .toFormatter();
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
-    this.isPatternMinutely = isDatePatternMinutely(datePattern);
-    this.isPatternHourly = !this.isPatternMinutely && isDatePatternHourly(datePattern);
-    this.isPatternDaily = !this.isPatternMinutely && !this.isPatternHourly;
-    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
-        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
-        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
-
-    if (this.isPatternDaily) {
-      Preconditions.checkArgument(isLookbackTimeStringDaily(this.lookbackTime), "Expected day format for lookback time; found hourly or minutely format");
-      pattern = DatePattern.DAILY;
-    } else if (this.isPatternHourly) {
-      Preconditions.checkArgument(isLookbackTimeStringHourly(this.lookbackTime), "Expected hourly format for lookback time; found minutely format");
-      pattern = DatePattern.HOURLY;
-    } else {
-      pattern = DatePattern.MINUTELY;
-    }
+    this.dateTimeZone = DateTimeZone.forID(properties
+        .getProperty(DATE_PATTERN_TIMEZONE_KEY, DEFAULT_DATE_PATTERN_TIMEZONE));
+    this.currentTime = LocalDateTime.now(this.dateTimeZone);
+    this.validateLookbackWithDatePatternFormat(this.datePattern, this.lookbackTime);
   }
 
-  /**
-   * TODO: Replace it with {@link org.apache.gobblin.time.TimeIterator} as {@link LocalDateTime} will not adjust time
-   * to a given time zone
-   */
-  public static class DateRangeIterator implements Iterator {
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private DatePattern datePattern;
+  void validateLookbackWithDatePatternFormat(String datePattern, String lookbackTime) {
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    LocalDateTime refDateTime = new LocalDateTime(2017, 01, 31, 10, 59, 59);
+    String refDateTimeString = refDateTime.toString(formatter);
+    PeriodFormatterBuilder formatterBuilder;
 
-    public DateRangeIterator(LocalDateTime startDate, LocalDateTime endDate, DatePattern datePattern) {
-      this.startDate = startDate;
-      this.endDate = endDate;
-      this.datePattern = datePattern;
-    }
-
-    @Override
-    public boolean hasNext() {
-      return !startDate.isAfter(endDate);
-    }
-
-    @Override
-    public LocalDateTime next() {
-      LocalDateTime dateTime = startDate;
-
-      switch (datePattern) {
-        case MINUTELY:
-          startDate = startDate.plusMinutes(1);
-          break;
-        case HOURLY:
-          startDate = startDate.plusHours(1);
-          break;
-        case DAILY:
-          startDate = startDate.plusDays(1);
-          break;
+    // Validate that the lookback is supported for the time format
+    if (!refDateTime.withSecondOfMinute(0).toString(formatter).equals(refDateTimeString)) {
+      formatterBuilder = new PeriodFormatterBuilder().appendDays()
+          .appendSuffix("d")
+          .appendHours()
+          .appendSuffix("h")
+          .appendMinutes()
+          .appendSuffix("m")
+          .appendSeconds()
+          .appendSuffix("s");
+      if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely or secondly format, check %s",
+            LOOKBACK_TIME_KEY));
       }
-
-      return dateTime;
+    } else if (!refDateTime.withMinuteOfHour(0).toString(formatter).equals(refDateTimeString)) {
+      formatterBuilder = new PeriodFormatterBuilder().appendDays()
+          .appendSuffix("d")
+          .appendHours()
+          .appendSuffix("h")
+          .appendMinutes()
+          .appendSuffix("m");
+      if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly or minutely format, check %s",
+            LOOKBACK_TIME_KEY));
+      }
+    } else if (!refDateTime.withHourOfDay(0).toString(formatter).equals(refDateTimeString)) {
+      formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h");
+      if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily or hourly format, check %s", LOOKBACK_TIME_KEY));
+      }
+    } else if (!refDateTime.withDayOfMonth(1).toString(formatter).equals(refDateTimeString)) {
+      formatterBuilder = new PeriodFormatterBuilder().appendDays().appendSuffix("d");
+      if (!lookbackTimeMatchesFormat(formatterBuilder, lookbackTime)) {
+        throw new IllegalArgumentException(String.format("Expected lookback time to be in daily format, check %s", LOOKBACK_TIME_KEY));
+      }
     }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
   }
 
-  private boolean isDatePatternHourly(String datePattern) {
-    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
-    LocalDateTime refDateTime = new LocalDateTime(2017, 01, 01, 10, 0, 0);
-    String refDateTimeString = refDateTime.toString(formatter);
-    LocalDateTime refDateTimeAtStartOfDay = refDateTime.withHourOfDay(0);
-    String refDateTimeStringAtStartOfDay = refDateTimeAtStartOfDay.toString(formatter);
-    return !refDateTimeString.equals(refDateTimeStringAtStartOfDay);
-  }
-
-  private boolean isDatePatternMinutely(String datePattern) {
-    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
-    LocalDateTime refDateTime = new LocalDateTime(2017, 01, 01, 10, 59, 0);
-    String refDateTimeString = refDateTime.toString(formatter);
-    LocalDateTime refDateTimeAtStartOfHour = refDateTime.withMinuteOfHour(0);
-    String refDateTimeStringAtStartOfHour = refDateTimeAtStartOfHour.toString(formatter);
-    return !refDateTimeString.equals(refDateTimeStringAtStartOfHour);
-  }
-
-  private boolean isLookbackTimeStringDaily(String lookbackTime) {
-    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").toFormatter();
+  private boolean lookbackTimeMatchesFormat(PeriodFormatterBuilder formatterBuilder, String lookbackTime) {
     try {
-      periodFormatter.parsePeriod(lookbackTime);
-      return true;
-    } catch (Exception e) {
+      formatterBuilder.toFormatter().parsePeriod(lookbackTime);
+    } catch (IllegalArgumentException e) {
       return false;
     }
-  }
-
-  private boolean isLookbackTimeStringHourly(String lookbackTime) {
-    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
-    try {
-      periodFormatter.parsePeriod(lookbackTime);
-      return true;
-    } catch (Exception e) {
-      return false;
-    }
+    return true;
   }
 
   @Override
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
-    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
     LocalDateTime endDate = currentTime;
-    LocalDateTime startDate = endDate.minus(this.lookbackPeriod);
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
+    LocalDateTime startDate = formatter.parseLocalDateTime(endDate.minus(this.lookbackPeriod).toString(this.datePattern));
+    return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
+  }
 
-    DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, pattern);
+  private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
+      int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
-    while (dateRangeIterator.hasNext()) {
-      Path pathWithDateTime = new Path(path, dateRangeIterator.next().toString(formatter));
-      fileStatuses.addAll(super.getFilesAtPath(fs, pathWithDateTime, fileFilter));
+    Iterator<FileStatus> folderIterator;
+    try {
+      if (!fs.exists(path)) {
+        return fileStatuses;
+      }
+      folderIterator = Arrays.asList(fs.listStatus(path)).iterator();
+    } catch (Exception e) {
+      log.warn(String.format("Error while listing paths at %s due to ", path), e);
+      return fileStatuses;
+    }
+    // Check if at the lowest level/granularity of the date folder
+    if (this.datePattern.split(FileSystems.getDefault().getSeparator()).length == level) {
+      // Truncate the start date to the most granular unit of time in the datepattern
+      while (folderIterator.hasNext()) {
+        Path folderPath = folderIterator.next().getPath();
+        String datePath = traversedDatePath.isEmpty() ? folderPath.getName() : new Path(traversedDatePath, folderPath.getName()).toString();
+        try {
+          LocalDateTime folderDate = formatter.parseLocalDateTime(datePath);
+          if (!folderDate.isBefore(startDate) && !folderDate.isAfter(endDate)) {
+            fileStatuses.addAll(super.getFilesAtPath(fs, folderPath, fileFilter));
+          }
+        } catch (IllegalArgumentException e) {
+          log.warn(String.format(
+              "Folder at path %s is not convertible to format %s. Please confirm that argument %s is valid", datePath,
+              this.datePattern, DATE_PATTERN_KEY));
+        }
+      }
+    } else {
+      // folder has a format such as yyyy/mm/dd/hh, so recursively find date paths
+      while (folderIterator.hasNext()) {
+        // Start building the date from top-down
+        String nextDate = folderIterator.next().getPath().getName();
+        String datePath = traversedDatePath.isEmpty() ?  nextDate : new Path(traversedDatePath, nextDate).toString();
+        fileStatuses.addAll(recursivelyGetFilesAtDatePath(fs, new Path(path, nextDate), datePath, fileFilter, level + 1, startDate, endDate, formatter));
+      }
     }
     return fileStatuses;
   }

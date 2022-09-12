@@ -27,7 +27,7 @@ import java.util.Properties;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
 
 import lombok.AllArgsConstructor;
@@ -44,15 +44,15 @@ import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
 /**
- * A custom {@link MessageHandlerFactory} for {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory}s that
+ * A custom {@link MultiTypeMessageHandlerFactory} for {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory}s that
  * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
  */
 @AllArgsConstructor
-class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
-  private boolean flowCatalogLocalCommit;
-  private GobblinServiceJobScheduler jobScheduler;
-  private FlowConfigsResourceHandler resourceHandler;
-  private String serviceName;
+class ControllerUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
+  private final boolean flowCatalogLocalCommit;
+  private final GobblinServiceJobScheduler jobScheduler;
+  private final FlowConfigsResourceHandler resourceHandler;
+  private final String serviceName;
 
   @Override
   public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -78,10 +78,10 @@ class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactor
    */
   @Slf4j
   private static class ControllerUserDefinedMessageHandler extends MessageHandler {
-    private boolean flowCatalogLocalCommit;
-    private GobblinServiceJobScheduler jobScheduler;
-    private FlowConfigsResourceHandler resourceHandler;
-    private String serviceName;
+    private final boolean flowCatalogLocalCommit;
+    private final GobblinServiceJobScheduler jobScheduler;
+    private final FlowConfigsResourceHandler resourceHandler;
+    private final String serviceName;
 
     public ControllerUserDefinedMessageHandler(Message message, NotificationContext context, String serviceName,
         boolean flowCatalogLocalCommit, GobblinServiceJobScheduler scheduler,

@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -38,7 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.ClusterConfig;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
@@ -240,7 +239,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   /**
    * Configure Helix quota-based task scheduling.
    * This config controls the number of tasks that are concurrently assigned to a single Helix instance.
-   * Reference: https://helix.apache.org/0.9.1-docs/quota_scheduling.html
+   * Reference: https://helix.apache.org/1.0.3-docs/quota_scheduling.html
    */
   @VisibleForTesting
   void configureHelixQuotaBasedTaskScheduling() {
@@ -310,12 +309,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
       // Need this in case a kill is issued to the process so that the idle thread does not keep the process up
       // since GobblinClusterManager.stop() is not called this case.
-      Runtime.getRuntime().addShutdownHook(new Thread() {
-        @Override
-        public void run() {
-          GobblinClusterManager.this.stopIdleProcessThread = true;
-        }
-      });
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> GobblinClusterManager.this.stopIdleProcessThread = true));
     } else {
       startAppLauncherAndServices();
     }
@@ -403,12 +397,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Creates and returns a {@link MessageHandlerFactory} for handling of Helix
+   * Creates and returns a {@link MultiTypeMessageHandlerFactory} for handling of Helix
    * {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}s.
    *
-   * @returns a {@link MessageHandlerFactory}.
+   * @returns a {@link MultiTypeMessageHandlerFactory}.
    */
-  protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+  protected MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new GobblinHelixMultiManager.ControllerUserDefinedMessageHandlerFactory();
   }
 
@@ -434,12 +428,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @VisibleForTesting
   void initializeHelixManager() {
     this.multiManager = new GobblinHelixMultiManager(
-        this.config, new Function<Void, MessageHandlerFactory>() {
-          @Override
-          public MessageHandlerFactory apply(Void aVoid) {
-            return GobblinClusterManager.this.getUserDefinedMessageHandlerFactory();
-          }
-        }, this.eventBus, stopStatus) ;
+        this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus) ;
     this.multiManager.addLeadershipChangeAwareComponent(this);
   }
 

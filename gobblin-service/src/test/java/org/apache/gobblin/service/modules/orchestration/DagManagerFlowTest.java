@@ -69,9 +69,9 @@ public class DagManagerFlowTest {
 
   @Test
   void testAddDeleteSpec() throws Exception {
-    Long flowExecutionId1 = System.currentTimeMillis();
-    Long flowExecutionId2 = flowExecutionId1 + 1;
-    Long flowExecutionId3 = flowExecutionId1 + 2;
+    long flowExecutionId1 = System.currentTimeMillis();
+    long flowExecutionId2 = flowExecutionId1 + 1;
+    long flowExecutionId3 = flowExecutionId1 + 2;
 
     Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("0", flowExecutionId1, "FINISH_RUNNING", 1);
     Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", flowExecutionId2, "FINISH_RUNNING", 1);
@@ -303,7 +303,7 @@ class MockedDagManager extends DagManager {
     JobStatusRetriever mockedJbStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).
         getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
-    return  mockedJbStatusRetriever;
+    return mockedJbStatusRetriever;
   }
 
   @Override

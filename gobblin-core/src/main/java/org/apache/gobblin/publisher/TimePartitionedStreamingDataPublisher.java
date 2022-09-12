@@ -78,7 +78,7 @@ public class TimePartitionedStreamingDataPublisher extends TimePartitionedDataPu
       // This is used to force the publisher save recordPublisherOutputDirs as the granularity to be parent of new file paths
       // which will be used to do hive registration
       WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.publisherFileSystemByBranches.get(branchId),
-          publisherOutputDir, this.permissions.get(branchId), retrierConfig);
+          publisherOutputDir, this.permissions.get(branchId), retryerConfig);
     }
     super.publishData(state, branchId, publishSingleTaskData, writerOutputPathsMoved);
   }

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -79,6 +80,13 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String CONTAINER_CAPACITY_KEY = GOBBLIN_KAFKA_PREFIX + "streaming.containerCapacity";
   public static final double DEFAULT_CONTAINER_CAPACITY = 10;
 
+  // minimum container capacity to avoid bad topic schema causing us to request resources aggressively
+  public static final String MINIMUM_CONTAINER_CAPACITY = GOBBLIN_KAFKA_PREFIX + "streaming.minimum.containerCapacity";
+  public static final double DEFAULT_MINIMUM_CONTAINER_CAPACITY = 1;
+  public static final String TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME = "topicPartitionWithLowCapacity";
+  public static final String TOPIC_PARTITION = "topicPartition";
+  public static final String TOPIC_PARTITION_CAPACITY = "topicPartitionCapacity";
+
   //A boolean flag to enable per-topic container capacity, where "container capacity" is as defined earlier. This
   // configuration is useful in scenarios where the write performance can vary significantly across topics due to differences
   // in schema, as in the case of columnar formats such as ORC and Parquet. When enabled, the bin packing algorithm uses
@@ -125,6 +133,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   private static final String NUM_CONTAINERS_EVENT_NAME = "NumContainers";
 
   private final long packingStartTimeMillis;
+  private final double minimumContainerCapacity;
   private final Optional<StateStoreBasedWatermarkStorage> watermarkStorage;
   private final Optional<MetricContext> metricContext;
   private final boolean isStatsBasedPackingEnabled;
@@ -139,6 +148,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
       Optional<MetricContext> metricContext) {
     super(source, state);
     this.state = state;
+    this.minimumContainerCapacity = state.getPropAsDouble(MINIMUM_CONTAINER_CAPACITY, DEFAULT_MINIMUM_CONTAINER_CAPACITY);
     this.isStatsBasedPackingEnabled =
         state.getPropAsBoolean(IS_STATS_BASED_PACKING_ENABLED_KEY, DEFAULT_IS_STATS_BASED_PACKING_ENABLED);
     this.isPerTopicContainerCapacityEnabled = state
@@ -245,7 +255,18 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
       if (this.isPerTopicContainerCapacityEnabled) {
         String topicName = KafkaUtils.getTopicNameFromTopicPartition(topicPartition);
         List<Double> capacities = capacitiesByTopic.getOrDefault(topicName, Lists.newArrayList());
-        capacities.add(watermark.getAvgConsumeRate() > 0 ? watermark.getAvgConsumeRate() : DEFAULT_CONTAINER_CAPACITY);
+        double realCapacity = watermark.getAvgConsumeRate() > 0 ? watermark.getAvgConsumeRate() : DEFAULT_CONTAINER_CAPACITY;
+        if (realCapacity < minimumContainerCapacity) {
+          if (this.metricContext.isPresent()) {
+            GobblinEventBuilder event = new GobblinEventBuilder(TOPIC_PARTITION_WITH_LOW_CAPACITY_EVENT_NAME);
+            event.addMetadata(TOPIC_PARTITION, topicPartition);
+            event.addMetadata(TOPIC_PARTITION_CAPACITY, String.valueOf(realCapacity));
+            this.eventSubmitter.submit(event);
+          }
+          log.warn(String.format("topicPartition %s has lower capacity %s, ignore that and reset capacity to be %s", topicPartition, realCapacity, minimumContainerCapacity));
+          realCapacity = minimumContainerCapacity;
+        }
+        capacities.add(realCapacity);
         capacitiesByTopic.put(topicName, capacities);
       }
     }

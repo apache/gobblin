@@ -54,8 +54,9 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -91,6 +92,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<FlowCatalog> flowCatalog;
   protected final Optional<HelixManager> helixManager;
   protected final Orchestrator orchestrator;
+  protected final Boolean warmStandbyEnabled;
+  protected final Optional<UserQuotaManager> quotaManager;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
   @Getter
@@ -117,9 +120,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public static final String DR_FILTER_TAG = "dr";
 
   @Inject
-  public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName, Config config,
+  public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName,
+      Config config,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
-      Orchestrator orchestrator, SchedulerService schedulerService, Optional<Logger> log) throws Exception {
+      Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
+      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean warmStandbyEnabled) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -130,14 +135,16 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
+    this.warmStandbyEnabled = warmStandbyEnabled;
+    this.quotaManager = quotaManager;
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager,
-      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
-      SchedulerService schedulerService,  Optional<Logger> log) throws Exception {
+      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager,
+      SchedulerService schedulerService,  Optional<Logger> log, boolean warmStandbyEnabled) throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
-        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log), schedulerService, log);
+        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log), schedulerService, quotaManager, log, warmStandbyEnabled);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -320,6 +327,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}, master: {}",
           addedSpec, isExplain, compileSuccess, this.isActive);
       return new AddSpecResponse<>(response);
+    }
+
+    // Check quota limits against run immediately flows or adhoc flows before saving the schedule
+    // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
+    if (!this.warmStandbyEnabled && (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
+      if (quotaManager.isPresent()) {
+        // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
+        try {
+          quotaManager.get().checkQuota(dag.getNodes().get(0));
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
 
     // todo : we should probably not schedule a flow if it is a runOnce flow

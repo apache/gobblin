@@ -53,7 +53,9 @@ dependencies {
   compile externalDependency.guiceMultibindings
   compile externalDependency.hadoopClientCommon
   compile externalDependency.hadoopCommon
-  compile externalDependency.helix
+  compile (externalDependency.helix) {
+    exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
+  }
   compile externalDependency.hiveCommon
   compile externalDependency.httpclient
   compile externalDependency.httpcore

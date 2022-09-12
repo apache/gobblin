@@ -247,4 +247,8 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     this.connector.setAuthTokenTimeout(timeOut);
   }
 
+  @Override
+  public void closeConnection() throws Exception {
+    this.connector.close();
+  }
 }

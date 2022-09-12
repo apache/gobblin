@@ -17,11 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.writer;
 
-import com.codahale.metrics.Meter;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,7 +26,25 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileContext;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Options;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+
+import com.codahale.metrics.Meter;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Iterators;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
@@ -62,15 +75,6 @@ import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
 import org.apache.gobblin.writer.DataWriter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Options;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
 
 
 /**
@@ -81,6 +85,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
+  // setting GOBBLIN_COPY_CHECK_FILESIZE to true may result in failures because the calculation of
+  // expected bytes to be copied and actual bytes copied may have bugs
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
@@ -98,7 +104,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final int bufferSize;
   private final boolean checkFileSize;
   private final Options.Rename renameOptions;
-  private final FileContext fileContext;
+  private final URI uri;
+  private final Configuration conf;
 
   protected final Meter copySpeedMeter;
 
@@ -136,14 +143,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
-    Configuration conf = WriterUtils.getFsConfiguration(state);
-    URI uri = URI.create(uriStr);
+    this.conf = WriterUtils.getFsConfiguration(state);
+    this.uri = URI.create(uriStr);
     if (fileSystem != null) {
       this.fs = fileSystem;
     } else {
       this.fs = FileSystem.get(uri, conf);
     }
-    this.fileContext = FileContext.getFileContext(uri, conf);
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
     } else {
@@ -156,6 +162,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.outputDir = getOutputDir(state);
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
+
+    // remove the old metric which counts how many bytes are copied, because in case of retries, this can give incorrect value
+    if (getMetricContext().getMetrics().containsKey(GOBBLIN_COPY_BYTES_COPIED_METER)) {
+      getMetricContext().remove(GOBBLIN_COPY_BYTES_COPIED_METER);
+    }
 
     this.copySpeedMeter = getMetricContext().meter(GOBBLIN_COPY_BYTES_COPIED_METER);
 
@@ -291,6 +302,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
+        log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
       }
     }
@@ -440,14 +452,16 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       setFilePermissions(copyableFile);
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
-          copyableFile.getAncestorsOwnerAndPermission() == null ? Iterators.<OwnerAndPermission>emptyIterator()
+          copyableFile.getAncestorsOwnerAndPermission() == null ? Iterators.emptyIterator()
               : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
       ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
 
-      this.fileContext.rename(stagingFilePath, outputFilePath, renameOptions);
+      // Do not store the FileContext after doing the rename because FileContexts are not cached and a new object
+      // is created for every task's commit
+      FileContext.getFileContext(this.uri, this.conf).rename(stagingFilePath, outputFilePath, renameOptions);
     } catch (IOException ioe) {
-      log.error("Could not commit file %s.", outputFilePath);
+      log.error("Could not commit file {}.", outputFilePath);
       // persist file
       this.recoveryHelper.persistFile(this.state, copyableFile, stagingFilePath);
       throw ioe;
@@ -480,14 +494,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       }
 
       if (ownerAndPermission.getFsPermission() != null) {
-        log.debug("Applying permissions %s to path %s.", ownerAndPermission.getFsPermission(), path);
+        log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
       }
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       if (group != null || owner != null) {
-        log.debug("Applying owner %s and group %s to path %s.", owner, group, path);
+        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
         fs.setOwner(path, owner, group);
       }
     } else {

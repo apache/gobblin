@@ -19,8 +19,12 @@ package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import java.util.function.BiConsumer;
+import lombok.SneakyThrows;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
@@ -284,34 +288,45 @@ public class WriterUtils {
       return;
     }
 
-    if (path.getParent() != null && !fs.exists(path.getParent())) {
-      mkdirsWithRecursivePermissionWithRetry(fs, path.getParent(), perm, retrierConfig);
+    Set<Path> pathsThatDidntExistBefore = new HashSet<>();
+    for (Path p = path; p != null && !fs.exists(p); p = p.getParent()) {
+      pathsThatDidntExistBefore.add(p);
     }
 
     if (!fs.mkdirs(path, perm)) {
       throw new IOException(String.format("Unable to mkdir %s with permission %s", path, perm));
     }
 
-    if (retrierConfig != NO_RETRY_CONFIG) {
-      //Wait until file is not there as it can happen the file fail to exist right away on eventual consistent fs like Amazon S3
-      Retryer<Void> retryer = RetryerFactory.newInstance(retrierConfig);
+    BiConsumer<FileSystem, Path> waitPolicy = getWaitPolicy(retrierConfig);
+    for (Path p : pathsThatDidntExistBefore) {
+      waitPolicy.accept(fs, path);
+      fs.setPermission(p, perm);
+    }
+  }
 
-      try {
-        retryer.call(() -> {
-          if (!fs.exists(path)) {
-            throw new IOException("Path " + path + " does not exist however it should. Will wait more.");
+  // define behavior for waiting until the file exists before proceeding
+  private static BiConsumer<FileSystem, Path> getWaitPolicy(Config retrierConfig) {
+    return new BiConsumer<FileSystem, Path>() {
+      @SneakyThrows
+      @Override
+      public void accept(FileSystem fs, Path path) {
+        if (retrierConfig != NO_RETRY_CONFIG) {
+          //Wait until file is not there as it can happen the file fail to exist right away on eventual consistent fs like Amazon S3
+          Retryer<Void> retryer = RetryerFactory.newInstance(retrierConfig);
+
+          try {
+            retryer.call(() -> {
+              if (!fs.exists(path)) {
+                throw new IOException("Path " + path + " does not exist however it should. Will wait more.");
+              }
+              return null;
+            });
+          } catch (Exception e) {
+            throw new IOException("Path " + path + "does not exist however it should. Giving up..."+ e);
           }
-          return null;
-        });
-      } catch (Exception e) {
-        throw new IOException("Path " + path + "does not exist however it should. Giving up..."+ e);
+        }
       }
-    }
-
-    // Double check permission, since fs.mkdirs() may not guarantee to set the permission correctly
-    if (!fs.getFileStatus(path).getPermission().equals(perm)) {
-      fs.setPermission(path, perm);
-    }
+    };
   }
 
   public static URI getWriterFsUri(State state, int numBranches, int branchId) {

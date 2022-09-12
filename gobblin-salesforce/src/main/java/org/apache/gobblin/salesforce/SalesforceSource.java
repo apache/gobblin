@@ -191,8 +191,9 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     WorkUnit workUnit = WorkUnit.createEmpty();
     WorkUnitState workUnitState = new WorkUnitState(workUnit, state);
     workUnitState.setId("Execute pk-chunking");
+    SalesforceExtractor salesforceExtractor = null;
     try {
-      SalesforceExtractor salesforceExtractor = (SalesforceExtractor) this.getExtractor(workUnitState);
+      salesforceExtractor = (SalesforceExtractor) this.getExtractor(workUnitState);
       Partitioner partitioner = new Partitioner(sourceState);
       if (isEarlyStopEnabled(state) && partitioner.isFullDump()) {
         throw new UnsupportedOperationException("Early stop mode cannot work with full dump mode.");
@@ -223,6 +224,15 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
+    } finally {
+      if(salesforceExtractor != null) {
+        try {
+          // Only close connection here since we don't want to update the high watermark for the workUnitState here
+          salesforceExtractor.closeConnection();
+        } catch (Exception e) {
+          log.error("Failed to close the extractor connections", e);
+        }
+      }
     }
   }
 

@@ -314,11 +314,11 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
     if (includesBuilder.length() > 0) {
       if (runtimeConfig.isPresent()) {
         return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
-            .withFallback(ConfigFactory.systemEnvironment()).withFallback(runtimeConfig.get()).resolve()
+            .withFallback(runtimeConfig.get()).resolve()
             .getStringList(INCLUDES_KEY_NAME);
       } else {
         return ConfigFactory.parseString(includesBuilder.toString()).withFallback(ConfigFactory.defaultOverrides())
-            .withFallback(ConfigFactory.systemEnvironment()).resolve().getStringList(INCLUDES_KEY_NAME);
+            .resolve().getStringList(INCLUDES_KEY_NAME);
       }
     }
 

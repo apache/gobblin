@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.MetricRegistry;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -26,8 +27,10 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +49,6 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
@@ -55,7 +57,6 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.*;
 
 
@@ -77,7 +78,7 @@ public class OrchestratorTest {
   private FlowCatalog flowCatalog;
   private SpecCatalogListener mockListener;
   private FlowSpec flowSpec;
-
+  private FlowStatusGenerator mockStatusGenerator;
   private Orchestrator orchestrator;
 
   @BeforeClass
@@ -99,25 +100,20 @@ public class OrchestratorTest {
         Optional.of(logger));
     this.serviceLauncher.addService(topologyCatalog);
 
+    // Test warm standby flow catalog, which has orchestrator as listener
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties),
-        Optional.of(logger));
+        Optional.of(logger), Optional.<MetricContext>absent(), true, true);
 
-    this.mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
-
-    this.flowCatalog.addListener(mockListener);
     this.serviceLauncher.addService(flowCatalog);
+    this.mockStatusGenerator = mock(FlowStatusGenerator.class);
 
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        mock(FlowStatusGenerator.class),
+        this.mockStatusGenerator,
         Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
-
     // Start application
     this.serviceLauncher.start();
-
     // Create Spec to play with
     this.topologySpec = initTopologySpec();
     this.flowSpec = initFlowSpec();
@@ -148,6 +144,33 @@ public class OrchestratorTest {
   }
 
   private FlowSpec initFlowSpec() {
+    Properties properties = new Properties();
+    String flowName = "test_flowName";
+    String flowGroup = "test_flowGroup";
+    properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
+    properties.put("job.name", flowName);
+    properties.put("job.group", flowGroup);
+    properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
+    properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put("job.schedule", "0 0 0 ? * * 2050");
+    ;
+    properties.put("gobblin.flow.sourceIdentifier", "source");
+    properties.put("gobblin.flow.destinationIdentifier", "destination");
+    Config config = ConfigUtils.propertiesToConfig(properties);
+
+    FlowSpec.Builder flowSpecBuilder = null;
+    flowSpecBuilder = FlowSpec.builder(computeTopologySpecURI(SPEC_STORE_PARENT_DIR,
+            FLOW_SPEC_GROUP_DIR))
+        .withConfig(config)
+        .withDescription(SPEC_DESCRIPTION)
+        .withVersion(SPEC_VERSION)
+        .withTemplate(URI.create("templateURI"));
+    return flowSpecBuilder.build();
+  }
+
+  private FlowSpec initBadFlowSpec() {
+    // Bad Flow Spec as we don't set the job name,  and will fail the compilation
     Properties properties = new Properties();
     properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", "source:destination");
@@ -222,7 +245,7 @@ public class OrchestratorTest {
   }
 
   @Test (dependsOnMethods = "createTopologySpec")
-  public void createFlowSpec() throws Exception {
+  public void createFlowSpec() throws Throwable {
     // Since only 1 Topology with 1 SpecProducer has been added in previous test
     // .. it should be available and responsible for our new FlowSpec
     IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
@@ -241,6 +264,9 @@ public class OrchestratorTest {
     // Make sure FlowCatalog Listener is empty
     Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should not know about "
         + "any Flow before addition");
+    // Make sure we cannot add flow to specCatalog it flowSpec cannot compile
+    Assert.expectThrows(Exception.class,() -> this.flowCatalog.put(initBadFlowSpec()));
+    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after adding bad flow spec");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);
@@ -300,5 +326,28 @@ public class OrchestratorTest {
     specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
     Assert.assertTrue(specsInSEI == 0, "SpecProducer should not contain "
         + "Spec after deletion");
+  }
+
+  @Test (dependsOnMethods = "deleteFlowSpec")
+  public void doNotRegisterMetricsAdhocFlows() throws Exception {
+    MetricContext metricContext = this.orchestrator.getMetricContext();
+    this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
+    Properties flowProps = new Properties();
+    flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "flow0");
+    flowProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "group0");
+    flowProps.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
+    flowProps.put("specExecInstance.capabilities", "source:destination");
+    flowProps.put("gobblin.flow.sourceIdentifier", "source");
+    flowProps.put("gobblin.flow.destinationIdentifier", "destination");
+    flowProps.put("flow.allowConcurrentExecution", false);
+    FlowSpec adhocSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
+    this.orchestrator.orchestrate(adhocSpec);
+    String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group0", "flow0", ServiceMetricNames.COMPILED);
+    Assert.assertNull(metricContext.getParent().get().getGauges().get(metricName));
+
+    flowProps.setProperty("job.schedule", "0/2 * * * * ?");
+    FlowSpec scheduledSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
+    this.orchestrator.orchestrate(scheduledSpec);
+    Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
   }
 }

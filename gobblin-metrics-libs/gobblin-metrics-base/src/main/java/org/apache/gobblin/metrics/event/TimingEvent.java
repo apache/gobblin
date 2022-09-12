@@ -72,6 +72,8 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String FLOW_FAILED = "FlowFailed";
     public static final String FLOW_RUNNING = "FlowRunning";
     public static final String FLOW_CANCELLED = "FlowCancelled";
+    public static final String FLOW_RUN_DEADLINE_EXCEEDED = "FlowRunDeadlineExceeded";
+    public static final String FLOW_START_DEADLINE_EXCEEDED = "FlowStartDeadlineExceeded";
     public static final String FLOW_PENDING_RESUME = "FlowPendingResume";
   }
 
@@ -89,7 +91,10 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String PROCESSED_COUNT_FIELD = "processedCount";
     public static final String MAX_ATTEMPTS_FIELD = "maxAttempts";
     public static final String CURRENT_ATTEMPTS_FIELD = "currentAttempts";
+    //This state should always move forward, more details can be found in method {@link KafkaJobStatusMonitor.addJobStatusToStateStore}
+    public static final String CURRENT_GENERATION_FIELD = "currentGeneration";
     public static final String SHOULD_RETRY_FIELD = "shouldRetry";
+    public static final String DOES_CANCELED_FLOW_MERIT_RETRY = "doesCancelledFlowMeritRetry";
   }
 
   public static final String METADATA_START_TIME = "startTime";
@@ -99,6 +104,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
   public static final String METADATA_MESSAGE = "message";
   public static final String JOB_ORCHESTRATED_TIME = "jobOrchestratedTime";
   public static final String JOB_START_TIME = "jobStartTime";
+  public static final String JOB_SKIPPED_TIME = "jobSkippedTime";
   public static final String JOB_END_TIME = "jobEndTime";
   public static final String JOB_LAST_PROGRESS_EVENT_TIME = "jobLastProgressEventTime";
   public static final String JOB_COMPLETION_PERCENTAGE = "jobCompletionPercentage";

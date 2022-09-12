@@ -117,7 +117,14 @@ public class AzkabanClient implements Closeable {
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(3))
         .build();
-    this.sessionId = this.sessionManager.fetchSession();
+    try {
+      this.sessionId = this.sessionManager.fetchSession();
+    } catch (Exception e) {
+      this.sessionId = null;
+      this.sessionCreationTime = -1;
+      log.error("Failed to fetch session in constructor due to: ", e);
+      return;
+    }
     this.sessionCreationTime = System.nanoTime();
   }
 
@@ -128,7 +135,7 @@ public class AzkabanClient implements Closeable {
     }
   }
 
-  private void initializeSessionManager() throws AzkabanClientException {
+  private void initializeSessionManager() {
     if (sessionManager == null) {
       this.sessionManager = new AzkabanSessionManager(this.httpClient,
                                                       this.url,

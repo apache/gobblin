@@ -29,7 +29,7 @@ repositories {
   maven {
     url "https://linkedin.jfrog.io/artifactory/open-source/"
   }
-  jcenter()
+  mavenCentral()
 }
 
 try {

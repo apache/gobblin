@@ -35,6 +35,8 @@ import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -59,11 +61,12 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
       MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getAllFlowStatuses");
 
   @Getter
-  private MysqlJobStatusStateStore<State> stateStore;
+  private final MysqlJobStatusStateStore<State> stateStore;
 
   @Inject
   public MysqlJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) throws ReflectiveOperationException {
-    super(issueRepository);
+    super(ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY,
+        ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED), issueRepository);
     config = config.getConfig(MYSQL_JOB_STATUS_RETRIEVER_PREFIX).withFallback(config);
     this.stateStore = (MysqlJobStatusStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
   }

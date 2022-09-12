@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.slf4j.MDC;
 
 import com.google.common.base.Optional;
@@ -233,6 +234,8 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       extract.setFullTrue(System.currentTimeMillis());
     }
 
+    Optional<Long> highestWaterMark = Optional.absent();
+    Optional<Long> lowestWaterMark = Optional.absent();
     for (Partition partition : partitions) {
       WorkUnit workunit = WorkUnit.create(extract);
       workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
@@ -241,6 +244,14 @@ public abstract class QueryBasedSource<S, D> extends AbstractSource<S, D> {
       addLineageSourceInfo(state, sourceEntity, workunit);
       partition.serialize(workunit);
       workUnits.add(workunit);
+      highestWaterMark = highestWaterMark.isPresent() ?
+          highestWaterMark.transform(hw -> Math.max(hw, partition.getHighWatermark())) : Optional.of(partition.getHighWatermark());
+      lowestWaterMark = lowestWaterMark.isPresent() ?
+          lowestWaterMark.transform(lw -> Math.min(lw, partition.getLowWatermark())) : Optional.of(partition.getLowWatermark());
+    }
+    if(highestWaterMark.isPresent() && lowestWaterMark.isPresent()) {
+      state.appendToListProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, highestWaterMark.get()));
+      state.appendToListProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, String.format("%s.%s: %s", sourceEntity.getDatasetName(), sourceEntity.destTableName, lowestWaterMark.get()));
     }
 
     return workUnits;

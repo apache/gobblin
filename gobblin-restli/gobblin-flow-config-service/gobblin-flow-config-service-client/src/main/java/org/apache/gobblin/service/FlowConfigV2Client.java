@@ -206,6 +206,19 @@ public class FlowConfigV2Client implements Closeable {
   }
 
   /**
+   * Get all {@link FlowConfig}s
+   * @return all {@link FlowConfig}s within the range of start + count - 1, inclusive
+   * @throws RemoteInvocationException
+   */
+  public Collection<FlowConfig> getAllFlowConfigs(int start, int count) throws RemoteInvocationException {
+    LOG.debug("getAllFlowConfigs with pagination called. Start: {}. Count: {}.", start, count);
+
+    GetAllRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.getAll().paginate(start, count).build();
+    Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+    return response.getEntity().getElements();
+  }
+
+  /**
    * Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.
    * If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}
    */
@@ -218,6 +231,25 @@ public class FlowConfigV2Client implements Closeable {
         .flowGroupParam(flowGroup).flowNameParam(flowName).templateUriParam(templateUri).userToProxyParam(userToProxy)
         .sourceIdentifierParam(sourceIdentifier).destinationIdentifierParam(destinationIdentifier).scheduleParam(schedule)
         .isRunImmediatelyParam(isRunImmediately).owningGroupParam(owningGroup).propertyFilterParam(propertyFilter).build();
+
+    Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+
+    return response.getEntity().getElements();
+  }
+
+  /**
+   * Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.
+   * If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}
+   */
+  public Collection<FlowConfig> getFlowConfigs(String flowGroup, String flowName, String templateUri, String userToProxy,
+      String sourceIdentifier, String destinationIdentifier, String schedule, Boolean isRunImmediately, String owningGroup,
+      String propertyFilter, int start, int count) throws RemoteInvocationException {
+    LOG.debug("getFilteredFlows pagination called. flowGroup: {}, flowName: {}, start: {}, count: {}.", flowGroup, flowName, start, count);
+
+    FindRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.findByFilterFlows()
+        .flowGroupParam(flowGroup).flowNameParam(flowName).templateUriParam(templateUri).userToProxyParam(userToProxy)
+        .sourceIdentifierParam(sourceIdentifier).destinationIdentifierParam(destinationIdentifier).scheduleParam(schedule)
+        .isRunImmediatelyParam(isRunImmediately).owningGroupParam(owningGroup).propertyFilterParam(propertyFilter).paginate(start, count).build();
 
     Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
 

@@ -47,6 +47,7 @@ public class RecursivePathFinder {
   private final FileSystem fs;
   private final PathFilter pathFilter;
   private final boolean includeEmptyDirectories;
+  private final boolean applyFilterToDirectories;
 
   public RecursivePathFinder(final FileSystem fs, Path rootPath, Properties properties) {
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
@@ -55,6 +56,7 @@ public class RecursivePathFinder {
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.includeEmptyDirectories =
         Boolean.parseBoolean(properties.getProperty(CopyConfiguration.INCLUDE_EMPTY_DIRECTORIES));
+    this.applyFilterToDirectories = Boolean.parseBoolean(properties.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES));
   }
 
   public Set<FileStatus> getPaths(boolean skipHiddenPaths)
@@ -66,7 +68,7 @@ public class RecursivePathFinder {
     PathFilter actualFilter =
         skipHiddenPaths ? new AndPathFilter(new HiddenFilter(), this.pathFilter) : this.pathFilter;
     List<FileStatus> files =
-        FileListUtils.listFilesToCopyAtPath(this.fs, this.rootPath, actualFilter, includeEmptyDirectories);
+        FileListUtils.listFilesToCopyAtPath(this.fs, this.rootPath, actualFilter, this.applyFilterToDirectories, includeEmptyDirectories);
 
     return Sets.newHashSet(files);
   }

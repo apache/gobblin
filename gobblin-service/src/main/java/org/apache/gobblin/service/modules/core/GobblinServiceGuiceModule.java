@@ -19,6 +19,8 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +73,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
@@ -134,6 +136,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
         .to(serviceConfig.isFlowCatalogLocalCommit());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
+        .to(serviceConfig.isWarmStandbyEnabled());
 
     binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
     binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
@@ -194,6 +199,10 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(Orchestrator.class);
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
+      OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);
+      binder.bind(UserQuotaManager.class)
+          .to(getClassByNameOrAlias(UserQuotaManager.class, serviceConfig.getInnerConfig(),
+              ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER));
     }
 
     if (serviceConfig.isGitConfigMonitorEnabled()) {

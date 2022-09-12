@@ -15,14 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.utils;
+package org.apache.gobblin.runtime.spec_serde;
+
+import com.google.gson.Gson;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.SpecSerDe;
+
 
 /**
- * These names are used for dependency injection, when we need to inject different instances of the same type,
- * or inject constants.
- * */
-public final class InjectionNames {
-  public static final String SERVICE_NAME = "serviceName";
-  public static final String FORCE_LEADER = "forceLeader";
-  public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
+ * {@link SpecSerDe} for {@link JobSpec}s that serializes as JSON using {@link Gson}.
+ */
+public class GsonJobSpecSerDe extends GenericGsonSpecSerDe<JobSpec> {
+
+  public GsonJobSpecSerDe() {
+    super(JobSpec.class, new JobSpecSerializer(), new JobSpecDeserializer());
+  }
 }

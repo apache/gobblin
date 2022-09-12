@@ -26,12 +26,16 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
@@ -40,15 +44,22 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.SchemaSource;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ClustersNames;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
@@ -85,14 +96,22 @@ public class HiveMetadataWriter implements MetadataWriter {
   /* Mapping from tableIdentifier to a cache, key'ed by a list of partitions with value as HiveSpec object. */
   private final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
 
+  // Used to store the relationship between table and the gmce topicPartition
+  private final HashMap<String, String> tableTopicPartitionMap;
+
   /* Mapping from tableIdentifier to latest schema observed. */
   private final HashMap<String, String> latestSchemaMap;
   private final long timeOutSeconds;
   private State state;
 
+  protected EventSubmitter eventSubmitter;
+
+  public enum HivePartitionOperation {
+    ADD_OR_MODIFY, DROP
+  }
+
   public HiveMetadataWriter(State state) throws IOException {
     this.state = state;
-    this.hiveRegister = this.closer.register(HiveRegister.get(state));
     this.whitelistBlacklist = new WhitelistBlacklist(state.getProp(HIVE_REGISTRATION_WHITELIST, ""),
         state.getProp(HIVE_REGISTRATION_BLACKLIST, ""));
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
@@ -100,8 +119,18 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.latestSchemaMap = new HashMap<>();
+    this.tableTopicPartitionMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
+    if (!state.contains(HiveRegister.HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY)) {
+      state.setProp(HiveRegister.HIVE_REGISTER_CLOSE_TIMEOUT_SECONDS_KEY, timeOutSeconds);
+    }
+    this.hiveRegister = this.closer.register(HiveRegister.get(state));
+    List<Tag<?>> tags = Lists.newArrayList();
+    String clusterIdentifier = ClustersNames.getInstance().getClusterName();
+    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    MetricContext metricContext = closer.register(GobblinMetricsRegistry.getInstance().getMetricContext(state, HiveMetadataWriter.class, tags));
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, HiveMetadataWriter.class.getCanonicalName()).build();
   }
 
   @Override
@@ -114,8 +143,19 @@ public class HiveMetadataWriter implements MetadataWriter {
       for (HashMap.Entry<List<String>, ListenableFuture<Void>> execution : executionMap.entrySet()) {
         try {
           execution.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-          throw new RuntimeException("Error when getting the result of registration for table" + tableKey, e);
+        } catch (TimeoutException e) {
+          // Since TimeoutException should always be a transient issue, throw RuntimeException which will fail/retry container
+          throw new RuntimeException("Timeout waiting for result of registration for table " + tableKey, e);
+        } catch (InterruptedException | ExecutionException e) {
+          Set<String> partitions = executionMap.keySet().stream().flatMap(List::stream).collect(Collectors.toSet());
+          throw new HiveMetadataWriterWithPartitionInfoException(partitions, Collections.emptySet(), e);
+        }
+        Cache<List<String>, HiveSpec> cache = specMaps.get(tableKey);
+        if (cache != null) {
+          HiveSpec hiveSpec = specMaps.get(tableKey).getIfPresent(execution.getKey());
+          if (hiveSpec != null) {
+            eventSubmitter.submit(buildCommitEvent(dbName, tableName, execution.getKey(), hiveSpec, HivePartitionOperation.ADD_OR_MODIFY));
+          }
         }
       }
       executionMap.clear();
@@ -123,8 +163,17 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
   }
 
+  @Override
+  public void reset(String dbName, String tableName) throws IOException {
+    String tableKey = tableNameJoiner.join(dbName, tableName);
+    this.currentExecutionMap.remove(tableKey);
+    this.schemaCreationTimeMap.remove(tableKey);
+    this.latestSchemaMap.remove(tableKey);
+    this.specMaps.remove(tableKey);
+  }
+
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
-      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
+      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec, String gmceTopicPartition) throws IOException {
     String dbName = tableSpec.getTable().getDbName();
     String tableName = tableSpec.getTable().getTableName();
     String tableKey = tableNameJoiner.join(dbName, tableName);
@@ -139,6 +188,8 @@ public class HiveMetadataWriter implements MetadataWriter {
       latestSchemaMap.put(tableKey,
           existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     }
+
+    tableTopicPartitionMap.put(tableKey, gmceTopicPartition);
 
     //Calculate the topic name from gmce, fall back to topic.name in hive spec which can also be null
     //todo: make topicName fall back to topic.name in hive spec so that we can also get schema for re-write operation
@@ -194,6 +245,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   protected void deRegisterPartitionHelper(String dbName, String tableName, HiveSpec spec) throws IOException {
     hiveRegister.dropPartitionIfExists(dbName, tableName, spec.getTable().getPartitionKeys(),
         spec.getPartition().get().getValues());
+    eventSubmitter.submit(buildCommitEvent(dbName, tableName, spec.getPartition().get().getValues(), spec, HivePartitionOperation.DROP));
   }
 
   public void addFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap, String dbName,
@@ -216,25 +268,27 @@ public class HiveMetadataWriter implements MetadataWriter {
             if ((this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) || (
                 spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
                     existedSpec.getPartition().get(), spec.getPartition().get()))) {
-              registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
+              registerSpec(dbName, tableName, partitionValue, spec, hiveSpecCache);
             }
           } else {
-            registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
+            registerSpec(dbName, tableName, partitionValue, spec, hiveSpecCache);
           }
         }
       }
     }
   }
 
-  private void registerSpec(String tableKey, List<String> partitionValue, HiveSpec spec,
+  private void registerSpec(String dbName, String tableName, List<String> partitionValue, HiveSpec spec,
       Cache<List<String>, HiveSpec> hiveSpecCache) {
+    String tableKey = tableNameJoiner.join(dbName, tableName);
     HashMap<List<String>, ListenableFuture<Void>> executionMap =
         this.currentExecutionMap.computeIfAbsent(tableKey, s -> new HashMap<>());
     if (executionMap.containsKey(partitionValue)) {
       try {
         executionMap.get(partitionValue).get(timeOutSeconds, TimeUnit.SECONDS);
+        eventSubmitter.submit(buildCommitEvent(dbName, tableName, partitionValue, spec, HivePartitionOperation.ADD_OR_MODIFY));
       } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        log.error("Error when getting the result of registration for table" + tableKey);
+        log.error("Error when getting the result of registration for table " + tableKey);
         throw new RuntimeException(e);
       }
     }
@@ -317,11 +371,45 @@ public class HiveMetadataWriter implements MetadataWriter {
     GobblinMetadataChangeEvent gmce =
         (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
     if (whitelistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
-      write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
+      try {
+        write(gmce, newSpecsMap, oldSpecsMap, tableSpec, recordEnvelope.getWatermark().getSource());
+      } catch (IOException e) {
+        throw new HiveMetadataWriterWithPartitionInfoException(getPartitionValues(newSpecsMap), getPartitionValues(oldSpecsMap), e);
+      }
     } else {
       log.debug(String.format("Skip table %s.%s since it's not selected", tableSpec.getTable().getDbName(),
           tableSpec.getTable().getTableName()));
     }
+  }
+
+  /**
+   * Extract a unique list of partition values as strings from a map of HiveSpecs.
+   */
+  public Set<String> getPartitionValues(Map<String, Collection<HiveSpec>> specMap) {
+    Set<HiveSpec> hiveSpecs = specMap.values().stream().flatMap(Collection::stream).collect(Collectors.toSet());
+    Set<List<String>> partitionValueLists = hiveSpecs.stream().filter(spec -> spec.getPartition().isPresent())
+        .map(spec -> spec.getPartition().get().getValues()).collect(Collectors.toSet());
+    return partitionValueLists.stream().flatMap(List::stream).collect(Collectors.toSet());
+  }
+
+  protected GobblinEventBuilder buildCommitEvent(String dbName, String tableName, List<String> partitionValues, HiveSpec hiveSpec,
+      HivePartitionOperation operation) {
+    GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(MetadataWriterKeys.HIVE_COMMIT_EVENT_NAME);
+
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_DATABASE_NAME_KEY, dbName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_TABLE_NAME_KEY, tableName);
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_KEYS, Joiner.on(',').join(hiveSpec.getTable().getPartitionKeys().stream()
+        .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_VALUES_KEY, Joiner.on(',').join(partitionValues));
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_PARTITION_OPERATION_KEY, operation.name());
+    gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_HDFS_PATH, hiveSpec.getPath().toString());
+
+    String gmceTopicPartition = tableTopicPartitionMap.get(tableNameJoiner.join(dbName, tableName));
+    if (gmceTopicPartition != null) {
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.HIVE_EVENT_GMCE_TOPIC_NAME, gmceTopicPartition.split("-")[0]);
+    }
+
+    return gobblinTrackingEvent;
   }
 
   @Override
