@@ -214,6 +214,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       failJobIfAllRequestsRejected(allocator, prioritizedFileSets);
 
       String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, FileSetWorkUnitGenerator.class.getName());
+      boolean shouldWuGeneratorFailureBeFatal = state.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_GENERATOR_FAILURE_IS_FATAL, ConfigurationKeys.DEFAULT_WORK_UNIT_FAST_FAIL_ENABLED);
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(prioritizedFileSets, new Function<FileSet<CopyEntity>, Callable<Void>>() {
             @Nullable
@@ -239,6 +240,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             future.get();
           } catch (ExecutionException exc) {
             log.error("Failed to get work units for dataset.", exc.getCause());
+            if (shouldWuGeneratorFailureBeFatal) {
+              throw new RuntimeException("Failed to get work units for dataset.", exc.getCause());
+            }
           }
         }
       } catch (InterruptedException ie) {
