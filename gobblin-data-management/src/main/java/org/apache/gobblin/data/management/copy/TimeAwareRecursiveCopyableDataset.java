@@ -30,7 +30,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import org.apache.iceberg.expressions.False;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
@@ -42,7 +41,6 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.mockito.cglib.core.Local;
 
 
 @Slf4j
