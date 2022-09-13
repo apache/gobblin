@@ -1,39 +1,40 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
 
-
+/**
+ * A {@link IcebergFileSet} that generates {@link CopyEntity}s for a Hive Catalog based Iceberg table
+ */
 public class IcebergTableFileSet extends IcebergFileSet{
 
-  private final IcebergCopyEntityHelper helper;
-
-  public IcebergTableFileSet(String name, IcebergDataset icebergDataset, IcebergCopyEntityHelper helper){
+  private final CopyConfiguration copyConfiguration;
+  public IcebergTableFileSet(String name, IcebergDataset icebergDataset, CopyConfiguration configuration) {
     super(name, icebergDataset);
-    this.helper = helper;
+    this.copyConfiguration = configuration;
   }
 
   @Override
   protected Collection<CopyEntity> generateCopyEntities() throws IOException {
-
-    String fileSet = this.helper.getIcebergDataset().getInputTableName();
-    List<CopyEntity> copyEntities = Lists.newArrayList();
-    Map<Path, FileStatus> mapOfPathsToCopy = this.helper.getPath();
-
-    for (CopyableFile.Builder builder : this.helper.getCopyableFilesFromPaths(mapOfPathsToCopy, this.helper.getConfiguration())){
-      CopyableFile fileEntity =
-          builder.fileSet(fileSet).datasetOutputPath(this.helper.getTargetFs().getUri().getPath()).build();
-      fileEntity.setSourceData(this.helper.getSourceDataset());
-      fileEntity.setDestinationData(this.helper.getDestinationDataset());
-      copyEntities.add(fileEntity);
-    }
-    return copyEntities;
+    return this.getIcebergDataset().generateCopyEntitiesForTableFileSet(this.copyConfiguration);
   }
 }
