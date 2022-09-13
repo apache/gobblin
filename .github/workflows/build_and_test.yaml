@@ -22,9 +22,11 @@ on:
     # Publish only on `master`
     branches:
       - master
+      - helix-dynamic-workunit
   pull_request:
     branches:
       - master
+      - helix-dynamic-workunit
   release:
     types: [published, edited]
 
@@ -87,7 +89,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Run CheckStyle and FindBugs
         run: |
-          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh 
+          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
 
   run_tests:
     timeout-minutes: 120
