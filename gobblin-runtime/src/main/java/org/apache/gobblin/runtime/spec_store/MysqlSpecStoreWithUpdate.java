@@ -71,6 +71,8 @@ public class MysqlSpecStoreWithUpdate extends MysqlSpecStore{
 
   @Override
   // TODO: fix to obey the `SpecStore` contract of returning the *updated* `Spec`
+  // Update {@link Spec} in the {@link SpecStore} when current version is smaller than {@link version}.
+  // We use modified timestamp as the version here, that we only update entry where it's modified before a specific time.
   public Spec updateSpecImpl(Spec spec, long version) throws IOException {
     withPreparedStatement(this.sqlStatements.updateStatement, statement -> {
       ((SpecificSqlStatementsWithUpdate)this.sqlStatements).completeUpdatePreparedStatement(statement, spec, version);

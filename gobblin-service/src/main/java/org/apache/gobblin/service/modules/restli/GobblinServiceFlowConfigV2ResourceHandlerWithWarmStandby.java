@@ -77,6 +77,7 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
   public UpdateResponse updateFlowConfig(FlowId flowId,
       FlowConfig flowConfig) throws FlowConfigLoggedException {
     // We have version here to avoid update config happens at the same time on different hosts overwrite each other
+    // timestamp here will be treated as largest version that we can update
     long version = System.currentTimeMillis() / 1000;
     return updateFlowConfig(flowId, flowConfig, version);
   }
