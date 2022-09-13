@@ -42,7 +42,6 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
-
 @Slf4j
 public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset {
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
