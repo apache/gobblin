@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import java.util.List;
-import java.util.stream.Collectors;
 import java.io.IOException;
 import java.time.Instant;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
+import java.util.List;
 
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
@@ -32,6 +28,11 @@ import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+
+import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,18 +55,23 @@ public class IcebergTable {
         Instant.ofEpochMilli(snapshot.timestampMillis()),
         current.metadataFileLocation(),
         snapshot.manifestListLocation(),
-        manifests.stream().map(ManifestFile::path).collect(Collectors.toList()),
-        discoverAllDataFilePaths(manifests, tableOps.io())
+        // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
+        calcAllManifestFileInfo(manifests, tableOps.io())
       );
   }
 
   @VisibleForTesting
-  static List<List<String>> discoverAllDataFilePaths(List<ManifestFile> manifests, FileIO io) throws IOException {
-    List<List<String>> result = Lists.newArrayList();
+  static List<ManifestFileInfo> calcAllManifestFileInfo(List<ManifestFile> manifests, FileIO io) throws IOException {
+    List<ManifestFileInfo> result = Lists.newArrayList();
     for (ManifestFile manifest : manifests) {
-      result.add(discoverDataFilePaths(manifest, io));
+      result.add(calcManifestFileInfo(manifest, io));
     }
     return result;
+  }
+
+  @VisibleForTesting
+  static IcebergSnapshotInfo.ManifestFileInfo calcManifestFileInfo(ManifestFile manifest, FileIO io) throws IOException {
+    return new ManifestFileInfo(manifest.path(), discoverDataFilePaths(manifest, io));
   }
 
   @VisibleForTesting

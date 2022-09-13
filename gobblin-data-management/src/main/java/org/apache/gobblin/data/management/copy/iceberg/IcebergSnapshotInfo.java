@@ -19,39 +19,42 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import com.google.common.collect.Lists;
 import java.time.Instant;
-
 import java.util.List;
-
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+
+import lombok.Data;
 
 
 /**
  * Information about the metadata file and data file paths of a single Iceberg Snapshot.
  */
-@Slf4j
-@AllArgsConstructor
-@Getter
+@Data
 public class IcebergSnapshotInfo {
+
+  @Data
+  public static class ManifestFileInfo {
+    private final String manifestFilePath;
+    private final List<String> listedFilePaths;
+  }
 
   private final Long snapshotId;
   private final Instant timestamp;
   private final String metadataPath;
   private final String manifestListPath;
-  private final List<String> manifestFilePaths;
-  private final List<List<String>> manifestListedFilePaths;  // NOTE: order parallels that of `manifestFilePaths`
+  private final List<ManifestFileInfo> manifestFiles;
 
-  public List<String> getAllPaths() {
-    List<String> result = Lists.newArrayList(metadataPath, manifestListPath);
-    result.addAll(manifestFilePaths);
-    result.addAll(getAllDataFilePaths());
-    return result;
+  public List<String> getManifestFilePaths() {
+    return manifestFiles.stream().map(ManifestFileInfo::getManifestFilePath).collect(Collectors.toList());
   }
 
   public List<String> getAllDataFilePaths() {
-    List<String> result = Lists.newArrayList(manifestListedFilePaths.stream().flatMap(List::stream).collect(Collectors.toList()));
+    return manifestFiles.stream().map(ManifestFileInfo::getListedFilePaths).flatMap(List::stream).collect(Collectors.toList());
+  }
+
+  public List<String> getAllPaths() {
+    List<String> result = Lists.newArrayList(metadataPath, manifestListPath);
+    result.addAll(getManifestFilePaths());
+    result.addAll(getAllDataFilePaths());
     return result;
   }
 }
