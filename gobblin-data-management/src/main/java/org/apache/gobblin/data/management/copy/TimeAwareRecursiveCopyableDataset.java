@@ -22,6 +22,7 @@ import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.iceberg.expressions.False;
 import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
@@ -40,6 +42,8 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.mockito.cglib.core.Local;
+
 
 @Slf4j
 public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset {
@@ -134,9 +138,36 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
   }
 
+  public Boolean checkPathDateTimeValidity (LocalDateTime startDate, LocalDateTime endDate, String traversedDatePath){
+    int[] startDateSplit = new int[] { startDate.getYear(), startDate.getMonthOfYear(), startDate.getDayOfMonth(),
+        startDate.getHourOfDay(), startDate.getMinuteOfHour(), startDate.getSecondOfMinute(), startDate.getMillisOfSecond() };
+    int[] endDateSplit = new int[] { endDate.getYear(), endDate.getMonthOfYear(), endDate.getDayOfMonth(),
+        endDate.getHourOfDay(), endDate.getMinuteOfHour(), endDate.getSecondOfMinute(), endDate.getMillisOfSecond() };
+
+    String[] traversedDatePathSplit = traversedDatePath.split("/");
+
+    for (int index = 0; index < traversedDatePathSplit.length; index++) {
+      try {
+        if (Integer.parseInt(traversedDatePathSplit[index]) < startDateSplit[index] ||
+            Integer.parseInt(traversedDatePathSplit[index]) > endDateSplit[index]) {
+          return false;
+        }
+      } catch (Exception e) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
+    if (!Objects.equals(traversedDatePath, "")) {
+      if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath)) {
+        return fileStatuses;
+      }
+    }
+
     Iterator<FileStatus> folderIterator;
     try {
       if (!fs.exists(path)) {
