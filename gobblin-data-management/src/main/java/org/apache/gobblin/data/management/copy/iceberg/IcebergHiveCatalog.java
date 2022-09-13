@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.hive.HiveCatalog;
-
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.hive.HiveCatalog;
 
 
 /**

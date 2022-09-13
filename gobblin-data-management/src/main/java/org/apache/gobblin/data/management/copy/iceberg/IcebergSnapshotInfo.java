@@ -17,12 +17,13 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.common.collect.Lists;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import lombok.Data;
+
+import com.google.common.collect.Lists;
 
 
 /**
