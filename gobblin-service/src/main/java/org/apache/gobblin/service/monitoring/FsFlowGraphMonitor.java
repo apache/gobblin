@@ -50,9 +50,10 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
   private static final long DEFAULT_FLOWGRAPH_POLLING_INTERVAL = 60;
   private static final String DEFAULT_FS_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
   private static final String DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
-  private boolean isActive;
+  private volatile boolean isActive = false;
   private final long pollingInterval;
   private final PathAlterationObserverScheduler pathAlterationDetector;
+  private final FSPathAlterationFlowGraphListener listener;
   private final PathAlterationObserver observer;
   private final Path flowGraphPath;
 
@@ -71,16 +72,16 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
         TimeUnit.SECONDS.toMillis(configWithFallbacks.getLong(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL));
     this.flowGraphPath = new Path(configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_REPO_DIR));
     this.observer = new PathAlterationObserver(flowGraphPath);
+    this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, graph, topologySpecMap, flowGraphPath.toString(),
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR),
+        configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS), initComplete);
     if (pollingInterval == ConfigurationKeys.DISABLED_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL) {
       this.pathAlterationDetector = null;
     } else {
       this.pathAlterationDetector = new PathAlterationObserverScheduler(pollingInterval);
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
-      this.pathAlterationDetector.addPathAlterationObserver(
-          new FSPathAlterationFlowGraphListener(flowTemplateCatalog, graph, topologySpecMap, flowGraphPath.toString(),
-              configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR),
-              configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-              configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS), initComplete), observerOptional,
+      this.pathAlterationDetector.addPathAlterationObserver(this.listener, observerOptional,
           this.flowGraphPath);
     }
   }
@@ -88,20 +89,28 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
   @Override
   protected void startUp()
       throws IOException {
-    if (this.pathAlterationDetector != null) {
-      log.info("Starting the " + getClass().getSimpleName());
-      log.info("Polling flowgraph folder with interval {} ", this.pollingInterval);
-      this.pathAlterationDetector.start();
-    } else {
-      log.warn("No path monitor detected");
-    }
   }
 
   @Override
   public synchronized void setActive(boolean isActive) {
+    log.info("Setting the flow graph monitor to be " + isActive + " from " + this.isActive);
     if (this.isActive == isActive) {
       // No-op if already in correct state
       return;
+    } else if (isActive) {
+      if (this.pathAlterationDetector != null) {
+        log.info("Starting the " + getClass().getSimpleName());
+        log.info("Polling flowgraph folder with interval {} ", this.pollingInterval);
+        try {
+          this.pathAlterationDetector.start();
+          // Manually instantiate flowgraph when the monitor becomes active
+          this.listener.populateFlowGraphAtomically();
+        } catch (IOException e) {
+          log.error("Could not initialize pathAlterationDetector due to error: ", e);
+        }
+      } else {
+        log.warn("No path alteration detector found");
+      }
     }
     this.isActive = isActive;
   }

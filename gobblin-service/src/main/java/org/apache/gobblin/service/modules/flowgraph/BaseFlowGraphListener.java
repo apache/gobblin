@@ -158,7 +158,7 @@ public abstract class BaseFlowGraphListener {
           log.warn("Could not add edge defined in {} to FlowGraph as FlowTemplateCatalog is absent", path);
         }
       } catch (Exception e) {
-        log.warn("Could not add edge defined in {} due to exception {}", path, e.getMessage());
+        log.warn("Could not add edge defined in {} due to exception", path, e);
       }
     }
   }
@@ -181,7 +181,7 @@ public abstract class BaseFlowGraphListener {
           log.info("Removed edge {} from FlowGraph", edgeId);
         }
       } catch (Exception e) {
-        log.warn("Could not remove edge defined in {} due to exception {}", edgeFilePath, e.getMessage());
+        log.warn("Could not remove edge defined in {} due to exception", edgeFilePath, e);
       }
     }
   }
@@ -258,7 +258,7 @@ public abstract class BaseFlowGraphListener {
    * @return a {@link List<SpecExecutor>}s for this edge.
    */
   private List<SpecExecutor> getSpecExecutors(Config edgeConfig)
-      throws URISyntaxException {
+      throws URISyntaxException, IOException {
     //Get the logical names of SpecExecutors where the FlowEdge can be executed.
     List<String> specExecutorNames =
         ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
@@ -266,6 +266,9 @@ public abstract class BaseFlowGraphListener {
     List<SpecExecutor> specExecutors = new ArrayList<>(specExecutorNames.size());
     for (String specExecutorName : specExecutorNames) {
       URI specExecutorUri = new URI(specExecutorName);
+      if (!this.topologySpecMap.containsKey(specExecutorUri)) {
+        throw new IOException(String.format("Spec executor %s does not exist in the topologySpecStore.", specExecutorUri));
+      }
       specExecutors.add(this.topologySpecMap.get(specExecutorUri).getSpecExecutor());
     }
     return specExecutors;

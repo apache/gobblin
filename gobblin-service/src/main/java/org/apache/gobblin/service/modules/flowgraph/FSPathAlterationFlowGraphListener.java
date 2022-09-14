@@ -65,7 +65,6 @@ public class FSPathAlterationFlowGraphListener extends BaseFlowGraphListener imp
       throw new RuntimeException(String.format("Flowgraph directory at path %s does not exist!", graphDir));
     }
     this.flowGraph = graph;
-    this.populateFlowGraphAtomically();
   }
 
   @Override
@@ -112,7 +111,7 @@ public class FSPathAlterationFlowGraphListener extends BaseFlowGraphListener imp
    * Expects edges to be in the format of /flowGraphName/nodeA/nodeB/edgeAB.properties
    * The current flowgraph will be swapped atomically with the new flowgraph that is loaded
    */
-  private void populateFlowGraphAtomically() {
+  public void populateFlowGraphAtomically() {
     FlowGraph newFlowGraph = new BaseFlowGraph();
     try {
       List<Path> edges = new ArrayList<>();
