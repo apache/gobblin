@@ -106,9 +106,9 @@ public class DagManagerFlowTest {
     Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", flowExecutionId2, "FINISH_RUNNING", 1);
     Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", flowExecutionId3, "FINISH_RUNNING", 1);
 
-    String dagId1 = DagManagerUtils.generateDagId(dag1);
-    String dagId2 = DagManagerUtils.generateDagId(dag2);
-    String dagId3 = DagManagerUtils.generateDagId(dag3);
+    String dagId1 = DagManagerUtils.generateDagId(dag1).toString();
+    String dagId2 = DagManagerUtils.generateDagId(dag2).toString();
+    String dagId3 = DagManagerUtils.generateDagId(dag3).toString();
 
     int queue1 = DagManagerUtils.getDagQueueId(dag1, dagNumThreads);
     int queue2 = DagManagerUtils.getDagQueueId(dag2, dagNumThreads);
@@ -173,7 +173,7 @@ public class DagManagerFlowTest {
   void testFlowSlaWithoutConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("3", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow3"), eq("group3"), anyInt()))
@@ -210,7 +210,7 @@ public class DagManagerFlowTest {
   void testFlowSlaWithConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("4", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow4"), eq("group4"), anyInt()))
@@ -250,7 +250,7 @@ public class DagManagerFlowTest {
   void testOrphanFlowKill() throws Exception {
     Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("6", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     // change config to set a small sla

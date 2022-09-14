@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Meter;
+import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.io.IOException;
@@ -170,6 +171,11 @@ public class DagManager extends AbstractIdleService {
       this.flowName = flowName;
       this.flowExecutionId = flowExecutionId;
     }
+
+    @Override
+    public String toString() {
+      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+    }
   }
 
   private final BlockingQueue<Dag<JobExecutionPlan>>[] runQueue;
@@ -313,29 +319,35 @@ public class DagManager extends AbstractIdleService {
    */
   private void killFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
     int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
-    String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
-    if (!this.cancelQueue[queueId].offer(new DagId(flowGroup, flowName, String.valueOf(flowExecutionId)))) {
+    DagId dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
+    if (!this.cancelQueue[queueId].offer(dagId)) {
       throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
     }
   }
 
   @Subscribe
   public void handleKillFlowEvent(KillFlowEvent killFlowEvent) {
-    log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
-    try {
-      killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
-    } catch (IOException e) {
-      log.warn("Failed to kill flow", e);
+    if (isActive) {
+      log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(),
+          killFlowEvent.getFlowExecutionId());
+      try {
+        killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+      } catch (IOException e) {
+        log.warn("Failed to kill flow", e);
+      }
     }
   }
 
   @Subscribe
   public void handleResumeFlowEvent(ResumeFlowEvent resumeFlowEvent) {
-    log.info("Received resume request for flow ({}, {}, {})", resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
-    String dagId = DagManagerUtils.generateDagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
-    int queueId = DagManagerUtils.getDagQueueId(resumeFlowEvent.getFlowExecutionId(), this.numThreads);
-    if (!this.resumeQueue[queueId].offer(new DagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(),String.valueOf(resumeFlowEvent.getFlowExecutionId())))) {
-      log.warn("Could not add dag " + dagId + " to resume queue");
+    if (isActive) {
+      log.info("Received resume request for flow ({}, {}, {})", resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
+      DagId dagId = DagManagerUtils.generateDagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(),
+          resumeFlowEvent.getFlowExecutionId());
+      int queueId = DagManagerUtils.getDagQueueId(resumeFlowEvent.getFlowExecutionId(), this.numThreads);
+      if (!this.resumeQueue[queueId].offer(dagId)) {
+        log.warn("Could not add dag " + dagId + " to resume queue");
+      }
     }
   }
 
@@ -497,8 +509,7 @@ public class DagManager extends AbstractIdleService {
         DagId nextDagToCancel = cancelQueue.poll();
         //Poll the cancelQueue for a new Dag to cancel.
         if (nextDagToCancel != null) {
-          cancelDag(DagManagerUtils.generateDagId(nextDagToCancel.flowGroup, nextDagToCancel.flowName, nextDagToCancel.flowExecutionId));
-          clearUpDagAction(nextDagToCancel);
+          cancelDag(nextDagToCancel);
         }
 
         while (!queue.isEmpty()) {
@@ -545,7 +556,7 @@ public class DagManager extends AbstractIdleService {
      * and also sending events so that this status will be reflected in the job status state store.
      */
     private void beginResumingDag(DagId dagIdToResume) throws IOException {
-      String dagId= DagManagerUtils.generateDagId(dagIdToResume.flowGroup, dagIdToResume.flowName, dagIdToResume.flowExecutionId);
+      String dagId= dagIdToResume.toString();
       if (!this.failedDagIds.contains(dagId)) {
         log.warn("No dag found with dagId " + dagId + ", so cannot resume flow");
         clearUpDagAction(dagIdToResume);
@@ -605,7 +616,7 @@ public class DagManager extends AbstractIdleService {
         if (dagReady) {
           this.dagStateStore.writeCheckpoint(dag.getValue());
           this.failedDagStateStore.cleanUp(dag.getValue());
-          clearUpDagAction(DagManagerUtils.generateDagIdObject(dag.getValue()));
+          clearUpDagAction(DagManagerUtils.generateDagId(dag.getValue()));
           this.failedDagIds.remove(dag.getKey());
           this.resumingDags.remove(dag.getKey());
           initialize(dag.getValue());
@@ -619,7 +630,8 @@ public class DagManager extends AbstractIdleService {
      * @throws ExecutionException executionException
      * @throws InterruptedException interruptedException
      */
-    private void cancelDag(String dagToCancel) throws ExecutionException, InterruptedException {
+    private void cancelDag(DagId dagId) throws ExecutionException, InterruptedException, IOException {
+      String dagToCancel = dagId.toString();
       log.info("Cancel flow with DagId {}", dagToCancel);
       if (this.dagToJobs.containsKey(dagToCancel)) {
         List<DagNode<JobExecutionPlan>> dagNodesToCancel = this.dagToJobs.get(dagToCancel);
@@ -633,6 +645,7 @@ public class DagManager extends AbstractIdleService {
       } else {
         log.warn("Did not find Dag with id {}, it might be already cancelled/finished.", dagToCancel);
       }
+      clearUpDagAction(dagId);
     }
 
     private void cancelDagNode(DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
@@ -661,7 +674,7 @@ public class DagManager extends AbstractIdleService {
     private void initialize(Dag<JobExecutionPlan> dag)
         throws IOException {
       //Add Dag to the map of running dags
-      String dagId = DagManagerUtils.generateDagId(dag);
+      String dagId = DagManagerUtils.generateDagId(dag).toString();
       log.info("Initializing Dag {}", DagManagerUtils.getFullyQualifiedDagName(dag));
       if (this.dags.containsKey(dagId)) {
         log.warn("Already tracking a dag with dagId {}, skipping.", dagId);
@@ -776,7 +789,7 @@ public class DagManager extends AbstractIdleService {
       }
 
       for (DagNode<JobExecutionPlan> dagNode: nodesToCleanUp) {
-        String dagId = DagManagerUtils.generateDagId(dagNode);
+        String dagId = DagManagerUtils.generateDagId(dagNode).toString();
         deleteJobState(dagId, dagNode);
       }
     }
@@ -805,7 +818,7 @@ public class DagManager extends AbstractIdleService {
         dagManagerMetrics.incrementCountsStartSlaExceeded(node);
         cancelDagNode(node);
 
-        String dagId = DagManagerUtils.generateDagId(node);
+        String dagId = DagManagerUtils.generateDagId(node).toString();
         this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
         this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
         return true;
@@ -838,7 +851,7 @@ public class DagManager extends AbstractIdleService {
     private boolean slaKillIfNeeded(DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
       long flowStartTime = DagManagerUtils.getFlowStartTime(node);
       long currentTime = System.currentTimeMillis();
-      String dagId = DagManagerUtils.generateDagId(node);
+      String dagId = DagManagerUtils.generateDagId(node).toString();
 
       long flowSla;
       if (dagToSLA.containsKey(dagId)) {
@@ -970,7 +983,7 @@ public class DagManager extends AbstractIdleService {
         Future<?> addSpecFuture = producer.addSpec(jobSpec);
         dagNode.getValue().setJobFuture(Optional.of(addSpecFuture));
         //Persist the dag
-        this.dagStateStore.writeCheckpoint(this.dags.get(DagManagerUtils.generateDagId(dagNode)));
+        this.dagStateStore.writeCheckpoint(this.dags.get(DagManagerUtils.generateDagId(dagNode).toString()));
 
         addSpecFuture.get();
 
@@ -1003,7 +1016,7 @@ public class DagManager extends AbstractIdleService {
     private Map<String, Set<DagNode<JobExecutionPlan>>> onJobFinish(DagNode<JobExecutionPlan> dagNode)
         throws IOException {
       Dag<JobExecutionPlan> dag = this.jobToDag.get(dagNode);
-      String dagId = DagManagerUtils.generateDagId(dag);
+      String dagId = DagManagerUtils.generateDagId(dag).toString();
       String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
       ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
       log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
