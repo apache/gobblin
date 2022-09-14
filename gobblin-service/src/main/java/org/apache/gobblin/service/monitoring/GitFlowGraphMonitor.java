@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -33,16 +34,19 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.GitFlowGraphListener;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+
+
 /**
  * Service that monitors for changes to {@link org.apache.gobblin.service.modules.flowgraph.FlowGraph} from a git repository.
  * The git repository must have an inital commit that has no files since that is used as a base for getting
@@ -68,23 +72,22 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
       .put(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
       .put(ConfigurationKeys.JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
       .put(ConfigurationKeys.HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS)
-      .put(SHOULD_CHECKPOINT_HASHES, false)
-      .build());
+      .put(SHOULD_CHECKPOINT_HASHES, false).build());
 
-  private Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
+  private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
   private final CountDownLatch initComplete;
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
+      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     Config configWithFallbacks = config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.initComplete = initComplete;
-    this.listeners.add(new GitFlowGraphListener(
-        flowTemplateCatalog, graph, topologySpecMap, configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS))
-    );
+    this.listeners.add(new GitFlowGraphListener(flowTemplateCatalog, graph, topologySpecMap,
+        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
+        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR),
+        configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS)));
   }
 
   /**
@@ -110,7 +113,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
    * is preserved.
    */
   @Override
-  void processGitConfigChanges() throws GitAPIException, IOException {
+  void processGitConfigChanges()
+      throws GitAPIException, IOException {
     if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().getAndSetShouldRefreshFlowGraph(false)) {
       log.info("Change to template catalog detected, refreshing FlowGraph");
       this.gitRepo.initRepository();
@@ -126,10 +130,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
 
   static class GitFlowgraphComparator implements Comparator<DiffEntry>, Serializable {
     public int compare(DiffEntry o1, DiffEntry o2) {
-      Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
-      Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
+      Integer o1Depth =
+          (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
+      Integer o2Depth =
+          (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
       return o1Depth.compareTo(o2Depth);
     }
   }
-
 }

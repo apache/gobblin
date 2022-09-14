@@ -165,6 +165,9 @@ public class PathAlterationObserver {
    */
   public synchronized void checkAndNotify()
       throws IOException {
+    // If any files or directories are modified this flag will be set to true
+    this.changeApplied = false;
+
     /* fire onStart() */
     for (final PathAlterationListener listener : listeners.values()) {
       listener.onStart(this);
@@ -193,7 +196,6 @@ public class PathAlterationObserver {
         listener.onCheckDetectedChange();
       }
     }
-    this.changeApplied = false;
   }
 
   /**
@@ -203,7 +205,7 @@ public class PathAlterationObserver {
    * @param previous The original list of paths
    * @param currentPaths The current list of paths
    */
-  private void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] currentPaths)
+  private synchronized void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] currentPaths)
       throws IOException {
 
     int c = 0;
@@ -272,7 +274,7 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-  protected void doCreate(final FileStatusEntry entry) {
+  protected synchronized void doCreate(final FileStatusEntry entry) {
     this.changeApplied = true;
     for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
@@ -293,7 +295,7 @@ public class PathAlterationObserver {
    * @param entry The previous file system entry
    * @param path The current file
    */
-  private void doMatch(final FileStatusEntry entry, final Path path)
+  private synchronized void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
     if (entry.refresh(path)) {
       this.changeApplied = true;
@@ -312,7 +314,7 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-   private void doDelete(final FileStatusEntry entry) {
+   private synchronized void doDelete(final FileStatusEntry entry) {
      this.changeApplied = true;
      for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {

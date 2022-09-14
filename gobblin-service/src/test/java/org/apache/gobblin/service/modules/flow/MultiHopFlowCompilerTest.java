@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -95,7 +96,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 @Slf4j
 public class MultiHopFlowCompilerTest {
-  private FlowGraph flowGraph;
+  private AtomicReference<FlowGraph> flowGraph;
   private MultiHopFlowCompiler specCompiler;
   private final String TESTDIR = "/tmp/mhCompiler/gitFlowGraphTestDir";
 
@@ -103,7 +104,7 @@ public class MultiHopFlowCompilerTest {
   public void setUp()
       throws URISyntaxException, IOException, ReflectiveOperationException, FlowEdgeFactory.FlowEdgeCreationException {
     //Create a FlowGraph
-    this.flowGraph = new BaseFlowGraph();
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
     //Add DataNodes to the graph from the node properties files
     URI dataNodesUri = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/datanodes").toURI();
@@ -119,7 +120,7 @@ public class MultiHopFlowCompilerTest {
         Class dataNodeClass = Class.forName(ConfigUtils
             .getString(nodeConfig, FlowGraphConfigurationKeys.DATA_NODE_CLASS, FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, nodeConfig);
-        this.flowGraph.addDataNode(dataNode);
+        this.flowGraph.get().addDataNode(dataNode);
       }
     }
 
@@ -153,7 +154,7 @@ public class MultiHopFlowCompilerTest {
           specExecutors.add(topologySpecMap.get(new URI(specExecutorName)).getSpecExecutor());
         }
         FlowEdge edge = flowEdgeFactory.createFlowEdge(flowEdgeConfig, flowCatalog, specExecutors);
-        this.flowGraph.addFlowEdge(edge);
+        this.flowGraph.get().addFlowEdge(edge);
       }
     }
     this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
@@ -400,7 +401,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowWithRetention")
   public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.get().deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -522,7 +523,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowAfterFirstEdgeDeletion")
   public void testCompileFlowAfterSecondEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-2_HDFS-2_hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.get().deleteFlowEdge("HDFS-2_HDFS-2_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -712,7 +713,7 @@ public class MultiHopFlowCompilerTest {
     specCompiler.setActive(true);
 
     //Ensure node1 is not present in the graph
-    Assert.assertNull(specCompiler.getFlowGraph().getNode("node1"));
+    Assert.assertNull(specCompiler.getFlowGraph().get().getNode("node1"));
 
     // push a new node file
     File nodeDir = new File(flowGraphDir, "node1");
@@ -730,7 +731,7 @@ public class MultiHopFlowCompilerTest {
     TimeUnit.SECONDS.sleep(10);
 
     //Test that a DataNode is added to FlowGraph
-    DataNode dataNode = specCompiler.getFlowGraph().getNode("node1");
+    DataNode dataNode = specCompiler.getFlowGraph().get().getNode("node1");
     Assert.assertEquals(dataNode.getId(), "node1");
     Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "val1");
   }

@@ -26,11 +26,13 @@ import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -40,6 +42,7 @@ import org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.hadoop.fs.Path;
@@ -53,7 +56,7 @@ import org.testng.annotations.Test;
 
 
 public class FsFlowGraphMonitorTest {
-  private static final Logger logger = LoggerFactory.getLogger(GitFlowGraphMonitor.class);
+  private static final Logger logger = LoggerFactory.getLogger(FsFlowGraphMonitorTest.class);
   private final File TEST_DIR = new File(FileUtils.getTempDirectory(), "fsFlowGraphTestDir");
   private final File flowGraphDir = new File(TEST_DIR, "/gobblin-flowgraph");
   private static final String NODE_1_FILE = "node1.properties";
@@ -68,7 +71,7 @@ public class FsFlowGraphMonitorTest {
   private RefSpec masterRefSpec = new RefSpec("master");
   private Optional<FSFlowTemplateCatalog> flowCatalog;
   private Config config;
-  private BaseFlowGraph flowGraph;
+  private AtomicReference<FlowGraph> flowGraph;
   private FsFlowGraphMonitor flowGraphMonitor;
   private Map<URI, TopologySpec> topologySpecMap;
 
@@ -99,7 +102,7 @@ public class FsFlowGraphMonitorTest {
     this.flowCatalog = Optional.of(new FSFlowTemplateCatalog(templateCatalogCfg));
 
     //Create a FlowGraph instance with defaults
-    this.flowGraph = new BaseFlowGraph();
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
     this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
     this.flowGraphMonitor.startUp();
@@ -116,12 +119,12 @@ public class FsFlowGraphMonitorTest {
 
     // Let the monitor pick up the nodes that were recently added
     Thread.sleep(3000);
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 2; i++) {
       String nodeId = "node" + (i + 1);
       String paramKey = "param" + (i + 1);
       String paramValue = "value" + (i + 1);
       //Check if nodes have been added to the FlowGraph
-      DataNode dataNode = this.flowGraph.getNode(nodeId);
+      DataNode dataNode = this.flowGraph.get().getNode(nodeId);
       Assert.assertEquals(dataNode.getId(), nodeId);
       Assert.assertTrue(dataNode.isActive());
       Assert.assertEquals(dataNode.getRawConfig().getString(paramKey), paramValue);
@@ -160,7 +163,7 @@ public class FsFlowGraphMonitorTest {
     // Let the monitor pick up the edges that were recently added
     Thread.sleep(3000);
     //Check if node has been updated in the FlowGraph
-    DataNode dataNode = this.flowGraph.getNode("node1");
+    DataNode dataNode = this.flowGraph.get().getNode("node1");
     Assert.assertEquals(dataNode.getId(), "node1");
     Assert.assertTrue(dataNode.isActive());
     Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "value3");
@@ -169,7 +172,7 @@ public class FsFlowGraphMonitorTest {
   @Test (dependsOnMethods = "testUpdateNode")
   public void testSetUpExistingGraph() throws Exception {
     //Create a FlowGraph instance with defaults
-    this.flowGraph = new BaseFlowGraph();
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
     this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, this.topologySpecMap, new CountDownLatch(1));
     this.flowGraphMonitor.startUp();
@@ -178,16 +181,16 @@ public class FsFlowGraphMonitorTest {
     // Let the monitor repopulate the flowgraph
     Thread.sleep(3000);
 
-    Assert.assertNotNull(this.flowGraph.getNode("node1"));
-    Assert.assertNotNull(this.flowGraph.getNode("node2"));
-    Assert.assertEquals(this.flowGraph.getEdges("node1").size(), 1);
+    Assert.assertNotNull(this.flowGraph.get().getNode("node1"));
+    Assert.assertNotNull(this.flowGraph.get().getNode("node2"));
+    Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 1);
 
   }
 
   @Test (dependsOnMethods = "testSetUpExistingGraph")
   public void testRemoveEdge() throws Exception {
     //Node1 has 1 edge before delete
-    Set<FlowEdge> edgeSet = this.flowGraph.getEdges("node1");
+    Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges("node1");
     Assert.assertEquals(edgeSet.size(), 1);
     File edgeFile = new File(this.flowGraphDir.getAbsolutePath(), node1Dir.getName() + Path.SEPARATOR_CHAR + edge1Dir.getName() + Path.SEPARATOR_CHAR + edge1File.getName());
 
@@ -196,16 +199,16 @@ public class FsFlowGraphMonitorTest {
     Thread.sleep(3000);
 
     //Check if edge1 has been deleted from the graph
-    edgeSet = this.flowGraph.getEdges("node1");
+    edgeSet = this.flowGraph.get().getEdges("node1");
     Assert.assertEquals(edgeSet.size(), 0);
   }
 
   @Test (dependsOnMethods = "testRemoveEdge")
   public void testRemoveNode() throws Exception {
     //Ensure node1 and node2 are present in the graph before delete
-    DataNode node1 = this.flowGraph.getNode("node1");
+    DataNode node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNotNull(node1);
-    DataNode node2 = this.flowGraph.getNode("node2");
+    DataNode node2 = this.flowGraph.get().getNode("node2");
     Assert.assertNotNull(node2);
 
 
@@ -219,9 +222,9 @@ public class FsFlowGraphMonitorTest {
     Thread.sleep(3000);
 
     //Check if node1 and node 2 have been deleted from the graph
-    node1 = this.flowGraph.getNode("node1");
+    node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNull(node1);
-    node2 = this.flowGraph.getNode("node2");
+    node2 = this.flowGraph.get().getNode("node2");
     Assert.assertNull(node2);
   }
 
@@ -276,7 +279,7 @@ public class FsFlowGraphMonitorTest {
   }
 
   private void testIfEdgeSuccessfullyAdded(String node1, String node2, String edgeName, String value) throws ExecutionException, InterruptedException {
-    Set<FlowEdge> edgeSet = this.flowGraph.getEdges(node1);
+    Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges(node1);
     Assert.assertEquals(edgeSet.size(), 1);
     FlowEdge flowEdge = edgeSet.iterator().next();
     Assert.assertEquals(flowEdge.getId(), Joiner.on("_").join(node1, node2, edgeName));

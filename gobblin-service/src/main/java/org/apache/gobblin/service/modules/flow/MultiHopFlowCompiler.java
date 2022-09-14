@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -35,7 +36,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
+
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
@@ -52,7 +55,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
@@ -72,6 +74,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.slf4j.Logger;
 
 
 /***
@@ -82,7 +85,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Getter
-  private final FlowGraph flowGraph;
+  private final AtomicReference<FlowGraph> flowGraph;
   @Getter
   private ServiceManager serviceManager;
   @Getter
@@ -121,7 +124,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       MultiHopFlowCompiler.log.warn("Exception reading data node alias map, ignoring it.", e);
     }
 
-    this.flowGraph = new BaseFlowGraph(dataNodeAliasMap);
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph(dataNodeAliasMap));
 
     Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
@@ -168,7 +171,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   @VisibleForTesting
-  MultiHopFlowCompiler(Config config, FlowGraph flowGraph) {
+  MultiHopFlowCompiler(Config config, AtomicReference<FlowGraph> flowGraph) {
     super(config, Optional.absent(), true);
     this.flowGraph = flowGraph;
     this.dataMovementAuthorizer = new NoopDataMovementAuthorizer(config);
@@ -207,20 +210,20 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   public Dag<JobExecutionPlan> compileFlow(Spec spec) {
     Preconditions.checkNotNull(spec);
     Preconditions.checkArgument(spec instanceof FlowSpec, "MultiHopFlowCompiler only accepts FlowSpecs");
-
+    FlowGraph graph = this.flowGraph.get();
     long startTime = System.nanoTime();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = FlowConfigUtils.getDataNode(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, this.dataNodeAliasMap);
     String destination = FlowConfigUtils.getDataNode(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.dataNodeAliasMap);
 
-    DataNode sourceNode = this.flowGraph.getNode(source);
+    DataNode sourceNode = graph.getNode(source);
     if (sourceNode == null) {
       flowSpec.addCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", source));
       return null;
     }
     List<String> destNodeIds = FlowConfigUtils.getDataNodes(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, this.dataNodeAliasMap);
-    List<DataNode> destNodes = destNodeIds.stream().map(this.flowGraph::getNode).collect(Collectors.toList());
+    List<DataNode> destNodes = destNodeIds.stream().map(graph::getNode).collect(Collectors.toList());
     if (destNodes.contains(null)) {
       flowSpec.addCompilationError(source, destination, String.format("Flowgraph does not have a node with id %s", destNodeIds.get(destNodes.indexOf(null))));
       return null;
@@ -252,7 +255,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         }
 
         //Compute the path from source to destination.
-        FlowGraphPath flowGraphPath = flowGraph.findPath(datasetFlowSpec);
+        FlowGraphPath flowGraphPath = graph.findPath(datasetFlowSpec);
         if (flowGraphPath != null) {
           //Convert the path into a Dag of JobExecutionPlans.
           jobExecutionPlanDag = jobExecutionPlanDag.merge(flowGraphPath.asDag(this.config));

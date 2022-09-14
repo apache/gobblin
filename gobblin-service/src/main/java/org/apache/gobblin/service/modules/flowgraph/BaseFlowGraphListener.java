@@ -28,7 +28,6 @@ import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -37,6 +36,8 @@ import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -47,7 +48,6 @@ import org.apache.gobblin.util.PullFileLoader;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
-
 /**
  * Provides the common set of functionalities needed by listeners of {@link FlowGraphMonitor} to read changes in files and
  * apply them to a {@link FlowGraph}
@@ -55,7 +55,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public abstract class BaseFlowGraphListener {
-  protected FlowGraph flowGraph;
   protected static final int NODE_FILE_DEPTH = 3;
   protected static final int EDGE_FILE_DEPTH = 4;
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
@@ -63,7 +62,7 @@ public abstract class BaseFlowGraphListener {
   final String baseDirectory;
   private final Config emptyConfig = ConfigFactory.empty();
 
-  private Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
+  private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
   private final Map<URI, TopologySpec> topologySpecMap;
 
   final String flowGraphFolderName;
@@ -72,10 +71,9 @@ public abstract class BaseFlowGraphListener {
   final Set<String> hoconFileExtensions;
 
   public BaseFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
+      Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
       String javaPropsExtentions, String hoconFileExtensions) {
     this.flowTemplateCatalog = flowTemplateCatalog;
-    this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
     this.baseDirectory = baseDirectory;
     this.flowGraphFolderName = flowGraphFolderName;
@@ -84,12 +82,13 @@ public abstract class BaseFlowGraphListener {
     this.hoconFileExtensions = Sets.newHashSet(hoconFileExtensions.split(","));
     try {
       this.pullFileLoader = new PullFileLoader(folderPath,
-          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
-          this.javaPropsExtensions, this.hoconFileExtensions);
+          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()), this.javaPropsExtensions,
+          this.hoconFileExtensions);
     } catch (IOException e) {
       throw new RuntimeException("Could not create pull file loader", e);
     }
   }
+
   /**
    * Add a {@link DataNode} to the {@link FlowGraph}. The method uses the {@link FlowGraphConfigurationKeys#DATA_NODE_CLASS} config
    * to instantiate a {@link DataNode} from the node config file.
@@ -143,9 +142,11 @@ public abstract class BaseFlowGraphListener {
       try {
         Config edgeConfig = loadEdgeFileWithOverrides(edgeFilePath);
         List<SpecExecutor> specExecutors = getSpecExecutors(edgeConfig);
-        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
-            FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
-        FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
+        Class flowEdgeFactoryClass = Class.forName(
+            ConfigUtils.getString(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
+                FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
+        FlowEdgeFactory flowEdgeFactory =
+            (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
         if (flowTemplateCatalog.isPresent()) {
           FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowTemplateCatalog.get(), specExecutors);
           if (!graph.addFlowEdge(edge)) {
@@ -197,10 +198,9 @@ public abstract class BaseFlowGraphListener {
 
     Path filePath = new Path(file);
     String fileExtension = Files.getFileExtension(filePath.getName());
-    if (!checkFileLevelRelativeToRoot(filePath, depth)
-        || !(this.javaPropsExtensions.contains(fileExtension) || this.hoconFileExtensions.contains(fileExtension))) {
-      log.warn("Changed file does not conform to directory structure and file name format, skipping: "
-          + filePath);
+    if (!checkFileLevelRelativeToRoot(filePath, depth) || !(this.javaPropsExtensions.contains(fileExtension)
+        || this.hoconFileExtensions.contains(fileExtension))) {
+      log.warn("Changed file does not conform to directory structure and file name format, skipping: " + filePath);
       return false;
     }
     return true;
@@ -220,10 +220,7 @@ public abstract class BaseFlowGraphListener {
     for (int i = 0; i < depth - 1; i++) {
       path = path.getParent();
     }
-    if (!path.getName().equals(flowGraphFolderName)) {
-      return false;
-    }
-    return true;
+    return path.getName().equals(flowGraphFolderName);
   }
 
   /**
@@ -250,7 +247,8 @@ public abstract class BaseFlowGraphListener {
 
     return edgeConfig.withValue(FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, ConfigValueFactory.fromAnyRef(source))
         .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, ConfigValueFactory.fromAnyRef(destination))
-        .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef(getEdgeId(source, destination, edgeName)));
+        .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY,
+            ConfigValueFactory.fromAnyRef(getEdgeId(source, destination, edgeName)));
   }
 
   /**
@@ -259,12 +257,14 @@ public abstract class BaseFlowGraphListener {
    * @param edgeConfig containing the logical names of SpecExecutors for this edge.
    * @return a {@link List<SpecExecutor>}s for this edge.
    */
-  private List<SpecExecutor> getSpecExecutors(Config edgeConfig) throws URISyntaxException {
+  private List<SpecExecutor> getSpecExecutors(Config edgeConfig)
+      throws URISyntaxException {
     //Get the logical names of SpecExecutors where the FlowEdge can be executed.
-    List<String> specExecutorNames = ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
+    List<String> specExecutorNames =
+        ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
     //Load all the SpecExecutor configurations for this FlowEdge from the SpecExecutor Catalog.
     List<SpecExecutor> specExecutors = new ArrayList<>(specExecutorNames.size());
-    for (String specExecutorName: specExecutorNames) {
+    for (String specExecutorName : specExecutorNames) {
       URI specExecutorUri = new URI(specExecutorName);
       specExecutors.add(this.topologySpecMap.get(specExecutorUri).getSpecExecutor());
     }
@@ -277,11 +277,11 @@ public abstract class BaseFlowGraphListener {
    * @return the configuration object
    * @throws IOException
    */
-  protected Config loadNodeFileWithOverrides(Path filePath) throws IOException {
+  protected Config loadNodeFileWithOverrides(Path filePath)
+      throws IOException {
     Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getNodeConfigWithOverrides(nodeConfig, filePath);
   }
-
 
   /**
    * Load the edge file.
@@ -289,7 +289,8 @@ public abstract class BaseFlowGraphListener {
    * @return the configuration object
    * @throws IOException
    */
-  protected Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
+  protected Config loadEdgeFileWithOverrides(Path filePath)
+      throws IOException {
     Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getEdgeConfigWithOverrides(edgeConfig, filePath);
   }
@@ -304,5 +305,4 @@ public abstract class BaseFlowGraphListener {
   private String getEdgeId(String source, String destination, String edgeName) {
     return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(source, destination, edgeName);
   }
-
 }
