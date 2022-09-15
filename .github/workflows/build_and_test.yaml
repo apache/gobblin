@@ -87,7 +87,7 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Run CheckStyle and FindBugs
         run: |
-          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh 
+          ./gradlew --no-daemon javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
 
   run_tests:
     timeout-minutes: 120
@@ -172,5 +172,5 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           files: ${{ env.jacoco_reports }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true
