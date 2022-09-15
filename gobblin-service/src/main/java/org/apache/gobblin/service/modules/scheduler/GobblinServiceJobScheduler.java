@@ -400,6 +400,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
+    if (!this.isActive) {
+      _log.info("Skipping deletion of this spec {}/{} for non-leader host", deletedSpecURI, deletedSpecVersion);
+      return;
+    }
+
     try {
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
       unscheduleSpec(deletedSpecURI, deletedSpecVersion);

@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.yarn;
 
+import java.time.Duration;
+
+
 /**
  * A central place for configuration related constants of Gobblin on Yarn.
  *
@@ -83,6 +86,16 @@ public class GobblinYarnConfigurationKeys {
 
   // Helix configuration properties.
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
+
+  public static final String HELIX_PURGE_PREFIX = GOBBLIN_YARN_PREFIX + "helix.purgeOfflineHelixInstances.";
+  public static final String HELIX_PURGE_OFFLINE_INSTANCES_ENABLED = HELIX_PURGE_PREFIX + "enabled";
+  public static final boolean DEFAULT_HELIX_PURGE_OFFLINE_INSTANCES_ENABLED = true;
+
+  public static final String HELIX_PURGE_LAGGING_THRESHOLD_MILLIS = HELIX_PURGE_PREFIX + "laggingThresholdMs";
+  public static final long DEFAULT_HELIX_PURGE_LAGGING_THRESHOLD_MILLIS = Duration.ofMinutes(1).toMillis();
+
+  public static final String HELIX_PURGE_POLLING_RATE_MILLIS = HELIX_PURGE_PREFIX + "pollingRateMs";
+  public static final long DEFAULT_HELIX_PURGE_POLLING_RATE_MILLIS = Duration.ofSeconds(5).toMillis();
 
   // Security and authentication configuration properties.
   public static final String SECURITY_MANAGER_CLASS = GOBBLIN_YARN_PREFIX + "security.manager.class";

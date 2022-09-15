@@ -29,7 +29,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -83,29 +82,34 @@ public class DagManagerUtils {
     return Long.parseLong(dagId.substring(dagId.lastIndexOf('_') + 1));
   }
 
+
   /**
-   * Generate a dagId from the given {@link Dag} instance.
+   * Generate a dagId object from the given {@link Dag} instance.
    * @param dag instance of a {@link Dag}.
-   * @return a String id associated corresponding to the {@link Dag} instance.
+   * @return a DagId object associated corresponding to the {@link Dag} instance.
    */
-  static String generateDagId(Dag<JobExecutionPlan> dag) {
+  static DagManager.DagId generateDagId(Dag<JobExecutionPlan> dag) {
     return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
   }
 
-  static String generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
-    return generateDagId(dagNode.getValue().getJobSpec().getConfig());
-  }
-
-  private static String generateDagId(Config jobConfig) {
+  private static DagManager.DagId generateDagId(Config jobConfig) {
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
 
-    return generateDagId(flowGroup, flowName, flowExecutionId);
+    return new DagManager.DagId(flowGroup, flowName, String.valueOf(flowExecutionId));
   }
 
-  static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
-    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+  static DagManager.DagId generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
+    return generateDagId(dagNode.getValue().getJobSpec().getConfig());
+  }
+
+  static DagManager.DagId generateDagId(String flowGroup, String flowName, long flowExecutionId) {
+    return generateDagId(flowGroup, flowName, String.valueOf(flowExecutionId));
+  }
+
+  static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
+    return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
   }
 
   /**

@@ -93,16 +93,16 @@ abstract public class AbstractUserQuotaManager implements UserQuotaManager {
     decrementJobCount(DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), CountType.USER_COUNT);
     decrementQuotaUsageForUsers(usersQuotaIncrement);
     decrementJobCount(DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
-    runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
+    runningDagIds.remove(DagManagerUtils.generateDagId(dagNode).toString());
   }
 
   protected QuotaCheck increaseAndCheckQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     QuotaCheck quotaCheck = new QuotaCheck(true, true, true, "");
     // Dag is already being tracked, no need to double increment for retries and multihop flows
-    if (this.runningDagIds.contains(DagManagerUtils.generateDagId(dagNode))) {
+    if (this.runningDagIds.contains(DagManagerUtils.generateDagId(dagNode).toString())) {
       return quotaCheck;
     } else {
-      runningDagIds.add(DagManagerUtils.generateDagId(dagNode));
+      runningDagIds.add(DagManagerUtils.generateDagId(dagNode).toString());
     }
 
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
@@ -169,7 +169,7 @@ abstract public class AbstractUserQuotaManager implements UserQuotaManager {
    * Returns true if the dag existed in the set of running dags and was removed successfully
    */
   public boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
-    boolean val = runningDagIds.remove(DagManagerUtils.generateDagId(dagNode));
+    boolean val = runningDagIds.remove(DagManagerUtils.generateDagId(dagNode).toString());
     if (!val) {
       return false;
     }

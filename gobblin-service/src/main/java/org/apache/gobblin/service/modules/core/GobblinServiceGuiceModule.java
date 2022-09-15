@@ -19,7 +19,12 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+//import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
@@ -79,6 +84,8 @@ import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -139,10 +146,17 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
         .to(serviceConfig.isWarmStandbyEnabled());
-
-    binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
-    binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
-    binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
+    OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
+    if (serviceConfig.isWarmStandbyEnabled()) {
+      binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
+      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
+      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
+      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
+    } else {
+      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
+      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
+      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
+    }
 
 
     binder.bind(FlowConfigsResource.class);
@@ -219,6 +233,10 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isRestLIServerEnabled()) {
       binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
+    }
+
+    if (serviceConfig.isWarmStandbyEnabled()) {
+      binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
     }
 
     binder.bind(GobblinServiceManager.class);

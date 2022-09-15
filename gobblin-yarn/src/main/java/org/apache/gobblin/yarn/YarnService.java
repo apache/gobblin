@@ -65,6 +65,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,7 @@ public class YarnService extends AbstractIdleService {
   private final Optional<String> containerJvmArgs;
   private final String containerTimezone;
   private final HelixManager helixManager;
+  private final HelixAdmin helixAdmin;
 
   @Getter(AccessLevel.PROTECTED)
   private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
@@ -194,6 +196,10 @@ public class YarnService extends AbstractIdleService {
   // The map from helix tag to allocated container count
   private final Map<String, Integer> allocatedContainerCountMap = Maps.newConcurrentMap();
 
+  private final boolean isPurgingOfflineHelixInstancesEnabled;
+  private final long helixPurgeLaggingThresholdMs;
+  private final long helixPurgeStatusPollingRateMs;
+
   private volatile YarnContainerRequestBundle yarnContainerRequest;
   private final AtomicInteger priorityNumGenerator = new AtomicInteger(0);
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
@@ -201,7 +207,7 @@ public class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
-      FileSystem fs, EventBus eventBus, HelixManager helixManager) throws Exception {
+      FileSystem fs, EventBus eventBus, HelixManager helixManager, HelixAdmin helixAdmin) throws Exception {
     this.applicationName = applicationName;
     this.applicationId = applicationId;
 
@@ -210,6 +216,7 @@ public class YarnService extends AbstractIdleService {
     this.eventBus = eventBus;
 
     this.helixManager = helixManager;
+    this.helixAdmin = helixAdmin;
 
     this.gobblinMetrics = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
         Optional.of(buildGobblinMetrics()) : Optional.<GobblinMetrics>absent();
@@ -237,6 +244,15 @@ public class YarnService extends AbstractIdleService {
     this.helixInstanceMaxRetries = config.getInt(GobblinYarnConfigurationKeys.HELIX_INSTANCE_MAX_RETRIES);
     this.helixInstanceTags = ConfigUtils.getString(config,
         GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, GobblinClusterConfigurationKeys.HELIX_DEFAULT_TAG);
+    this.isPurgingOfflineHelixInstancesEnabled = ConfigUtils.getBoolean(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_OFFLINE_INSTANCES_ENABLED,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_OFFLINE_INSTANCES_ENABLED);
+    this.helixPurgeLaggingThresholdMs = ConfigUtils.getLong(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_LAGGING_THRESHOLD_MILLIS,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_LAGGING_THRESHOLD_MILLIS);
+    this.helixPurgeStatusPollingRateMs = ConfigUtils.getLong(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_POLLING_RATE_MILLIS,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_POLLING_RATE_MILLIS);
 
     this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
@@ -339,8 +355,24 @@ public class YarnService extends AbstractIdleService {
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
+    if (this.isPurgingOfflineHelixInstancesEnabled) {
+      purgeHelixOfflineInstances(this.helixPurgeLaggingThresholdMs);
+    }
+
     LOGGER.info("Requesting initial containers");
     requestInitialContainers(this.initialContainers);
+  }
+
+  private void purgeHelixOfflineInstances(long laggingThresholdMs) {
+    LOGGER.info("Purging offline helix instances before allocating containers for helixClusterName={}, connectionString={}, helixPurgeStatusPollingRateMs={}",
+        helixManager.getClusterName(), helixManager.getMetadataStoreConnectionString(), this.helixPurgeStatusPollingRateMs);
+    HelixInstancePurgerWithMetrics purger = new HelixInstancePurgerWithMetrics(this.eventSubmitter.orNull(),
+        this.helixPurgeStatusPollingRateMs);
+    Map<String, String> gteMetadata = ImmutableMap.of(
+        "connectionString", this.helixManager.getMetadataStoreConnectionString(),
+        "clusterName", this.helixManager.getClusterName()
+    );
+    purger.purgeAllOfflineInstances(this.helixAdmin, this.helixManager.getClusterName(), laggingThresholdMs, gteMetadata);
   }
 
   @Override

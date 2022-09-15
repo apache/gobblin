@@ -349,21 +349,33 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return spec;
   }
 
+
+  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
+    return updateOrAddSpecHelper(spec, triggerListener, false, Long.MAX_VALUE);
+  }
+
+  public Map<String, AddSpecResponse> update(Spec spec, boolean triggerListener, long modifiedWatermark) throws Throwable {
+    return updateOrAddSpecHelper(spec, triggerListener, true, modifiedWatermark);
+  }
+
   /**
    * Persist {@link Spec} into {@link SpecStore} and notify {@link SpecCatalogListener} if triggerListener
    * is set to true.
    * If the {@link Spec} is a {@link FlowSpec} it is persisted if it can be compiled at the time this method received
    * the spec. `explain` specs are not persisted. The logic of this method is tightly coupled with the logic of
-   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}.
+   * {@link GobblinServiceJobScheduler#onAddSpec()} or {@link Orchestrator#onAddSpec()} in warm standby mode,
+   * which is one of the listener of {@link FlowCatalog}.
    * We use condition variables {@link #specSyncObjects} to achieve synchronization between
    * {@link GobblinServiceJobScheduler#NonScheduledJobRunner} thread and this thread to ensure deletion of
    * {@link FlowSpec} happens after the corresponding run once flow is submitted to the orchestrator.
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
+   * @param isUpdate Whether this is update or add operation, it will call different method in spec store to persist the spec
+   * @param modifiedWatermark If it's update operation, the largest modifiedWatermark that it can modify, or in other word, the timestamp which old spec should be modified before
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
-  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
+  private Map<String, AddSpecResponse> updateOrAddSpecHelper(Spec spec, boolean triggerListener, boolean isUpdate, long modifiedWatermark) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -384,7 +396,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
           throw entry.getValue().getError().getCause();
         }
-        return responseMap;
       }
     }
     AddSpecResponse<String> compileResponse;
@@ -402,12 +413,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         try {
           if (!flowSpec.isExplain()) {
             long startTime = System.currentTimeMillis();
-            specStore.addSpec(spec);
+            if (isUpdate) {
+              specStore.updateSpec(spec, modifiedWatermark);
+            } else {
+              specStore.addSpec(spec);
+            }
             metrics.updatePutSpecTime(startTime);
           }
           responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
         } catch (IOException e) {
-          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+          String operation = isUpdate ? "update" : "add";
+          throw new RuntimeException("Cannot " + operation + " Spec to Spec store: " + flowSpec, e);
         } finally {
           syncObject.notifyAll();
           this.specSyncObjects.remove(flowSpec.getUri().toString());

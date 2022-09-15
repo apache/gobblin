@@ -296,6 +296,8 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
   public static final String WORK_UNIT_DATE_PARTITION_NAME = "workunit.source.date.partitionName";
+  public static final String WORK_UNIT_GENERATOR_FAILURE_IS_FATAL = "workunit.generator.failure.is.fatal";
+  public static final boolean DEFAULT_WORK_UNIT_FAST_FAIL_ENABLED = true;
 
   /**
    * Task execution properties.

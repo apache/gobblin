@@ -335,6 +335,43 @@ public class TimeAwareRecursiveCopyableDatasetTest {
         new Path("/tmp/src/ds2/daily"));
   }
 
+  @Test
+  public void testCheckPathDateTimeValidity() {
+    String datePattern = "yyyy/MM/dd/HH";
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    LocalDateTime startDate = LocalDateTime.parse("2022/11/30/23", formatter);
+    LocalDateTime endDate = LocalDateTime.parse("2022/12/30/23", formatter);
+
+    // Level 1 is when datePath is "", that case is taken care of in the recursivelyGetFilesAtDatePath function
+    // Check when year granularity is not in range
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023", datePattern, 2));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11", datePattern, 3));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11/30", datePattern, 4));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11/30/20", datePattern, 5));
+
+    // Check when hour granularity is not in range
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022", datePattern, 2));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11", datePattern, 3));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11/30", datePattern, 4));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11/30/20", datePattern, 5));
+
+    // Change format and check that all granularities are in range
+    datePattern = "yyyy/MM/dd/HH/mm";
+    formatter = DateTimeFormat.forPattern(datePattern);
+    startDate = LocalDateTime.parse("2022/11/30/23/59", formatter);
+    endDate = LocalDateTime.parse("2022/12/30/23/59", formatter);
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022", datePattern, 2));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12", datePattern, 3));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15", datePattern, 4));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15/15", datePattern, 5));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15/15/30", datePattern, 6));
+
+    // Check when invalid datePath provided when compared against datePattern
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test", datePattern, 2));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test/test", datePattern, 3));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test/test/test", datePattern, 4));
+  }
+
   @AfterClass
   public void clean() throws IOException {
     //Delete tmp directories

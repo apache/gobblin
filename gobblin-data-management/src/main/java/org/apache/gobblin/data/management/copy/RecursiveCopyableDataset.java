@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -208,8 +209,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     try {
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
-    } catch (IOException e) {
-      log.warn(String.format("Could not find any files on fs %s path %s due to the following exception. Returning an empty list of files.", fs.getUri(), path), e);
+    } catch (FileNotFoundException fnfe) {
+      log.warn(String.format("Could not find any files on fs %s path %s due to the following exception. Returning an empty list of files.", fs.getUri(), path), fnfe);
       return Lists.newArrayList();
     }
   }

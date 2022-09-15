@@ -134,9 +134,40 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
   }
 
+  /**
+   * Checks if the datePath provided is in the range of the start and end dates.
+   * Rounds startDate and endDate to the same granularity as datePath prior to comparing.
+   * @param startDate
+   * @param endDate
+   * @param datePath
+   * @param datePathFormat (This is the user set desired format)
+   * @param level
+   * @return true if the datePath provided is in the range of start and end dates, inclusive.
+   */
+  public static Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String datePath,
+      String datePathFormat, int level) {
+    String [] datePathFormatArray = datePathFormat.split("/");
+    String datePathPattern = String.join(FileSystems.getDefault().getSeparator(), Arrays.asList(datePathFormatArray).subList(0, level - 1));
+    try {
+      DateTimeFormatter formatGranularity = DateTimeFormat.forPattern(datePathPattern);
+      LocalDateTime traversedDatePathRound = formatGranularity.parseLocalDateTime(datePath);
+      LocalDateTime startDateRound = formatGranularity.parseLocalDateTime(startDate.toString(datePathPattern));
+      LocalDateTime endDateRound = formatGranularity.parseLocalDateTime(endDate.toString(datePathPattern));
+      return !traversedDatePathRound.isBefore(startDateRound) && !traversedDatePathRound.isAfter(endDateRound);
+    } catch (IllegalArgumentException e) {
+      log.error(String.format("Cannot parse path provided %s, expected in format of %s", datePath, datePathFormat));
+      return false;
+    }
+  }
+
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
+    if (!traversedDatePath.isEmpty()) {
+      if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath, this.datePattern, level)) {
+        return fileStatuses;
+      }
+    }
     Iterator<FileStatus> folderIterator;
     try {
       if (!fs.exists(path)) {

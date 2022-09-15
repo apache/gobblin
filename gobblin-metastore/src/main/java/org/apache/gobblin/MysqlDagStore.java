@@ -52,7 +52,7 @@ public class MysqlDagStore<T extends State> extends MysqlStateStore<T> {
   protected String getCreateJobStateTableTemplate() {
     int maxStoreName = ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER.length()
         + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
-    int maxTableName = 13; // length of flowExecutionId which is epoch timestamp
+    int maxTableName = ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH;
 
     return "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(" + maxStoreName + ") CHARACTER SET latin1 COLLATE latin1_bin not null,"
         + "table_name varchar(" + maxTableName + ") CHARACTER SET latin1 COLLATE latin1_bin not null,"
