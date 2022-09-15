@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Properties;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.util.HadoopUtils;
@@ -39,26 +41,31 @@ import org.apache.hadoop.fs.Path;
 @AllArgsConstructor
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
 
-  public static final String ICEBERG_DATASET_PREFIX = "iceberg.dataset";
-  public static final String ICEBERG_METASTORE_URI_KEY = ICEBERG_DATASET_PREFIX + ".hive.metastore.uri";
-  public static final String ICEBERG_DB_NAME = DatasetConstants.PLATFORM_ICEBERG + ".database.name";
-  public static final String ICEBERG_TABLE_NAME = DatasetConstants.PLATFORM_ICEBERG + ".table.name";
+  public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
+  public static final String ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY = ICEBERG_DATASET_PREFIX + ".hive.metastore.uri";
+  public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
+  public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
   private String dbName;
   private String tblName;
   private final Properties properties;
   protected final FileSystem fs;
 
+  /**
+   * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
+   * @return List of {@link IcebergDataset}s in the file system.
+   * @throws IOException
+   */
   @Override
   public List<IcebergDataset> findDatasets() throws IOException {
     List<IcebergDataset> matchingDatasets = new ArrayList<>();
     /*
-     * Both Iceberg database name and table name are mandatory,
-     * since we are currently only supporting Hive Catalog based Iceberg tables.
-     * The design will support defaults and other catalogs in future releases.
+     * Both Iceberg database name and table name are mandatory based on current implementation.
+     * Later we may explore supporting datasets similar to Hive
      */
-    if (properties.getProperty(ICEBERG_DB_NAME) == null || properties.getProperty(ICEBERG_TABLE_NAME) == null) {
-      throw new IOException("Iceberg database name or Iceberg table name is missing");
+    if (StringUtils.isNotBlank(properties.getProperty(ICEBERG_DB_NAME)) || StringUtils.isNotBlank(properties.getProperty(ICEBERG_TABLE_NAME))) {
+      throw new IllegalArgumentException(String.format("Iceberg database name: {%s} or Iceberg table name: {%s} is missing",
+          ICEBERG_DB_NAME, ICEBERG_TABLE_NAME));
     }
     this.dbName = properties.getProperty(ICEBERG_DB_NAME);
     this.tblName = properties.getProperty(ICEBERG_TABLE_NAME);
@@ -66,9 +73,10 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
 
     IcebergCatalog icebergCatalog = IcebergCatalogFactory.create(configuration);
-    IcebergTable icebergTable = icebergCatalog.openTable(dbName, tblName);
-    // Currently, we only support one dataset per iceberg table
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergTable, properties, fs));
+    /* Each Iceberg dataset maps to an Iceberg table
+     * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
+     */
+    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, fs));
     log.info("Found {} matching datasets: {}", matchingDatasets.size(), matchingDatasets);
 
     return matchingDatasets;
@@ -76,14 +84,15 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
   @Override
   public Path commonDatasetRoot() {
-    return null;
+    return new Path("/");
   }
 
   @Override
   public Iterator<IcebergDataset> getDatasetsIterator() throws IOException {
     return findDatasets().iterator();
   }
-  protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergTable icebergTable, Properties properties, FileSystem fs) {
+  protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog icebergCatalog, Properties properties, FileSystem fs) {
+    IcebergTable icebergTable = icebergCatalog.openTable(dbName, tblName);
     return new IcebergDataset(dbName, tblName, icebergTable, properties, fs);
   }
 }

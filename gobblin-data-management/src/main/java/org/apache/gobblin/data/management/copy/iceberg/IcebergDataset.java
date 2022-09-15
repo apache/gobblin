@@ -125,7 +125,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    * Finds all files read by the table file set and generates {@link CopyEntity}s for duplicating the table.
    */
   @VisibleForTesting
-  Collection<CopyEntity> generateCopyEntitiesForTableFileSet(CopyConfiguration configuration) throws IOException {
+  Collection<CopyEntity> generateCopyEntities(CopyConfiguration configuration) throws IOException {
     String fileSet = this.getInputTableName();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     log.info("Fetching all the files to be copied");

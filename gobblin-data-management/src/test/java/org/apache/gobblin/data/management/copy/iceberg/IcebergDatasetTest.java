@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import com.google.api.client.util.Lists;
 import com.google.api.client.util.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -27,11 +28,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -39,18 +38,17 @@ import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.iceberg.TableOperations;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.*;
 
-
-public class IcebergDatasetTest {
+public class
+IcebergDatasetTest {
 
   static final String METADATA_PATH = "/root/iceberg/test/metadata";
   static final String MANIFEST_PATH = "/root/iceberg/test/metadata/test_manifest";
+  static final String MANIFEST_LIST_PATH = "/root/iceberg/test/metadata/test_manifest/data";
   static final String MANIFEST_FILE_PATH1 = "/root/iceberg/test/metadata/test_manifest/data/a";
   static final String MANIFEST_FILE_PATH2 = "/root/iceberg/test/metadata/test_manifest/data/b";
 
@@ -77,52 +75,63 @@ public class IcebergDatasetTest {
   }
 
   /**
-   * Test case to copy all the file paths for a mocked iceberg table. This is a full copy overwriting everything on the destination
+   * Test case to generate copy entities for all the file paths for a mocked iceberg table.
+   * The assumption here is that we create copy entities for all the matching file paths,
+   * without calculating any difference between the source and destination
    */
   @Test
-  public void testGenerateCopyEntitiesForTableFileSet() throws IOException, URISyntaxException {
+  public void testGenerateCopyEntitiesWhenDestEmpty() throws IOException, URISyntaxException {
 
     FileSystem fs = Mockito.mock(FileSystem.class);
     String test_db_name = "test_db_name";
     String test_table_name = "test_tbl_name";
-    Set<String> setOfFilePaths = new HashSet<>(Arrays.asList(METADATA_PATH, MANIFEST_PATH, MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2));
-
+    String test_qualified_path = "/root/iceberg/test/destination/sub_path_destination";
+    String test_uri_path = "/root/iceberg/test/output";
     Properties properties = new Properties();
     properties.setProperty("data.publisher.final.dir", "/test");
+    List<String> expected = new ArrayList<>(Arrays.asList(METADATA_PATH, MANIFEST_PATH, MANIFEST_LIST_PATH, MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2));
 
     CopyConfiguration copyConfiguration = CopyConfiguration.builder(null, properties)
         .preserve(PreserveAttributes.fromMnemonicString(""))
         .copyContext(new CopyContext())
         .build();
-    TableOperations tableOperations = Mockito.mock(TableOperations.class);
 
-    IcebergTable icebergTable = new MockedIcebergTable(tableOperations);
+    IcebergTable icebergTable = new MockedIcebergTable(METADATA_PATH, MANIFEST_PATH, MANIFEST_LIST_PATH, new ArrayList<>(Arrays.asList(MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2)));
     IcebergDataset icebergDataset = new IcebergDataset(test_db_name, test_table_name, icebergTable, new Properties(), fs);
-
-    FileStatus fileStatus1 = new FileStatus();
-    fileStatus1.setPath(new Path(METADATA_PATH));
-    FileStatus fileStatus2 = new FileStatus();
-    fileStatus2.setPath(new Path(MANIFEST_PATH));
-    FileStatus fileStatus3 = new FileStatus();
-    fileStatus3.setPath(new Path(MANIFEST_FILE_PATH1));
-    FileStatus fileStatus4 = new FileStatus();
-    fileStatus4.setPath(new Path(MANIFEST_FILE_PATH2));
 
     Path path1 = new Path(METADATA_PATH);
     Path path2 = new Path(MANIFEST_PATH);
-    Path path3 = new Path(MANIFEST_FILE_PATH1);
-    Path path4 = new Path(MANIFEST_FILE_PATH2);
+    Path path3 = new Path(MANIFEST_LIST_PATH);
+    Path path4 = new Path(MANIFEST_FILE_PATH1);
+    Path path5 = new Path(MANIFEST_FILE_PATH2);
 
+    FileStatus fileStatus1 = new FileStatus();
+    fileStatus1.setPath(path1);
+    FileStatus fileStatus2 = new FileStatus();
+    fileStatus2.setPath(path2);
+    FileStatus fileStatus3 = new FileStatus();
+    fileStatus3.setPath(path3);
+    FileStatus fileStatus4 = new FileStatus();
+    fileStatus4.setPath(path4);
+    FileStatus fileStatus5 = new FileStatus();
+    fileStatus5.setPath(path5);
 
-    Mockito.when(fs.makeQualified(any(Path.class))).thenReturn(new Path("/root/iceberg/test/destination/sub_path_destination"));
-    Mockito.when(fs.getFileStatus(path1)).thenReturn(fileStatus1);
-    Mockito.when(fs.getFileStatus(path2)).thenReturn(fileStatus2);
-    Mockito.when(fs.getFileStatus(path3)).thenReturn(fileStatus3);
-    Mockito.when(fs.getFileStatus(path4)).thenReturn(fileStatus4);
-    Mockito.when(fs.getUri()).thenReturn(new URI(null, null, "/root/iceberg/test/output", null));
+    Map<Path, FileStatus> mapOfPathAndFileStatus = Maps.newHashMap();
+    mapOfPathAndFileStatus.put(path1, fileStatus1);
+    mapOfPathAndFileStatus.put(path2, fileStatus2);
+    mapOfPathAndFileStatus.put(path3, fileStatus3);
+    mapOfPathAndFileStatus.put(path4, fileStatus4);
+    mapOfPathAndFileStatus.put(path5, fileStatus5);
 
-    Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntitiesForTableFileSet(copyConfiguration);
-    Assert.assertEquals(copyEntities.size(), setOfFilePaths.size());
+    mockFileSystemMethodCalls(fs, mapOfPathAndFileStatus, test_qualified_path, test_uri_path);
+
+    Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(copyConfiguration);
+    verifyCopyEntities(copyEntities, expected);
+
+  }
+
+  private void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expected) {
+    List<String> actual = new ArrayList<>();
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
       JsonObject jsonObject = new Gson().fromJson(json, JsonObject.class);
@@ -130,28 +139,55 @@ public class IcebergDatasetTest {
           jsonObject.getAsJsonObject("object-data").getAsJsonObject("origin").getAsJsonObject("object-data");
       JsonObject pathObject = objectData.getAsJsonObject("path").getAsJsonObject("object-data").getAsJsonObject("uri");
       String filepath = pathObject.getAsJsonPrimitive("object-data").getAsString();
-      Assert.assertTrue(setOfFilePaths.contains(filepath));
-      setOfFilePaths.remove(filepath);
+      actual.add(filepath);
     }
-    Assert.assertTrue(setOfFilePaths.isEmpty());
+    Assert.assertEquals(actual.size(), expected.size());
+    Assert.assertEqualsNoOrder(actual.toArray(), expected.toArray());
+  }
+
+  private void mockFileSystemMethodCalls(FileSystem fs, Map<Path, FileStatus> pathToFileStatus, String qualifiedPath, String uriPath)
+      throws URISyntaxException, IOException {
+
+    Mockito.when(fs.getUri()).thenReturn(new URI(null, null, uriPath, null));
+    for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
+      Path path = entry.getKey();
+      FileStatus fileStatus = entry.getValue();
+      Mockito.when(fs.getFileStatus(path)).thenReturn(fileStatus);
+      Mockito.when(fs.makeQualified(path)).thenReturn(new Path(qualifiedPath));
+    }
   }
 
   private static class MockedIcebergTable extends IcebergTable {
 
-    public MockedIcebergTable(TableOperations tableOps) {
-      super(tableOps);
+    String metadataPath;
+    String manifestListPath;
+    List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles;
+
+    public MockedIcebergTable(String metadataPath, String manifestListPath, List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles) {
+      super(null);
+      this.metadataPath = metadataPath;
+      this.manifestListPath = manifestListPath;
+      this.manifestFiles = manifestFiles;
     }
 
     @Override
     public IcebergSnapshotInfo getCurrentSnapshotInfo() {
       Long snapshotId = 0L;
       Instant timestamp  = Instant.ofEpochMilli(0L);
-      List<String> manifestFilePaths = Arrays.asList(MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2);
-      List<List<String>> manifestListedFilePaths = new ArrayList<>();
-      manifestListedFilePaths.add(manifestFilePaths);
+      IcebergSnapshotInfo.ManifestFileInfo manifestFileInfo = new IcebergSnapshotInfo.ManifestFileInfo(manifestFilePath, manifestListFilePaths);
+      List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles = Lists.newArrayList();
+      manifestFiles.add(manifestFileInfo);
 
-      return new IcebergSnapshotInfo(snapshotId, timestamp, METADATA_PATH, MANIFEST_PATH, manifestFilePaths, manifestListedFilePaths);
+      return new IcebergSnapshotInfo(snapshotId, timestamp, metadataPath, manifestListPath, manifestFiles);
     }
+  }
+
+  private static class MockDestinationFileSystem {
+    Map<Path, FileStatus> pathToFileStatus;
+  }
+
+  MockDestinationFileSystem addPath(String p){
+    return null;
   }
 }
 
