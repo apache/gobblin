@@ -135,7 +135,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
   }
 
-  public Boolean checkPathDateTimeValidity (LocalDateTime startDate, LocalDateTime endDate, String traversedDatePath){
+  public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String traversedDatePath) {
     int[] startDateSplit = new int[] { startDate.getYear(), startDate.getMonthOfYear(), startDate.getDayOfMonth(),
         startDate.getHourOfDay(), startDate.getMinuteOfHour(), startDate.getSecondOfMinute(), startDate.getMillisOfSecond() };
     int[] endDateSplit = new int[] { endDate.getYear(), endDate.getMonthOfYear(), endDate.getDayOfMonth(),
@@ -143,6 +143,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
 
     String[] traversedDatePathSplit = traversedDatePath.split("/");
 
+    // Only check the number of parameters that the traversedDatePath has traversed through so far
     for (int index = 0; index < traversedDatePathSplit.length; index++) {
       try {
         if (Integer.parseInt(traversedDatePathSplit[index]) < startDateSplit[index] ||
