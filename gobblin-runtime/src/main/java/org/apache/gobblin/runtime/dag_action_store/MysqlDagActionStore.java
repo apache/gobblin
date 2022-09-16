@@ -49,8 +49,9 @@ public class MysqlDagActionStore implements DagActionStore {
   private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ?";
   private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, dag_action FROM %s";
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (" +
-  "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_execution_id varchar(100) NOT NULL," +
-  "dag_action varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
+  "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, "
+      + "flow_execution_id varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
+      + "dag_action varchar(100) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id))";
 
   @Inject

@@ -26,6 +26,7 @@ import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import java.io.IOException;
+import java.sql.SQLException;
 import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.DagActionStore;
@@ -54,10 +55,24 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
     try {
       this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME);
     } catch (IOException e) {
-    log.warn(String.format("Failed to add execution resume action for flow %s %s %s to dag action store due to", flowGroup, flowName, flowExecutionId), e);
-    throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      log.warn(
+          String.format("Failed to add execution resume action for flow %s %s %s to dag action store due to", flowGroup,
+              flowName, flowExecutionId), e);
+      this.handleException(flowGroup, flowName, flowExecutionId.toString(), e);
+    }
+
   }
 
+  private void handleException (String flowGroup, String flowName, String flowExecutionId, Exception e) {
+    try {
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId)) {
+        throw new RestLiServiceException(HttpStatus.S_409_CONFLICT, e.getMessage());
+      } else {
+        throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      }
+    } catch (IOException | SQLException ex) {
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+    }
   }
 
   @Override
@@ -70,8 +85,11 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
       this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL);
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (IOException e) {
-      log.warn(String.format("Failed to add execution delete action for flow %s %s %s to dag action store due to", flowGroup, flowName, flowExecutionId), e);
-      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      log.warn(
+          String.format("Failed to add execution delete action for flow %s %s %s to dag action store due to", flowGroup,
+              flowName, flowExecutionId), e);
+      handleException(flowGroup, flowName, flowExecutionId.toString(), e);
+      return new UpdateResponse(HttpStatus.S_500_INTERNAL_SERVER_ERROR);
     }
   }
 }

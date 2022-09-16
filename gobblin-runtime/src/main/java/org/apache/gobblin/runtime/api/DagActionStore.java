@@ -71,6 +71,7 @@ public interface DagActionStore {
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
    * @throws IOException
+   * @return true if we successfully delete one record, return false if the record does not exist
    */
   boolean deleteDagAction(String flowGroup, String flowName, String flowExecutionId) throws IOException;
 
