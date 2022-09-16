@@ -17,17 +17,11 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.net.URI;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.diff.DiffEntry;
 
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.service.monitoring.GitDiffListener;
 import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 
@@ -35,15 +29,14 @@ import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 /**
  * Listener for {@link GitFlowGraphMonitor} to apply changes from Git to a {@link FlowGraph}
  */
-public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDiffListener {
+public class GitFlowGraphListener implements GitDiffListener {
 
-  AtomicReference<FlowGraph> flowGraph;
+  private final AtomicReference<FlowGraph> flowGraph;
+  private final BaseFlowGraphHelper baseFlowGraphHelper;
 
-  public GitFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String folderName,
-      String javaPropsExtentions, String hoconFileExtentions) {
-    super(flowTemplateCatalog, topologySpecMap, baseDirectory, folderName, javaPropsExtentions, hoconFileExtentions);
+  public GitFlowGraphListener(AtomicReference<FlowGraph> graph, BaseFlowGraphHelper baseFlowGraphHelper) {
     this.flowGraph = graph;
+    this.baseFlowGraphHelper = baseFlowGraphHelper;
   }
 
   /**
@@ -54,10 +47,10 @@ public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDi
   @Override
   public void addChange(DiffEntry change) {
     Path path = new Path(change.getNewPath());
-    if (path.depth() == NODE_FILE_DEPTH) {
-      addDataNode(this.flowGraph.get(), change.getNewPath());
-    } else if (path.depth() == EDGE_FILE_DEPTH) {
-      addFlowEdge(this.flowGraph.get(), change.getNewPath());
+    if (path.depth() == BaseFlowGraphHelper.NODE_FILE_DEPTH) {
+      this.baseFlowGraphHelper.addDataNode(this.flowGraph.get(), change.getNewPath());
+    } else if (path.depth() == BaseFlowGraphHelper.EDGE_FILE_DEPTH) {
+      this.baseFlowGraphHelper.addFlowEdge(this.flowGraph.get(), change.getNewPath());
     }
   }
 
@@ -69,10 +62,10 @@ public class GitFlowGraphListener extends BaseFlowGraphListener implements GitDi
   @Override
   public void removeChange(DiffEntry change) {
     Path path = new Path(change.getOldPath());
-    if (path.depth() == NODE_FILE_DEPTH) {
-      removeDataNode(this.flowGraph.get(), change.getOldPath());
-    } else if (path.depth() == EDGE_FILE_DEPTH) {
-      removeFlowEdge(this.flowGraph.get(), change.getOldPath());
+    if (path.depth() == BaseFlowGraphHelper.NODE_FILE_DEPTH) {
+      this.baseFlowGraphHelper.removeDataNode(this.flowGraph.get(), change.getOldPath());
+    } else if (path.depth() == BaseFlowGraphHelper.EDGE_FILE_DEPTH) {
+      this.baseFlowGraphHelper.removeFlowEdge(this.flowGraph.get(), change.getOldPath());
     }
   }
 }

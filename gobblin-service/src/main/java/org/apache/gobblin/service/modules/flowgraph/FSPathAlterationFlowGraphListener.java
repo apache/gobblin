@@ -47,21 +47,16 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserver;
  * Unlike the {@link GitFlowGraphListener}, this class will reload the entire flowgraph on any detected change, instead loading only the diffs.
  */
 @Slf4j
-public class FSPathAlterationFlowGraphListener extends BaseFlowGraphListener implements PathAlterationListener {
-
-  private final File graphDir;
-  CountDownLatch initComplete;
-  AtomicReference<FlowGraph> flowGraph;
+public class FSPathAlterationFlowGraphListener implements PathAlterationListener {
+  private final AtomicReference<FlowGraph> flowGraph;
+  private final BaseFlowGraphHelper flowGraphHelper;
 
   public FSPathAlterationFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, String baseDirectory,
-      String flowGraphFolderName, String javaPropsExtentions, String hoconFileExtensions, CountDownLatch initComplete) {
-    super(flowTemplateCatalog, topologySpecMap, baseDirectory, flowGraphFolderName, javaPropsExtentions,
-        hoconFileExtensions);
-    this.graphDir = new File(baseDirectory);
-    this.initComplete = initComplete;
+      AtomicReference<FlowGraph> graph, String baseDirectory, BaseFlowGraphHelper flowGraphHelper) {
+    this.flowGraphHelper = flowGraphHelper;
+    File graphDir = new File(baseDirectory);
     // Populate the flowgraph with any existing files
-    if (!this.graphDir.exists()) {
+    if (!graphDir.exists()) {
       throw new RuntimeException(String.format("Flowgraph directory at path %s does not exist!", graphDir));
     }
     this.flowGraph = graph;
@@ -102,40 +97,6 @@ public class FSPathAlterationFlowGraphListener extends BaseFlowGraphListener imp
   @Override
   public void onCheckDetectedChange() {
     log.info("Detecting change in flowgraph files, reloading flowgraph");
-    this.populateFlowGraphAtomically();
-  }
-
-  /**
-   * Loads the entire flowgraph from the path configured in {@link org.apache.gobblin.configuration.ConfigurationKeys.FLOWGRAPH_BASE_DIR }
-   * Expects nodes to be in the format of /flowGraphName/nodeA/nodeA.properties
-   * Expects edges to be in the format of /flowGraphName/nodeA/nodeB/edgeAB.properties
-   * The current flowgraph will be swapped atomically with the new flowgraph that is loaded
-   */
-  public void populateFlowGraphAtomically() {
-    FlowGraph newFlowGraph = new BaseFlowGraph();
-    try {
-      List<Path> edges = new ArrayList<>();
-      // All nodes must be added first before edges, otherwise edges may have a missing source or destination.
-      // Need to convert files to Hadoop Paths to be compatible with FileAlterationListener
-      Files.walk(this.graphDir.toPath()).forEach(fileName -> {
-        if (!Files.isDirectory(fileName)) {
-          if (checkFileLevelRelativeToRoot(new Path(fileName.toString()), NODE_FILE_DEPTH)) {
-            addDataNode(newFlowGraph, fileName.toString());
-          } else if (checkFileLevelRelativeToRoot(new Path(fileName.toString()), EDGE_FILE_DEPTH)) {
-            edges.add(new Path(fileName.toString()));
-          }
-        }
-      });
-      for (Path edge : edges) {
-        addFlowEdge(newFlowGraph, edge.toString());
-      }
-      this.flowGraph.set(newFlowGraph);
-      // Reduce the countdown latch
-      this.initComplete.countDown();
-      log.info("Finished populating FSFlowgraph");
-    } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Error while populating file based flowgraph at path %s", this.graphDir.toPath()), e);
-    }
+    this.flowGraphHelper.populateFlowGraphAtomically(this.flowGraph);
   }
 }

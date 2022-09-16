@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,14 +51,14 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * Provides the common set of functionalities needed by listeners of {@link FlowGraphMonitor} to read changes in files and
+ * Provides the common set of functionalities needed by {@link FlowGraphMonitor} to read changes in files and
  * apply them to a {@link FlowGraph}
  * Assumes that the directory structure between flowgraphs configuration files are the same.
  */
 @Slf4j
-public abstract class BaseFlowGraphListener {
-  protected static final int NODE_FILE_DEPTH = 3;
-  protected static final int EDGE_FILE_DEPTH = 4;
+public class BaseFlowGraphHelper {
+  public static final int NODE_FILE_DEPTH = 3;
+  public static final int EDGE_FILE_DEPTH = 4;
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
 
   final String baseDirectory;
@@ -70,7 +72,7 @@ public abstract class BaseFlowGraphListener {
   final Set<String> javaPropsExtensions;
   final Set<String> hoconFileExtensions;
 
-  public BaseFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
+  public BaseFlowGraphHelper(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
       String javaPropsExtentions, String hoconFileExtensions) {
     this.flowTemplateCatalog = flowTemplateCatalog;
@@ -94,7 +96,7 @@ public abstract class BaseFlowGraphListener {
    * to instantiate a {@link DataNode} from the node config file.
    * @param path of node to add
    */
-  protected void addDataNode(FlowGraph graph, String path) {
+   public void addDataNode(FlowGraph graph, String path) {
     if (checkFilePath(path, NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -118,7 +120,7 @@ public abstract class BaseFlowGraphListener {
    * {@link DataNode} from the node config file and uses it to delete the associated {@link DataNode}.
    * @param path of node to delete
    */
-  protected void removeDataNode(FlowGraph graph, String path) {
+  public void removeDataNode(FlowGraph graph, String path) {
     if (checkFilePath(path, NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.baseDirectory, path);
       Config config = getNodeConfigWithOverrides(ConfigFactory.empty(), nodeFilePath);
@@ -136,7 +138,7 @@ public abstract class BaseFlowGraphListener {
    * provided by the {@link FlowGraph} to build a {@link FlowEdge} from the edge config file.
    * @param path of edge to add
    */
-  protected void addFlowEdge(FlowGraph graph, String path) {
+  public void addFlowEdge(FlowGraph graph, String path) {
     if (checkFilePath(path, EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -169,7 +171,7 @@ public abstract class BaseFlowGraphListener {
    * {@link FlowEdge}.
    * @param path of edge to delete
    */
-  protected void removeFlowEdge(FlowGraph graph, String path) {
+   public void removeFlowEdge(FlowGraph graph, String path) {
     if (checkFilePath(path, EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -212,7 +214,7 @@ public abstract class BaseFlowGraphListener {
    * @param depth expected depth of the file
    * @return true if the file conforms to the expected hierarchy
    */
-  protected boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
+  public boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
     if (filePath == null) {
       return false;
     }
@@ -240,7 +242,7 @@ public abstract class BaseFlowGraphListener {
    * @param edgeFilePath path of the edge file
    * @return config with overridden edge properties
    */
-  private Config getEdgeConfigWithOverrides(Config edgeConfig, Path edgeFilePath) {
+   protected Config getEdgeConfigWithOverrides(Config edgeConfig, Path edgeFilePath) {
     String source = edgeFilePath.getParent().getParent().getName();
     String destination = edgeFilePath.getParent().getName();
     String edgeName = Files.getNameWithoutExtension(edgeFilePath.getName());
@@ -299,13 +301,45 @@ public abstract class BaseFlowGraphListener {
   }
 
   /**
+   * Loads the entire flowgraph from the path configured in {@link org.apache.gobblin.configuration.ConfigurationKeys.FLOWGRAPH_BASE_DIR }
+   * Expects nodes to be in the format of /flowGraphName/nodeA/nodeA.properties
+   * Expects edges to be in the format of /flowGraphName/nodeA/nodeB/edgeAB.properties
+   * The current flowgraph will be swapped atomically with the new flowgraph that is loaded
+   */
+  public void populateFlowGraphAtomically(AtomicReference<FlowGraph> flowGraphReference) {
+    FlowGraph newFlowGraph = new BaseFlowGraph();
+    java.nio.file.Path graphPath = new File(this.baseDirectory).toPath();
+    try {
+      List<Path> edges = new ArrayList<>();
+      // All nodes must be added first before edges, otherwise edges may have a missing source or destination.
+      // Need to convert files to Hadoop Paths to be compatible with FileAlterationListener
+      java.nio.file.Files.walk(graphPath).forEach(fileName -> {
+        if (!java.nio.file.Files.isDirectory(fileName)) {
+          if (checkFileLevelRelativeToRoot(new Path(fileName.toString()), NODE_FILE_DEPTH)) {
+            addDataNode(newFlowGraph, fileName.toString());
+          } else if (checkFileLevelRelativeToRoot(new Path(fileName.toString()), EDGE_FILE_DEPTH)) {
+            edges.add(new Path(fileName.toString()));
+          }
+        }
+      });
+      for (Path edge : edges) {
+        addFlowEdge(newFlowGraph, edge.toString());
+      }
+      flowGraphReference.set(newFlowGraph);
+    } catch (IOException e) {
+      throw new RuntimeException(
+          String.format("Error while populating file based flowgraph at path %s", graphPath), e);
+    }
+  }
+
+  /**
    * Get an edge label from the edge properties
    * @param source source data node id
    * @param destination destination data node id
    * @param edgeName simple name of the edge (e.g. file name without extension of the edge file)
    * @return a string label identifying the edge
    */
-  private String getEdgeId(String source, String destination, String edgeName) {
+  public String getEdgeId(String source, String destination, String edgeName) {
     return Joiner.on(FLOW_EDGE_LABEL_JOINER_CHAR).join(source, destination, edgeName);
   }
 }

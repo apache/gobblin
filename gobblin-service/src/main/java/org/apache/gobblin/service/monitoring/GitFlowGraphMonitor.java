@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
@@ -76,6 +77,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
 
   private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
   private final CountDownLatch initComplete;
+  private final BaseFlowGraphHelper flowGraphHelper;
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
@@ -83,11 +85,10 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
     Config configWithFallbacks = config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.initComplete = initComplete;
-    this.listeners.add(new GitFlowGraphListener(flowTemplateCatalog, graph, topologySpecMap,
-        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS)));
+    this.flowGraphHelper = new BaseFlowGraphHelper(flowTemplateCatalog, topologySpecMap, configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
+        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS));
+    this.listeners.add(new GitFlowGraphListener(graph, this.flowGraphHelper));
   }
 
   /**

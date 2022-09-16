@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.flowgraph.FSPathAlterationFlowGraphListener;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
@@ -52,11 +53,13 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
   private static final String DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
   private volatile boolean isActive = false;
   private final long pollingInterval;
+  private BaseFlowGraphHelper flowGraphHelper;
   private final PathAlterationObserverScheduler pathAlterationDetector;
   private final FSPathAlterationFlowGraphListener listener;
   private final PathAlterationObserver observer;
   private final Path flowGraphPath;
-
+  private final AtomicReference<FlowGraph> flowGraph;
+  private final CountDownLatch initComplete;
   private static final Config DEFAULT_FALLBACK = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
       .put(ConfigurationKeys.FLOWGRAPH_REPO_DIR, DEFAULT_FS_FLOWGRAPH_MONITOR_REPO_DIR)
       .put(ConfigurationKeys.FLOWGRAPH_BASE_DIR, DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
@@ -72,10 +75,14 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
         TimeUnit.SECONDS.toMillis(configWithFallbacks.getLong(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL));
     this.flowGraphPath = new Path(configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_REPO_DIR));
     this.observer = new PathAlterationObserver(flowGraphPath);
-    this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, graph, topologySpecMap, flowGraphPath.toString(),
-        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS), initComplete);
+    this.flowGraphHelper = new BaseFlowGraphHelper(flowTemplateCatalog, topologySpecMap, flowGraphPath.toString(),
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS));
+    this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, graph, flowGraphPath.toString(), this.flowGraphHelper);
+
+   this.flowGraph = graph;
+   this.initComplete = initComplete;
+
     if (pollingInterval == ConfigurationKeys.DISABLED_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL) {
       this.pathAlterationDetector = null;
     } else {
@@ -104,7 +111,10 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
         try {
           this.pathAlterationDetector.start();
           // Manually instantiate flowgraph when the monitor becomes active
-          this.listener.populateFlowGraphAtomically();
+          this.flowGraphHelper.populateFlowGraphAtomically(this.flowGraph);
+          // Reduce the countdown latch
+          this.initComplete.countDown();
+          log.info("Finished populating FSFlowgraph");
         } catch (IOException e) {
           log.error("Could not initialize pathAlterationDetector due to error: ", e);
         }
