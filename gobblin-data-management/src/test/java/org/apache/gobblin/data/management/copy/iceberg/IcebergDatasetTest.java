@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.api.client.util.Lists;
 import com.google.api.client.util.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -31,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -96,34 +96,19 @@ IcebergDatasetTest {
         .copyContext(new CopyContext())
         .build();
 
-    IcebergTable icebergTable = new MockedIcebergTable(METADATA_PATH, MANIFEST_PATH, MANIFEST_LIST_PATH, new ArrayList<>(Arrays.asList(MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2)));
+    List<String> listedManifestFilePaths = Arrays.asList(MANIFEST_FILE_PATH1, MANIFEST_FILE_PATH2);
+    IcebergSnapshotInfo.ManifestFileInfo manifestFileInfo = new IcebergSnapshotInfo.ManifestFileInfo(MANIFEST_LIST_PATH, listedManifestFilePaths);
+    List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles = Arrays.asList(manifestFileInfo);
+    IcebergTable icebergTable = new MockedIcebergTable(METADATA_PATH, MANIFEST_PATH, manifestFiles);
     IcebergDataset icebergDataset = new IcebergDataset(test_db_name, test_table_name, icebergTable, new Properties(), fs);
+    MockDestinationFileSystem mockDestinationFileSystem = new MockDestinationFileSystem();
+    mockDestinationFileSystem.addPath(METADATA_PATH);
+    mockDestinationFileSystem.addPath(MANIFEST_PATH);
+    mockDestinationFileSystem.addPath(MANIFEST_LIST_PATH);
+    mockDestinationFileSystem.addPath(MANIFEST_FILE_PATH1);
+    mockDestinationFileSystem.addPath(MANIFEST_FILE_PATH2);
 
-    Path path1 = new Path(METADATA_PATH);
-    Path path2 = new Path(MANIFEST_PATH);
-    Path path3 = new Path(MANIFEST_LIST_PATH);
-    Path path4 = new Path(MANIFEST_FILE_PATH1);
-    Path path5 = new Path(MANIFEST_FILE_PATH2);
-
-    FileStatus fileStatus1 = new FileStatus();
-    fileStatus1.setPath(path1);
-    FileStatus fileStatus2 = new FileStatus();
-    fileStatus2.setPath(path2);
-    FileStatus fileStatus3 = new FileStatus();
-    fileStatus3.setPath(path3);
-    FileStatus fileStatus4 = new FileStatus();
-    fileStatus4.setPath(path4);
-    FileStatus fileStatus5 = new FileStatus();
-    fileStatus5.setPath(path5);
-
-    Map<Path, FileStatus> mapOfPathAndFileStatus = Maps.newHashMap();
-    mapOfPathAndFileStatus.put(path1, fileStatus1);
-    mapOfPathAndFileStatus.put(path2, fileStatus2);
-    mapOfPathAndFileStatus.put(path3, fileStatus3);
-    mapOfPathAndFileStatus.put(path4, fileStatus4);
-    mapOfPathAndFileStatus.put(path5, fileStatus5);
-
-    mockFileSystemMethodCalls(fs, mapOfPathAndFileStatus, test_qualified_path, test_uri_path);
+    mockFileSystemMethodCalls(fs, mockDestinationFileSystem.pathToFileStatus, test_qualified_path, test_uri_path);
 
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(copyConfiguration);
     verifyCopyEntities(copyEntities, expected);
@@ -174,20 +159,31 @@ IcebergDatasetTest {
     public IcebergSnapshotInfo getCurrentSnapshotInfo() {
       Long snapshotId = 0L;
       Instant timestamp  = Instant.ofEpochMilli(0L);
-      IcebergSnapshotInfo.ManifestFileInfo manifestFileInfo = new IcebergSnapshotInfo.ManifestFileInfo(manifestFilePath, manifestListFilePaths);
-      List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles = Lists.newArrayList();
-      manifestFiles.add(manifestFileInfo);
-
       return new IcebergSnapshotInfo(snapshotId, timestamp, metadataPath, manifestListPath, manifestFiles);
     }
   }
 
   private static class MockDestinationFileSystem {
     Map<Path, FileStatus> pathToFileStatus;
-  }
 
-  MockDestinationFileSystem addPath(String p){
-    return null;
+    public MockDestinationFileSystem () {
+      this.pathToFileStatus = Maps.newHashMap();
+    }
+
+    public void addPath(String pathString) {
+      if (StringUtils.isBlank(pathString)) {
+        throw new IllegalArgumentException("Missing path value for the file system");
+      }
+      Path path  = new Path(pathString);
+      FileStatus fileStatus = new FileStatus();
+      fileStatus.setPath(path);
+      this.pathToFileStatus.put(path, fileStatus);
+    }
+
+    public void addPath(String pathString, FileStatus fileStatus) {
+      Path path = new Path(pathString);
+      this.pathToFileStatus.put(path, fileStatus);
+    }
   }
 }
 

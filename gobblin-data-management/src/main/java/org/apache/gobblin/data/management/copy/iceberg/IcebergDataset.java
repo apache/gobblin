@@ -76,7 +76,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     this.properties = properties;
     this.fs = fs;
     this.sourceMetastoreURI =
-        Optional.fromNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_METASTORE_URI_KEY));
+        Optional.fromNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY));
     this.targetMetastoreURI =
         Optional.fromNullable(this.properties.getProperty(TARGET_METASTORE_URI_KEY));
   }
@@ -97,9 +97,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
   @Override
   public String datasetURN() {
+    // TODO: verify!
     return this.dbName + "." + this.inputTableName;
   }
 
+  /**
+   * Finds all files read by the table and generates CopyableFiles.
+   * For the specific semantics see {@link #getCopyEntities}.
+   */
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration) {
     return getCopyEntities(configuration);
@@ -111,6 +116,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
       Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor) {
+    // TODO: Implement PushDownRequestor and priority based copy entity iteration
     return getCopyEntities(configuration);
   }
 
@@ -145,7 +151,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   /**
    * Get builders for a {@link CopyableFile} for each file referred to by a {@link org.apache.hadoop.hive.metastore.api.StorageDescriptor}.
    */
-  List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> paths, CopyConfiguration configuration) throws IOException {
+  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> paths, CopyConfiguration configuration) throws IOException {
 
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
@@ -169,7 +175,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    * Finds all files read by the Iceberg table including metadata json file, manifest files, nested manifest file paths and actual data files.
    * Returns a map of path, file status for each file that needs to be copied
    */
-  Map<Path, FileStatus> getFilePaths() throws IOException {
+  protected Map<Path, FileStatus> getFilePaths() throws IOException {
     Map<Path, FileStatus> result = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
     IcebergSnapshotInfo icebergSnapshotInfo = icebergTable.getCurrentSnapshotInfo();
