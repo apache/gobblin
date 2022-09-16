@@ -22,15 +22,18 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.IterableDatasetFinder;
-import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.IterableDatasetFinder;
+import org.apache.gobblin.util.HadoopUtils;
 
 /**
  * Finds {@link IcebergDataset}s. Will look for tables in a database using a {@link IcebergCatalog},
@@ -76,7 +79,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
      * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
      */
     matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, fs));
-    log.info("Found {} matching datasets: {}", matchingDatasets.size(), matchingDatasets);
+    log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(), matchingDatasets, dbName, tblName);
 
     return matchingDatasets;
   }

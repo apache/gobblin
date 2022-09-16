@@ -17,11 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -30,9 +25,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.jetbrains.annotations.NotNull;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
@@ -42,11 +51,6 @@ import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Iceberg dataset implementing {@link CopyableDataset}.
@@ -79,11 +83,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY));
     this.targetMetastoreURI =
         Optional.fromNullable(this.properties.getProperty(TARGET_METASTORE_URI_KEY));
-  }
-
-  public IcebergDataset(String db, String table) {
-    this.dbName = db;
-    this.inputTableName = table;
   }
 
   /**
@@ -134,15 +133,17 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   Collection<CopyEntity> generateCopyEntities(CopyConfiguration configuration) throws IOException {
     String fileSet = this.getInputTableName();
     List<CopyEntity> copyEntities = Lists.newArrayList();
-    log.info("Fetching all the files to be copied");
     Map<Path, FileStatus> mapOfPathsToCopy = getFilePaths();
+    log.info("Found {} to be copied over to the destination", mapOfPathsToCopy.size());
 
-    log.info("Fetching copyable file builders from their respective file sets and adding to collection of copy entities");
+
     for (CopyableFile.Builder builder : getCopyableFilesFromPaths(mapOfPathsToCopy, configuration)) {
       CopyableFile fileEntity =
           builder.fileSet(fileSet).datasetOutputPath(this.fs.getUri().getPath()).build();
       fileEntity.setSourceData(getSourceDataset());
       fileEntity.setDestinationData(getDestinationDataset());
+      log.info("Adding file path: {} to the collection of copy entities and copying to destination: {}",
+          fileEntity.getFileStatus().getPath(), fileEntity.getDestination().toString());
       copyEntities.add(fileEntity);
     }
     return copyEntities;
@@ -155,7 +156,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
-    Configuration hadoopConfiguration = new Configuration();
+    Configuration defaultHadoopConfiguration = new Configuration();
     FileSystem actualSourceFs;
 
     for(Map.Entry<Path, FileStatus> entry : paths.entrySet()) {
@@ -163,7 +164,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     }
 
     for(SourceAndDestination sourceAndDestination : dataFiles) {
-      actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(hadoopConfiguration);
+      actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(defaultHadoopConfiguration);
 
       // TODO Add ancestor owner and permissions in future releases
       builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
@@ -180,7 +181,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     IcebergTable icebergTable = this.getIcebergTable();
     IcebergSnapshotInfo icebergSnapshotInfo = icebergTable.getCurrentSnapshotInfo();
 
-    log.info("Fetching all file paths for the current snapshot of the Iceberg table");
+    log.info("Fetching all file paths for the current snapshot id: {} of the Iceberg table with metadata path: {}",
+        icebergSnapshotInfo.getSnapshotId(), icebergSnapshotInfo.getMetadataPath());
     List<String> pathsToCopy = icebergSnapshotInfo.getAllPaths();
 
     for(String pathString : pathsToCopy) {
