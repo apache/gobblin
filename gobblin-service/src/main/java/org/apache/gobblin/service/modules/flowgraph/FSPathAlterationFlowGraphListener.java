@@ -18,13 +18,6 @@
 package org.apache.gobblin.service.modules.flowgraph;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.fs.Path;
@@ -33,7 +26,6 @@ import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
