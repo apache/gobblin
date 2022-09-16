@@ -145,12 +145,15 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
 
     // Only check the number of parameters that the traversedDatePath has traversed through so far
     for (int index = 0; index < traversedDatePathSplit.length; index++) {
-      try {
+      // Only attempt to parse the number if the entire string are digits
+      boolean onlyNumbers = traversedDatePathSplit[index].matches("^[0-9]+$");
+      if (onlyNumbers) {
         if (Integer.parseInt(traversedDatePathSplit[index]) < startDateSplit[index] ||
             Integer.parseInt(traversedDatePathSplit[index]) > endDateSplit[index]) {
           return false;
         }
-      } catch (Exception e) {
+      }
+      else {
         return false;
       }
     }
@@ -160,7 +163,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
-    if (!Objects.equals(traversedDatePath, "")) {
+    if (!traversedDatePath.equals("")) {
       if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath)) {
         return fileStatuses;
       }
