@@ -134,29 +134,31 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return recursivelyGetFilesAtDatePath(fs, path, "", fileFilter, 1, startDate, endDate, formatter);
   }
 
-  public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String traversedDatePath) {
-    int[] startDateSplit = new int[] { startDate.getYear(), startDate.getMonthOfYear(), startDate.getDayOfMonth(),
-        startDate.getHourOfDay(), startDate.getMinuteOfHour(), startDate.getSecondOfMinute(), startDate.getMillisOfSecond() };
-    int[] endDateSplit = new int[] { endDate.getYear(), endDate.getMonthOfYear(), endDate.getDayOfMonth(),
-        endDate.getHourOfDay(), endDate.getMinuteOfHour(), endDate.getSecondOfMinute(), endDate.getMillisOfSecond() };
+  /**
+   * Checks if the datePath provided is in the range of the start and end dates.
+   * Rounds startDate and endDate to the same granularity as datePath prior to comparing.
+   * Returns true if the datePath provided is in the range of start and end dates, inclusive.
+   * @param startDate
+   * @param endDate
+   * @param datePath
+   * @return true/false
+   */
+  public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String datePath) {
+    boolean onlyNumbers = datePath.matches("^[0-9/]+$");
+    if (onlyNumbers) {
+      String allGranularity = "yyyy/MM/dd/HH/mm/ss/SSS";
+      String roundGranularity = allGranularity.substring(0, datePath.length());
+      DateTimeFormatter formatGranularity = DateTimeFormat.forPattern(roundGranularity);
 
-    String[] traversedDatePathSplit = traversedDatePath.split("/");
+      LocalDateTime traversedDatePathRound = formatGranularity.parseLocalDateTime(datePath);
+      LocalDateTime startDateRound = formatGranularity.parseLocalDateTime(startDate.toString(roundGranularity));
+      LocalDateTime endDateRound = formatGranularity.parseLocalDateTime(endDate.toString(roundGranularity));
 
-    // Only check the number of parameters that the traversedDatePath has traversed through so far
-    for (int index = 0; index < traversedDatePathSplit.length; index++) {
-      // Only attempt to parse the number if the entire string are digits
-      boolean onlyNumbers = traversedDatePathSplit[index].matches("^[0-9]+$");
-      if (onlyNumbers) {
-        if (Integer.parseInt(traversedDatePathSplit[index]) < startDateSplit[index] ||
-            Integer.parseInt(traversedDatePathSplit[index]) > endDateSplit[index]) {
-          return false;
-        }
-      }
-      else {
-        return false;
-      }
+      boolean afterOrOnStartDate = traversedDatePathRound.isAfter(startDateRound) || traversedDatePathRound.isEqual(startDateRound);
+      boolean beforeOrOnEndDate = traversedDatePathRound.isBefore(endDateRound) || traversedDatePathRound.isEqual(endDateRound);
+      return afterOrOnStartDate && beforeOrOnEndDate;
     }
-    return true;
+    return false;
   }
 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
@@ -167,7 +169,6 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
         return fileStatuses;
       }
     }
-
     Iterator<FileStatus> folderIterator;
     try {
       if (!fs.exists(path)) {
