@@ -55,16 +55,14 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
+   * Both Iceberg database name and table name are mandatory based on current implementation.
+   * Later we may explore supporting datasets similar to Hive
    * @return List of {@link IcebergDataset}s in the file system.
    * @throws IOException
    */
   @Override
   public List<IcebergDataset> findDatasets() throws IOException {
     List<IcebergDataset> matchingDatasets = new ArrayList<>();
-    /*
-     * Both Iceberg database name and table name are mandatory based on current implementation.
-     * Later we may explore supporting datasets similar to Hive
-     */
     if (StringUtils.isNotBlank(properties.getProperty(ICEBERG_DB_NAME)) || StringUtils.isNotBlank(properties.getProperty(ICEBERG_TABLE_NAME))) {
       throw new IllegalArgumentException(String.format("Iceberg database name: {%s} or Iceberg table name: {%s} is missing",
           ICEBERG_DB_NAME, ICEBERG_TABLE_NAME));
@@ -93,6 +91,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public Iterator<IcebergDataset> getDatasetsIterator() throws IOException {
     return findDatasets().iterator();
   }
+
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog icebergCatalog, Properties properties, FileSystem fs) {
     IcebergTable icebergTable = icebergCatalog.openTable(dbName, tblName);
     return new IcebergDataset(dbName, tblName, icebergTable, properties, fs);

@@ -73,7 +73,7 @@ IcebergDatasetTest {
     Mockito.when(icebergSnapshotInfo.getAllPaths()).thenReturn(pathsToCopy);
     IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), fs);
 
-    Map<Path, FileStatus> actual = icebergDataset.getFilePaths();
+    Map<Path, FileStatus> actual = icebergDataset.getFilePathsToFileStatus();
     Assert.assertEquals(actual, expected);
   }
 
@@ -104,14 +104,14 @@ IcebergDatasetTest {
     List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles = Arrays.asList(manifestFileInfo);
     IcebergTable icebergTable = new MockedIcebergTable(METADATA_PATH, MANIFEST_PATH, manifestFiles);
     IcebergDataset icebergDataset = new IcebergDataset(test_db_name, test_table_name, icebergTable, new Properties(), fs);
-    MockDestinationFileSystem mockDestinationFileSystem = new MockDestinationFileSystem();
-    mockDestinationFileSystem.addPath(METADATA_PATH);
-    mockDestinationFileSystem.addPath(MANIFEST_PATH);
-    mockDestinationFileSystem.addPath(MANIFEST_LIST_PATH);
-    mockDestinationFileSystem.addPath(MANIFEST_FILE_PATH1);
-    mockDestinationFileSystem.addPath(MANIFEST_FILE_PATH2);
+    DestinationFileSystem destinationFileSystem = new DestinationFileSystem();
+    destinationFileSystem.addPath(METADATA_PATH);
+    destinationFileSystem.addPath(MANIFEST_PATH);
+    destinationFileSystem.addPath(MANIFEST_LIST_PATH);
+    destinationFileSystem.addPath(MANIFEST_FILE_PATH1);
+    destinationFileSystem.addPath(MANIFEST_FILE_PATH2);
 
-    mockFileSystemMethodCalls(fs, mockDestinationFileSystem.pathToFileStatus, test_qualified_path, test_uri_path);
+    mockFileSystemMethodCalls(fs, destinationFileSystem.pathToFileStatus, test_qualified_path, test_uri_path);
 
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(copyConfiguration);
     verifyCopyEntities(copyEntities, expected);
@@ -166,10 +166,10 @@ IcebergDatasetTest {
     }
   }
 
-  private static class MockDestinationFileSystem {
+  private static class DestinationFileSystem {
     Map<Path, FileStatus> pathToFileStatus;
 
-    public MockDestinationFileSystem () {
+    public DestinationFileSystem() {
       this.pathToFileStatus = Maps.newHashMap();
     }
 

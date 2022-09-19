@@ -143,7 +143,7 @@ public class EmbeddedGobblinDistcpTest {
     String dbPathTemplate = "/$testdb.db/$test_table";
     String rootPathOfSourceDate = metaStoreClient.getConfigValue("hive.metastore.warehouse.dir", "")
         .concat(dbPathTemplate.replace("$testdb", TEST_DB).replace("$test_table",TEST_TABLE)
-        );
+    );
     embeddedHiveDistcp.setConfiguration("hive.dataset.copy.target.table.prefixToBeReplaced", rootPathOfSourceDate);
     embeddedHiveDistcp.run();
 

@@ -26,8 +26,7 @@ import org.apache.gobblin.data.management.partition.FileSet;
 
 
 /**
- * A {@link IcebergTableFileSet} that generates {@link CopyEntity}s for a Hive Catalog based Iceberg table
- * A {@link FileSet} for Iceberg datasets containing information associated with an Iceberg table.
+ * A {@link FileSet} for Iceberg datasets containing information associated with an Iceberg table and generates {@link CopyEntity}
  */
 public class IcebergTableFileSet extends FileSet<CopyEntity> {
 

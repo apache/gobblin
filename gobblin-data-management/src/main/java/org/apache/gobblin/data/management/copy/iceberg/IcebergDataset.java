@@ -60,12 +60,12 @@ import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 public class IcebergDataset implements PrioritizedCopyableDataset {
   private final String dbName;
   private final String inputTableName;
-  private IcebergTable icebergTable;
-  protected Properties properties;
-  protected FileSystem fs;
+  private final IcebergTable icebergTable;
+  protected final Properties properties;
+  protected final FileSystem fs;
 
-  private Optional<String> sourceMetastoreURI;
-  private Optional<String> targetMetastoreURI;
+  private final Optional<String> sourceMetastoreURI;
+  private final Optional<String> targetMetastoreURI;
 
   /** Target metastore URI */
   public static final String TARGET_METASTORE_URI_KEY =
@@ -133,59 +133,57 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   Collection<CopyEntity> generateCopyEntities(CopyConfiguration configuration) throws IOException {
     String fileSet = this.getInputTableName();
     List<CopyEntity> copyEntities = Lists.newArrayList();
-    Map<Path, FileStatus> mapOfPathsToCopy = getFilePaths();
-    log.info("Found {} to be copied over to the destination", mapOfPathsToCopy.size());
+    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus();
+    log.info("{}.{} - found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
 
-
-    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(mapOfPathsToCopy, configuration)) {
+    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration)) {
       CopyableFile fileEntity =
           builder.fileSet(fileSet).datasetOutputPath(this.fs.getUri().getPath()).build();
       fileEntity.setSourceData(getSourceDataset());
       fileEntity.setDestinationData(getDestinationDataset());
-      log.info("Adding file path: {} to the collection of copy entities and copying to destination: {}",
-          fileEntity.getFileStatus().getPath(), fileEntity.getDestination().toString());
       copyEntities.add(fileEntity);
     }
+    log.info("{}.{} - generated {} copy entities", dbName, inputTableName, copyEntities.size());
     return copyEntities;
   }
 
   /**
-   * Get builders for a {@link CopyableFile} for each file referred to by a {@link org.apache.hadoop.hive.metastore.api.StorageDescriptor}.
+   * Get builders for a {@link CopyableFile} for each file path
    */
-  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> paths, CopyConfiguration configuration) throws IOException {
+  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> pathToFileStatus, CopyConfiguration configuration) throws IOException {
 
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
     Configuration defaultHadoopConfiguration = new Configuration();
     FileSystem actualSourceFs;
 
-    for(Map.Entry<Path, FileStatus> entry : paths.entrySet()) {
+    for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
       dataFiles.add(new SourceAndDestination(entry.getValue(), this.fs.makeQualified(entry.getKey())));
     }
 
-    for(SourceAndDestination sourceAndDestination : dataFiles) {
+    for (SourceAndDestination sourceAndDestination : dataFiles) {
       actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(defaultHadoopConfiguration);
 
-      // TODO Add ancestor owner and permissions in future releases
+      // TODO: Add ancestor owner and permissions in future releases
       builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
           sourceAndDestination.getDestination(), configuration));
     }
     return builders;
   }
   /**
-   * Finds all files read by the Iceberg table including metadata json file, manifest files, nested manifest file paths and actual data files.
+   * Finds all files of the Iceberg's current snapshot
    * Returns a map of path, file status for each file that needs to be copied
    */
-  protected Map<Path, FileStatus> getFilePaths() throws IOException {
+  protected Map<Path, FileStatus> getFilePathsToFileStatus() throws IOException {
     Map<Path, FileStatus> result = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
     IcebergSnapshotInfo icebergSnapshotInfo = icebergTable.getCurrentSnapshotInfo();
 
-    log.info("Fetching all file paths for the current snapshot id: {} of the Iceberg table with metadata path: {}",
+    log.info("{}.{} - loaded snapshot '{}' from metadata path: '{}'", dbName, inputTableName,
         icebergSnapshotInfo.getSnapshotId(), icebergSnapshotInfo.getMetadataPath());
     List<String> pathsToCopy = icebergSnapshotInfo.getAllPaths();
 
-    for(String pathString : pathsToCopy) {
+    for (String pathString : pathsToCopy) {
       Path path = new Path(pathString);
       result.put(path, this.fs.getFileStatus(path));
     }
