@@ -314,7 +314,7 @@ public class YarnServiceTest {
 
       Mockito.when(helixManager.getInstanceName()).thenReturn("helixInstance1");
       Mockito.when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-//
+
       Mockito.when(helixManager.getHelixDataAccessor()).thenReturn(helixDataAccessor);
       Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(propertyKeyBuilder);
       Mockito.when(propertyKeyBuilder.liveInstance(Mockito.anyString())).thenReturn(propertyKey);

@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -37,6 +38,7 @@ import org.apache.gobblin.metrics.MetricContext;
  *
  * Note: a {@link GobblinEventBuilder} instance is not reusable
  */
+@ToString
 public class GobblinEventBuilder {
   public static final String NAMESPACE = "gobblin.event";
   public static final String EVENT_TYPE = "eventType";

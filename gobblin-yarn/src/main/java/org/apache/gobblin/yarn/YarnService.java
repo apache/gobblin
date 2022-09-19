@@ -196,6 +196,10 @@ public class YarnService extends AbstractIdleService {
   // The map from helix tag to allocated container count
   private final Map<String, Integer> allocatedContainerCountMap = Maps.newConcurrentMap();
 
+  private final boolean isPurgingOfflineHelixInstancesEnabled;
+  private final long helixPurgeLaggingThresholdMs;
+  private final long helixPurgeStatusPollingRateMs;
+
   private volatile YarnContainerRequestBundle yarnContainerRequest;
   private final AtomicInteger priorityNumGenerator = new AtomicInteger(0);
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
@@ -240,6 +244,15 @@ public class YarnService extends AbstractIdleService {
     this.helixInstanceMaxRetries = config.getInt(GobblinYarnConfigurationKeys.HELIX_INSTANCE_MAX_RETRIES);
     this.helixInstanceTags = ConfigUtils.getString(config,
         GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, GobblinClusterConfigurationKeys.HELIX_DEFAULT_TAG);
+    this.isPurgingOfflineHelixInstancesEnabled = ConfigUtils.getBoolean(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_OFFLINE_INSTANCES_ENABLED,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_OFFLINE_INSTANCES_ENABLED);
+    this.helixPurgeLaggingThresholdMs = ConfigUtils.getLong(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_LAGGING_THRESHOLD_MILLIS,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_LAGGING_THRESHOLD_MILLIS);
+    this.helixPurgeStatusPollingRateMs = ConfigUtils.getLong(config,
+        GobblinYarnConfigurationKeys.HELIX_PURGE_POLLING_RATE_MILLIS,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_PURGE_POLLING_RATE_MILLIS);
 
     this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
@@ -342,17 +355,24 @@ public class YarnService extends AbstractIdleService {
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
-    // All previous helix instances should be purged on startup. Gobblin task runners are stateless from helix
-    // perspective because all important state is persisted separately in Workunit State Store or Watermark store.
-    // Offline duration of 0 means any offline instance should be purged (Note: there aren't any online instances
-    // when this code runs, this is during startup before any containers are allocated).
-    LOGGER.info("Purging offline helix instances before allocating containers for helixClusterName={}, connectionString={}", helixManager.getClusterName(), helixManager.getMetadataStoreConnectionString());
-    long offlineDuration = 0;
-    this.helixAdmin.purgeOfflineInstances(this.helixManager.getClusterName(), offlineDuration);
-    LOGGER.info("Finished purging offline helix instances");
+    if (this.isPurgingOfflineHelixInstancesEnabled) {
+      purgeHelixOfflineInstances(this.helixPurgeLaggingThresholdMs);
+    }
 
     LOGGER.info("Requesting initial containers");
     requestInitialContainers(this.initialContainers);
+  }
+
+  private void purgeHelixOfflineInstances(long laggingThresholdMs) {
+    LOGGER.info("Purging offline helix instances before allocating containers for helixClusterName={}, connectionString={}, helixPurgeStatusPollingRateMs={}",
+        helixManager.getClusterName(), helixManager.getMetadataStoreConnectionString(), this.helixPurgeStatusPollingRateMs);
+    HelixInstancePurgerWithMetrics purger = new HelixInstancePurgerWithMetrics(this.eventSubmitter.orNull(),
+        this.helixPurgeStatusPollingRateMs);
+    Map<String, String> gteMetadata = ImmutableMap.of(
+        "connectionString", this.helixManager.getMetadataStoreConnectionString(),
+        "clusterName", this.helixManager.getClusterName()
+    );
+    purger.purgeAllOfflineInstances(this.helixAdmin, this.helixManager.getClusterName(), laggingThresholdMs, gteMetadata);
   }
 
   @Override
