@@ -89,6 +89,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     catalog.dropTable(tableId);
   }
 
+  /** Verify info about the current snapshot only */
   @Test
   public void testGetCurrentSnapshotInfo() throws IOException {
     List<List<String>> perSnapshotFilesets = Lists.newArrayList(
