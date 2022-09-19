@@ -40,7 +40,7 @@ public class MysqlSpecStoreWithUpdate extends MysqlSpecStore{
 
   /** Bundle all changes following from schema differences against the base class. */
   protected class SpecificSqlStatementsWithUpdate extends SpecificSqlStatements {
-    public void completeUpdatePreparedStatement(PreparedStatement statement, Spec spec, long version) throws
+    public void completeUpdatePreparedStatement(PreparedStatement statement, Spec spec, long modifiedWatermark) throws
                                                                                                          SQLException {
       FlowSpec flowSpec = (FlowSpec) spec;
       URI specUri = flowSpec.getUri();
@@ -50,7 +50,7 @@ public class MysqlSpecStoreWithUpdate extends MysqlSpecStore{
       statement.setBlob(++i, new ByteArrayInputStream(MysqlSpecStoreWithUpdate.this.specSerDe.serialize(flowSpec)));
       statement.setString(++i, new String(MysqlSpecStoreWithUpdate.this.specSerDe.serialize(flowSpec), Charsets.UTF_8));
       statement.setString(++i, specUri.toString());
-      statement.setLong(++i, version);
+      statement.setLong(++i, modifiedWatermark);
     }
 
     @Override
@@ -71,11 +71,10 @@ public class MysqlSpecStoreWithUpdate extends MysqlSpecStore{
 
   @Override
   // TODO: fix to obey the `SpecStore` contract of returning the *updated* `Spec`
-  // Update {@link Spec} in the {@link SpecStore} when current version is smaller than {@link version}.
-  // We use modified timestamp as the version here, that we only update entry where it's modified before a specific time.
-  public Spec updateSpecImpl(Spec spec, long version) throws IOException {
+  // Update {@link Spec} in the {@link SpecStore} when current modification time is smaller than {@link modifiedWatermark}.
+  public Spec updateSpecImpl(Spec spec, long modifiedWatermark) throws IOException {
     withPreparedStatement(this.sqlStatements.updateStatement, statement -> {
-      ((SpecificSqlStatementsWithUpdate)this.sqlStatements).completeUpdatePreparedStatement(statement, spec, version);
+      ((SpecificSqlStatementsWithUpdate)this.sqlStatements).completeUpdatePreparedStatement(statement, spec, modifiedWatermark);
       int i = statement.executeUpdate();
       if (i == 0) {
         throw new IOException("Spec does not exist or concurrent update happens, please check current spec and update again");

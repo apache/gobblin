@@ -354,8 +354,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return updateOrAddSpecHelper(spec, triggerListener, false, Long.MAX_VALUE);
   }
 
-  public Map<String, AddSpecResponse> update(Spec spec, boolean triggerListener, long version) throws Throwable {
-    return updateOrAddSpecHelper(spec, triggerListener, true, version);
+  public Map<String, AddSpecResponse> update(Spec spec, boolean triggerListener, long modifiedWatermark) throws Throwable {
+    return updateOrAddSpecHelper(spec, triggerListener, true, modifiedWatermark);
   }
 
   /**
@@ -372,10 +372,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
    * @param isUpdate Whether this is update or add operation, it will call different method in spec store to persist the spec
-   * @param version If it's update operation, the largest version that it can modify, or in other word, the timestamp which old spec should be modified before
+   * @param modifiedWatermark If it's update operation, the largest modifiedWatermark that it can modify, or in other word, the timestamp which old spec should be modified before
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
-  private Map<String, AddSpecResponse> updateOrAddSpecHelper(Spec spec, boolean triggerListener, boolean isUpdate, long version) throws Throwable {
+  private Map<String, AddSpecResponse> updateOrAddSpecHelper(Spec spec, boolean triggerListener, boolean isUpdate, long modifiedWatermark) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -414,7 +414,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
           if (!flowSpec.isExplain()) {
             long startTime = System.currentTimeMillis();
             if (isUpdate) {
-              specStore.updateSpec(spec, version);
+              specStore.updateSpec(spec, modifiedWatermark);
             } else {
               specStore.addSpec(spec);
             }

@@ -61,7 +61,7 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
   @Override
   public UpdateResponse  partialUpdateFlowConfig(FlowId flowId,
       PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
-    long version = System.currentTimeMillis() / 1000;
+    long modifiedWatermark = System.currentTimeMillis() / 1000;
     FlowConfig flowConfig = getFlowConfig(flowId);
 
     try {
@@ -70,19 +70,19 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply partial update", e);
     }
 
-    return updateFlowConfig(flowId, flowConfig, version);
+    return updateFlowConfig(flowId, flowConfig, modifiedWatermark);
   }
 
   @Override
   public UpdateResponse updateFlowConfig(FlowId flowId,
       FlowConfig flowConfig) throws FlowConfigLoggedException {
-    // We have version here to avoid update config happens at the same time on different hosts overwrite each other
-    // timestamp here will be treated as largest version that we can update
+    // We have modifiedWatermark here to avoid update config happens at the same time on different hosts overwrite each other
+    // timestamp here will be treated as largest modifiedWatermark that we can update
     long version = System.currentTimeMillis() / 1000;
     return updateFlowConfig(flowId, flowConfig, version);
   }
   public UpdateResponse updateFlowConfig(FlowId flowId,
-      FlowConfig flowConfig, long version) throws FlowConfigLoggedException {
+      FlowConfig flowConfig, long modifiedWatermark) throws FlowConfigLoggedException {
     String flowName = flowId.getFlowName();
     String flowGroup = flowId.getFlowGroup();
 
@@ -95,7 +95,7 @@ public class GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby extends Go
 
       //Instead of helix message, forwarding message is done by change stream of spec store
 
-      return this.localHandler.updateFlowConfig(flowId, flowConfig, true, version);
+      return this.localHandler.updateFlowConfig(flowId, flowConfig, true, modifiedWatermark);
   }
   /**
    * Adding {@link FlowConfig} call {@link FlowConfigResourceLocalHandler#createFlowConfig(FlowConfig)} directly.

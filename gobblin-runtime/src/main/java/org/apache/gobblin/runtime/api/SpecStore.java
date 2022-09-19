@@ -81,12 +81,12 @@ public interface SpecStore {
   /***
    * Update {@link Spec} in the {@link SpecStore} when current version is smaller than {@link version}.
    * @param spec {@link Spec} to be updated.
-   * @param version largest version that current spec should be
+   * @param modifiedWatermark largest modifiedWatermark that current spec should be
    * @throws IOException Exception in updating the {@link Spec}.
    * @return Updated {@link Spec}.
    * @throws SpecNotFoundException If {@link Spec} being updated is not present in store.
    */
-  default Spec updateSpec(Spec spec, long version) throws IOException, SpecNotFoundException {return updateSpec(spec);};
+  default Spec updateSpec(Spec spec, long modifiedWatermark) throws IOException, SpecNotFoundException {return updateSpec(spec);};
 
   /***
    * Retrieve the latest version of the {@link Spec} by URI from the {@link SpecStore}.

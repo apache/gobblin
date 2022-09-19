@@ -324,14 +324,14 @@ public class MysqlSpecStoreWithUpdateTest {
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertTrue(specs.contains(this.flowSpec4));
 
-    // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
+    // Return all flowSpecs of index [0, 2). Total of 3 flowSpecs, only return first two.
     specs = this.specStore.getSpecs(0,2);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
+    // Return all flowSpecs of index [0, 2). Total of 3 flowSpecs, only return first two.
     // Check that functionality for not including a start value is the same as including start value of 0
     specs = this.specStore.getSpecs(-1, 2);
     Assert.assertEquals(specs.size(), 2);

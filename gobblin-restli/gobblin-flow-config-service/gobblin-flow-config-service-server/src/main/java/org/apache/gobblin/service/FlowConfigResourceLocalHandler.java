@@ -168,7 +168,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   /**
    * Update flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
-  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long version) {
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long modifiedWatermark) {
     log.info("[GAAS-REST] Update called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     if (!flowId.getFlowGroup().equals(flowConfig.getId().getFlowGroup()) || !flowId.getFlowName().equals(flowConfig.getId().getFlowName())) {
@@ -189,7 +189,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       flowConfig = originalFlowConfig;
     }
     try {
-      this.flowCatalog.update(createFlowSpecForConfig(flowConfig), triggerListener, version);
+      this.flowCatalog.update(createFlowSpecForConfig(flowConfig), triggerListener, modifiedWatermark);
     } catch (QuotaExceededException e) {
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch (Throwable e) {

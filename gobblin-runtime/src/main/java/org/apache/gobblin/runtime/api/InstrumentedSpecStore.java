@@ -151,8 +151,8 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
-  public Spec updateSpec(Spec spec, long version) throws IOException, SpecNotFoundException {
-    return this.updateTimer.invokeMayThrowBoth(() -> updateSpecImpl(spec, version));
+  public Spec updateSpec(Spec spec, long modifiedWatermark) throws IOException, SpecNotFoundException {
+    return this.updateTimer.invokeMayThrowBoth(() -> updateSpecImpl(spec, modifiedWatermark));
   }
 
   @Override
@@ -180,7 +180,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     return this.getSizeTimer.invokeMayThrowIO(() -> getSizeImpl());
   }
 
-  public Spec updateSpecImpl(Spec spec, long version) throws IOException, SpecNotFoundException{
+  public Spec updateSpecImpl(Spec spec, long modifiedWatermark) throws IOException, SpecNotFoundException{
     return updateSpecImpl(spec);
   }
 
