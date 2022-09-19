@@ -21,7 +21,8 @@
       "symbols": [
         "INSERT",
         "UPDATE",
-        "DELETE"
+        "DELETE",
+        "HEARTBEAT"
       ]
     },
     "doc": "Change operation type",

@@ -33,6 +33,10 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_JOB_MONITOR_SLAEVENT_REJECTEDEVENTS = "gobblin.jobMonitor.slaevent.rejectedevents";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_MESSAGE_PARSE_FAILURES =
       "gobblin.jobMonitor.kafka.messageParseFailures";
+  public static final String GOBBLIN_SPEC_STORE_MONITOR_SUCCESSFULLY_ADDED_SPECS = "gobblin.specStoreMonitor.successful.added.specs";
+  public static final String GOBBLIN_SPEC_STORE_MONITOR_FAILED_ADDED_SPECS = "gobblin.specStoreMonitor.failed.added.specs";
+  public static final String GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS = "gobblin.specStoreMonitor.deleted.specs";
+  public static final String GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS = "gobblin.specStoreMonitor.unexpected.errorss";
 
   // Metadata keys
   public static final String TOPIC = "topic";

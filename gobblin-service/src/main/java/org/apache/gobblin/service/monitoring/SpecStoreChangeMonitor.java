@@ -17,16 +17,27 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import java.util.HashSet;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.text.StringEscapeUtils;
+
+import com.codahale.metrics.Meter;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
@@ -38,7 +49,25 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
  */
 @Slf4j
 public class SpecStoreChangeMonitor extends HighLevelConsumer {
-  protected HashSet<Long> timestampsSeenBefore;
+  public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
+  static final String SPEC_STORE_CHANGE_MONITOR_TOPIC_KEY = "topic";
+  static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
+
+  // Metrics
+  private Meter successfullyAddedSpecs;
+  private Meter failedAddedSpecs;
+  private Meter deletedSpecs;
+  private Meter unexpectedErrors;
+
+  protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
+    @Override
+    public String load(String key) throws Exception {
+      return key;
+    }
+  };
+
+  protected LoadingCache<String, String>
+      specChangesSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
   @Inject
   protected FlowCatalog flowCatalog;
@@ -49,10 +78,13 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   @Inject
   public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
     super(topic, config, numThreads);
-    this.timestampsSeenBefore = new HashSet();
   }
 
   @Override
+  /*
+  Note that although this class is multi-threaded and will call this message for multiple threads (each having a queue
+  associated with it), a given message itself will be partitioned and assigned to only one queue.
+   */
   protected void processMessage(DecodeableKafkaRecord message) {
     String specUri = (String) message.getKey();
     SpecStoreChangeEvent value = (SpecStoreChangeEvent) message.getValue();
@@ -61,25 +93,67 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     String operation = value.getOperationType().name();
     log.info("Processing message with specUri is {} timestamp is {} operation is {}", specUri, timestamp, operation);
 
-    // If we've already processed a message with this timestamp before then skip duplicate message
-    if (timestampsSeenBefore.contains(timestamp)) {
+    // If we've already processed a message with this timestamp and spec uri before then skip duplicate message
+    String changeIdentifier = timestamp.toString() + specUri;
+    if (specChangesSeenCache.getIfPresent(changeIdentifier) != null) {
       return;
     }
 
-    Spec spec = this.flowCatalog.getSpecFromStore(specUri);
-
-    // Call respective action for the type of change received
-    if (operation == "CREATE") {
-      scheduler.onAddSpec(spec);
-    } else if (operation == "INSERT") {
-      scheduler.onUpdateSpec(spec);
-    } else if (operation == "DELETE") {
-      scheduler.onDeleteSpec(spec.getUri(), spec.getVersion());
-    } else {
-      log.warn("Received unsupported change type of operation {}. Expected values to be in [CREATE, INSERT, DELETE]", operation);
+    // If event is a heartbeat type then log it and skip processing
+    if (operation == "HEARTBEAT") {
+      log.info("Received heartbeat message from time {}", timestamp);
       return;
     }
 
-    timestampsSeenBefore.add(timestamp);
+    Spec spec;
+    URI specAsUri = null;
+
+    try {
+      specAsUri = new URI(specUri);
+    } catch (URISyntaxException e) {
+      log.warn("Could not create URI object for specUri {} due to error {}", specUri, e.getMessage());
+    }
+
+    spec = (operation != "DELETE") ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
+
+    // The monitor should continue to process messages regardless of failures with individual messages, instead we use
+    // metrics to keep track of failure to process certain SpecStoreChange events
+    try {
+      // Call respective action for the type of change received
+      AddSpecResponse response;
+      if (operation == "CREATE" || operation == "INSERT") {
+        response = scheduler.onAddSpec(spec);
+
+        // Null response means the dag failed to compile
+        if (response != null && response.getValue() != null) {
+          log.info("Successfully added spec {} response {}", spec, StringEscapeUtils.escapeJson(response.getValue().toString()));
+          this.successfullyAddedSpecs.mark();
+        } else {
+          log.warn("Failed to add spec {} due to response {}", spec, response);
+          this.failedAddedSpecs.mark();
+        }
+      } else if (operation == "DELETE") {
+        scheduler.onDeleteSpec(specAsUri, FlowSpec.Builder.DEFAULT_VERSION);
+        this.deletedSpecs.mark();
+      } else {
+        log.warn("Received unsupported change type of operation {}. Expected values to be in [CREATE, INSERT, DELETE]", operation);
+        this.unexpectedErrors.mark();
+        return;
+      }
+    } catch (Exception e) {
+      log.warn("Ran into unexpected error processing SpecStore changes: {}", e);
+      this.unexpectedErrors.mark();
+    }
+
+    specChangesSeenCache.put(changeIdentifier, changeIdentifier);
+  }
+
+ @Override
+  protected void createMetrics() {
+    super.createMetrics();
+    this.successfullyAddedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_SUCCESSFULLY_ADDED_SPECS);
+    this.failedAddedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_FAILED_ADDED_SPECS);
+    this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
+    this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
   }
 }

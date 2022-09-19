@@ -382,7 +382,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.serviceLauncher.addService(restliServer);
     }
 
-    if (this.configuration.isSpecStoreChangeMonitorEnabled()) {
+    if (this.configuration.isWarmStandbyEnabled()) {
       this.serviceLauncher.addService(specStoreChangeMonitor);
     }
   }
