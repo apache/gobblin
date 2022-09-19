@@ -143,29 +143,37 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
    * @param datePath
    * @return true/false
    */
-  public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String datePath) {
-    boolean onlyNumbers = datePath.matches("^[0-9/]+$");
-    if (onlyNumbers) {
-      String allGranularity = "yyyy/MM/dd/HH/mm/ss/SSS";
-      String roundGranularity = allGranularity.substring(0, datePath.length());
-      DateTimeFormatter formatGranularity = DateTimeFormat.forPattern(roundGranularity);
+  public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String datePath, String datePathFormat, int level) {
+    String [] array = datePathFormat.split("/");
+    StringBuilder datePathPattern = new StringBuilder();
 
+    for (int index = 1; index < level; index++) {
+      if (index > 1) {
+        datePathPattern.append("/");
+      }
+      datePathPattern.append(array[index - 1]);
+    }
+
+    try {
+      DateTimeFormatter formatGranularity = DateTimeFormat.forPattern(datePathPattern.toString());
       LocalDateTime traversedDatePathRound = formatGranularity.parseLocalDateTime(datePath);
-      LocalDateTime startDateRound = formatGranularity.parseLocalDateTime(startDate.toString(roundGranularity));
-      LocalDateTime endDateRound = formatGranularity.parseLocalDateTime(endDate.toString(roundGranularity));
+      LocalDateTime startDateRound = formatGranularity.parseLocalDateTime(startDate.toString(datePathPattern.toString()));
+      LocalDateTime endDateRound = formatGranularity.parseLocalDateTime(endDate.toString(datePathPattern.toString()));
 
       boolean afterOrOnStartDate = traversedDatePathRound.isAfter(startDateRound) || traversedDatePathRound.isEqual(startDateRound);
       boolean beforeOrOnEndDate = traversedDatePathRound.isBefore(endDateRound) || traversedDatePathRound.isEqual(endDateRound);
       return afterOrOnStartDate && beforeOrOnEndDate;
+    } catch (IllegalArgumentException e) {
+      log.error("Cannot parse path " + datePath);
+      return false;
     }
-    return false;
   }
 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
       int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
     if (!traversedDatePath.isEmpty()) {
-      if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath)) {
+      if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath, this.datePattern, level)) {
         return fileStatuses;
       }
     }
