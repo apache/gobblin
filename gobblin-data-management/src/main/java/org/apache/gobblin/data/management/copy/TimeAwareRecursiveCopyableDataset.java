@@ -141,6 +141,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
    * @param startDate
    * @param endDate
    * @param datePath
+   * @param datePathFormat (This is the user set desired format)
+   * @param level
    * @return true/false
    */
   public Boolean checkPathDateTimeValidity(LocalDateTime startDate, LocalDateTime endDate, String datePath, String datePathFormat, int level) {
