@@ -19,10 +19,8 @@
 
 repositories {
     repositories {
-        maven {
-            // For gradle-nexus-plugin
-            url 'https://jcenter.bintray.com/'
-        }
+        // For gradle-nexus-plugin
+        mavenCentral()
     }
 }
 
