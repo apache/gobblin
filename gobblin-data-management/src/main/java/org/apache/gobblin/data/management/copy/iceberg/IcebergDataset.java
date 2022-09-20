@@ -62,7 +62,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private final String inputTableName;
   private final IcebergTable icebergTable;
   protected final Properties properties;
-  protected final FileSystem fs;
+  protected final FileSystem sourceFs;
 
   private final Optional<String> sourceMetastoreURI;
   private final Optional<String> targetMetastoreURI;
@@ -73,12 +73,12 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
-  public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem fs) {
+  public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem sourceFs) {
     this.dbName = db;
     this.inputTableName = table;
     this.icebergTable = icebergTbl;
     this.properties = properties;
-    this.fs = fs;
+    this.sourceFs = sourceFs;
     this.sourceMetastoreURI =
         Optional.fromNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY));
     this.targetMetastoreURI =
@@ -138,7 +138,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
     for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration)) {
       CopyableFile fileEntity =
-          builder.fileSet(fileSet).datasetOutputPath(this.fs.getUri().getPath()).build();
+          builder.fileSet(fileSet).datasetOutputPath(this.sourceFs.getUri().getPath()).build();
       fileEntity.setSourceData(getSourceDataset());
       fileEntity.setDestinationData(getDestinationDataset());
       copyEntities.add(fileEntity);
@@ -158,7 +158,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     FileSystem actualSourceFs;
 
     for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
-      dataFiles.add(new SourceAndDestination(entry.getValue(), this.fs.makeQualified(entry.getKey())));
+      dataFiles.add(new SourceAndDestination(entry.getValue(), this.sourceFs.makeQualified(entry.getKey())));
     }
 
     for (SourceAndDestination sourceAndDestination : dataFiles) {
@@ -185,7 +185,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
     for (String pathString : pathsToCopy) {
       Path path = new Path(pathString);
-      result.put(path, this.fs.getFileStatus(path));
+      result.put(path, this.sourceFs.getFileStatus(path));
     }
     return result;
   }
@@ -202,14 +202,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private DatasetDescriptor getDatasetDescriptor(Optional<String> stringMetastoreURI) {
     String destinationTable = this.getDbName() + "." + this.getInputTableName();
 
-    URI hiveMetastoreURI = null;
-    if (stringMetastoreURI.isPresent()) {
-      hiveMetastoreURI = URI.create(stringMetastoreURI.get());
-    }
+    URI hiveMetastoreURI = stringMetastoreURI.isPresent() ? URI.create(stringMetastoreURI.get()) : null;
 
     DatasetDescriptor destinationDataset =
         new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, hiveMetastoreURI, destinationTable);
-    destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getFs().getUri().toString());
+    destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getSourceFs().getUri().toString());
     return destinationDataset;
   }
 }

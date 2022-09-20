@@ -51,7 +51,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   private String dbName;
   private String tblName;
   private final Properties properties;
-  protected final FileSystem fs;
+  protected final FileSystem sourceFs;
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
@@ -76,7 +76,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     /* Each Iceberg dataset maps to an Iceberg table
      * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
      */
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, fs));
+    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, sourceFs));
     log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(), matchingDatasets, dbName, tblName);
 
     return matchingDatasets;
