@@ -212,6 +212,14 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
     Assert.assertEquals(allowedWriters.get(1).getClass().getName(), exceptionWriter.getClass().getName());
   }
 
+  @Test
+  public void testDetectTransientException() {
+    IOException transientException = new IOException("Filesystem closed");
+    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(transientException));
+    IOException nonTransientException = new IOException("Write failed due to bad schema");
+    Assert.assertFalse(GobblinMCEWriter.isExceptionTransient(nonTransientException));
+  }
+
   @DataProvider(name="AllowMockMetadataWriter")
   public Object[][] allowMockMetadataWriterParams() {
     initMocks();

@@ -126,6 +126,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private int maxErrorDataset;
   protected EventSubmitter eventSubmitter;
 
+  private static final List<String> TRANSIENT_EXCEPTION_MESSAGES = Lists.newArrayList(
+      "Filesystem closed"
+  );
+
   @AllArgsConstructor
   static class TableStatus {
     OperationType operationType;
@@ -335,6 +339,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         try {
           writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
         } catch (Exception e) {
+          if (isExceptionTransient(e)) {
+            throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
+          }
           meetException = true;
           writer.reset(dbName, tableName);
           addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
@@ -405,6 +412,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         try {
           writer.flush(dbName, tableName);
         } catch (IOException e) {
+          if (isExceptionTransient(e)) {
+            throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
+          }
           meetException = true;
           writer.reset(dbName, tableName);
           addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
@@ -422,6 +432,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         this.datasetErrorMap.get(datasetPath).remove(tableString);
       }
     }
+  }
+
+  /**
+   * Check if exception is contained within a known list of transient exceptions. These exceptions should not be caught
+   * to avoid advancing watermarks and skipping GMCEs unnecessarily.
+   */
+  public static boolean isExceptionTransient(Exception e) {
+    return TRANSIENT_EXCEPTION_MESSAGES.stream().anyMatch(message -> e.getMessage().contains(message));
   }
 
   /**
