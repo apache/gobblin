@@ -79,7 +79,7 @@ public interface SpecStore {
   Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException;
 
   /***
-   * Update {@link Spec} in the {@link SpecStore} when current version is smaller than {@link version}.
+   * Update {@link Spec} in the {@link SpecStore} when modification time of current entry is smaller than {@link modifiedWatermark}.
    * @param spec {@link Spec} to be updated.
    * @param modifiedWatermark largest modifiedWatermark that current spec should be
    * @throws IOException Exception in updating the {@link Spec}.
