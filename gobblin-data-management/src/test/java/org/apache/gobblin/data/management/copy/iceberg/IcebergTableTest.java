@@ -105,7 +105,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // verify metadata file
     Optional<File> optMetadataFile = extractSomeMetadataFilepath(snapshotInfo.getMetadataPath(), metadataBasePath, IcebergTableTest::doesResembleMetadataFilename);
     Assert.assertTrue(optMetadataFile.isPresent(), "has metadata filepath");
-    verifyMetadataFile(optMetadataFile.get(), Optional.of(4L));
+    verifyMetadataFile(optMetadataFile.get(), Optional.of(perSnapshotFilesets.size()));
     // verify manifest list file
     Optional<File> optManifestListFile = extractSomeMetadataFilepath(snapshotInfo.getManifestListPath(), metadataBasePath, IcebergTableTest::doesResembleManifestListFilename);
     Assert.assertTrue(optManifestListFile.isPresent(), "has manifest list filepath");
@@ -154,10 +154,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
     }
   }
 
-  protected void verifyMetadataFile(File file, Optional<Long> optSnapshotSeqNum) {
+  protected void verifyMetadataFile(File file, Optional<Integer> optSnapshotSeqNum) {
     Assert.assertTrue(doesResembleMetadataFilename(file.getName()), "metadata filename resemblance");
     if (optSnapshotSeqNum.isPresent()) {
-      Assert.assertEquals(Long.valueOf(file.getName().split("-")[0]), optSnapshotSeqNum.get(),
+      Assert.assertEquals(Integer.valueOf(file.getName().split("-")[0]), optSnapshotSeqNum.get(),
           "snapshot sequence num");
     }
   }
