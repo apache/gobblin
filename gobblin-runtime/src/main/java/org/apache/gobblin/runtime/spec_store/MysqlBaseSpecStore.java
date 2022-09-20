@@ -29,6 +29,8 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.dbcp.BasicDataSource;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
@@ -325,6 +327,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       }
       return result;
     } catch (SQLException e) {
+      log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} Exception is {}", ((BasicDataSource) this.dataSource).getValidationQuery());
       throw new IOException(e);
     }
   }

@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.Properties;
 
 import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.apache.gobblin.password.PasswordManager;
 /**
  * A provider class for {@link javax.sql.DataSource}s.
  */
+@Slf4j
 public class DataSourceProvider implements Provider<DataSource> {
   private static final Logger LOG = LoggerFactory.getLogger(DataSourceProvider.class);
 
@@ -81,6 +83,7 @@ public class DataSourceProvider implements Provider<DataSource> {
   }
 
   public DataSourceProvider() {
+    log.warn("Creating {} without setting validation query", this.getClass().getSimpleName());
     this.basicDataSource = new BasicDataSource();
   }
 
