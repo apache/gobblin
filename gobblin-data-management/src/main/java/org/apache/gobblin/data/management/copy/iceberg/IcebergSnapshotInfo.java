@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import lombok.Builder;
 import lombok.Data;
 
 import com.google.common.collect.Lists;
@@ -29,6 +30,7 @@ import com.google.common.collect.Lists;
 /**
  * Information about the metadata file and data file paths of a single Iceberg Snapshot.
  */
+@Builder(toBuilder = true)
 @Data
 public class IcebergSnapshotInfo {
 

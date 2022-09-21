@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -101,11 +102,81 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
     initializeSnapshots(table, perSnapshotFilesets);
     IcebergSnapshotInfo snapshotInfo = new IcebergTable(catalog.newTableOps(tableId)).getCurrentSnapshotInfo();
+    verifySnapshotInfo(snapshotInfo, perSnapshotFilesets, perSnapshotFilesets.size());
+  }
 
+  /** Verify info about all (full) snapshots */
+  @Test
+  public void testGetAllSnapshotInfosIterator() throws IOException {
+    List<List<String>> perSnapshotFilesets = Lists.newArrayList(
+        Lists.newArrayList("/path/to/data-a0.orc"),
+        Lists.newArrayList("/path/to/data-b0.orc", "/path/to/data-b1.orc"),
+        Lists.newArrayList("/path/to/data-c0.orc", "/path/to/data-c1.orc", "/path/to/data-c2.orc"),
+        Lists.newArrayList("/path/to/data-d0.orc")
+    );
+
+    initializeSnapshots(table, perSnapshotFilesets);
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getAllSnapshotInfosIterator());
+    Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
+
+    for (int i = 0; i < snapshotInfos.size(); ++i) {
+      System.err.println("verifying snapshotInfo[" + i + "]");
+      verifySnapshotInfo(snapshotInfos.get(i), perSnapshotFilesets.subList(0, i + 1), snapshotInfos.size());
+    }
+  }
+
+  /** Verify info about all snapshots (incremental deltas) */
+  @Test
+  public void testGetIncrementalSnapshotInfosIterator() throws IOException {
+    List<List<String>> perSnapshotFilesets = Lists.newArrayList(
+        Lists.newArrayList("/path/to/data-a0.orc"),
+        Lists.newArrayList("/path/to/data-b0.orc", "/path/to/data-b1.orc"),
+        Lists.newArrayList("/path/to/data-c0.orc", "/path/to/data-c1.orc", "/path/to/data-c2.orc"),
+        Lists.newArrayList("/path/to/data-d0.orc")
+    );
+
+    initializeSnapshots(table, perSnapshotFilesets);
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
+    Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
+
+    for (int i = 0; i < snapshotInfos.size(); ++i) {
+      System.err.println("verifying snapshotInfo[" + i + "]");
+      verifySnapshotInfo(snapshotInfos.get(i), perSnapshotFilesets.subList(i, i + 1), snapshotInfos.size());
+    }
+  }
+
+  /** Verify info about all snapshots (incremental deltas) correctly eliminates repeated data files */
+  @Test
+  public void testGetIncrementalSnapshotInfosIteratorRepeatedFiles() throws IOException {
+    List<List<String>> perSnapshotFilesets = Lists.newArrayList(
+        Lists.newArrayList("/path/to/data-a0.orc"),
+        Lists.newArrayList("/path/to/data-b0.orc", "/path/to/data-b1.orc", "/path/to/data-a0.orc"),
+        Lists.newArrayList("/path/to/data-a0.orc","/path/to/data-c0.orc", "/path/to/data-b1.orc", "/path/to/data-c1.orc", "/path/to/data-c2.orc"),
+        Lists.newArrayList("/path/to/data-d0.orc")
+    );
+
+    initializeSnapshots(table, perSnapshotFilesets);
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
+    Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
+
+    for (int i = 0; i < snapshotInfos.size(); ++i) {
+      System.err.println("verifying snapshotInfo[" + i + "] - " + snapshotInfos.get(i));
+      char initialChar = (char) ((int) 'a' + i);
+      // adjust expectations to eliminate duplicate entries (i.e. those bearing letter not aligned with ordinal fileset)
+      List<String> fileset = perSnapshotFilesets.get(i).stream().filter(name -> {
+        String uniquePortion = name.substring("/path/to/data-".length());
+        return uniquePortion.startsWith(Character.toString(initialChar));
+      }).collect(Collectors.toList());
+      verifySnapshotInfo(snapshotInfos.get(i), Arrays.asList(fileset), snapshotInfos.size());
+    }
+  }
+
+  /** full validation for a particular {@link IcebergSnapshotInfo} */
+  protected void verifySnapshotInfo(IcebergSnapshotInfo snapshotInfo, List<List<String>> perSnapshotFilesets, int overallNumSnapshots) {
     // verify metadata file
     Optional<File> optMetadataFile = extractSomeMetadataFilepath(snapshotInfo.getMetadataPath(), metadataBasePath, IcebergTableTest::doesResembleMetadataFilename);
     Assert.assertTrue(optMetadataFile.isPresent(), "has metadata filepath");
-    verifyMetadataFile(optMetadataFile.get(), Optional.of(perSnapshotFilesets.size()));
+    verifyMetadataFile(optMetadataFile.get(), Optional.of(overallNumSnapshots));
     // verify manifest list file
     Optional<File> optManifestListFile = extractSomeMetadataFilepath(snapshotInfo.getManifestListPath(), metadataBasePath, IcebergTableTest::doesResembleManifestListFilename);
     Assert.assertTrue(optManifestListFile.isPresent(), "has manifest list filepath");
@@ -131,7 +202,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     return basePath;
   }
 
-  /** Add one snapshot per sub-list of `perSnapshotFilesets`, in order, with the sub-list contents as its data files */
+  /** Add one snapshot per sub-list of `perSnapshotFilesets`, in order, with the sub-list contents as the data files */
   protected static void initializeSnapshots(Table table, List<List<String>> perSnapshotFilesets) {
     for (List<String> snapshotFileset : perSnapshotFilesets) {
       AppendFiles append = table.newAppend();

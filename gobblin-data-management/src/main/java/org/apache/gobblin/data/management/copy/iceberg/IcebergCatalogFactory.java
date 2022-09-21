@@ -18,7 +18,9 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.hive.HiveCatalogs;
+import org.apache.iceberg.hive.HiveCatalog;
+
+import com.google.common.collect.Maps;
 
 
 /**
@@ -26,6 +28,9 @@ import org.apache.iceberg.hive.HiveCatalogs;
  */
 public class IcebergCatalogFactory {
   public static IcebergCatalog create(Configuration configuration) {
-    return new IcebergHiveCatalog(HiveCatalogs.loadCatalog(configuration));
+    HiveCatalog hcat = new HiveCatalog();
+    hcat.setConf(configuration);
+    hcat.initialize("hive", Maps.newHashMap());
+    return new IcebergHiveCatalog(hcat);
   }
 }
