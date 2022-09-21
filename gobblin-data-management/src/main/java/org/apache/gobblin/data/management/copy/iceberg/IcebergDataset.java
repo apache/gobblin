@@ -190,11 +190,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return result;
   }
 
-  DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
+  protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
     return getDatasetDescriptor(sourceMetastoreURI, sourceFs);
   }
 
-  DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
+  protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
     return getDatasetDescriptor(targetMetastoreURI, targetFs);
   }
 

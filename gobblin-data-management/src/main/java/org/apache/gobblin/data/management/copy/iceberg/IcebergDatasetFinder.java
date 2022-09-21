@@ -28,6 +28,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.dataset.DatasetConstants;
@@ -39,6 +40,7 @@ import org.apache.gobblin.util.HadoopUtils;
  * and creates a {@link IcebergDataset} for each one.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
 
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
@@ -48,11 +50,6 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
   private final Properties properties;
   protected final FileSystem sourceFs;
-
-  public IcebergDatasetFinder(FileSystem fs, Properties properties) {
-    this.sourceFs = fs;
-    this.properties = properties;
-  }
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
