@@ -106,7 +106,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    */
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration) {
-    return getCopyEntities(configuration);
+    return getCopyEntities(targetFs, configuration);
   }
   /**
    * Finds all files read by the table and generates CopyableFiles.
@@ -116,21 +116,21 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
       Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor) {
     // TODO: Implement PushDownRequestor and priority based copy entity iteration
-    return getCopyEntities(configuration);
+    return getCopyEntities(targetFs, configuration);
   }
 
   /**
    * Finds all files read by the table and generates {@link CopyEntity}s for duplicating the table.
    */
-  Iterator<FileSet<CopyEntity>> getCopyEntities(CopyConfiguration configuration) {
-    FileSet<CopyEntity> fileSet = new IcebergTableFileSet(this.getInputTableName(), this, configuration);
+  Iterator<FileSet<CopyEntity>> getCopyEntities(FileSystem targetFs, CopyConfiguration configuration) {
+    FileSet<CopyEntity> fileSet = new IcebergTableFileSet(this.getInputTableName(), this, targetFs, configuration);
     return Iterators.singletonIterator(fileSet);  }
 
   /**
    * Finds all files read by the table file set and generates {@link CopyEntity}s for duplicating the table.
    */
   @VisibleForTesting
-  Collection<CopyEntity> generateCopyEntities(CopyConfiguration configuration) throws IOException {
+  Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration configuration) throws IOException {
     String fileSet = this.getInputTableName();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus();
@@ -139,8 +139,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration)) {
       CopyableFile fileEntity =
           builder.fileSet(fileSet).datasetOutputPath(this.sourceFs.getUri().getPath()).build();
-      fileEntity.setSourceData(getSourceDataset());
-      fileEntity.setDestinationData(getDestinationDataset());
+      fileEntity.setSourceData(getSourceDataset(this.sourceFs));
+      fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
     log.info("{}.{} - generated {} copy entities", dbName, inputTableName, copyEntities.size());
@@ -190,23 +190,23 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return result;
   }
 
-  DatasetDescriptor getSourceDataset() {
-    return getDatasetDescriptor(sourceMetastoreURI);
+  DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
+    return getDatasetDescriptor(sourceMetastoreURI, sourceFs);
   }
 
-  DatasetDescriptor getDestinationDataset() {
-    return getDatasetDescriptor(targetMetastoreURI);
+  DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
+    return getDatasetDescriptor(targetMetastoreURI, targetFs);
   }
 
   @NotNull
-  private DatasetDescriptor getDatasetDescriptor(Optional<String> stringMetastoreURI) {
-    String destinationTable = this.getDbName() + "." + this.getInputTableName();
+  private DatasetDescriptor getDatasetDescriptor(Optional<String> stringMetastoreURI, FileSystem fs) {
+    String currentTable = this.getDbName() + "." + this.getInputTableName();
 
     URI hiveMetastoreURI = stringMetastoreURI.isPresent() ? URI.create(stringMetastoreURI.get()) : null;
 
-    DatasetDescriptor destinationDataset =
-        new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, hiveMetastoreURI, destinationTable);
-    destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getSourceFs().getUri().toString());
-    return destinationDataset;
+    DatasetDescriptor currentDataset =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, hiveMetastoreURI, currentTable);
+    currentDataset.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+    return currentDataset;
   }
 }

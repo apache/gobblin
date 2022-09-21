@@ -28,7 +28,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.dataset.DatasetConstants;
@@ -40,7 +39,6 @@ import org.apache.gobblin.util.HadoopUtils;
  * and creates a {@link IcebergDataset} for each one.
  */
 @Slf4j
-@AllArgsConstructor
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
 
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
@@ -48,10 +46,13 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
-  private String dbName;
-  private String tblName;
   private final Properties properties;
   protected final FileSystem sourceFs;
+
+  public IcebergDatasetFinder(FileSystem fs, Properties properties) {
+    this.sourceFs = fs;
+    this.properties = properties;
+  }
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
@@ -63,12 +64,12 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   @Override
   public List<IcebergDataset> findDatasets() throws IOException {
     List<IcebergDataset> matchingDatasets = new ArrayList<>();
-    if (StringUtils.isNotBlank(properties.getProperty(ICEBERG_DB_NAME)) || StringUtils.isNotBlank(properties.getProperty(ICEBERG_TABLE_NAME))) {
+    if (StringUtils.isBlank(properties.getProperty(ICEBERG_DB_NAME)) || StringUtils.isBlank(properties.getProperty(ICEBERG_TABLE_NAME))) {
       throw new IllegalArgumentException(String.format("Iceberg database name: {%s} or Iceberg table name: {%s} is missing",
           ICEBERG_DB_NAME, ICEBERG_TABLE_NAME));
     }
-    this.dbName = properties.getProperty(ICEBERG_DB_NAME);
-    this.tblName = properties.getProperty(ICEBERG_TABLE_NAME);
+    String dbName = properties.getProperty(ICEBERG_DB_NAME);
+    String tblName = properties.getProperty(ICEBERG_TABLE_NAME);
 
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
 

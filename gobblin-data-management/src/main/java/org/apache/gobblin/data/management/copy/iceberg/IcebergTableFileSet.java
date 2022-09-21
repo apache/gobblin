@@ -20,6 +20,8 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.util.Collection;
 
+import org.apache.hadoop.fs.FileSystem;
+
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.partition.FileSet;
@@ -31,16 +33,18 @@ import org.apache.gobblin.data.management.partition.FileSet;
 public class IcebergTableFileSet extends FileSet<CopyEntity> {
 
   private final CopyConfiguration copyConfiguration;
+  private final FileSystem targetFs;
   private final IcebergDataset icebergDataset;
 
-  public IcebergTableFileSet(String name, IcebergDataset icebergDataset, CopyConfiguration configuration) {
+  public IcebergTableFileSet(String name, IcebergDataset icebergDataset, FileSystem targetFs, CopyConfiguration configuration) {
     super(name, icebergDataset);
     this.copyConfiguration = configuration;
+    this.targetFs = targetFs;
     this.icebergDataset = icebergDataset;
   }
 
   @Override
   protected Collection<CopyEntity> generateCopyEntities() throws IOException {
-    return this.icebergDataset.generateCopyEntities(this.copyConfiguration);
+    return this.icebergDataset.generateCopyEntities(this.targetFs, this.copyConfiguration);
   }
 }

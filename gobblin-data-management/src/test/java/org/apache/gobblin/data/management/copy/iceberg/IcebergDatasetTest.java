@@ -113,7 +113,7 @@ IcebergDatasetTest {
 
     mockFileSystemMethodCalls(fs, destinationFileSystem.pathToFileStatus, test_qualified_path, test_uri_path);
 
-    Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(copyConfiguration);
+    Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(fs, copyConfiguration);
     verifyCopyEntities(copyEntities, expected);
 
   }
