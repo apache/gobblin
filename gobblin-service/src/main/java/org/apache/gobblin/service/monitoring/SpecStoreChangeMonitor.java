@@ -50,8 +50,6 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 @Slf4j
 public class SpecStoreChangeMonitor extends HighLevelConsumer {
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
-  static final String SPEC_STORE_CHANGE_MONITOR_TOPIC_KEY = "topic";
-  static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   // Metrics
   private Meter successfullyAddedSpecs;
@@ -100,7 +98,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
 
     // If event is a heartbeat type then log it and skip processing
     if (operation == "HEARTBEAT") {
-      log.info("Received heartbeat message from time {}", timestamp);
+      log.debug("Received heartbeat message from time {}", timestamp);
       return;
     }
 
@@ -110,7 +108,11 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     try {
       specAsUri = new URI(specUri);
     } catch (URISyntaxException e) {
-      log.warn("Could not create URI object for specUri {} due to error {}", specUri, e.getMessage());
+      if (operation == "DELETE") {
+        log.warn("Could not create URI object for specUri {} due to error {}", specUri, e.getMessage());
+        this.unexpectedErrors.mark();
+        return;
+      }
     }
 
     spec = (operation != "DELETE") ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
@@ -120,27 +122,31 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     try {
       // Call respective action for the type of change received
       AddSpecResponse response;
-      if (operation == "CREATE" || operation == "INSERT") {
+      if (operation == "INSERT" || operation == "UPDATE") {
         response = scheduler.onAddSpec(spec);
 
         // Null response means the dag failed to compile
-        if (response != null && response.getValue() != null) {
-          log.info("Successfully added spec {} response {}", spec, StringEscapeUtils.escapeJson(response.getValue().toString()));
+        if (response != null && FlowCatalog.isCompileSuccessful((String) response.getValue())) {
+          log.info("Successfully added spec {} to scheduler response {}", spec,
+              StringEscapeUtils.escapeJson(response.getValue().toString()));
           this.successfullyAddedSpecs.mark();
         } else {
-          log.warn("Failed to add spec {} due to response {}", spec, response);
+          log.warn("Failed to add spec {} to scheduler due to compile error. The flow graph changed recently to "
+              + "invalidate the earlier compilation. Examine changes to locate error. Response is {}", spec, response);
           this.failedAddedSpecs.mark();
         }
       } else if (operation == "DELETE") {
         scheduler.onDeleteSpec(specAsUri, FlowSpec.Builder.DEFAULT_VERSION);
         this.deletedSpecs.mark();
       } else {
-        log.warn("Received unsupported change type of operation {}. Expected values to be in [CREATE, INSERT, DELETE]", operation);
+        log.warn("Received unsupported change type of operation {}. Expected values to be in "
+                + "[INSERT, UPDATE, DELETE, HEARTBEAT]. Look for issue with kafka event consumer or emitter",
+            operation);
         this.unexpectedErrors.mark();
         return;
       }
     } catch (Exception e) {
-      log.warn("Ran into unexpected error processing SpecStore changes: {}", e);
+      log.warn("Ran into unexpected error processing SpecStore changes. Reexamine scheduler. Error: {}", e);
       this.unexpectedErrors.mark();
     }
 

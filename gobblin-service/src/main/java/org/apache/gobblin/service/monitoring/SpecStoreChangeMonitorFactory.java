@@ -34,6 +34,10 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class SpecStoreChangeMonitorFactory implements Provider<SpecStoreChangeMonitor> {
+  static final String SPEC_STORE_CHANGE_MONITOR_CLASS_NAME = "org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor";
+  static final String SPEC_STORE_CHANGE_MONITOR_TOPIC_KEY = "topic";
+  static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
+
   private final Config config;
 
   @Inject
@@ -44,10 +48,11 @@ public class SpecStoreChangeMonitorFactory implements Provider<SpecStoreChangeMo
   private SpecStoreChangeMonitor createSpecStoreChangeMonitor()
       throws ReflectiveOperationException {
     Config specStoreChangeConfig = config.getConfig(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_PREFIX);
-    String topic = specStoreChangeConfig.getString(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_TOPIC_KEY);
-    int numThreads = ConfigUtils.getInt(specStoreChangeConfig, SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
+    String topic = specStoreChangeConfig.getString(SPEC_STORE_CHANGE_MONITOR_TOPIC_KEY);
+    int numThreads = ConfigUtils.getInt(specStoreChangeConfig, SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return (SpecStoreChangeMonitor) GobblinConstructorUtils.invokeConstructor(Class.forName("SpecStoreChangeMonitor"), topic, specStoreChangeConfig, numThreads);
+    return (SpecStoreChangeMonitor) GobblinConstructorUtils.invokeConstructor(
+        Class.forName(SPEC_STORE_CHANGE_MONITOR_CLASS_NAME), topic, specStoreChangeConfig, numThreads);
   }
 
   @Override
