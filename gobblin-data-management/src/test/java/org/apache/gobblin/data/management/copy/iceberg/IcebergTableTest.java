@@ -118,7 +118,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     List<String> allPathsExpected = Lists.newArrayList(snapshotInfo.getMetadataPath(), snapshotInfo.getManifestListPath());
     allPathsExpected.addAll(snapshotInfo.getManifestFilePaths());
     allPathsExpected.addAll(snapshotInfo.getAllDataFilePaths());
-    verifyAnyOrder(snapshotInfo.getAllPaths(), allPathsExpected, "all paths, metadata and metadata");
+    verifyAnyOrder(snapshotInfo.getAllPaths(), allPathsExpected, "all paths, metadata and data");
   }
 
   protected String calcMetadataBasePath(TableIdentifier tableId) {
