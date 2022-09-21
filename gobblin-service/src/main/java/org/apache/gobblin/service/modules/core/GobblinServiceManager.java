@@ -212,7 +212,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   private final MetricContext metricContext;
   private final Metrics metrics;
 
-  @Inject
+  @Inject(optional = true)
   protected SpecStoreChangeMonitor specStoreChangeMonitor;
 
   @Inject

@@ -75,7 +75,6 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   @Inject
   protected GobblinServiceJobScheduler scheduler;
 
-  @Inject
   public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
     super(topic, config, numThreads);
   }
