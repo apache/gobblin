@@ -126,7 +126,7 @@ public class GitFlowGraphMonitorTest {
     //Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1), true);
     this.gitFlowGraphMonitor.setActive(true);
   }
 

@@ -64,11 +64,11 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
       .put(ConfigurationKeys.FLOWGRAPH_REPO_DIR, DEFAULT_FS_FLOWGRAPH_MONITOR_REPO_DIR)
       .put(ConfigurationKeys.FLOWGRAPH_BASE_DIR, DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
       .put(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, DEFAULT_FLOWGRAPH_POLLING_INTERVAL)
-      .put(ConfigurationKeys.JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
-      .put(ConfigurationKeys.HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS).build());
+      .put(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
+      .put(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS).build());
 
   public FsFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete)
+      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete, boolean instrumentationEnabled)
       throws IOException {
     Config configWithFallbacks = config.getConfig(FS_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.pollingInterval =
@@ -76,8 +76,8 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
     this.flowGraphPath = new Path(configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_REPO_DIR));
     this.observer = new PathAlterationObserver(flowGraphPath);
     this.flowGraphHelper = new BaseFlowGraphHelper(flowTemplateCatalog, topologySpecMap, flowGraphPath.toString(),
-        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS));
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS), instrumentationEnabled, config);
     this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, graph, flowGraphPath.toString(), this.flowGraphHelper);
 
    this.flowGraph = graph;
@@ -90,6 +90,10 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
       this.pathAlterationDetector.addPathAlterationObserver(this.listener, observerOptional,
           this.flowGraphPath);
+    }
+
+    if (instrumentationEnabled) {
+
     }
   }
 

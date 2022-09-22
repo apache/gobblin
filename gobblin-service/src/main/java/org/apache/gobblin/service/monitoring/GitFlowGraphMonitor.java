@@ -71,8 +71,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
       .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
       .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME)
       .put(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
-      .put(ConfigurationKeys.JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
-      .put(ConfigurationKeys.HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS)
+      .put(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
+      .put(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS)
       .put(SHOULD_CHECKPOINT_HASHES, false).build());
 
   private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
@@ -80,14 +80,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
   private final BaseFlowGraphHelper flowGraphHelper;
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
+      AtomicReference<FlowGraph> graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete, boolean instrumentationEnabled) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     Config configWithFallbacks = config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.initComplete = initComplete;
     this.flowGraphHelper = new BaseFlowGraphHelper(flowTemplateCatalog, topologySpecMap, configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS));
+        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS), instrumentationEnabled, config);
     this.listeners.add(new GitFlowGraphListener(graph, this.flowGraphHelper));
   }
 
@@ -129,13 +129,16 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
     this.initComplete.countDown();
   }
 
+  /**
+   * Comparator to sort changes in the flowgraph by file depth. Apply changes to nodes before adding changes to edges as edges rely on nodes
+   */
   static class GitFlowgraphComparator implements Comparator<DiffEntry>, Serializable {
-    public int compare(DiffEntry o1, DiffEntry o2) {
-      Integer o1Depth =
-          (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
+    public int compare(DiffEntry diff1, DiffEntry diff2) {
+      Integer diff1Depth =
+          (diff1.getNewPath() != null) ? (new Path(diff1.getNewPath())).depth() : (new Path(diff1.getOldPath())).depth();
       Integer o2Depth =
-          (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
-      return o1Depth.compareTo(o2Depth);
+          (diff2.getNewPath() != null) ? (new Path(diff2.getNewPath())).depth() : (new Path(diff2.getOldPath())).depth();
+      return diff1Depth.compareTo(o2Depth);
     }
   }
 }

@@ -1022,8 +1022,8 @@ public class ConfigurationKeys {
    * Configuration properties related to flowGraphs
    */
 
-  public static final String JAVA_PROPS_EXTENSIONS = "flowGraph.javaPropsExtensions";
-  public static final String HOCON_FILE_EXTENSIONS = "flowGraph.hoconFileExtensions";
+  public static final String FLOWGRAPH_JAVA_PROPS_EXTENSIONS = "flowGraph.javaPropsExtensions";
+  public static final String FLOWGRAPH_HOCON_FILE_EXTENSIONS = "flowGraph.hoconFileExtensions";
   public static final String DEFAULT_PROPERTIES_EXTENSIONS = "properties";
   public static final String DEFAULT_CONF_EXTENSIONS = "conf";
   public static final String FLOWGRAPH_POLLING_INTERVAL = "flowGraph.pollingInterval";

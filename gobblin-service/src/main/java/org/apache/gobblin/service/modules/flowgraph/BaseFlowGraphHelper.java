@@ -42,6 +42,10 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
@@ -66,15 +70,16 @@ public class BaseFlowGraphHelper {
 
   private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
   private final Map<URI, TopologySpec> topologySpecMap;
-
+  private MetricContext metricContext;
   final String flowGraphFolderName;
   final PullFileLoader pullFileLoader;
   final Set<String> javaPropsExtensions;
   final Set<String> hoconFileExtensions;
+  private final Optional<ContextAwareMeter> flowGraphUpdateFailedMeter;
 
   public BaseFlowGraphHelper(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
-      String javaPropsExtentions, String hoconFileExtensions) {
+      String javaPropsExtentions, String hoconFileExtensions, boolean instrumentationEnabled, Config config) {
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.topologySpecMap = topologySpecMap;
     this.baseDirectory = baseDirectory;
@@ -82,6 +87,12 @@ public class BaseFlowGraphHelper {
     Path folderPath = new Path(baseDirectory, this.flowGraphFolderName);
     this.javaPropsExtensions = Sets.newHashSet(javaPropsExtentions.split(","));
     this.hoconFileExtensions = Sets.newHashSet(hoconFileExtensions.split(","));
+    if (instrumentationEnabled) {
+      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), BaseFlowGraphHelper.class);
+      this.flowGraphUpdateFailedMeter = Optional.of(this.metricContext.contextAwareMeter(ServiceMetricNames.FLOWGRAPH_UPDATE_FAILED_METER));
+    } else {
+      this.flowGraphUpdateFailedMeter = Optional.absent();
+    }
     try {
       this.pullFileLoader = new PullFileLoader(folderPath,
           FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()), this.javaPropsExtensions,
@@ -110,6 +121,9 @@ public class BaseFlowGraphHelper {
           log.info("Added Datanode {} to FlowGraph", dataNode.getId());
         }
       } catch (Exception e) {
+        if (this.flowGraphUpdateFailedMeter.isPresent()) {
+          this.flowGraphUpdateFailedMeter.get().mark();
+        }
         log.warn("Could not add DataNode defined in {} due to exception {}", path, e);
       }
     }
@@ -161,6 +175,9 @@ public class BaseFlowGraphHelper {
         }
       } catch (Exception e) {
         log.warn("Could not add edge defined in {} due to exception", path, e);
+        if (this.flowGraphUpdateFailedMeter.isPresent()) {
+          this.flowGraphUpdateFailedMeter.get().mark();
+        }
       }
     }
   }
@@ -184,13 +201,16 @@ public class BaseFlowGraphHelper {
         }
       } catch (Exception e) {
         log.warn("Could not remove edge defined in {} due to exception", edgeFilePath, e);
+        if (this.flowGraphUpdateFailedMeter.isPresent()) {
+          this.flowGraphUpdateFailedMeter.get().mark();
+        }
       }
     }
   }
 
   /**
-   * check whether the file has the proper naming and hierarchy
-   * @param file the relative path from the repo root
+   * check whether the file has the proper naming and hierarchy for nodes and edges
+   * @param file the relative path from the root of the flowgraph
    * @return false if the file does not conform
    */
   private boolean checkFilePath(String file, int depth) {
@@ -327,8 +347,10 @@ public class BaseFlowGraphHelper {
       }
       flowGraphReference.set(newFlowGraph);
     } catch (IOException e) {
-      throw new RuntimeException(
-          String.format("Error while populating file based flowgraph at path %s", graphPath), e);
+      if (this.flowGraphUpdateFailedMeter.isPresent()) {
+        this.flowGraphUpdateFailedMeter.get().mark();
+      }
+      log.error(String.format("Error while populating file based flowgraph at path %s", graphPath), e);
     }
   }
 

@@ -123,7 +123,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     } catch (RuntimeException e) {
       MultiHopFlowCompiler.log.warn("Exception reading data node alias map, ignoring it.", e);
     }
-
+    // Use atomic reference to avoid partial flowgraph upgrades during path compilation.
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph(dataNodeAliasMap));
 
     Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();

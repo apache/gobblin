@@ -87,7 +87,7 @@ public class FsFlowGraphMonitorTest {
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "."
             + ConfigurationKeys.FLOWGRAPH_REPO_DIR, this.flowGraphDir.getAbsolutePath())
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_BASE_DIR, "gobblin-flowgraph")
-        .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, 2)
+        .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, 1)
         .build();
 
     // Create a FSFlowTemplateCatalog instance
@@ -104,7 +104,7 @@ public class FsFlowGraphMonitorTest {
     //Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
-    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
+    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1), true);
     this.flowGraphMonitor.startUp();
     this.flowGraphMonitor.setActive(true);
   }
@@ -174,7 +174,7 @@ public class FsFlowGraphMonitorTest {
     //Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
-    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, this.topologySpecMap, new CountDownLatch(1));
+    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, this.topologySpecMap, new CountDownLatch(1), true);
     this.flowGraphMonitor.startUp();
     this.flowGraphMonitor.setActive(true);
 
