@@ -327,7 +327,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       }
       return result;
     } catch (SQLException e) {
-      log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} Exception is {}", ((BasicDataSource) this.dataSource).getValidationQuery());
+      log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} Exception is {}", ((BasicDataSource) this.dataSource).getValidationQuery(), e);
       throw new IOException(e);
     }
   }
