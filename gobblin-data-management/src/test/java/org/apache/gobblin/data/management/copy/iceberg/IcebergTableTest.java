@@ -134,11 +134,11 @@ public class IcebergTableTest extends HiveMetastoreTest {
   /** Add one snapshot per sub-list of `perSnapshotFilesets`, in order, with the sub-list contents as its data files */
   protected static void initializeSnapshots(Table table, List<List<String>> perSnapshotFilesets) {
     for (List<String> snapshotFileset : perSnapshotFilesets) {
-      AppendFiles a = table.newAppend();
+      AppendFiles append = table.newAppend();
       for (String fpath : snapshotFileset) {
-        a.appendFile(createDataFile(fpath, 0, 1));
+        append.appendFile(createDataFile(fpath, 0, 1));
       }
-      a.commit();
+      append.commit();
     }
   }
 
