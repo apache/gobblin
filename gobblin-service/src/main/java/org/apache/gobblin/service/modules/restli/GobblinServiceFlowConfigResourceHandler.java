@@ -63,7 +63,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   @Getter
   private String serviceName;
   private boolean flowCatalogLocalCommit;
-  private FlowConfigResourceLocalHandler localHandler;
+  protected FlowConfigResourceLocalHandler localHandler;
   private Optional<HelixManager> helixManager;
   private GobblinServiceJobScheduler jobScheduler;
   private boolean forceLeader;
