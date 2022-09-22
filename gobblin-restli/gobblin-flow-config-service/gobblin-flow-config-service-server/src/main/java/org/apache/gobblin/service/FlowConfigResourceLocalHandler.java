@@ -161,10 +161,14 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     return this.createFlowConfig(flowConfig, true);
   }
 
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener) {
+    // Set the max version to be the largest value so that we blindly update the flow spec in this case
+    return updateFlowConfig(flowId, flowConfig, triggerListener, Long.MAX_VALUE);
+  }
   /**
    * Update flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
-  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener) {
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long modifiedWatermark) {
     log.info("[GAAS-REST] Update called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     if (!flowId.getFlowGroup().equals(flowConfig.getId().getFlowGroup()) || !flowId.getFlowName().equals(flowConfig.getId().getFlowName())) {
@@ -185,7 +189,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       flowConfig = originalFlowConfig;
     }
     try {
-      this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
+      this.flowCatalog.update(createFlowSpecForConfig(flowConfig), triggerListener, modifiedWatermark);
     } catch (QuotaExceededException e) {
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch (Throwable e) {
