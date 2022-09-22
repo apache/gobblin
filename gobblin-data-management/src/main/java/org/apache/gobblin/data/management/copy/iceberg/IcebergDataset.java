@@ -136,9 +136,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus();
     log.info("{}.{} - found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
 
-    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration)) {
+    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration, targetFs)) {
       CopyableFile fileEntity =
-          builder.fileSet(fileSet).datasetOutputPath(this.sourceFs.getUri().getPath()).build();
+          builder.fileSet(fileSet).datasetOutputPath(targetFs.getUri().getPath()).build();
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
@@ -150,7 +150,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   /**
    * Get builders for a {@link CopyableFile} for each file path
    */
-  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> pathToFileStatus, CopyConfiguration configuration) throws IOException {
+  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> pathToFileStatus, CopyConfiguration configuration, FileSystem targetFs) throws IOException {
 
     List<CopyableFile.Builder> builders = Lists.newArrayList();
     List<SourceAndDestination> dataFiles = Lists.newArrayList();
@@ -158,7 +158,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     FileSystem actualSourceFs;
 
     for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
-      dataFiles.add(new SourceAndDestination(entry.getValue(), this.sourceFs.makeQualified(entry.getKey())));
+      dataFiles.add(new SourceAndDestination(entry.getValue(), targetFs.makeQualified(entry.getKey())));
     }
 
     for (SourceAndDestination sourceAndDestination : dataFiles) {
