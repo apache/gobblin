@@ -48,8 +48,8 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
-  private final Properties properties;
   protected final FileSystem sourceFs;
+  private final Properties properties;
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
