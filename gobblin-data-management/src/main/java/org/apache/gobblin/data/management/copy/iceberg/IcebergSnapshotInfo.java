@@ -56,7 +56,7 @@ public class IcebergSnapshotInfo {
   }
 
   public List<String> getAllPaths() {
-    List<String> result = metadataPath.isPresent() ? Lists.newArrayList(metadataPath.get()) : Lists.newArrayList();
+    List<String> result = metadataPath.map(Lists::newArrayList).orElse(Lists.newArrayList());
     result.add(manifestListPath);
     result.addAll(getManifestFilePaths());
     result.addAll(getAllDataFilePaths());
