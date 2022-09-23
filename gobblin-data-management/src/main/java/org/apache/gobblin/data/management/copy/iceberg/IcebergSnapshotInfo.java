@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.Builder;
@@ -42,7 +43,7 @@ public class IcebergSnapshotInfo {
 
   private final Long snapshotId;
   private final Instant timestamp;
-  private final String metadataPath;
+  private final Optional<String> metadataPath;
   private final String manifestListPath;
   private final List<ManifestFileInfo> manifestFiles;
 
@@ -55,7 +56,8 @@ public class IcebergSnapshotInfo {
   }
 
   public List<String> getAllPaths() {
-    List<String> result = Lists.newArrayList(metadataPath, manifestListPath);
+    List<String> result = metadataPath.isPresent() ? Lists.newArrayList(metadataPath.get()) : Lists.newArrayList();
+    result.add(manifestListPath);
     result.addAll(getManifestFilePaths());
     result.addAll(getAllDataFilePaths());
     return result;

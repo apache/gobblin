@@ -24,8 +24,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
@@ -69,8 +71,11 @@ IcebergDatasetTest {
     FileSystem fs = Mockito.mock(FileSystem.class);
     IcebergSnapshotInfo icebergSnapshotInfo = Mockito.mock(IcebergSnapshotInfo.class);
 
-    Mockito.when(icebergTable.getCurrentSnapshotInfo()).thenReturn(icebergSnapshotInfo);
+    Mockito.when(icebergTable.getIncrementalSnapshotInfosIterator()).thenReturn(Arrays.asList(icebergSnapshotInfo).iterator());
     Mockito.when(icebergSnapshotInfo.getAllPaths()).thenReturn(pathsToCopy);
+    Mockito.when(icebergSnapshotInfo.getSnapshotId()).thenReturn(98765L);
+    Mockito.when(icebergSnapshotInfo.getMetadataPath()).thenReturn(Optional.of("path for log message"));
+
     IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), fs);
 
     Map<Path, FileStatus> actual = icebergDataset.getFilePathsToFileStatus();
@@ -159,10 +164,10 @@ IcebergDatasetTest {
     }
 
     @Override
-    public IcebergSnapshotInfo getCurrentSnapshotInfo() {
+    public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() {
       Long snapshotId = 0L;
       Instant timestamp  = Instant.ofEpochMilli(0L);
-      return new IcebergSnapshotInfo(snapshotId, timestamp, metadataPath, manifestListPath, manifestFiles);
+      return Arrays.asList(new IcebergSnapshotInfo(snapshotId, timestamp, Optional.of(metadataPath), manifestListPath, manifestFiles)).iterator();
     }
   }
 

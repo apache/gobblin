@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
@@ -33,7 +34,6 @@ import org.apache.hadoop.fs.Path;
 import org.jetbrains.annotations.NotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -80,9 +80,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     this.properties = properties;
     this.sourceFs = sourceFs;
     this.sourceMetastoreURI =
-        Optional.fromNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY));
+        Optional.ofNullable(this.properties.getProperty(IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY));
     this.targetMetastoreURI =
-        Optional.fromNullable(this.properties.getProperty(TARGET_METASTORE_URI_KEY));
+        Optional.ofNullable(this.properties.getProperty(TARGET_METASTORE_URI_KEY));
   }
 
   /**
@@ -177,13 +177,17 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   protected Map<Path, FileStatus> getFilePathsToFileStatus() throws IOException {
     Map<Path, FileStatus> result = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
-    IcebergSnapshotInfo icebergSnapshotInfo = icebergTable.getCurrentSnapshotInfo();
-
-    log.info("{}.{} - loaded snapshot '{}' from metadata path: '{}'", dbName, inputTableName,
-        icebergSnapshotInfo.getSnapshotId(), icebergSnapshotInfo.getMetadataPath());
-    List<String> pathsToCopy = icebergSnapshotInfo.getAllPaths();
-
-    for (String pathString : pathsToCopy) {
+    Iterator<IcebergSnapshotInfo> icebergIncrementalSnapshotInfos = icebergTable.getIncrementalSnapshotInfosIterator();
+    Iterator<String> filePathsIterator = Iterators.concat(
+        Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
+          // TODO: decide: is it too much to print for every snapshot--should this level be `.debug`?
+          log.info("{}.{} - loaded snapshot '{}' from metadata path: '{}'", dbName, inputTableName,
+              snapshotInfo.getSnapshotId(), snapshotInfo.getMetadataPath().orElse("<<inherited>>"));
+          return snapshotInfo.getAllPaths().iterator();
+        })
+    );
+    Iterable<String> filePathsIterable = () -> filePathsIterator;
+    for (String pathString : filePathsIterable) {
       Path path = new Path(pathString);
       result.put(path, this.sourceFs.getFileStatus(path));
     }

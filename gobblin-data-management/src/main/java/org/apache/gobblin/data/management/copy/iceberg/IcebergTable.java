@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,16 +54,20 @@ public class IcebergTable {
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
     TableMetadata current = tableOps.current();
-    return createSnapshotInfo(current.currentSnapshot(), current.metadataFileLocation());
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
   }
 
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
   public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() {
     TableMetadata current = tableOps.current();
+    long currentSnapshotId = current.currentSnapshot().snapshotId();
     List<Snapshot> snapshots = current.snapshots();
     return Iterators.transform(snapshots.iterator(), snapshot -> {
       try {
-        return IcebergTable.this.createSnapshotInfo(snapshot, current.metadataFileLocation());
+        return IcebergTable.this.createSnapshotInfo(
+            snapshot,
+            currentSnapshotId == snapshot.snapshotId() ? Optional.of(current.metadataFileLocation()) : Optional.empty()
+        );
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -103,7 +108,7 @@ public class IcebergTable {
     }), snapshotInfo -> snapshotInfo.getManifestListPath() != null); // remove marked-as-repeat-manifest-list snapshots
   }
 
-  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, String metadataFileLocation) throws IOException {
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {
     // TODO: verify correctness, even when handling 'delete manifests'!
     List<ManifestFile> manifests = snapshot.allManifests();
     return new IcebergSnapshotInfo(

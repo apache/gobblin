@@ -174,9 +174,12 @@ public class IcebergTableTest extends HiveMetastoreTest {
   /** full validation for a particular {@link IcebergSnapshotInfo} */
   protected void verifySnapshotInfo(IcebergSnapshotInfo snapshotInfo, List<List<String>> perSnapshotFilesets, int overallNumSnapshots) {
     // verify metadata file
-    Optional<File> optMetadataFile = extractSomeMetadataFilepath(snapshotInfo.getMetadataPath(), metadataBasePath, IcebergTableTest::doesResembleMetadataFilename);
-    Assert.assertTrue(optMetadataFile.isPresent(), "has metadata filepath");
-    verifyMetadataFile(optMetadataFile.get(), Optional.of(overallNumSnapshots));
+    snapshotInfo.getMetadataPath().ifPresent(metadataPath -> {
+          Optional<File> optMetadataFile = extractSomeMetadataFilepath(metadataPath, metadataBasePath, IcebergTableTest::doesResembleMetadataFilename);
+          Assert.assertTrue(optMetadataFile.isPresent(), "has metadata filepath");
+          verifyMetadataFile(optMetadataFile.get(), Optional.of(overallNumSnapshots));
+        }
+    );
     // verify manifest list file
     Optional<File> optManifestListFile = extractSomeMetadataFilepath(snapshotInfo.getManifestListPath(), metadataBasePath, IcebergTableTest::doesResembleManifestListFilename);
     Assert.assertTrue(optManifestListFile.isPresent(), "has manifest list filepath");
@@ -186,7 +189,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     verifyManifestFiles(manifestFileInfos, snapshotInfo.getManifestFilePaths(), perSnapshotFilesets);
     verifyAnyOrder(snapshotInfo.getAllDataFilePaths(), flatten(perSnapshotFilesets), "data filepaths");
     // verify all aforementioned paths collectively equal `getAllPaths()`
-    List<String> allPathsExpected = Lists.newArrayList(snapshotInfo.getMetadataPath(), snapshotInfo.getManifestListPath());
+    List<String> allPathsExpected = Lists.newArrayList(snapshotInfo.getManifestListPath());
+    snapshotInfo.getMetadataPath().ifPresent(allPathsExpected::add);
     allPathsExpected.addAll(snapshotInfo.getManifestFilePaths());
     allPathsExpected.addAll(snapshotInfo.getAllDataFilePaths());
     verifyAnyOrder(snapshotInfo.getAllPaths(), allPathsExpected, "all paths, metadata and data");
