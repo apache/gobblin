@@ -132,7 +132,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     if (!this.update && requiresUpdate) {
       throw new IOException("Some files need to be copied but they already exist in the destination. "
-            + "Aborting because not running in update mode.");
+              + "Aborting because not running in update mode.");
     }
 
     if (this.delete) {
@@ -158,13 +158,13 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       }
 
       CopyableFile copyableFile =
-            CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
-                  .fileSet(datasetURN())
-                  .datasetOutputPath(thisTargetPath.toString())
-                  .ancestorsOwnerAndPermission(CopyableFile
-                        .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
-                            replacedPrefix, configuration))
-                  .build();
+              CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
+                     .fileSet(datasetURN())
+                      .datasetOutputPath(thisTargetPath.toString())
+                      .ancestorsOwnerAndPermission(CopyableFile
+                              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
+                                    replacedPrefix, configuration))
+                      .build();
       copyableFile.setFsDatasets(this.fs, targetFs);
       copyableFiles.add(copyableFile);
     }
@@ -172,7 +172,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     if (!toDelete.isEmpty()) {
       CommitStep step = new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
-            this.deleteEmptyDirectories ? Optional.of(deleteEmptyDirectoriesUpTo) : Optional.<Path>absent());
+              this.deleteEmptyDirectories ? Optional.of(deleteEmptyDirectoriesUpTo) : Optional.<Path>absent());
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
     }
 
@@ -200,7 +200,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
         createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
 
     return getCopyableFilesImpl(configuration, filesInSource, filesInTarget, targetFs,
-          nonGlobSearchPath, configuration.getPublishDir(), targetPath);
+            nonGlobSearchPath, configuration.getPublishDir(), targetPath);
   }
 
   @VisibleForTesting
