@@ -106,12 +106,12 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   protected Collection<? extends CopyEntity> getCopyableFilesImpl(CopyConfiguration configuration,
-                                                                  Map<Path, FileStatus> filesInSource,
-                                                                  Map<Path, FileStatus> filesInTarget,
-                                                                  FileSystem targetFs,
-                                                                  Path replacedPrefix,
-                                                                  Path replacingPrefix,
-                                                                  Path deleteEmptyDirectoriesUpTo) throws IOException {
+      Map<Path, FileStatus> filesInSource,
+      Map<Path, FileStatus> filesInTarget,
+      FileSystem targetFs,
+      Path replacedPrefix,
+      Path replacingPrefix,
+      Path deleteEmptyDirectoriesUpTo) throws IOException {
     List<Path> toCopy = Lists.newArrayList();
     Map<Path, FileStatus> toDelete = Maps.newHashMap();
     boolean requiresUpdate = false;
@@ -132,7 +132,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     if (!this.update && requiresUpdate) {
       throw new IOException("Some files need to be copied but they already exist in the destination. "
-              + "Aborting because not running in update mode.");
+          + "Aborting because not running in update mode.");
     }
 
     if (this.delete) {
@@ -158,13 +158,13 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       }
 
       CopyableFile copyableFile =
-              CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
-                      .fileSet(datasetURN())
-                      .datasetOutputPath(thisTargetPath.toString())
-                      .ancestorsOwnerAndPermission(CopyableFile
-                              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
-                                      replacedPrefix, configuration))
-                      .build();
+          CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
+              .fileSet(datasetURN())
+              .datasetOutputPath(thisTargetPath.toString())
+              .ancestorsOwnerAndPermission(CopyableFile
+                  .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
+                      replacedPrefix, configuration))
+              .build();
       copyableFile.setFsDatasets(this.fs, targetFs);
       copyableFiles.add(copyableFile);
     }
@@ -172,7 +172,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     if (!toDelete.isEmpty()) {
       CommitStep step = new DeleteFileCommitStep(targetFs, toDelete.values(), this.properties,
-              this.deleteEmptyDirectories ? Optional.of(deleteEmptyDirectoriesUpTo) : Optional.<Path>absent());
+          this.deleteEmptyDirectories ? Optional.of(deleteEmptyDirectoriesUpTo) : Optional.<Path>absent());
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
     }
 
@@ -196,28 +196,22 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     Map<Path, FileStatus> filesInSource =
         createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
-
-    // Allow fileNotFoundException for filesInTarget since if it doesn't exist, they will be created.
-    List<FileStatus> filesAtPath = Lists.newArrayList();
-    try {
-      filesAtPath = getFilesAtPath(targetFs, targetPath, this.pathFilter);
-    } catch (FileNotFoundException e) {
-      log.info(String.format("Could not find any files on targetFs %s path %s.", targetFs.getUri(), targetPath));
-    }
-    Map<Path, FileStatus> filesInTarget = createPathMap(filesAtPath, targetPath);
+    Map<Path, FileStatus> filesInTarget =
+        createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
 
     return getCopyableFilesImpl(configuration, filesInSource, filesInTarget, targetFs,
-            nonGlobSearchPath, configuration.getPublishDir(), targetPath);
+        nonGlobSearchPath, configuration.getPublishDir(), targetPath);
   }
 
   @VisibleForTesting
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
-      throws FileNotFoundException {
+      throws IOException {
     try {
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
-    } catch (IOException e) {
-      throw new FileNotFoundException(String.format("Could not find any files on fs %s path %s.", fs.getUri(), path));
+    } catch (FileNotFoundException fnfe) {
+      log.warn(String.format("Could not find any files on fs %s path %s due to the following exception. Returning an empty list of files.", fs.getUri(), path), fnfe);
+      return Lists.newArrayList();
     }
   }
 

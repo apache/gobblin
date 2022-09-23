@@ -16,7 +16,7 @@
  */
 package org.apache.gobblin.data.management.copy;
 
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -109,7 +109,7 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
 
   @Override
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
-      throws FileNotFoundException {
+      throws IOException {
 
     // Filter files by lookback period (fileNames >= startDate and fileNames <= endDate)
     PathFilter andPathFilter = new AndPathFilter(fileFilter, new TimestampPathFilter());
