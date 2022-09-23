@@ -152,6 +152,7 @@ public class ServiceConfigKeys {
 
   public static final int MAX_FLOW_NAME_LENGTH = 128; // defined in FlowId.pdl
   public static final int MAX_FLOW_GROUP_LENGTH = 128; // defined in FlowId.pdl
+  public static final int MAX_FLOW_EXECUTION_ID_LENGTH = 13; // length of flowExecutionId which is epoch timestamp
   public static final int MAX_JOB_NAME_LENGTH = 374;
   public static final int MAX_JOB_GROUP_LENGTH = 374;
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";

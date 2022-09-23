@@ -80,15 +80,15 @@ public class MysqlDagStateStoreTest {
     _dagStateStore.writeCheckpoint(dag_1);
 
     // Verify get one dag
-    Dag<JobExecutionPlan> dag = _dagStateStore.getDag(DagManagerUtils.generateDagId(dag_0));
+    Dag<JobExecutionPlan> dag = _dagStateStore.getDag(DagManagerUtils.generateDagId(dag_0).toString());
     Assert.assertEquals(dag.getNodes().get(0), dag_0.getNodes().get(0));
     Assert.assertEquals(dag.getNodes().get(1), dag_0.getNodes().get(1));
 
     // Verify get dagIds
     Set<String> dagIds = _dagStateStore.getDagIds();
     Assert.assertEquals(dagIds.size(), 2);
-    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_0)));
-    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_1)));
+    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_0).toString()));
+    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_1).toString()));
 
     // Verify get all dags
     List<Dag<JobExecutionPlan>> dags = _dagStateStore.getDags();
@@ -145,7 +145,7 @@ public class MysqlDagStateStoreTest {
     Assert.assertEquals(dags.size(), 2);
 
     _dagStateStore.cleanUp(dags.get(0));
-    _dagStateStore.cleanUp(DagManagerUtils.generateDagId(dags.get(1)));
+    _dagStateStore.cleanUp(DagManagerUtils.generateDagId(dags.get(1)).toString());
 
     dags = _dagStateStore.getDags();
     Assert.assertEquals(dags.size(), 0);

@@ -18,6 +18,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -75,8 +76,8 @@ public class DagManagerTest {
   private DagManagerMetrics _dagManagerMetrics;
   private DagManager.DagManagerThread _dagManagerThread;
   private LinkedBlockingQueue<Dag<JobExecutionPlan>> queue;
-  private LinkedBlockingQueue<String> cancelQueue;
-  private LinkedBlockingQueue<String> resumeQueue;
+  private LinkedBlockingQueue<DagManager.DagId> cancelQueue;
+  private LinkedBlockingQueue<DagManager.DagId> resumeQueue;
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
@@ -103,7 +104,8 @@ public class DagManagerTest {
     this._gobblinServiceQuotaManager = new InMemoryUserQuotaManager(quotaConfig);
     this._dagManagerMetrics = new DagManagerMetrics(metricContext);
     this._dagManagerMetrics.activate();
-    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore, queue, cancelQueue,
+    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _failedDagStateStore,
+        Optional.absent(), queue, cancelQueue,
         resumeQueue, true, new HashSet<>(), this._dagManagerMetrics, START_SLA_DEFAULT, _gobblinServiceQuotaManager, 0);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
@@ -206,7 +208,7 @@ public class DagManagerTest {
     String jobName2 = "job2";
 
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -287,7 +289,7 @@ public class DagManagerTest {
       String jobName2 = "job2";
 
       Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, failureOption, false);
-      String dagId = DagManagerUtils.generateDagId(dag);
+      String dagId = DagManagerUtils.generateDagId(dag).toString();
 
       //Add a dag to the queue of dags
       this.queue.offer(dag);
@@ -391,7 +393,7 @@ public class DagManagerTest {
     String jobName2 = "job2";
 
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -443,7 +445,7 @@ public class DagManagerTest {
     Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
-    this.resumeQueue.offer(dagId);
+    this.resumeQueue.offer(DagManagerUtils.generateDagId(dag));
 
     // Job2 rerunning
     this._dagManagerThread.run();
@@ -470,7 +472,7 @@ public class DagManagerTest {
     String jobName2 = "job2";
 
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -549,7 +551,7 @@ public class DagManagerTest {
     String jobName0 = "job0";
 
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -614,7 +616,7 @@ public class DagManagerTest {
     String jobName2 = "job2";
 
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -664,13 +666,13 @@ public class DagManagerTest {
     }
 
     // Cancel job2
-    this.cancelQueue.offer(dagId);
+    this.cancelQueue.offer(DagManagerUtils.generateDagId(dag));
 
     this._dagManagerThread.run();
     Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
-    this.resumeQueue.offer(dagId);
+    this.resumeQueue.offer(DagManagerUtils.generateDagId(dag));
 
     // Job2 rerunning
     this._dagManagerThread.run();
@@ -697,8 +699,8 @@ public class DagManagerTest {
     Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", false);
     Dag<JobExecutionPlan> dag1 = buildDag(flowGroupId1, flowExecutionId+1, "FINISH_RUNNING", false);
 
-    String dagId = DagManagerUtils.generateDagId(dag);
-    String dagId1 = DagManagerUtils.generateDagId(dag1);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
+    String dagId1 = DagManagerUtils.generateDagId(dag1).toString();
 
 
     //Add a dag to the queue of dags
@@ -828,7 +830,6 @@ public class DagManagerTest {
     JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
     jobExecutionPlans.add(jobExecutionPlan);
     Dag<JobExecutionPlan> dag = (new JobExecutionPlanDagFactory()).createDag(jobExecutionPlans);
-    String dagId = DagManagerUtils.generateDagId(dag);
 
     //Add a dag to the queue of dags
     this.queue.offer(dag);
@@ -1225,11 +1226,11 @@ public class DagManagerTest {
     private final Map<String, Dag<JobExecutionPlan>> dags = new ConcurrentHashMap<>();
 
     public void writeCheckpoint(Dag<JobExecutionPlan> dag) {
-      dags.put(DagManagerUtils.generateDagId(dag), dag);
+      dags.put(DagManagerUtils.generateDagId(dag).toString(), dag);
     }
 
     public void cleanUp(Dag<JobExecutionPlan> dag) {
-      cleanUp(DagManagerUtils.generateDagId(dag));
+      cleanUp(DagManagerUtils.generateDagId(dag).toString());
     }
 
     public void cleanUp(String dagId) {
