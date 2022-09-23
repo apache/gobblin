@@ -123,7 +123,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
   /**
    * Generates {@link FileSet}s, being themselves able to generate {@link CopyEntity}s for all files, data and metadata,
-   * that comprise the iceberg/table, to fully specify remaining table replication.
+   * comprising the iceberg/table, so as to fully specify remaining table replication.
    */
   protected Iterator<FileSet<CopyEntity>> createFileSets(FileSystem targetFs, CopyConfiguration configuration) {
     FileSet<CopyEntity> fileSet = new IcebergTableFileSet(this.getInputTableName(), this, targetFs, configuration);

@@ -43,6 +43,7 @@ public class IcebergSnapshotInfo {
 
   private final Long snapshotId;
   private final Instant timestamp;
+  /** only for the current snapshot, being whom the metadata file 'belongs to'; `isEmpty()` for all other snapshots */
   private final Optional<String> metadataPath;
   private final String manifestListPath;
   private final List<ManifestFileInfo> manifestFiles;

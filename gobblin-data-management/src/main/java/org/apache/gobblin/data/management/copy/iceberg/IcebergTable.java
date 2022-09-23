@@ -117,11 +117,11 @@ public class IcebergTable {
         metadataFileLocation,
         snapshot.manifestListLocation(),
         // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
-        calcAllManifestFileInfo(manifests, tableOps.io())
+        calcAllManifestFileInfos(manifests, tableOps.io())
       );
   }
 
-  protected static List<IcebergSnapshotInfo.ManifestFileInfo> calcAllManifestFileInfo(List<ManifestFile> manifests, FileIO io) throws IOException {
+  protected static List<IcebergSnapshotInfo.ManifestFileInfo> calcAllManifestFileInfos(List<ManifestFile> manifests, FileIO io) throws IOException {
     List<ManifestFileInfo> result = Lists.newArrayList();
     for (ManifestFile manifest : manifests) {
       result.add(calcManifestFileInfo(manifest, io));
