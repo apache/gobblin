@@ -326,7 +326,7 @@ public class RecursiveCopyableDatasetTest {
 
     @Override
     protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
-        throws IOException {
+        throws RuntimeException {
       if (path.equals(this.source)) {
         return this.sourceFiles;
       } else if (path.equals(this.target)) {

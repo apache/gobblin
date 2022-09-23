@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -127,7 +127,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   }
 
   @Override
-  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
+  protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws
+                                                                                             FileNotFoundException {
     LocalDateTime endDate = currentTime;
     DateTimeFormatter formatter = DateTimeFormat.forPattern(this.datePattern);
     LocalDateTime startDate = formatter.parseLocalDateTime(endDate.minus(this.lookbackPeriod).toString(this.datePattern));
@@ -161,7 +162,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   }
 
   private List<FileStatus> recursivelyGetFilesAtDatePath(FileSystem fs, Path path, String traversedDatePath, PathFilter fileFilter,
-      int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws IOException {
+      int level,  LocalDateTime startDate, LocalDateTime endDate, DateTimeFormatter formatter) throws FileNotFoundException {
     List<FileStatus> fileStatuses = Lists.newArrayList();
     if (!traversedDatePath.isEmpty()) {
       if (!checkPathDateTimeValidity(startDate, endDate, traversedDatePath, this.datePattern, level)) {

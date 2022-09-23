@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -195,8 +196,14 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     Map<Path, FileStatus> filesInSource =
         createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
-    Map<Path, FileStatus> filesInTarget =
-        createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
+
+    // Allow fileNotFoundException for filesInTarget since if it doesn't exist, they will be created.
+    Map <Path, FileStatus> filesInTarget;
+    try {
+      filesInTarget = createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
+    } catch (FileNotFoundException e) {
+      filesInTarget = createPathMap(Lists.newArrayList(), targetPath);
+    }
 
     return getCopyableFilesImpl(configuration, filesInSource, filesInTarget, targetFs,
             nonGlobSearchPath, configuration.getPublishDir(), targetPath);
@@ -204,13 +211,12 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
   @VisibleForTesting
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter)
-      throws IOException {
+      throws FileNotFoundException {
     try {
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
     } catch (IOException e) {
-      log.warn(String.format("Could not find any files on fs %s path %s due to the following exception. Returning an empty list of files.", fs.getUri(), path), e);
-      return Lists.newArrayList();
+      throw new FileNotFoundException(String.format("Could not find any files on fs %s path %s.", fs.getUri(), path));
     }
   }
 
