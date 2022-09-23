@@ -159,11 +159,11 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
       CopyableFile copyableFile =
               CopyableFile.fromOriginAndDestination(this.fs, file, thisTargetPath, configuration)
-                     .fileSet(datasetURN())
+                      .fileSet(datasetURN())
                       .datasetOutputPath(thisTargetPath.toString())
                       .ancestorsOwnerAndPermission(CopyableFile
                               .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
-                                    replacedPrefix, configuration))
+                                      replacedPrefix, configuration))
                       .build();
       copyableFile.setFsDatasets(this.fs, targetFs);
       copyableFiles.add(copyableFile);
