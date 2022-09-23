@@ -303,25 +303,31 @@ public class YarnServiceTest {
   static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
-      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, getMockHelixManager(config));
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, getMockHelixManager(config), getMockHelixAdmin());
     }
 
     private static HelixManager getMockHelixManager(Config config) {
       HelixManager helixManager = Mockito.mock(HelixManager.class);
-      HelixAdmin helixAdmin = Mockito.mock(HelixAdmin.class);
       HelixDataAccessor helixDataAccessor = Mockito.mock(HelixDataAccessor.class);
       PropertyKey propertyKey = Mockito.mock(PropertyKey.class);
       PropertyKey.Builder propertyKeyBuilder = Mockito.mock(PropertyKey.Builder.class);
 
       Mockito.when(helixManager.getInstanceName()).thenReturn("helixInstance1");
       Mockito.when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-      Mockito.doNothing().when(helixAdmin).enableInstance(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
+
       Mockito.when(helixManager.getHelixDataAccessor()).thenReturn(helixDataAccessor);
       Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(propertyKeyBuilder);
       Mockito.when(propertyKeyBuilder.liveInstance(Mockito.anyString())).thenReturn(propertyKey);
       Mockito.when(helixDataAccessor.getProperty(propertyKey)).thenReturn(null);
 
       return helixManager;
+    }
+
+    private static HelixAdmin getMockHelixAdmin() {
+      HelixAdmin helixAdmin = Mockito.mock(HelixAdmin.class);
+      Mockito.doNothing().when(helixAdmin).purgeOfflineInstances(Mockito.anyString(), Mockito.anyLong());
+      Mockito.doNothing().when(helixAdmin).enableInstance(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
+      return helixAdmin;
     }
 
     protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
