@@ -198,12 +198,13 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
         createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
 
     // Allow fileNotFoundException for filesInTarget since if it doesn't exist, they will be created.
-    Map <Path, FileStatus> filesInTarget;
+    List<FileStatus> filesAtPath = Lists.newArrayList();
     try {
-      filesInTarget = createPathMap(getFilesAtPath(targetFs, targetPath, this.pathFilter), targetPath);
+      filesAtPath = getFilesAtPath(targetFs, targetPath, this.pathFilter);
     } catch (FileNotFoundException e) {
-      filesInTarget = createPathMap(Lists.newArrayList(), targetPath);
+      log.info(String.format("Could not find any files on targetFs %s path %s.", targetFs.getUri(), targetPath));
     }
+    Map<Path, FileStatus> filesInTarget = createPathMap(filesAtPath, targetPath);
 
     return getCopyableFilesImpl(configuration, filesInSource, filesInTarget, targetFs,
             nonGlobSearchPath, configuration.getPublishDir(), targetPath);
