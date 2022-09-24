@@ -52,6 +52,17 @@ public class MysqlUserQuotaManagerTest {
   }
 
   @Test
+  public void testRunningDagStore() throws Exception {
+    String dagId = DagManagerUtils.generateDagId(DagManagerTest.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
+    Assert.assertFalse(this.quotaManager.containsDagId(dagId));
+    this.quotaManager.addDagId(dagId);
+    Assert.assertTrue(this.quotaManager.containsDagId(dagId));
+    Assert.assertTrue(this.quotaManager.removeDagId(dagId));
+    Assert.assertFalse(this.quotaManager.containsDagId(dagId));
+    Assert.assertFalse(this.quotaManager.removeDagId(dagId));
+  }
+
+    @Test
   public void testIncreaseCount() throws Exception {
     int prevCount = this.quotaManager.incrementJobCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
     Assert.assertEquals(prevCount, 0);

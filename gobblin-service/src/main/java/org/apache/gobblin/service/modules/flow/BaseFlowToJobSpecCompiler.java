@@ -24,7 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.inject.Inject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +92,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Setter
   protected boolean active;
 
+  private boolean warmStandbyEnabled;
+
+  @Inject
+  UserQuotaManager userQuotaManager;
+
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
   }
@@ -118,6 +125,8 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       this.flowCompilationTimer = Optional.absent();
       this.dataAuthorizationTimer = Optional.absent();
     }
+
+    this.warmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
 
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
@@ -181,6 +190,18 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
     // always try to compile the flow to verify if it is compilable
     Dag<JobExecutionPlan> dag = this.compileFlow(flowSpec);
+
+    if (this.warmStandbyEnabled &&
+        (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
+      try {
+        // todo : we should probably check quota for all of the start nodes
+        userQuotaManager.checkQuota(dag.getNodes().get(0));
+        flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
     // If dag is null then a compilation error has occurred
     if (dag != null && !dag.isEmpty()) {
       response = dag.toString();

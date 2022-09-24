@@ -47,12 +47,30 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Singleton
 public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
-  private final MysqlQuotaStore mysqlStore;
+  private final MysqlQuotaStore quotaStore;
+  private final RunningDagIdsStore runningDagIds;
+
 
   @Inject
   public MysqlUserQuotaManager(Config config) throws IOException {
     super(config);
-    this.mysqlStore = createQuotaStore(config);
+    this.quotaStore = createQuotaStore(config);
+    this.runningDagIds = createRunningDagStore(config);
+  }
+
+  @Override
+  void addDagId(String dagId) throws IOException {
+    this.runningDagIds.add(dagId);
+  }
+
+  @Override
+  boolean containsDagId(String dagId) throws IOException {
+    return this.runningDagIds.contains(dagId);
+  }
+
+  @Override
+  boolean removeDagId(String dagId) throws IOException {
+    return this.runningDagIds.remove(dagId);
   }
 
   // This implementation does not need to update quota usage when the service restarts or it's leadership status changes
@@ -62,7 +80,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   @Override
   int incrementJobCount(String user, CountType countType) throws IOException {
     try {
-      return this.mysqlStore.increaseCount(user, countType);
+      return this.quotaStore.increaseCount(user, countType);
     } catch (SQLException e) {
       throw new IOException(e);
     }
@@ -71,7 +89,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   @Override
   void decrementJobCount(String user, CountType countType) throws IOException {
     try {
-      this.mysqlStore.decreaseCount(user, countType);
+      this.quotaStore.decreaseCount(user, countType);
     } catch (SQLException e) {
       throw new IOException(e);
     }
@@ -79,7 +97,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
 
   @VisibleForTesting
   int getCount(String name, CountType countType) throws IOException {
-    return this.mysqlStore.getCount(name, countType);
+    return this.quotaStore.getCount(name, countType);
   }
 
   /**
@@ -92,6 +110,15 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
 
     return new MysqlQuotaStore(basicDataSource, quotaStoreTableName);
+  }
+
+  protected RunningDagIdsStore createRunningDagStore(Config config) throws IOException {
+    String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.RUNNING_DAG_IDS_DB_TABLE_KEY,
+        ServiceConfigKeys.DEFAULT_RUNNING_DAG_IDS_DB_TABLE);
+
+    BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
+
+    return new RunningDagIdsStore(basicDataSource, quotaStoreTableName);
   }
 
   static class MysqlQuotaStore {
@@ -253,6 +280,72 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
           rs.close();
         }
         connection.close();
+      }
+    }
+  }
+
+  static class RunningDagIdsStore {
+    protected final DataSource dataSource;
+    final String tableName;
+    private final String CONTAINS_DAG_ID;
+    private final String ADD_DAG_ID;
+    private final String REMOVE_DAG_ID;
+
+    public RunningDagIdsStore(BasicDataSource dataSource, String tableName)
+        throws IOException {
+      this.dataSource = dataSource;
+      this.tableName = tableName;
+
+      CONTAINS_DAG_ID = "SELECT EXISTS(SELECT * FROM " + tableName + " WHERE dagId = ?)" ;
+      ADD_DAG_ID = "INSERT INTO " + tableName + " (dagId) VALUES (?) ";
+      REMOVE_DAG_ID = "DELETE FROM " + tableName + " WHERE dagId = ?";
+
+      String createQuotaTable = "CREATE TABLE IF NOT EXISTS " + tableName + " (dagId VARCHAR(500) CHARACTER SET latin1 NOT NULL, "
+          + "PRIMARY KEY (dagId), UNIQUE INDEX ind (dagId))";
+      try (Connection connection = dataSource.getConnection(); PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {
+        createStatement.executeUpdate();
+      } catch (SQLException e) {
+        throw new IOException("Failure creation table " + tableName, e);
+      }
+    }
+
+    /**
+     * returns true if the DagID is already present in the running dag store
+     */
+    @VisibleForTesting
+    boolean contains(String dagId) throws IOException {
+      try (Connection connection = dataSource.getConnection();
+          PreparedStatement queryStatement = connection.prepareStatement(CONTAINS_DAG_ID)) {
+        queryStatement.setString(1, dagId);
+        try (ResultSet rs = queryStatement.executeQuery()) {
+          rs.next();
+          return rs.getBoolean(1);
+        }
+      } catch (Exception e) {
+        throw new IOException("Could not find if the dag " + dagId + " is already running.", e);
+      }
+    }
+
+    public void add(String dagId) throws IOException {
+      try (Connection connection = dataSource.getConnection();
+          PreparedStatement statement = connection.prepareStatement(ADD_DAG_ID)) {
+        statement.setString(1, dagId);
+        statement.executeUpdate();
+        connection.commit();
+      } catch (SQLException e) {
+        throw new IOException("Failure adding dag " + dagId, e);
+      }
+    }
+
+    public boolean remove(String dagId) throws IOException {
+      try (Connection connection = dataSource.getConnection();
+          PreparedStatement statement = connection.prepareStatement(REMOVE_DAG_ID)) {
+        statement.setString(1, dagId);
+        int count = statement.executeUpdate();
+        connection.commit();
+        return count == 1;
+      } catch (SQLException e) {
+        throw new IOException("Could not remove dag " + dagId, e);
       }
     }
   }

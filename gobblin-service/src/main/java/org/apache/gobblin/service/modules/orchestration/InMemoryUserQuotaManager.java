@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +43,27 @@ public class InMemoryUserQuotaManager extends AbstractUserQuotaManager {
   private final Map<String, Integer> flowGroupToJobCount = new ConcurrentHashMap<>();
   private final Map<String, Integer> requesterToJobCount = new ConcurrentHashMap<>();
 
+  private final Set<String> runningDagIds;
+
   @Inject
   public InMemoryUserQuotaManager(Config config) {
     super(config);
+    this.runningDagIds = ConcurrentHashMap.newKeySet();;
+  }
+
+  @Override
+  void addDagId(String dagId) {
+    this.runningDagIds.add(dagId);
+  }
+
+  @Override
+  boolean containsDagId(String dagId) {
+    return this.runningDagIds.contains(dagId);
+  }
+
+  @Override
+  boolean removeDagId(String dagId) {
+    return this.runningDagIds.remove(dagId);
   }
 
   public void init(Collection<Dag<JobExecutionPlan>> dags) throws IOException {

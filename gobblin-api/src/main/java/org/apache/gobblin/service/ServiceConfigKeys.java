@@ -151,6 +151,10 @@ public class ServiceConfigKeys {
   public static final String QUOTA_STORE_DB_TABLE_KEY = "quota.store.db.table";
   public static final String DEFAULT_QUOTA_STORE_DB_TABLE = "quota_table";
 
+  public static final String RUNNING_DAG_IDS_DB_TABLE_KEY = "running.dag.ids.store.db.table";
+  public static final String DEFAULT_RUNNING_DAG_IDS_DB_TABLE = "running_dag_ids";
+
+
   // Group Membership authentication service
   public static final String GROUP_OWNERSHIP_SERVICE_CLASS = GOBBLIN_SERVICE_PREFIX + "groupOwnershipService.class";
   public static final String DEFAULT_GROUP_OWNERSHIP_SERVICE = "org.apache.gobblin.service.NoopGroupOwnershipService";
