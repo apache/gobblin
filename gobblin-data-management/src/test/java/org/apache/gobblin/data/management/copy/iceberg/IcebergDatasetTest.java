@@ -199,7 +199,7 @@ public class IcebergDatasetTest {
     private final List<SnapshotPaths> snapshotPathsList;
 
     public MockedIcebergTable(List<SnapshotPaths> snapshotPathsList) {
-      super(null);
+      super(null, null);
       this.snapshotPathsList = Lists.newCopyOnWriteArrayList(snapshotPathsList);
     }
 

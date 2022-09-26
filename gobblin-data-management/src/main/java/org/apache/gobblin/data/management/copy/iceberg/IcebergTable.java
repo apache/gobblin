@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.iceberg.ManifestFile;
@@ -33,6 +34,7 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 
@@ -49,17 +51,30 @@ import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInf
 @Slf4j
 @AllArgsConstructor
 public class IcebergTable {
+
+  /** Indicate the table identified by `tableId` does not (or does no longer) exist in the catalog */
+  public static class TableNotFoundException extends IOException {
+    @Getter
+    private final TableIdentifier tableId; // stored purely for logging / diagnostics
+
+    public TableNotFoundException(TableIdentifier tableId) {
+      super("Not found: '" + tableId + "'");
+      this.tableId = tableId;
+    }
+  }
+
+  private final TableIdentifier tableId;
   private final TableOperations tableOps;
 
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
-    TableMetadata current = tableOps.current();
+    TableMetadata current = accessTableMetadata();
     return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
   }
 
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
-  public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() {
-    TableMetadata current = tableOps.current();
+  public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
+    TableMetadata current = accessTableMetadata();
     long currentSnapshotId = current.currentSnapshot().snapshotId();
     List<Snapshot> snapshots = current.snapshots();
     return Iterators.transform(snapshots.iterator(), snapshot -> {
@@ -78,7 +93,7 @@ public class IcebergTable {
    * @return metadata info for all known snapshots, but incrementally, so content overlap between snapshots appears
    * only within the first as they're ordered historically, with *most recent last*
    */
-  public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() {
+  public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() throws IOException {
     // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
     Set<String> knownManifestListFilePaths = Sets.newHashSet();
     Set<String> knownManifestFilePaths = Sets.newHashSet();
@@ -106,6 +121,12 @@ public class IcebergTable {
         return snapshotInfo.toBuilder().manifestFiles(novelManifestInfos).build(); // replace manifestFiles
       }
     }), snapshotInfo -> snapshotInfo.getManifestListPath() != null); // remove marked-as-repeat-manifest-list snapshots
+  }
+
+  /** @throws {@link IcebergTable.TableNotFoundException} when table does not exist */
+  protected TableMetadata accessTableMetadata() throws TableNotFoundException {
+    TableMetadata current = this.tableOps.current();
+    return Optional.ofNullable(current).orElseThrow(() -> new TableNotFoundException(this.tableId));
   }
 
   protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {

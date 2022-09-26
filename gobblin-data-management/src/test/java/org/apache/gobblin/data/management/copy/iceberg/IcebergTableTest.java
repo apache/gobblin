@@ -101,8 +101,16 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    IcebergSnapshotInfo snapshotInfo = new IcebergTable(catalog.newTableOps(tableId)).getCurrentSnapshotInfo();
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId)).getCurrentSnapshotInfo();
     verifySnapshotInfo(snapshotInfo, perSnapshotFilesets, perSnapshotFilesets.size());
+  }
+
+  /** Verify failure when attempting to get current snapshot info for non-existent table */
+  @Test(expectedExceptions = IcebergTable.TableNotFoundException.class)
+  public void testGetCurrentSnapshotInfoOnBogusTable() throws IOException {
+    TableIdentifier bogusTableId = TableIdentifier.of(dbName, tableName + "_BOGUS");
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId)).getCurrentSnapshotInfo();
+    Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
   }
 
   /** Verify info about all (full) snapshots */
@@ -116,7 +124,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getAllSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId)).getAllSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -136,7 +144,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -156,7 +164,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {

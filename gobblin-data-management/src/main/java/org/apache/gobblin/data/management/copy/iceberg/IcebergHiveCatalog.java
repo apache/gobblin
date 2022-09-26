@@ -35,6 +35,7 @@ public class IcebergHiveCatalog implements IcebergCatalog {
 
   @Override
   public IcebergTable openTable(String dbName, String tableName) {
-    return new IcebergTable(hc.newTableOps(TableIdentifier.of(dbName, tableName)));
+    TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
+    return new IcebergTable(tableId, hc.newTableOps(tableId));
   }
 }
