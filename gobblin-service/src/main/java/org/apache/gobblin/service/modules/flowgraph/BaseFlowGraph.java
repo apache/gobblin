@@ -45,6 +45,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
+  // Synchronize read/write access while the flowgraph is in the middle of an update
   private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
   private final Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();

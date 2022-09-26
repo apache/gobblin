@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -107,7 +106,7 @@ public class BaseFlowGraphHelper {
    * to instantiate a {@link DataNode} from the node config file.
    * @param path of node to add
    */
-   public void addDataNode(FlowGraph graph, String path) {
+  protected void addDataNode(FlowGraph graph, String path) {
     if (checkFilePath(path, NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -130,29 +129,11 @@ public class BaseFlowGraphHelper {
   }
 
   /**
-   * Remove a {@link DataNode} from the {@link FlowGraph}. The method extracts the nodeId of the
-   * {@link DataNode} from the node config file and uses it to delete the associated {@link DataNode}.
-   * @param path of node to delete
-   */
-  public void removeDataNode(FlowGraph graph, String path) {
-    if (checkFilePath(path, NODE_FILE_DEPTH)) {
-      Path nodeFilePath = new Path(this.baseDirectory, path);
-      Config config = getNodeConfigWithOverrides(ConfigFactory.empty(), nodeFilePath);
-      String nodeId = config.getString(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY);
-      if (!graph.deleteDataNode(nodeId)) {
-        log.warn("Could not remove DataNode {} from FlowGraph; skipping", nodeId);
-      } else {
-        log.info("Removed DataNode {} from FlowGraph", nodeId);
-      }
-    }
-  }
-
-  /**
    * Add a {@link FlowEdge} to the {@link FlowGraph}. The method uses the {@link FlowEdgeFactory} instance
    * provided by the {@link FlowGraph} to build a {@link FlowEdge} from the edge config file.
    * @param path of edge to add
    */
-  public void addFlowEdge(FlowGraph graph, String path) {
+  protected void addFlowEdge(FlowGraph graph, String path) {
     if (checkFilePath(path, EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.baseDirectory, path);
       try {
@@ -175,32 +156,6 @@ public class BaseFlowGraphHelper {
         }
       } catch (Exception e) {
         log.warn("Could not add edge defined in {} due to exception", path, e);
-        if (this.flowGraphUpdateFailedMeter.isPresent()) {
-          this.flowGraphUpdateFailedMeter.get().mark();
-        }
-      }
-    }
-  }
-
-  /**
-   * Remove a {@link FlowEdge} from the {@link FlowGraph}. The method uses {@link FlowEdgeFactory}
-   * to construct the edgeId of the {@link FlowEdge} from the config file and uses it to delete the associated
-   * {@link FlowEdge}.
-   * @param path of edge to delete
-   */
-   public void removeFlowEdge(FlowGraph graph, String path) {
-    if (checkFilePath(path, EDGE_FILE_DEPTH)) {
-      Path edgeFilePath = new Path(this.baseDirectory, path);
-      try {
-        Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
-        String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
-        if (!graph.deleteFlowEdge(edgeId)) {
-          log.warn("Could not remove edge {} from FlowGraph; skipping", edgeId);
-        } else {
-          log.info("Removed edge {} from FlowGraph", edgeId);
-        }
-      } catch (Exception e) {
-        log.warn("Could not remove edge defined in {} due to exception", edgeFilePath, e);
         if (this.flowGraphUpdateFailedMeter.isPresent()) {
           this.flowGraphUpdateFailedMeter.get().mark();
         }
@@ -326,7 +281,7 @@ public class BaseFlowGraphHelper {
    * Expects edges to be in the format of /flowGraphName/nodeA/nodeB/edgeAB.properties
    * The current flowgraph will be swapped atomically with the new flowgraph that is loaded
    */
-  public void populateFlowGraphAtomically(AtomicReference<FlowGraph> flowGraphReference) {
+  public FlowGraph generateFlowGraph() {
     FlowGraph newFlowGraph = new BaseFlowGraph();
     java.nio.file.Path graphPath = new File(this.baseDirectory).toPath();
     try {
@@ -345,12 +300,14 @@ public class BaseFlowGraphHelper {
       for (Path edge : edges) {
         addFlowEdge(newFlowGraph, edge.toString());
       }
-      flowGraphReference.set(newFlowGraph);
+      return newFlowGraph;
     } catch (IOException e) {
+      // Log and report error, but do not break or crash the flowgraph so that currently running flows can continue
       if (this.flowGraphUpdateFailedMeter.isPresent()) {
         this.flowGraphUpdateFailedMeter.get().mark();
       }
       log.error(String.format("Error while populating file based flowgraph at path %s", graphPath), e);
+      return null;
     }
   }
 

@@ -675,67 +675,6 @@ public class MultiHopFlowCompilerTest {
     spec.getCompilationErrors().stream().anyMatch(s -> s.errorMessage.contains("Flowgraph does not have a node with id"));
   }
 
-  @Test (dependsOnMethods = "testMissingDestinationNodeError")
-  public void testGitFlowGraphMonitorService()
-      throws IOException, GitAPIException, URISyntaxException, InterruptedException {
-    File remoteDir = new File(TESTDIR + "/remote");
-    File cloneDir = new File(TESTDIR + "/clone");
-    File flowGraphDir = new File(cloneDir, "/gobblin-flowgraph");
-
-    //Clean up
-    cleanUpDir(TESTDIR);
-
-    // Create a bare repository
-    RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(remoteDir, FS.DETECTED);
-    Repository remoteRepo = fileKey.open(false);
-    remoteRepo.create(true);
-
-    Git gitForPush = Git.cloneRepository().setURI(remoteRepo.getDirectory().getAbsolutePath()).setDirectory(cloneDir).call();
-
-    // push an empty commit as a base for detecting changes
-    gitForPush.commit().setMessage("First commit").call();
-    RefSpec masterRefSpec = new RefSpec("master");
-    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
-
-    URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
-
-    Config config = ConfigBuilder.create()
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "."
-            + ConfigurationKeys.GIT_MONITOR_REPO_URI, remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TESTDIR + "/git-flowgraph")
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
-        .addPrimitive(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString())
-        .build();
-
-    //Create a MultiHopFlowCompiler instance
-    specCompiler = new MultiHopFlowCompiler(config, Optional.absent(), false);
-
-    specCompiler.setActive(true);
-
-    //Ensure node1 is not present in the graph
-    Assert.assertNull(specCompiler.getFlowGraph().get().getNode("node1"));
-
-    // push a new node file
-    File nodeDir = new File(flowGraphDir, "node1");
-    File nodeFile = new File(nodeDir, "node1.properties");
-    nodeDir.mkdirs();
-    nodeFile.createNewFile();
-    Files.write(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam1=val1" + "\n", nodeFile, Charsets.UTF_8);
-
-    // add, commit, push node
-    gitForPush.add().addFilepattern(formNodeFilePath(flowGraphDir, nodeDir.getName(), nodeFile.getName())).call();
-    gitForPush.commit().setMessage("Node commit").call();
-    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
-
-    // polling is every 5 seconds, so wait twice as long and check
-    TimeUnit.SECONDS.sleep(10);
-
-    //Test that a DataNode is added to FlowGraph
-    DataNode dataNode = specCompiler.getFlowGraph().get().getNode("node1");
-    Assert.assertEquals(dataNode.getId(), "node1");
-    Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "val1");
-  }
-
   private String formNodeFilePath(File flowGraphDir, String groupDir, String fileName) {
     return flowGraphDir.getName() + SystemUtils.FILE_SEPARATOR + groupDir + SystemUtils.FILE_SEPARATOR + fileName;
   }

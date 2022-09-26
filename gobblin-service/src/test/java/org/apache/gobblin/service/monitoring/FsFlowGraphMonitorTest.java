@@ -38,6 +38,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
 import org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
@@ -85,7 +86,7 @@ public class FsFlowGraphMonitorTest {
 
     this.config = ConfigBuilder.create()
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "."
-            + ConfigurationKeys.FLOWGRAPH_REPO_DIR, this.flowGraphDir.getAbsolutePath())
+            + ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR, this.flowGraphDir.getAbsolutePath())
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_BASE_DIR, "gobblin-flowgraph")
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, 1)
         .build();
@@ -103,8 +104,8 @@ public class FsFlowGraphMonitorTest {
 
     //Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
-
-    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1), true);
+    MultiHopFlowCompiler mhfc = new MultiHopFlowCompiler(config, this.flowGraph);
+    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, mhfc, topologySpecMap, new CountDownLatch(1), true);
     this.flowGraphMonitor.startUp();
     this.flowGraphMonitor.setActive(true);
   }
@@ -171,10 +172,11 @@ public class FsFlowGraphMonitorTest {
 
   @Test (dependsOnMethods = "testUpdateNode")
   public void testSetUpExistingGraph() throws Exception {
-    //Create a FlowGraph instance with defaults
+    // Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
+    MultiHopFlowCompiler mhfc = new MultiHopFlowCompiler(config, this.flowGraph);
 
-    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, this.topologySpecMap, new CountDownLatch(1), true);
+    this.flowGraphMonitor = new FsFlowGraphMonitor(this.config, this.flowCatalog, mhfc, this.topologySpecMap, new CountDownLatch(1), true);
     this.flowGraphMonitor.startUp();
     this.flowGraphMonitor.setActive(true);
 

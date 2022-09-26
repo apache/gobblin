@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.flowgraph;
 
 import java.io.File;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.hadoop.fs.Path;
 
@@ -26,6 +25,7 @@ import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
@@ -36,22 +36,21 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserver;
  * Is invoked by {@link PathAlterationObserver} which would check a folder and perform recursive comparisons on files compared to
  * their last polled state. On any detected differences in files when a check is done, the {@link FlowGraph} will be updated.
  *
- * Unlike the {@link GitFlowGraphListener}, this class will reload the entire flowgraph on any detected change, instead loading only the diffs.
  */
 @Slf4j
 public class FSPathAlterationFlowGraphListener implements PathAlterationListener {
-  private final AtomicReference<FlowGraph> flowGraph;
+  private final MultiHopFlowCompiler compiler;
   private final BaseFlowGraphHelper flowGraphHelper;
 
   public FSPathAlterationFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      AtomicReference<FlowGraph> graph, String baseDirectory, BaseFlowGraphHelper flowGraphHelper) {
+      MultiHopFlowCompiler compiler, String baseDirectory, BaseFlowGraphHelper flowGraphHelper) {
     this.flowGraphHelper = flowGraphHelper;
     File graphDir = new File(baseDirectory);
     // Populate the flowgraph with any existing files
     if (!graphDir.exists()) {
       throw new RuntimeException(String.format("Flowgraph directory at path %s does not exist!", graphDir));
     }
-    this.flowGraph = graph;
+    this.compiler = compiler;
   }
 
   @Override
@@ -89,6 +88,9 @@ public class FSPathAlterationFlowGraphListener implements PathAlterationListener
   @Override
   public void onCheckDetectedChange() {
     log.info("Detecting change in flowgraph files, reloading flowgraph");
-    this.flowGraphHelper.populateFlowGraphAtomically(this.flowGraph);
+    FlowGraph newGraph = this.flowGraphHelper.generateFlowGraph();
+    if (newGraph != null) {
+      this.compiler.setFlowGraph(newGraph);
+    }
   }
 }

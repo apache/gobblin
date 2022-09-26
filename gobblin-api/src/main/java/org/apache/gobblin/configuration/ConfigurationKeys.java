@@ -1028,7 +1028,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_CONF_EXTENSIONS = "conf";
   public static final String FLOWGRAPH_POLLING_INTERVAL = "flowGraph.pollingInterval";
   public static final String FLOWGRAPH_BASE_DIR = "flowGraph.configBaseDirectory";
-  public static final String FLOWGRAPH_REPO_DIR = "flowGraph.repositoryDirectory";
+  public static final String FLOWGRAPH_ABSOLUTE_DIR = "flowGraph.absoluteDirectory";
 
 
   /***

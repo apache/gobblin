@@ -84,8 +84,7 @@ import org.slf4j.Logger;
 @Alpha
 @Slf4j
 public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
-  @Getter
-  private final AtomicReference<FlowGraph> flowGraph;
+  private AtomicReference<FlowGraph> flowGraph;
   @Getter
   private ServiceManager serviceManager;
   @Getter
@@ -112,6 +111,12 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log) {
     this(config, log, true);
+  }
+
+  public MultiHopFlowCompiler(Config config, AtomicReference<FlowGraph> flowGraph) {
+    super(config, Optional.absent(), true);
+    this.flowGraph = flowGraph;
+    this.dataMovementAuthorizer = new NoopDataMovementAuthorizer(config);
   }
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
@@ -155,7 +160,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     try {
       String flowGraphMonitorClassName = ConfigUtils.getString(this.config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY, GitFlowGraphMonitor.class.getCanonicalName());
       this.flowGraphMonitor = (FlowGraphMonitor) ConstructorUtils.invokeConstructor(Class.forName(new ClassAliasResolver<>(FlowGraphMonitor.class).resolve(
-        flowGraphMonitorClassName)), gitFlowGraphConfig, flowTemplateCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete(), instrumentationEnabled);
+        flowGraphMonitorClassName)), gitFlowGraphConfig, flowTemplateCatalog, this, this.topologySpecMap, this.getInitComplete(), instrumentationEnabled);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
@@ -168,13 +173,6 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       MultiHopFlowCompiler.log.error("Timed out while waiting for the service manager to start up", te);
       throw new RuntimeException(te);
     }
-  }
-
-  @VisibleForTesting
-  MultiHopFlowCompiler(Config config, AtomicReference<FlowGraph> flowGraph) {
-    super(config, Optional.absent(), true);
-    this.flowGraph = flowGraph;
-    this.dataMovementAuthorizer = new NoopDataMovementAuthorizer(config);
   }
 
   /**
@@ -285,6 +283,10 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
     return jobExecutionPlanDag;
+  }
+
+  public void setFlowGraph(FlowGraph flowGraph) {
+    this.flowGraph.set(flowGraph);
   }
 
   /**
