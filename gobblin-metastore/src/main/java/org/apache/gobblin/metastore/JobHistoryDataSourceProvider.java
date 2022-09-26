@@ -28,7 +28,6 @@ import com.google.inject.name.Named;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.password.PasswordManager;
-import org.apache.gobblin.util.jdbc.DataSourceProvider;
 import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
 
 
@@ -36,7 +35,7 @@ import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
  * This class extends {@link org.apache.gobblin.util.jdbc.DataSourceProvider} with its own property keys.
  */
 public class JobHistoryDataSourceProvider extends org.apache.gobblin.util.jdbc.DataSourceProvider {
-  private static final Logger LOG = LoggerFactory.getLogger(DataSourceProvider.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JobHistoryDataSourceProvider.class);
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
