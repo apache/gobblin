@@ -19,9 +19,14 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.iceberg.ManifestFile;
@@ -29,11 +34,13 @@ import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
@@ -44,24 +51,98 @@ import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInf
 @Slf4j
 @AllArgsConstructor
 public class IcebergTable {
+
+  /** Indicate the table identified by `tableId` does not (or does no longer) exist in the catalog */
+  public static class TableNotFoundException extends IOException {
+    @Getter
+    private final TableIdentifier tableId; // stored purely for logging / diagnostics
+
+    public TableNotFoundException(TableIdentifier tableId) {
+      super("Not found: '" + tableId + "'");
+      this.tableId = tableId;
+    }
+  }
+
+  private final TableIdentifier tableId;
   private final TableOperations tableOps;
 
+  /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
-    TableMetadata current = tableOps.current();
-    Snapshot snapshot = current.currentSnapshot();
+    TableMetadata current = accessTableMetadata();
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
+  }
+
+  /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
+  public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
+    TableMetadata current = accessTableMetadata();
+    long currentSnapshotId = current.currentSnapshot().snapshotId();
+    List<Snapshot> snapshots = current.snapshots();
+    return Iterators.transform(snapshots.iterator(), snapshot -> {
+      try {
+        return IcebergTable.this.createSnapshotInfo(
+            snapshot,
+            currentSnapshotId == snapshot.snapshotId() ? Optional.of(current.metadataFileLocation()) : Optional.empty()
+        );
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+  }
+
+  /**
+   * @return metadata info for all known snapshots, but incrementally, so content overlap between snapshots appears
+   * only within the first as they're ordered historically, with *most recent last*
+   */
+  public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() throws IOException {
+    // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
+    Set<String> knownManifestListFilePaths = Sets.newHashSet();
+    Set<String> knownManifestFilePaths = Sets.newHashSet();
+    Set<String> knownListedFilePaths = Sets.newHashSet();
+    return Iterators.filter(Iterators.transform(getAllSnapshotInfosIterator(), snapshotInfo -> {
+      if (false == knownManifestListFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
+        return snapshotInfo.toBuilder().manifestListPath(null).build(); // use `null` as marker to surrounding `filter`
+      }
+      List<IcebergSnapshotInfo.ManifestFileInfo> novelManifestInfos = Lists.newArrayList();
+      for (ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
+        if (true == knownManifestFilePaths.add(mfi.getManifestFilePath())) { // heretofore unknown
+          List<String> novelListedPaths = mfi.getListedFilePaths().stream()
+              .filter(fpath -> true == knownListedFilePaths.add(fpath)) // heretofore unknown
+              .collect(Collectors.toList());
+          if (novelListedPaths.size() == mfi.getListedFilePaths().size()) { // nothing filtered
+            novelManifestInfos.add(mfi); // reuse orig
+          } else {
+            novelManifestInfos.add(new ManifestFileInfo(mfi.getManifestFilePath(), novelListedPaths));
+          }
+        } // else, whenever recognized manifest file, skip w/ all its listed paths--which also all would be recognized
+      }
+      if (novelManifestInfos.size() == snapshotInfo.getManifestFiles().size()) { // nothing filtered
+        return snapshotInfo; // reuse orig
+      } else {
+        return snapshotInfo.toBuilder().manifestFiles(novelManifestInfos).build(); // replace manifestFiles
+      }
+    }), snapshotInfo -> snapshotInfo.getManifestListPath() != null); // remove marked-as-repeat-manifest-list snapshots
+  }
+
+  /** @throws {@link IcebergTable.TableNotFoundException} when table does not exist */
+  protected TableMetadata accessTableMetadata() throws TableNotFoundException {
+    TableMetadata current = this.tableOps.current();
+    return Optional.ofNullable(current).orElseThrow(() -> new TableNotFoundException(this.tableId));
+  }
+
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {
+    // TODO: verify correctness, even when handling 'delete manifests'!
     List<ManifestFile> manifests = snapshot.allManifests();
     return new IcebergSnapshotInfo(
         snapshot.snapshotId(),
         Instant.ofEpochMilli(snapshot.timestampMillis()),
-        current.metadataFileLocation(),
+        metadataFileLocation,
         snapshot.manifestListLocation(),
         // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
-        calcAllManifestFileInfo(manifests, tableOps.io())
+        calcAllManifestFileInfos(manifests, tableOps.io())
       );
   }
 
-  @VisibleForTesting
-  static List<ManifestFileInfo> calcAllManifestFileInfo(List<ManifestFile> manifests, FileIO io) throws IOException {
+  protected static List<IcebergSnapshotInfo.ManifestFileInfo> calcAllManifestFileInfos(List<ManifestFile> manifests, FileIO io) throws IOException {
     List<ManifestFileInfo> result = Lists.newArrayList();
     for (ManifestFile manifest : manifests) {
       result.add(calcManifestFileInfo(manifest, io));
@@ -69,13 +150,11 @@ public class IcebergTable {
     return result;
   }
 
-  @VisibleForTesting
-  static IcebergSnapshotInfo.ManifestFileInfo calcManifestFileInfo(ManifestFile manifest, FileIO io) throws IOException {
+  protected static IcebergSnapshotInfo.ManifestFileInfo calcManifestFileInfo(ManifestFile manifest, FileIO io) throws IOException {
     return new ManifestFileInfo(manifest.path(), discoverDataFilePaths(manifest, io));
   }
 
-  @VisibleForTesting
-  static List<String> discoverDataFilePaths(ManifestFile manifest, FileIO io) throws IOException {
+  protected static List<String> discoverDataFilePaths(ManifestFile manifest, FileIO io) throws IOException {
     CloseableIterable<String> manifestPathsIterable = ManifestFiles.readPaths(manifest, io);
     try {
       return Lists.newArrayList(manifestPathsIterable);

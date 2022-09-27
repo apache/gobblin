@@ -19,8 +19,10 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import lombok.Builder;
 import lombok.Data;
 
 import com.google.common.collect.Lists;
@@ -29,6 +31,7 @@ import com.google.common.collect.Lists;
 /**
  * Information about the metadata file and data file paths of a single Iceberg Snapshot.
  */
+@Builder(toBuilder = true)
 @Data
 public class IcebergSnapshotInfo {
 
@@ -40,7 +43,8 @@ public class IcebergSnapshotInfo {
 
   private final Long snapshotId;
   private final Instant timestamp;
-  private final String metadataPath;
+  /** only for the current snapshot, being whom the metadata file 'belongs to'; `isEmpty()` for all other snapshots */
+  private final Optional<String> metadataPath;
   private final String manifestListPath;
   private final List<ManifestFileInfo> manifestFiles;
 
@@ -53,7 +57,8 @@ public class IcebergSnapshotInfo {
   }
 
   public List<String> getAllPaths() {
-    List<String> result = Lists.newArrayList(metadataPath, manifestListPath);
+    List<String> result = metadataPath.map(Lists::newArrayList).orElse(Lists.newArrayList());
+    result.add(manifestListPath);
     result.addAll(getManifestFilePaths());
     result.addAll(getAllDataFilePaths());
     return result;
