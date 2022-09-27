@@ -169,6 +169,8 @@ public interface GobblinKafkaConsumerClient extends Closeable {
 
   public default void assignAndSeek(List<KafkaPartition> topicPartitions, Map<KafkaPartition, LongWatermark> topicWatermarksMap) { return; }
 
+  public default void initializeClient(String topic) { return; }
+
   /**
    * A factory to create {@link GobblinKafkaConsumerClient}s
    */

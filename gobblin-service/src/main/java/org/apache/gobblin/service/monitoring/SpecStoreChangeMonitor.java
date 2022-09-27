@@ -19,6 +19,7 @@ package org.apache.gobblin.service.monitoring;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.text.StringEscapeUtils;
@@ -29,6 +30,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,7 +76,16 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   protected GobblinServiceJobScheduler scheduler;
 
   public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
-    super(topic, config, numThreads);
+    // Differentiate group id for each host
+    super(topic, config.withValue(GROUP_ID_KEY,
+        ConfigValueFactory.fromAnyRef(SPEC_STORE_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
+        numThreads);
+    initializeConsumerClient();
+  }
+
+  @Override
+  protected void initializeConsumerClient() {
+    this.getGobblinKafkaConsumerClient().initializeClient(this.topic);
   }
 
   @Override
