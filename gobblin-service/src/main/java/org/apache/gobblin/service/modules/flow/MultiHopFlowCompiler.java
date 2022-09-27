@@ -40,7 +40,6 @@ import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;

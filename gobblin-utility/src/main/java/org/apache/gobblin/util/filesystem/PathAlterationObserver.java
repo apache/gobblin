@@ -185,17 +185,18 @@ public class PathAlterationObserver {
       // Didn't exist and still doesn't
     }
 
-    /* fire onStop() */
-    for (final PathAlterationListener listener : listeners.values()) {
-      listener.onStop(this);
-    }
-
     if (this.changeApplied) {
       for (final PathAlterationListener listener : listeners.values()) {
         // Fire onCheckDetectedChange to notify when one check contains any number of changes
         listener.onCheckDetectedChange();
       }
     }
+
+    /* fire onStop() */
+    for (final PathAlterationListener listener : listeners.values()) {
+      listener.onStop(this);
+    }
+
   }
 
   /**
