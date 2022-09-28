@@ -27,7 +27,6 @@ import lombok.AllArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
@@ -66,20 +65,7 @@ abstract public class AbstractUserQuotaManager implements UserQuotaManager {
 
   abstract boolean containsDagId(String dagId) throws IOException;
 
-  public void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
-    QuotaCheck quotaCheck = increaseAndCheckQuota(dagNode);
-
-    // Throw errors for reach quota at the end to avoid inconsistent job counts
-    if ((!quotaCheck.proxyUserCheck || !quotaCheck.requesterCheck || !quotaCheck.flowGroupCheck)) {
-      // roll back the increased counts in this block
-      rollbackIncrements(dagNode);
-      throw new QuotaExceededException(quotaCheck.requesterMessage);
-    }
-  }
-
   abstract void rollbackIncrements(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
-
-  abstract QuotaCheck increaseAndCheckQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   int getQuotaForUser(String user) {
     return this.perUserQuota.getOrDefault(user, defaultQuota);

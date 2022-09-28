@@ -250,9 +250,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     Properties properties = spec.getConfigAsProperties();
     properties.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
     Config config = ConfigFactory.parseProperties(properties);
-    FlowSpec flowSpec = new FlowSpec(spec.getUri(), spec.getVersion(), spec.getDescription(), config, properties,
+    return new FlowSpec(spec.getUri(), spec.getVersion(), spec.getDescription(), config, properties,
         spec.getTemplateURIs(), spec.getChildSpecs());
-    return flowSpec;
   }
 
   @Override
@@ -336,10 +335,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       if (quotaManager.isPresent()) {
         // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
         try {
-          for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getStartNodes()) {
-            quotaManager.get().checkQuota(dagNode);
-            ((FlowSpec) addedSpec).getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
-          }
+          quotaManager.get().checkQuota(dag.getStartNodes());
+          ((FlowSpec) addedSpec).getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
         } catch (IOException e) {
           throw new RuntimeException(e);
         }

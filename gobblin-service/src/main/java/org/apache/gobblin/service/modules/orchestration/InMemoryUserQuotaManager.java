@@ -29,6 +29,7 @@ import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
@@ -54,7 +55,6 @@ public class InMemoryUserQuotaManager extends AbstractUserQuotaManager {
     this.runningDagIds = ConcurrentHashMap.newKeySet();;
   }
 
-  @Override
   protected QuotaCheck increaseAndCheckQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     QuotaCheck quotaCheck = new QuotaCheck(true, true, true, "");
     // Dag is already being tracked, no need to double increment for retries and multihop flows
@@ -203,6 +203,17 @@ public class InMemoryUserQuotaManager extends AbstractUserQuotaManager {
           // Add all the currently running Dags to the quota limit per user
           increaseAndCheckQuota(dagNode);
         }
+      }
+    }
+  }
+
+  public void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
+    for (Dag.DagNode<JobExecutionPlan> dagNode : dagNodes) {
+      QuotaCheck quotaCheck = increaseAndCheckQuota(dagNode);
+      if ((!quotaCheck.proxyUserCheck || !quotaCheck.requesterCheck || !quotaCheck.flowGroupCheck)) {
+        // roll back the increased counts in this block
+        rollbackIncrements(dagNode);
+        throw new QuotaExceededException(quotaCheck.requesterMessage);
       }
     }
   }

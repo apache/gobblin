@@ -966,7 +966,7 @@ public class DagManager extends AbstractIdleService {
       try {
         if (!Boolean.parseBoolean(dagNode.getValue().getJobSpec().getConfigAsProperties().getProperty(
             ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "false"))) {
-          quotaManager.checkQuota(dagNode);
+          quotaManager.checkQuota(Collections.singleton(dagNode));
         }
 
         producer = DagManagerUtils.getSpecProducer(dagNode);

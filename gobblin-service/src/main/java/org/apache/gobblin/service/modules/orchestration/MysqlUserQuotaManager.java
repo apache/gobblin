@@ -36,6 +36,7 @@ import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.metastore.MysqlStateStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -77,71 +78,81 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   public void init(Collection<Dag<JobExecutionPlan>> dags) {
   }
 
+  @Override
+  public void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
+    try (Connection connection = this.quotaStore.dataSource.getConnection()) {
+      connection.setAutoCommit(false);
+
+      for (Dag.DagNode<JobExecutionPlan> dagNode : dagNodes) {
+        QuotaCheck quotaCheck = increaseAndCheckQuota(connection, dagNode);
+        if ((!quotaCheck.proxyUserCheck || !quotaCheck.requesterCheck || !quotaCheck.flowGroupCheck)) {
+          connection.rollback();
+          throw new QuotaExceededException(quotaCheck.requesterMessage);
+        }
+      }
+      connection.commit();
+    } catch (SQLException e) {
+      throw new IOException(e);
+    }
+  }
+
   int incrementJobCount(Connection connection, String user, CountType countType) throws IOException, SQLException {
     return this.quotaStore.increaseCount(connection, user, countType);
   }
 
   void decrementJobCount(Connection connection,String user, CountType countType) throws IOException, SQLException {
-      this.quotaStore.decreaseCount(user, countType);
+      this.quotaStore.decreaseCount(connection, user, countType);
   }
 
-  @Override
-  protected QuotaCheck increaseAndCheckQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
+  protected QuotaCheck increaseAndCheckQuota(Connection connection, Dag.DagNode<JobExecutionPlan> dagNode)
+      throws SQLException, IOException {
     QuotaCheck quotaCheck = new QuotaCheck(true, true, true, "");
-    Connection connection;
-    try {
-      connection = this.quotaStore.dataSource.getConnection();
-      connection.setAutoCommit(false);
-    } catch (SQLException e) {
-      throw new IOException(e);
-    }
     StringBuilder requesterMessage = new StringBuilder();
 
     // Dag is already being tracked, no need to double increment for retries and multihop flows
-    try {
-      if (containsDagId(DagManagerUtils.generateDagId(dagNode).toString())) {
-        return quotaCheck;
-      } else {
-        addDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
+    if (containsDagId(DagManagerUtils.generateDagId(dagNode).toString())) {
+      return quotaCheck;
+    } else {
+      addDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
+    }
+
+    String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
+    String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
+        ConfigurationKeys.FLOW_GROUP_KEY, "");
+    String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
+
+    boolean proxyUserCheck;
+
+    if (proxyUser != null && dagNode.getValue().getCurrentAttempts() <= 1) {
+      int proxyQuotaIncrement = incrementJobCountAndCheckQuota(connection,
+          DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), getQuotaForUser(proxyUser), CountType.USER_COUNT);
+      proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds
+      quotaCheck.setProxyUserCheck(proxyUserCheck);
+      if (!proxyUserCheck) {
+        // add 1 to proxyUserIncrement since proxyQuotaIncrement is the count before the increment
+        requesterMessage.append(String.format(
+            "Quota exceeded for proxy user %s on executor %s : quota=%s, requests above quota=%d%n",
+            proxyUser, specExecutorUri, getQuotaForUser(proxyUser), Math.abs(proxyQuotaIncrement) + 1 - getQuotaForUser(proxyUser)));
       }
+    }
 
-      String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
-      String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
-          ConfigurationKeys.FLOW_GROUP_KEY, "");
-      String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
+    String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
+    boolean requesterCheck = true;
 
-      boolean proxyUserCheck;
-
-      if (proxyUser != null && dagNode.getValue().getCurrentAttempts() <= 1) {
-        int proxyQuotaIncrement = incrementJobCountAndCheckQuota(connection,
-            DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), getQuotaForUser(proxyUser), CountType.USER_COUNT);
-        proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds
-        quotaCheck.setProxyUserCheck(proxyUserCheck);
-        if (!proxyUserCheck) {
-          // add 1 to proxyUserIncrement since proxyQuotaIncrement is the count before the increment
-          requesterMessage.append(String.format(
-              "Quota exceeded for proxy user %s on executor %s : quota=%s, requests above quota=%d%n",
-              proxyUser, specExecutorUri, getQuotaForUser(proxyUser), Math.abs(proxyQuotaIncrement) + 1 - getQuotaForUser(proxyUser)));
+    if (dagNode.getValue().getCurrentAttempts() <= 1) {
+      List<String> uniqueRequesters = DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters);
+      for (String requester : uniqueRequesters) {
+        int userQuotaIncrement = incrementJobCountAndCheckQuota(connection, DagManagerUtils.getUserQuotaKey(requester, dagNode),
+            getQuotaForUser(requester), CountType.REQUESTER_COUNT);
+        boolean thisRequesterCheck = userQuotaIncrement >= 0;  // user quota check succeeds
+        requesterCheck = requesterCheck && thisRequesterCheck;
+        quotaCheck.setRequesterCheck(requesterCheck);
+        if (!thisRequesterCheck) {
+          requesterMessage.append(String.format("Quota exceeded for requester %s on executor %s : quota=%s, requests above quota=%d%n. ",
+              requester, specExecutorUri, getQuotaForUser(requester), Math.abs(userQuotaIncrement) + 1 - getQuotaForUser(requester)));
         }
       }
-
-      String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
-      boolean requesterCheck = true;
-
-      if (dagNode.getValue().getCurrentAttempts() <= 1) {
-        List<String> uniqueRequesters = DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters);
-        for (String requester : uniqueRequesters) {
-          int userQuotaIncrement = incrementJobCountAndCheckQuota(connection, DagManagerUtils.getUserQuotaKey(requester, dagNode),
-              getQuotaForUser(requester), CountType.REQUESTER_COUNT);
-          boolean thisRequesterCheck = userQuotaIncrement >= 0;  // user quota check succeeds
-          requesterCheck = requesterCheck && thisRequesterCheck;
-          quotaCheck.setRequesterCheck(requesterCheck);
-          if (!thisRequesterCheck) {
-            requesterMessage.append(String.format("Quota exceeded for requester %s on executor %s : quota=%s, requests above quota=%d%n. ",
-                requester, specExecutorUri, getQuotaForUser(requester), Math.abs(userQuotaIncrement) + 1 - getQuotaForUser(requester)));
-          }
-        }
-      }
+    }
 
     boolean flowGroupCheck;
 
@@ -154,20 +165,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         requesterMessage.append(String.format("Quota exceeded for flowgroup %s on executor %s : quota=%s, requests above quota=%d%n",
             flowGroup, specExecutorUri, getQuotaForFlowGroup(flowGroup),
             Math.abs(flowGroupQuotaIncrement) + 1 - getQuotaForFlowGroup(flowGroup)));
-      }
-    }
-      connection.commit();
-    } catch (IOException | SQLException e) {
-      try {
-        connection.rollback();
-      } catch (SQLException ex) {
-        throw new IOException(ex);
-      }
-    } finally {
-      try {
-        connection.close();
-      } catch (SQLException ex) {
-        throw new IOException(ex);
       }
     }
 
@@ -194,7 +191,13 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       decrementQuotaUsageForUsers(connection, usersQuotaIncrement);
       decrementJobCount(connection, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
       removeDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
+      connection.commit();
     } catch (SQLException ex) {
+      try {
+        connection.rollback();
+      } catch (SQLException e) {
+        throw new IOException(ex);
+      }
       throw new IOException(ex);
     } finally {
       try {
@@ -407,10 +410,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       }
     }
 
-    public void decreaseCount(String name, CountType countType) throws IOException, SQLException {
-      Connection connection = dataSource.getConnection();
-      connection.setAutoCommit(false);
-
+    public void decreaseCount(Connection connection, String name, CountType countType) throws IOException, SQLException {
       String selectStatement;
       String decreaseStatement;
 
@@ -442,18 +442,13 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         rs = statement1.executeQuery();
         statement2.executeUpdate();
         statement3.executeUpdate();
-        connection.commit();
         if (rs != null && rs.next() && rs.getInt(1) == 0) {
           log.warn("Decrement job count was called for " + name + " when the count was already zero/absent.");
         }
-      } catch (SQLException e) {
-        connection.rollback();
-        throw new IOException("Failure decreasing count from user/flowGroup " + name, e);
       } finally {
         if (rs != null) {
           rs.close();
         }
-        connection.close();
       }
     }
   }

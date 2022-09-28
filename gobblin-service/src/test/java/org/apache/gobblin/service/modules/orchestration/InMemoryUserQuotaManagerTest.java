@@ -20,6 +20,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -61,9 +62,9 @@ public class InMemoryUserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
+    this._quotaManager.checkQuota(Collections.singleton(dags.get(0).getNodes().get(0)));
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0));
+      this._quotaManager.checkQuota(Collections.singleton(dags.get(1).getNodes().get(0)));
     });
   }
 
@@ -76,7 +77,7 @@ public class InMemoryUserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
+    this._quotaManager.checkQuota(Collections.singleton(dags.get(0).getNodes().get(0)));
     Assert.assertTrue(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
     Assert.assertFalse(this._quotaManager.releaseQuota(dags.get(0).getNodes().get(0)));
   }
@@ -91,9 +92,9 @@ public class InMemoryUserQuotaManagerTest {
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dags.get(0).getNodes().get(0));
+    this._quotaManager.checkQuota(Collections.singleton(dags.get(0).getNodes().get(0)));
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dags.get(1).getNodes().get(0));
+      this._quotaManager.checkQuota(Collections.singleton(dags.get(1).getNodes().get(0)));
     });
   }
 
@@ -115,20 +116,20 @@ public class InMemoryUserQuotaManagerTest {
     dag3.getNodes().get(0).getValue().setCurrentAttempts(1);
     dag4.getNodes().get(0).getValue().setCurrentAttempts(1);
 
-    this._quotaManager.checkQuota(dag1.getNodes().get(0));
-    this._quotaManager.checkQuota(dag2.getNodes().get(0));
+    this._quotaManager.checkQuota(Collections.singleton(dag1.getNodes().get(0)));
+    this._quotaManager.checkQuota(Collections.singleton(dag2.getNodes().get(0)));
 
     // Should fail due to user quota
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dag3.getNodes().get(0));
+      this._quotaManager.checkQuota(Collections.singleton(dag3.getNodes().get(0)));
     });
     // Should fail due to flowgroup quota
     Assert.assertThrows(IOException.class, () -> {
-      this._quotaManager.checkQuota(dag4.getNodes().get(0));
+      this._quotaManager.checkQuota(Collections.singleton(dag4.getNodes().get(0)));
     });
     // should pass due to quota being released
     this._quotaManager.releaseQuota(dag2.getNodes().get(0));
-    this._quotaManager.checkQuota(dag3.getNodes().get(0));
-    this._quotaManager.checkQuota(dag4.getNodes().get(0));
+    this._quotaManager.checkQuota(Collections.singleton(dag3.getNodes().get(0)));
+    this._quotaManager.checkQuota(Collections.singleton(dag4.getNodes().get(0)));
   }
 }
