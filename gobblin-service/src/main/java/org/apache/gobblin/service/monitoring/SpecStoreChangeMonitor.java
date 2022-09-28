@@ -80,7 +80,6 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(SPEC_STORE_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
-    initializeConsumerClient();
   }
 
   @Override
