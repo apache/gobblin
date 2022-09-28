@@ -194,9 +194,10 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     if (this.warmStandbyEnabled &&
         (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
       try {
-        // todo : we should probably check quota for all of the start nodes
-        userQuotaManager.checkQuota(dag.getNodes().get(0));
-        flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
+        for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getStartNodes()) {
+          userQuotaManager.checkQuota(dagNode);
+          flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
+        }
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

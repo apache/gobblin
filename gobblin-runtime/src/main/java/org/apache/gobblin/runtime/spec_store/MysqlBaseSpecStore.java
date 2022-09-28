@@ -133,7 +133,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
 
-  protected final DataSource dataSource;
+  protected final BasicDataSource dataSource;
   protected final String tableName;
   private final URI specStoreURI;
   protected final SpecSerDe specSerDe;

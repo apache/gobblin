@@ -301,7 +301,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   }
 
   static class MysqlQuotaStore {
-    protected final DataSource dataSource;
+    protected final BasicDataSource dataSource;
     final String tableName;
     private final String GET_USER_COUNT;
     private final String GET_REQUESTER_COUNT;
@@ -339,7 +339,9 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       try (Connection connection = dataSource.getConnection(); PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {
         createStatement.executeUpdate();
       } catch (SQLException e) {
-        throw new IOException("Failure creation table " + tableName, e);
+        log.warn("Failure in creating table {}. Validation query is set to {} Exception is {}",
+            tableName, this.dataSource.getValidationQuery(), e);
+        throw new IOException(e);
       }
     }
 
