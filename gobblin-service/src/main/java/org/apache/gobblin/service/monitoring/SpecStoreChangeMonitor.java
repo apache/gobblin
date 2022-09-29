@@ -83,8 +83,9 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   }
 
   @Override
-  protected void initializeConsumerClient() {
-    this.getGobblinKafkaConsumerClient().initializeClient(this.topic);
+  protected void assignTopicPartitions() {
+    // The consumer client will assign itself to all partitions for this topic and consume from its latest offset.
+    this.getGobblinKafkaConsumerClient().assignTopicPartitions(this.topic);
   }
 
   @Override

@@ -123,7 +123,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     this.numThreads = numThreads;
     this.config = config.withFallback(FALLBACK);
     this.gobblinKafkaConsumerClient = createConsumerClient(this.config);
-    initializeConsumerClient();
+    assignTopicPartitions();
     this.consumerExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
     this.queueExecutor = Executors.newFixedThreadPool(this.numThreads, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
     this.queues = new LinkedBlockingQueue[numThreads];
@@ -157,7 +157,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   partitions of the topic among all consumers in the group and start consuming from the last committed offset for the
   partition. Override this method to assign partitions and initialize offsets using different logic.
    */
-  protected void initializeConsumerClient() {
+  protected void assignTopicPartitions() {
     // On Partition rebalance, commit existing offsets and reset.
     this.gobblinKafkaConsumerClient.subscribe(this.topic, new GobblinConsumerRebalanceListener() {
       @Override
