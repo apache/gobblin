@@ -373,6 +373,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       String selectStatement;
       String increaseStatement;
 
+
       switch(countType) {
         case USER_COUNT:
           selectStatement = GET_USER_COUNT;
@@ -397,7 +398,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         statement2.setString(1, name);
         rs = statement1.executeQuery();
         statement2.executeUpdate();
-        connection.commit();
         if (rs != null && rs.next()) {
           return rs.getInt(1);
         } else {

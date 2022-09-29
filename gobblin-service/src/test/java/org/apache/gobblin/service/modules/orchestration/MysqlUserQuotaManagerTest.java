@@ -38,6 +38,7 @@ public class MysqlUserQuotaManagerTest {
   private static final String TABLE = "quotas";
   private static final String PROXY_USER = "abora";
   private MysqlUserQuotaManager quotaManager;
+  public static int INCREMENTS = 1000;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -73,16 +74,20 @@ public class MysqlUserQuotaManagerTest {
   public void testIncreaseCount() throws Exception {
     Connection connection = this.quotaManager.quotaStore.dataSource.getConnection();
     int prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+    connection.commit();
     Assert.assertEquals(prevCount, 0);
 
     prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+    connection.commit();
     Assert.assertEquals(prevCount, 1);
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 2);
 
     prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT);
+    connection.commit();
     Assert.assertEquals(prevCount, 0);
 
     prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT);
+    connection.commit();
     Assert.assertEquals(prevCount, 1);
     connection.close();
   }
@@ -91,44 +96,44 @@ public class MysqlUserQuotaManagerTest {
   public void testDecreaseCount() throws Exception {
     Connection connection = this.quotaManager.quotaStore.dataSource.getConnection();
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+    connection.commit();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 1);
 
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+    connection.commit();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 0);
 
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+    connection.commit();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 0);
 
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT);
+    connection.commit();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT), 1);
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT);
+    connection.commit();
     // on count reduced to zero, the row should get deleted and the get call should return -1 instead of 0.
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT), -1);
   }
 
   class ChangeCountRunnable implements Runnable {
     boolean increaseOrDecrease;
-    Connection connection;
 
     public ChangeCountRunnable(boolean increaseOrDecrease) {
       this.increaseOrDecrease = increaseOrDecrease;
-      try {
-        this.connection = MysqlUserQuotaManagerTest.this.quotaManager.quotaStore.dataSource.getConnection();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     }
 
     @Override
     public void run() {
       int i = 0;
-      while (i++ < 1000) {
-        try {
+      while (i++ < INCREMENTS) {
+        try (Connection connection = MysqlUserQuotaManagerTest.this.quotaManager.quotaStore.dataSource.getConnection();) {
           if (increaseOrDecrease) {
-            MysqlUserQuotaManagerTest.this.quotaManager.incrementJobCount(this.connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+            MysqlUserQuotaManagerTest.this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
           } else {
-            MysqlUserQuotaManagerTest.this.quotaManager.decrementJobCount(this.connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
+            MysqlUserQuotaManagerTest.this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
           }
+          connection.commit();
         } catch (IOException | SQLException e) {
           Assert.fail("Thread got an exception.", e);
         }
@@ -138,14 +143,13 @@ public class MysqlUserQuotaManagerTest {
 
   @Test(dependsOnMethods = "testDecreaseCount")
   public void testConcurrentChanges() throws IOException, InterruptedException {
-    Runnable increaseCountRunnable = new ChangeCountRunnable(true);
-    Runnable decreaseCountRunnable = new ChangeCountRunnable(false);
-    Thread thread1 = new Thread(increaseCountRunnable);
-    Thread thread2 = new Thread(increaseCountRunnable);
-    Thread thread3 = new Thread(increaseCountRunnable);
-    Thread thread4 = new Thread(decreaseCountRunnable);
-    Thread thread5 = new Thread(decreaseCountRunnable);
-    Thread thread6 = new Thread(decreaseCountRunnable);
+    int numOfThreads = 3;
+    Thread thread1 = new Thread(new ChangeCountRunnable(true));
+    Thread thread2 = new Thread(new ChangeCountRunnable(true));
+    Thread thread3 = new Thread(new ChangeCountRunnable(true));
+    Thread thread4 = new Thread(new ChangeCountRunnable(false));
+    Thread thread5 = new Thread(new ChangeCountRunnable(false));
+    Thread thread6 = new Thread(new ChangeCountRunnable(false));
 
     thread1.start();
     thread2.start();
@@ -153,7 +157,8 @@ public class MysqlUserQuotaManagerTest {
     thread1.join();
     thread2.join();
     thread3.join();
-    Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 3000);
+    Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT),
+        INCREMENTS * 3);
     thread4.start();
     thread5.start();
     thread6.start();
