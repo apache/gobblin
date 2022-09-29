@@ -27,20 +27,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.jetbrains.annotations.NotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import lombok.Data;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -81,15 +79,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     this.sourceFs = sourceFs;
     this.sourceCatalogMetastoreURI = getAsOptionalURI(this.properties, IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY);
     this.targetCatalogMetastoreURI = getAsOptionalURI(this.properties, TARGET_METASTORE_URI_KEY);
-  }
-
-  /**
-   * Represents a source {@link FileStatus} and a {@link Path} destination.
-   */
-  @Data
-  private static class SourceAndDestination {
-    private final FileStatus source;
-    private final Path destination;
   }
 
   @Override
@@ -135,15 +124,27 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    * table replication.
    */
   @VisibleForTesting
-  Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration configuration) throws IOException {
+  Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus();
     log.info("{}.{} - found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
 
-    for (CopyableFile.Builder builder : getCopyableFilesFromPaths(pathToFileStatus, configuration, targetFs)) {
-      CopyableFile fileEntity =
-          builder.fileSet(fileSet).datasetOutputPath(targetFs.getUri().getPath()).build();
+    Configuration defaultHadoopConfiguration = new Configuration();
+    for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
+      Path srcPath = entry.getKey();
+      FileStatus srcFileStatus = entry.getValue();
+      // TODO: determine whether unnecessarily expensive to repeatedly re-create what should be the same FS: could it
+      // instead be created once and reused thereafter?
+      FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
+
+      // TODO: Add preservation of ancestor ownership and permissions!
+
+      CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
+          actualSourceFs, srcFileStatus, targetFs.makeQualified(srcPath), copyConfig)
+          .fileSet(fileSet)
+          .datasetOutputPath(targetFs.getUri().getPath())
+          .build();
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
@@ -152,29 +153,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return copyEntities;
   }
 
-  /**
-   * Get builders for a {@link CopyableFile} for each file path
-   */
-  protected List<CopyableFile.Builder> getCopyableFilesFromPaths(Map<Path, FileStatus> pathToFileStatus, CopyConfiguration configuration, FileSystem targetFs) throws IOException {
-
-    List<CopyableFile.Builder> builders = Lists.newArrayList();
-    List<SourceAndDestination> dataFiles = Lists.newArrayList();
-    Configuration defaultHadoopConfiguration = new Configuration();
-    FileSystem actualSourceFs;
-
-    for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
-      dataFiles.add(new SourceAndDestination(entry.getValue(), targetFs.makeQualified(entry.getKey())));
-    }
-
-    for (SourceAndDestination sourceAndDestination : dataFiles) {
-      actualSourceFs = sourceAndDestination.getSource().getPath().getFileSystem(defaultHadoopConfiguration);
-
-      // TODO: Add ancestor owner and permissions in future releases
-      builders.add(CopyableFile.fromOriginAndDestination(actualSourceFs, sourceAndDestination.getSource(),
-          sourceAndDestination.getDestination(), configuration));
-    }
-    return builders;
-  }
   /**
    * Finds all files of the Iceberg's current snapshot
    * Returns a map of path, file status for each file that needs to be copied
@@ -201,6 +179,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return result;
   }
 
+  /** Add layer of indirection to permit test mocking by working around `FileSystem.get()` `static` method */
+  protected FileSystem getSourceFileSystemFromFileStatus(FileStatus fileStatus, Configuration hadoopConfig) throws IOException {
+    return fileStatus.getPath().getFileSystem(hadoopConfig);
+  }
+
   protected static Optional<URI> getAsOptionalURI(Properties props, String key) {
     return Optional.ofNullable(props.getProperty(key)).map(URI::create);
   }
@@ -213,7 +196,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return getDatasetDescriptor(targetCatalogMetastoreURI, targetFs);
   }
 
-  @NotNull
   private DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
     DatasetDescriptor descriptor = new DatasetDescriptor(
         DatasetConstants.PLATFORM_ICEBERG,
