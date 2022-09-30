@@ -222,6 +222,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         log.error("Failed to release quota for requester list " + serializedRequesters, e);
         return false;
       }
+      connection.commit();
     } catch (SQLException ex) {
       throw new IOException(ex);
     } finally {
