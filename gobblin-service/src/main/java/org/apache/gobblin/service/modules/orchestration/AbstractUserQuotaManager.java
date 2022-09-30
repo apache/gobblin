@@ -65,8 +65,6 @@ abstract public class AbstractUserQuotaManager implements UserQuotaManager {
 
   abstract boolean containsDagId(String dagId) throws IOException;
 
-  abstract void rollbackIncrements(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
-
   int getQuotaForUser(String user) {
     return this.perUserQuota.getOrDefault(user, defaultQuota);
   }

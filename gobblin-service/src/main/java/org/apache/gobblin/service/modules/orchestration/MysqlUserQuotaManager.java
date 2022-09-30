@@ -173,41 +173,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     return quotaCheck;
   }
 
-  @Override
-  protected void rollbackIncrements(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
-    String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
-    String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_GROUP_KEY, "");
-    List<String> usersQuotaIncrement = DagManagerUtils.getDistinctUniqueRequesters(DagManagerUtils.getSerializedRequesterList(dagNode));
-    Connection connection;
-    try {
-      connection = this.quotaStore.dataSource.getConnection();
-      connection.setAutoCommit(false);
-    } catch (SQLException e) {
-      throw new IOException(e);
-    }
-
-    try {
-      decrementJobCount(connection, DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), CountType.USER_COUNT);
-      decrementQuotaUsageForUsers(connection, usersQuotaIncrement);
-      decrementJobCount(connection, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
-      removeDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
-      connection.commit();
-    } catch (SQLException ex) {
-      try {
-        connection.rollback();
-      } catch (SQLException e) {
-        throw new IOException(ex);
-      }
-      throw new IOException(ex);
-    } finally {
-      try {
-        connection.close();
-      } catch (SQLException ex) {
-        throw new IOException(ex);
-      }
-    }
-  }
-
   protected int incrementJobCountAndCheckQuota(Connection connection, String key, int keyQuota, CountType countType)
       throws IOException, SQLException {
     int currentCount = incrementJobCount(connection, key, countType);
@@ -215,13 +180,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       return -currentCount;
     } else {
       return currentCount;
-    }
-  }
-
-  private void decrementQuotaUsageForUsers(Connection connection, List<String> requestersToDecreaseCount)
-      throws IOException, SQLException {
-    for (String requester : requestersToDecreaseCount) {
-      decrementJobCount(connection, requester, CountType.REQUESTER_COUNT);
     }
   }
 
