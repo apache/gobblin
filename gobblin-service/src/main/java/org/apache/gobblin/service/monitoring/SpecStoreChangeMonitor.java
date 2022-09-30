@@ -19,7 +19,14 @@ package org.apache.gobblin.service.monitoring;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -27,8 +34,10 @@ import com.codahale.metrics.Meter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +49,10 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 
 
 /**
@@ -74,7 +87,34 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   protected GobblinServiceJobScheduler scheduler;
 
   public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
-    super(topic, config, numThreads);
+    // Differentiate group id for each host
+    super(topic, config.withValue(GROUP_ID_KEY,
+        ConfigValueFactory.fromAnyRef(SPEC_STORE_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
+        numThreads);
+  }
+
+  @Override
+  protected void assignTopicPartitions() {
+    // The consumer client will assign itself to all partitions for this topic and consume from its latest offset.
+    List<KafkaTopic> kafkaTopicList = this.getGobblinKafkaConsumerClient().getFilteredTopics(Collections.EMPTY_LIST,
+        Lists.newArrayList(Pattern.compile(this.topic)));
+
+    List<KafkaPartition> kafkaPartitions = new ArrayList();
+    for (KafkaTopic topic : kafkaTopicList) {
+      kafkaPartitions.addAll(topic.getPartitions());
+    }
+
+    Map<KafkaPartition, LongWatermark> partitionLongWatermarkMap = new HashMap<>();
+    for (KafkaPartition partition : kafkaPartitions) {
+      try {
+        partitionLongWatermarkMap.put(partition, new LongWatermark(this.getGobblinKafkaConsumerClient().getLatestOffset(partition)));
+      } catch (KafkaOffsetRetrievalFailureException e) {
+        log.warn("Failed to retrieve latest Kafka offset, consuming from beginning for partition {} due to {}",
+            partition, e);
+        partitionLongWatermarkMap.put(partition, new LongWatermark(0L));
+      }
+    }
+    this.getGobblinKafkaConsumerClient().assignAndSeek(kafkaPartitions, partitionLongWatermarkMap);
   }
 
   @Override
