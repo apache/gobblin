@@ -18,6 +18,7 @@
 package org.apache.gobblin.util.jdbc;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Properties;
 
 import javax.sql.DataSource;
@@ -81,6 +82,9 @@ public class DataSourceProvider implements Provider<DataSource> {
   }
 
   public DataSourceProvider() {
+    LOG.warn("Creating {} without setting validation query.\n Stacktrace of current thread {}",
+        this.getClass().getSimpleName(),
+        Arrays.toString(Thread.currentThread().getStackTrace()).replace(", ", "\n  at "));
     this.basicDataSource = new BasicDataSource();
   }
 
