@@ -136,7 +136,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
       Path srcPath = entry.getKey();
       FileStatus srcFileStatus = entry.getValue();
-      // TODO: should be the same FS each time; try out creating once, reusing thereafter, to not recreate wastefully
+      // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
 
       // TODO: Add preservation of ancestor ownership and permissions!
@@ -209,7 +209,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   protected static boolean isPathPresentOnTarget(Path path, FileSystem targetFs, CopyConfiguration copyConfig) {
     try {
       // omit considering timestamp (or other markers of freshness), as files should be immutable
-      // ATTENTION: `CopyContext.getFileStatus`, to partake in caching
+      // ATTENTION: `CopyContext.getFileStatus()`, to partake in caching
       return copyConfig.getCopyContext().getFileStatus(targetFs, path).isPresent();
     } catch (IOException e) {
       throw new WrappedIOException(e); // halt execution and tunnel the original error outward

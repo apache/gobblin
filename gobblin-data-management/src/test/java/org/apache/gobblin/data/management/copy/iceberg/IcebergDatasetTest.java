@@ -209,7 +209,7 @@ public class IcebergDatasetTest {
 
     Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
     Assert.assertEquals(filePathsToFileStatus.keySet(), expectedResultPaths);
-    // verify all values `null` (because `sourceFs.getFileStatus` not mocked)
+    // verify all values `null` (because `sourceFs.getFileStatus()` not mocked)
     Set<FileStatus> expectedFileStatusSet =
         expectedResultPaths.isEmpty() ? Sets.newHashSet() : new HashSet<>(Arrays.asList(new FileStatus[] { null }));
     Assert.assertEquals(Sets.newHashSet(filePathsToFileStatus.values()), expectedFileStatusSet);
@@ -217,7 +217,9 @@ public class IcebergDatasetTest {
 
   /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */
   protected static Set<Path> withAllSnapshotPaths(Set<Path> paths, MockedIcebergTable.SnapshotPaths... snapshotDefs) {
-    Arrays.stream(snapshotDefs).flatMap(snapshotDef -> snapshotDef.asSnapshotInfo().getAllPaths().stream()).forEach(p ->
+    Arrays.stream(snapshotDefs).flatMap(snapshotDef ->
+        snapshotDef.asSnapshotInfo().getAllPaths().stream()
+    ).forEach(p ->
         paths.add(new Path(p))
     );
     return paths;
