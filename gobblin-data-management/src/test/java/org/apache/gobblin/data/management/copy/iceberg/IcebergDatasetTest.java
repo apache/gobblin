@@ -104,23 +104,36 @@ public class IcebergDatasetTest {
   }
 
   @Test
-  public void testGetFilePaths() throws IOException {
-    IcebergTable icebergTable = Mockito.mock(IcebergTable.class);
-    IcebergSnapshotInfo icebergSnapshotInfo = SNAPSHOT_PATHS_0.asSnapshotInfo();
-    Mockito.when(icebergTable.getIncrementalSnapshotInfosIterator()).thenReturn(Arrays.asList(icebergSnapshotInfo).iterator());
+  public void testGetFilePathsWhenDestEmpty() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList();
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+  }
 
-    FileSystem sourceFs = Mockito.mock(FileSystem.class);
-    IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), sourceFs);
+  @Test
+  public void testGetFilePathsWhenOneManifestListAtDest() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1);
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+  }
 
-    Set<Path> expectedPaths = Sets.newHashSet();
-    for (String p : icebergSnapshotInfo.getAllPaths()) {
-      expectedPaths.add(new Path(p));
-    }
+  @Test
+  public void testGetFilePathsWhenManifestListsAtDestButNotMetadata() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1, MANIFEST_LIST_PATH_0);
+    Set<Path> expectedResultPaths = Sets.newHashSet();
+    expectedResultPaths.add(new Path(METADATA_PATH));
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+  }
 
-    Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus();
-    Assert.assertEquals(filePathsToFileStatus.keySet(), expectedPaths);
-    // verify all values `null` (because `sourceFs.getFileStatus` not mocked)
-    Assert.assertEquals(Sets.newHashSet(filePathsToFileStatus.values()), new HashSet<>(Arrays.asList(new FileStatus[] { null })));
+  @Test
+  public void testGetFilePathsWhenAllAtDest() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList(METADATA_PATH, MANIFEST_LIST_PATH_1, MANIFEST_LIST_PATH_0);
+    Set<Path> expectedResultPaths = Sets.newHashSet(); // not expecting any delta
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
   }
 
   /**
@@ -176,7 +189,42 @@ public class IcebergDatasetTest {
     verifyCopyEntities(copyEntities, expectedPaths);
   }
 
-  private void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expected) {
+  /** exercise {@link IcebergDataset::getFilePaths} and validate the result */
+  protected void validateGetFilePathsGivenDestState(
+      List<IcebergSnapshotInfo> sourceSnapshotInfos,
+      List<String> existingDestPaths,
+      Set<Path> expectedResultPaths) throws IOException {
+    IcebergTable icebergTable = Mockito.mock(IcebergTable.class);
+    Mockito.when(icebergTable.getIncrementalSnapshotInfosIterator()).thenReturn(sourceSnapshotInfos.iterator());
+
+    FileSystem sourceFs = Mockito.mock(FileSystem.class);
+    IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), sourceFs);
+
+    MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
+    destFsBuilder.addPaths(existingDestPaths);
+    FileSystem destFs = destFsBuilder.build();
+    CopyConfiguration copyConfiguration = CopyConfiguration.builder(destFs, copyConfigProperties)
+        .copyContext(new CopyContext())
+        .build();
+
+    Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
+    Assert.assertEquals(filePathsToFileStatus.keySet(), expectedResultPaths);
+    // verify all values `null` (because `sourceFs.getFileStatus` not mocked)
+    Set<FileStatus> expectedFileStatusSet =
+        expectedResultPaths.isEmpty() ? Sets.newHashSet() : new HashSet<>(Arrays.asList(new FileStatus[] { null }));
+    Assert.assertEquals(Sets.newHashSet(filePathsToFileStatus.values()), expectedFileStatusSet);
+  }
+
+  /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */
+  protected static Set<Path> withAllSnapshotPaths(Set<Path> paths, MockedIcebergTable.SnapshotPaths... snapshotDefs) {
+    Arrays.stream(snapshotDefs).flatMap(snapshotDef -> snapshotDef.asSnapshotInfo().getAllPaths().stream()).forEach(p ->
+        paths.add(new Path(p))
+    );
+    return paths;
+  }
+
+
+  private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expected) {
     List<String> actual = new ArrayList<>();
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
@@ -256,6 +304,8 @@ public class IcebergDatasetTest {
         Mockito.when(fs.getFileStatus(any(Path.class))).thenAnswer(invocation ->
             createEmptyFileStatus(invocation.getArgumentAt(0, Path.class).toString()));
       } else {
+        // WARNING: order is critical--specific paths *after* `any(Path)`; in addition, since mocking further
+        // an already-mocked instance, `.doReturn/.when` is needed (vs. `.when/.thenReturn`)
         Mockito.when(fs.getFileStatus(any(Path.class))).thenThrow(new FileNotFoundException());
         for (Path p : this.optPaths.get()) {
           Mockito.doReturn(createEmptyFileStatus(p.toString())).when(fs).getFileStatus(p);

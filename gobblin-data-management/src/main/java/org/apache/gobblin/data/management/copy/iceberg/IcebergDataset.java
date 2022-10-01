@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.conf.Configuration;
@@ -127,15 +129,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
-    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus();
+    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus(targetFs, copyConfig);
     log.info("{}.{} - found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
 
     Configuration defaultHadoopConfiguration = new Configuration();
     for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
       Path srcPath = entry.getKey();
       FileStatus srcFileStatus = entry.getValue();
-      // TODO: determine whether unnecessarily expensive to repeatedly re-create what should be the same FS: could it
-      // instead be created once and reused thereafter?
+      // TODO: should be the same FS each time; try out creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
 
       // TODO: Add preservation of ancestor ownership and permissions!
@@ -153,30 +154,66 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return copyEntities;
   }
 
+  /** Not intended to escape this class... yet `public` visibility in case it somehow does */
+  @RequiredArgsConstructor
+  public static class WrappedIOException extends RuntimeException {
+    @Getter
+    private final IOException wrappedException;
+
+    public void rethrowWrapped() throws IOException {
+      throw wrappedException;
+    }
+  }
+
   /**
    * Finds all files of the Iceberg's current snapshot
    * Returns a map of path, file status for each file that needs to be copied
    */
-  protected Map<Path, FileStatus> getFilePathsToFileStatus() throws IOException {
+  protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     Map<Path, FileStatus> result = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
     Iterator<IcebergSnapshotInfo> icebergIncrementalSnapshotInfos = icebergTable.getIncrementalSnapshotInfosIterator();
     Iterator<String> filePathsIterator = Iterators.concat(
         Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
           // TODO: decide: is it too much to print for every snapshot--instead use `.debug`?
-          log.info("{}.{} - loaded snapshot '{}' from metadata path: '{}'", dbName, inputTableName,
-              snapshotInfo.getSnapshotId(), snapshotInfo.getMetadataPath().orElse("<<inherited>>"));
-          return snapshotInfo.getAllPaths().iterator();
+          String manListPath = snapshotInfo.getManifestListPath();
+          log.info("{}.{} - loaded snapshot '{}' at '{}' from metadata path: '{}'", dbName, inputTableName,
+              snapshotInfo.getSnapshotId(), manListPath, snapshotInfo.getMetadataPath().orElse("<<inherited>>"));
+          if (!isPathPresentOnTarget(new Path(manListPath), targetFs, copyConfig)) {
+            return snapshotInfo.getAllPaths().iterator();
+          } else {
+            log.info("{}.{} - snapshot '{}' already present on target... skipping contents", dbName, inputTableName, snapshotInfo.getSnapshotId());
+            // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot that reuses list
+            Optional<String> nonReplicatedMetadataPath = snapshotInfo.getMetadataPath().filter(p ->
+                !isPathPresentOnTarget(new Path(p), targetFs, copyConfig));
+            log.info("{}.{} - metadata is {}already present on target", dbName, inputTableName, nonReplicatedMetadataPath.isPresent() ? "NOT " : "");
+            return nonReplicatedMetadataPath.map(p -> Lists.newArrayList(p).iterator()).orElse(Collections.emptyIterator());
+          }
         })
     );
     Iterable<String> filePathsIterable = () -> filePathsIterator;
-    // TODO: investigate whether streaming initialization of `Map` preferable--`getFileStatus` network calls would
-    // likely benefit from parallelism
-    for (String pathString : filePathsIterable) {
-      Path path = new Path(pathString);
-      result.put(path, this.sourceFs.getFileStatus(path));
+    try {
+      // TODO: investigate whether streaming initialization of `Map` preferable--`getFileStatus()` network calls likely
+      // to benefit from parallelism
+      for (String pathString : filePathsIterable) {
+        Path path = new Path(pathString);
+        result.put(path, this.sourceFs.getFileStatus(path));
+      }
+    } catch (WrappedIOException wrapper) {
+      wrapper.rethrowWrapped();
     }
     return result;
+  }
+
+  /** @returns whether `path` is present on `targetFs`, tunneling checked exceptions and caching results throughout */
+  protected static boolean isPathPresentOnTarget(Path path, FileSystem targetFs, CopyConfiguration copyConfig) {
+    try {
+      // omit considering timestamp (or other markers of freshness), as files should be immutable
+      // ATTENTION: `CopyContext.getFileStatus`, to partake in caching
+      return copyConfig.getCopyContext().getFileStatus(targetFs, path).isPresent();
+    } catch (IOException e) {
+      throw new WrappedIOException(e); // halt execution and tunnel the original error outward
+    }
   }
 
   /** Add layer of indirection to permit test mocking by working around `FileSystem.get()` `static` method */
