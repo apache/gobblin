@@ -221,8 +221,7 @@ public class HadoopUtils {
    * @throws IOException
    */
   public static void moveToTrash(FileSystem fs, Path path, Configuration conf) throws IOException {
-    Trash trash = new Trash(fs, conf);
-    trash.moveToTrash(path);
+    Trash.moveToAppropriateTrash(fs, path, conf);
   }
 
   /**
