@@ -42,7 +42,7 @@ public interface UserQuotaManager {
    * It also increases the quota usage for proxy user, requester and the flowGroup of the given DagNode by one.
    * @throws QuotaExceededException if the quota is exceeded
    */
-  void checkQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+  void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNode) throws IOException;
 
   /**
    * Decrement the quota by one for the proxy user and requesters corresponding to the provided {@link Dag.DagNode}.
