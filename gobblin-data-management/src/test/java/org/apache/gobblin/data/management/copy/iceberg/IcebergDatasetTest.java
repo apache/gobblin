@@ -49,12 +49,15 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.util.PathUtils;
+
 import org.testng.collections.Sets;
 
 import static org.mockito.Matchers.any;

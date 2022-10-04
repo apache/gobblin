@@ -81,6 +81,18 @@ public class PathUtils {
   }
 
   /**
+   * Returns the root path for the specified path.
+   *
+   * @see Path
+   */
+  public static Path getRootPathParent(Path path) {
+    if (path.getParent().isRoot()) {
+      return path;
+    }
+    return getRootPathParent(path.getParent());
+  }
+
+  /**
    * Removes the leading slash if present.
    *
    */
