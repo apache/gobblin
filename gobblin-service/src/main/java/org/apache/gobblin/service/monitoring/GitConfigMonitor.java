@@ -54,8 +54,8 @@ public class GitConfigMonitor extends GitMonitoringService {
           .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR)
           .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME)
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL)
-          .put(ConfigurationKeys.JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
-          .put(ConfigurationKeys.HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
+          .put(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
+          .put(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
           .build());
 
   private final FlowCatalog flowCatalog;
@@ -66,8 +66,8 @@ public class GitConfigMonitor extends GitMonitoringService {
     this.flowCatalog = flowCatalog;
     Config configWithFallbacks = config.getConfig(GIT_CONFIG_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.listeners.add(new GitConfigListener(flowCatalog, configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_REPO_DIR),
-        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.HOCON_FILE_EXTENSIONS)));
+        configWithFallbacks.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS),
+        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS)));
   }
 
   @Override

@@ -54,4 +54,6 @@ public class ServiceMetricNames {
   public static final String JOBS_SENT_TO_SPEC_EXECUTOR = "JobsSentToSpecExecutor";
 
   public static final String HELIX_LEADER_STATE = "HelixLeaderState";
+
+  public static final String FLOWGRAPH_UPDATE_FAILED_METER = GOBBLIN_SERVICE_PREFIX + ".FlowgraphUpdateFailed";
 }
