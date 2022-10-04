@@ -180,7 +180,6 @@ clean {
 }
 
 ext.classification="library"
-
 /**
  * Converts old style pull files into *.conf with templates
  *
@@ -217,3 +216,5 @@ task pullFileConverter(type: JavaExec) {
   }
 
 }
+// Ignore the generated java code and avro residing in main
+checkstyleMain.source = "src/main/java"

@@ -140,7 +140,13 @@ public class HelixAssignedParticipantCheck implements CommitStep {
       if (jobContext != null) {
         String participant = jobContext.getAssignedParticipant(partitionNum);
         if (participant != null) {
-          return participant.equalsIgnoreCase(helixInstanceName);
+          boolean isAssignedParticipant = participant.equalsIgnoreCase(helixInstanceName);
+          if (!isAssignedParticipant) {
+            log.info("The current helix instance is not the assigned participant. helixInstanceName={}, assignedParticipant={}",
+                helixInstanceName, participant);
+          }
+
+          return isAssignedParticipant;
         }
       }
       return false;

@@ -57,7 +57,8 @@ jobs:
           restore-keys: ${{ runner.os }}-gradle
       - name: Build repository
         run: |
-          ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
+          ./gradlew --no-daemon clean build -x test -x rat -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain \
+          -x checkstyleJmh -x checkstyleTest -x checkstyleMainGeneratedDataTemplate -x checkstyleMainGeneratedRest -Dorg.gradle.parallel=true
       - name: Verify Dependencies
         run: |
           # Since dependencies are cached, check after building if they are valid or not
@@ -171,5 +172,5 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           files: ${{ env.jacoco_reports }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           verbose: true

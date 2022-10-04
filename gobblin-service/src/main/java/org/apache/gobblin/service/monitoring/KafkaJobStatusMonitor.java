@@ -22,14 +22,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.SortedMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
@@ -53,11 +50,8 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.event.CountEventBuilder;
-import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -114,8 +108,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final JobIssueEventHandler jobIssueEventHandler;
 
-  private final ConcurrentHashMap<String, Long> flowNameGroupToWorkUnitCount;
-
   private final Retryer<Void> persistJobStatusRetryer;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
@@ -128,8 +120,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
     this.jobIssueEventHandler = jobIssueEventHandler;
-
-    this.flowNameGroupToWorkUnitCount = new ConcurrentHashMap<>();
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
@@ -191,11 +181,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
     }
 
-    if (gobblinTrackingEvent.getName().equals(JobEvent.WORK_UNITS_CREATED)) {
-      emitWorkUnitCountMetric(gobblinTrackingEvent);
-      return;
-    }
-
     try {
       persistJobStatusRetryer.call(() -> {
         // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
@@ -236,63 +221,71 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @VisibleForTesting
   static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore)
       throws IOException {
-    if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
-      jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
-    }
-    if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD)) {
-      jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
-    }
-
-    String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-    String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-    String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
-    String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
-    String storeName = jobStatusStoreName(flowGroup, flowName);
-    String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
-
-    List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
-    if (states.size() > 0) {
-      org.apache.gobblin.configuration.State previousJobStatus = states.get(states.size() - 1);
-      String previousStatus = previousJobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-      String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-      int previousGeneration = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
-      // This is to make the change backward compatible as we may not have this info in cluster events
-      // If we does not have those info, we treat the event as coming from the same attempts as previous one
-      int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
-      int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
-      int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
-      // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
-      // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
-      // And job status reflect the execution status in one attempt
-      if (previousStatus != null && currentStatus != null &&
-          (previousGeneration > currentGeneration
-              || (previousGeneration == currentGeneration && previousAttempts > currentAttempts)
-              || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
-              && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus)) < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))))){
-        log.warn(String.format("Received status [generation.attempts] = %s [%s.%s] when already %s [%s.%s] for flow (%s, %s, %s), job (%s, %s)",
-            currentStatus, currentGeneration, currentAttempts, previousStatus, previousGeneration, previousAttempts, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
-        jobStatus = mergeState(states.get(states.size() - 1), jobStatus);
-      } else {
-        jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
+    try {
+      if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
+        jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
       }
+      if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD)) {
+        jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
+      }
+      String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+      String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+      String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+      String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+      String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+      String storeName = jobStatusStoreName(flowGroup, flowName);
+      String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
+
+      List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
+      if (states.size() > 0) {
+        org.apache.gobblin.configuration.State previousJobStatus = states.get(states.size() - 1);
+        String previousStatus = previousJobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+        String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+        int previousGeneration = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
+        // This is to make the change backward compatible as we may not have this info in cluster events
+        // If we does not have those info, we treat the event as coming from the same attempts as previous one
+        int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
+        int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
+        int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
+        // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
+        // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
+        // And job status reflect the execution status in one attempt
+        if (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
+            previousGeneration == currentGeneration && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
+            && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
+            < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))))) {
+          log.warn(String.format(
+              "Received status [generation.attempts] = %s [%s.%s] when already %s [%s.%s] for flow (%s, %s, %s), job (%s, %s)",
+              currentStatus, currentGeneration, currentAttempts, previousStatus, previousGeneration, previousAttempts,
+              flowGroup, flowName, flowExecutionId, jobGroup, jobName));
+          jobStatus = mergeState(states.get(states.size() - 1), jobStatus);
+        } else {
+          jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
+        }
+      }
+
+      modifyStateIfRetryRequired(jobStatus);
+      stateStore.put(storeName, tableName, jobStatus);
+    } catch (Exception e) {
+      log.warn("Meet exception when adding jobStatus to state store at "
+          + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
+      throw new IOException(e);
     }
-
-    modifyStateIfRetryRequired(jobStatus);
-
-    stateStore.put(storeName, tableName, jobStatus);
   }
 
   private static void modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
     int maxAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, 1);
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
     // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
-    if ((state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
-        || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())) && currentAttempts < maxAttempts) {
+    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) &&(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
+        || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())
+        || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY))
+    ) && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
       state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
     }
+    state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
   /**
@@ -311,29 +304,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     mergedState.putAll(state.getProperties());
 
     return new org.apache.gobblin.configuration.State(mergedState);
-  }
-
-  private void emitWorkUnitCountMetric(GobblinTrackingEvent event) {
-    Properties properties = new Properties();
-    properties.putAll(event.getMetadata());
-
-    Long numWorkUnits = Long.parseLong(properties.getProperty(CountEventBuilder.COUNT_KEY));
-    String workUnitCountName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-        properties.getProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
-        properties.getProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
-        JobEvent.WORK_UNITS_CREATED);
-
-    SortedMap<String, Gauge> existingGauges = this.getMetricContext().getGauges(
-        (name, metric) -> name.equals(workUnitCountName));
-
-    // If gauge for this flow name and group exists, then value will be updated by reference. Otherwise create
-    // a new gauge and save a reference to the value in the HashMap
-    this.flowNameGroupToWorkUnitCount.put(workUnitCountName, numWorkUnits);
-    if (existingGauges.isEmpty()) {
-      ContextAwareGauge gauge = this.getMetricContext().newContextAwareGauge(workUnitCountName,
-          () -> this.flowNameGroupToWorkUnitCount.get(workUnitCountName));
-      this.getMetricContext().register(workUnitCountName, gauge);
-    }
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {

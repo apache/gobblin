@@ -101,7 +101,7 @@ public class FSDagStateStore implements DagStateStore {
    */
   @Override
   public synchronized void cleanUp(Dag<JobExecutionPlan> dag) {
-    cleanUp(DagManagerUtils.generateDagId(dag));
+    cleanUp(DagManagerUtils.generateDagId(dag).toString());
   }
 
   /**

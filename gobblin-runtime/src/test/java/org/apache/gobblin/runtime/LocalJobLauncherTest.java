@@ -17,8 +17,10 @@
 
 package org.apache.gobblin.runtime;
 
+import com.codahale.metrics.Metric;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -27,6 +29,7 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.local.LocalJobLauncher;
+import org.apache.gobblin.runtime.metrics.ServiceGobblinJobMetricReporter;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.limiter.BaseLimiterType;
 import org.apache.gobblin.util.limiter.DefaultLimiterFactory;
@@ -63,8 +66,7 @@ public class LocalJobLauncherTest {
     this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "true");
     this.launcherProps.setProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY, "false");
-    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY,
-        testMetastoreDatabase.getJdbcUrl());
+    this.launcherProps.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());
 
     StateStore<JobState.DatasetState> datasetStateStore =
         new FsStateStore<>(this.launcherProps.getProperty(ConfigurationKeys.STATE_STORE_FS_URI_KEY),
@@ -127,7 +129,6 @@ public class LocalJobLauncherTest {
     Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
     Assert.assertEquals(jobContext.getJobState().getProp("templated0"), "x");
     Assert.assertEquals(jobContext.getJobState().getProp("templated1"), "y");
-
 
     // Verify multi-resolution with inheritance.
     jobProps.setProperty(GOBBLIN_JOB_MULTI_TEMPLATE_KEY,
@@ -198,7 +199,7 @@ public class LocalJobLauncherTest {
     }
   }
 
-  @Test(groups = { "ignore" })
+  @Test(groups = {"ignore"})
   public void testCancelJob() throws Exception {
     this.jobLauncherTestHelper.runTestWithCancellation(loadJobProps());
   }
@@ -288,6 +289,41 @@ public class LocalJobLauncherTest {
         + "-testLaunchJobWithMultipleDatasetsAndFaultyExtractorAndPartialCommitPolicy");
     try {
       this.jobLauncherTestHelper.runTestWithMultipleDatasetsAndFaultyExtractor(jobProps, true);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+  @Test
+  public void testLaunchJobWithDefaultMetricsReporter() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testDefaultMetricsReporter");
+    try {
+      JobContext jobContext = this.jobLauncherTestHelper.runTest(jobProps);
+      Map<String, Metric> metrics = jobContext.getJobMetricsOptional().get().getMetricContext().getMetrics();
+      Assert.assertTrue(metrics.containsKey("JobMetrics.WorkUnitsCreationTimer.GobblinTest1-testDefaultMetricsReporter"));
+
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+
+  @Test
+  public void testLaunchJobWithServiceMetricsReporter() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, "true");
+    jobProps.setProperty(ConfigurationKeys.JOB_METRICS_REPORTER_CLASS_KEY, ServiceGobblinJobMetricReporter.class.getName());
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "FlowName_FlowGroup_JobName_EdgeId_Hash");
+    jobProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "FlowGroup");
+    jobProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "FlowName");
+    jobProps.setProperty("flow.edge.id", "EdgeId");
+    try {
+      JobContext jobContext = this.jobLauncherTestHelper.runTest(jobProps);
+      Map<String, Metric> metrics = jobContext.getJobMetricsOptional().get().getMetricContext().getMetrics();
+      Assert.assertTrue(metrics.containsKey("GobblinService.FlowGroup.FlowName.EdgeId.WorkUnitsCreated"));
+      Assert.assertTrue(metrics.containsKey("GobblinService.FlowGroup.FlowName.EdgeId.WorkUnitsCreationTimer"));
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }

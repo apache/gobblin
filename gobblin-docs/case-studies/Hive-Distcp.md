@@ -101,7 +101,9 @@ A partition filter can be applied when copying partitioned tables. Filters can o
 
 ## Fast partition skip predicate
 
-A predicate that operates on partitions can be provided to distcp-ng to allow it to quickly skip partitions without having to list all of the source and target files and do a diff on those sets (a costly operation). To set this predicate, provide the class name of the predicate with the key `hive.dataset.copy.fast.partition.skip.predicate`. Currently only one such predicate exists:
+A predicate that operates on partitions can be provided to distcp-ng to allow it to quickly skip partitions without having to list all of the source and target files and do a diff on those sets (a costly operation). To set this predicate, provide the class name of the predicate with the key `hive.dataset.copy.fast.partition.skip.predicate`. Below are the following predicates that exist
 
 * `RegistrationTimeSkipPredicate`: This predicate compares the Hive partition attribute `registrationGenerationTimeMillis` in the target with the modification time of the partition directory in the source. The partition is skipped unless the directory was modified more recently than the registrationGenerationTime. The attribute `registrationGenerationTimeMillis` is an attribute set by distcp-ng representing (for all practical purposes) the time at which the distcp-ng job that registered that table started.
-
+* `NonPartitionTableRegistrationTimeSkipPredicate`: This predicate can be used on non partition tables and compares the `registrationGenerationTimeMillis` in the target.
+* `ExistingPartitionSkipPredicate`: This predicate can be used to skip any partition that already exists in the target table.
+* `RootDirectoryModtimeSkipPredicate`: This predicate can be used to skip any partition whose root directory modified time is later than the copy source.

@@ -50,7 +50,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 
 
 /**
@@ -63,7 +63,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   @Getter
   private String serviceName;
   private boolean flowCatalogLocalCommit;
-  private FlowConfigResourceLocalHandler localHandler;
+  protected FlowConfigResourceLocalHandler localHandler;
   private Optional<HelixManager> helixManager;
   private GobblinServiceJobScheduler jobScheduler;
   private boolean forceLeader;
@@ -97,6 +97,11 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   @Override
   public Collection<FlowConfig> getAllFlowConfigs() {
     return this.localHandler.getAllFlowConfigs();
+  }
+
+  @Override
+  public Collection<FlowConfig> getAllFlowConfigs(int start, int count) {
+    return this.localHandler.getAllFlowConfigs(start, count);
   }
 
   /**

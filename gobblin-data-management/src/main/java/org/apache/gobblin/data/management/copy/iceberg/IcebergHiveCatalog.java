@@ -15,20 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metastore.util;
+package org.apache.gobblin.data.management.copy.iceberg;
 
-public final class MysqlDataSourceUtils {
-  /**
-   *  This query will validate that MySQL connection is active and Mysql instance is writable.
-   *
-   *  If a database failover happened, and current replica became read-only, this query will fail and
-   *  connection will be removed from the pool.
-   *
-   *  See https://stackoverflow.com/questions/39552146/evicting-connections-to-a-read-only-node-in-a-cluster-from-the-connection-pool
-   * */
-  public static final String QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY =
-      "select case when @@read_only = 0 then 1 else (select table_name from information_schema.tables) end as `1`";
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-  private MysqlDataSourceUtils() {
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.hive.HiveCatalog;
+
+
+/**
+ * Hive-Metastore-based {@link IcebergCatalog}.
+ */
+@Slf4j
+@AllArgsConstructor
+public class IcebergHiveCatalog implements IcebergCatalog {
+  // NOTE: specifically necessitates `HiveCatalog`, as `BaseMetastoreCatalog.newTableOps` is `protected`!
+  private final HiveCatalog hc;
+
+  @Override
+  public IcebergTable openTable(String dbName, String tableName) {
+    TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
+    return new IcebergTable(tableId, hc.newTableOps(tableId));
   }
 }

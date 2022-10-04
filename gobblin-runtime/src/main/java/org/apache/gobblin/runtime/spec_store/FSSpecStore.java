@@ -357,6 +357,11 @@ public class FSSpecStore extends InstrumentedSpecStore {
     return getSizeImpl(this.fsSpecStoreDirPath);
   }
 
+  @Override
+  public Collection<Spec> getSpecsImpl(int start, int count) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException();
+  }
+
   private int getSizeImpl(Path directory) throws IOException {
     int specs = 0;
     FileStatus[] fileStatuses = fs.listStatus(directory);

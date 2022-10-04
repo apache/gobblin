@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,12 +46,13 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
-
+@Slf4j
 public class TimeAwareRecursiveCopyableDatasetTest {
   private FileSystem fs;
   private Path baseDir1;
   private Path baseDir2;
   private Path baseDir3;
+  private Path baseDir4;
 
   private static final String NUM_LOOKBACK_DAYS_STR = "2d";
   private static final Integer NUM_LOOKBACK_DAYS = 2;
@@ -85,6 +88,12 @@ public class TimeAwareRecursiveCopyableDatasetTest {
       fs.delete(baseDir3, true);
     }
     fs.mkdirs(baseDir3);
+
+    baseDir4 = new Path("/tmp/src/ds3/daily");
+    if (fs.exists(baseDir4)) {
+      fs.delete(baseDir4, true);
+    }
+    fs.mkdirs(baseDir4);
     PeriodFormatter formatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
     Period period = formatter.parsePeriod(NUM_LOOKBACK_DAYS_HOURS_STR);
   }
@@ -165,6 +174,10 @@ public class TimeAwareRecursiveCopyableDatasetTest {
         candidateFiles.add(filePath.toString());
       }
     }
+    // Edge case: test that files that do not match dateformat but within the folders searched by the timeaware finder is ignored
+    File f = new File(baseDir2.toString() + "/metadata.test");
+
+    f.createNewFile();
 
     properties = new Properties();
     properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_DAYS_STR);
@@ -216,6 +229,78 @@ public class TimeAwareRecursiveCopyableDatasetTest {
       Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
     }
 
+    // test ds of daily/yyyy-MM-dd-HH-mm-ss
+    datePattern = "yyyy-MM-dd-HH-mm-ss";
+    formatter = DateTimeFormat.forPattern(datePattern);
+    endDate = LocalDateTime.now(DateTimeZone.forID(TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE));
+
+    candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_DAILY_DIRS; i++) {
+      String startDate = endDate.minusDays(i).withMinuteOfHour(random.nextInt(60)).withSecondOfMinute(random.nextInt(60)).toString(formatter);
+      if (i == 0) {
+        // avoid future dates on minutes, so have consistency test result
+        startDate = endDate.minusHours(i).withMinuteOfHour(0).withSecondOfMinute(0).toString(formatter);
+      }
+      Path subDirPath = new Path(baseDir4, new Path(startDate));
+      fs.mkdirs(subDirPath);
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_DAYS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
+    }
+
+    properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, "2d1h");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy-MM-dd-HH-mm-ss");
+
+    dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir4, properties,
+        new Path("/tmp/src/ds3/daily"));
+
+    fileStatusList = dataset.getFilesAtPath(fs, baseDir4, pathFilter);
+
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_DAYS + 1);
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
+  }
+
+  @Test
+  public void testTimezoneProperty() throws IOException {
+    // Test in UTC instead of default time
+    String datePattern = "yyyy/MM/dd/HH";
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    // Ensure that the files are created in UTC time
+    LocalDateTime endDate = LocalDateTime.now(DateTimeZone.forID("UTC"));
+
+    Set<String> candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_HOURLY_DIRS; i++) {
+      String startDate = endDate.minusHours(i).toString(formatter);
+      Path subDirPath = new Path(baseDir1, new Path(startDate));
+      fs.mkdirs(subDirPath);
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_HOURS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
+    }
+
+    //Lookback time = "4h"
+    Properties properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_HOURS_STR);
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd/HH");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_TIMEZONE_KEY, "UTC");
+
+    PathFilter pathFilter = new HiddenFilter();
+    TimeAwareRecursiveCopyableDataset dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir1, properties,
+        new Path("/tmp/src/*/hourly"));
+    List<FileStatus> fileStatusList = dataset.getFilesAtPath(fs, baseDir1, pathFilter);
+
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_HOURS + 1);
+
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
   }
 
   @Test (expectedExceptions = IllegalArgumentException.class)
@@ -238,11 +323,61 @@ public class TimeAwareRecursiveCopyableDatasetTest {
 
   }
 
+  @Test (expectedExceptions = IllegalArgumentException.class)
+  public void testIllegalTimezoneProperty() throws IOException {
+    //Lookback time = "4h"
+    Properties properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_HOURS_STR);
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd/HH");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_TIMEZONE_KEY, "InvalidTimeZone");
+
+    TimeAwareRecursiveCopyableDataset dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir3, properties,
+        new Path("/tmp/src/ds2/daily"));
+  }
+
+  @Test
+  public void testCheckPathDateTimeValidity() {
+    String datePattern = "yyyy/MM/dd/HH";
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    LocalDateTime startDate = LocalDateTime.parse("2022/11/30/23", formatter);
+    LocalDateTime endDate = LocalDateTime.parse("2022/12/30/23", formatter);
+
+    // Level 1 is when datePath is "", that case is taken care of in the recursivelyGetFilesAtDatePath function
+    // Check when year granularity is not in range
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023", datePattern, 2));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11", datePattern, 3));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11/30", datePattern, 4));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2023/11/30/20", datePattern, 5));
+
+    // Check when hour granularity is not in range
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022", datePattern, 2));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11", datePattern, 3));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11/30", datePattern, 4));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/11/30/20", datePattern, 5));
+
+    // Change format and check that all granularities are in range
+    datePattern = "yyyy/MM/dd/HH/mm";
+    formatter = DateTimeFormat.forPattern(datePattern);
+    startDate = LocalDateTime.parse("2022/11/30/23/59", formatter);
+    endDate = LocalDateTime.parse("2022/12/30/23/59", formatter);
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022", datePattern, 2));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12", datePattern, 3));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15", datePattern, 4));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15/15", datePattern, 5));
+    Assert.assertTrue(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "2022/12/15/15/30", datePattern, 6));
+
+    // Check when invalid datePath provided when compared against datePattern
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test", datePattern, 2));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test/test", datePattern, 3));
+    Assert.assertFalse(TimeAwareRecursiveCopyableDataset.checkPathDateTimeValidity(startDate, endDate, "test/test/test", datePattern, 4));
+  }
+
   @AfterClass
   public void clean() throws IOException {
     //Delete tmp directories
     this.fs.delete(baseDir1, true);
     this.fs.delete(baseDir2, true);
     this.fs.delete(baseDir3, true);
+    this.fs.delete(baseDir4, true);
   }
 }

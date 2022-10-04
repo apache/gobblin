@@ -31,6 +31,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -98,6 +100,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -197,6 +200,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Inject
   protected ServiceDatabaseManager databaseManager;
 
+  @Inject(optional=true)
+  @Getter
+  protected Optional<UserQuotaManager> quotaManager;
+
   protected Optional<HelixLeaderState> helixLeaderGauges;
 
   @Inject(optional = true)
@@ -204,6 +211,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   private final MetricContext metricContext;
   private final Metrics metrics;
+
+  @Inject(optional = true)
+  protected SpecStoreChangeMonitor specStoreChangeMonitor;
 
   @Inject
   protected GobblinServiceManager(GobblinServiceConfiguration configuration) throws Exception {
@@ -371,6 +381,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (configuration.isRestLIServerEnabled()) {
       this.serviceLauncher.addService(restliServer);
     }
+
+    if (this.configuration.isWarmStandbyEnabled()) {
+      this.serviceLauncher.addService(specStoreChangeMonitor);
+    }
   }
 
   private void configureServices(){
@@ -388,7 +402,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     registerServicesInLauncher();
 
     // Register Scheduler to listen to changes in Flows
-    if (configuration.isSchedulerEnabled()) {
+    // In warm standby mode, instead of scheduler we will add orchestrator as listener
+    if(configuration.isWarmStandbyEnabled()) {
+      this.flowCatalog.addListener(this.orchestrator);
+    } else if (configuration.isSchedulerEnabled()) {
       this.flowCatalog.addListener(this.scheduler);
     }
   }

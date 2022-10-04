@@ -48,7 +48,7 @@ public interface MutableSpecCatalog extends SpecCatalog {
    * on adding a {@link Spec} to the {@link SpecCatalog}. The key for each entry is the name of the {@link SpecCatalogListener}
    * and the value is the result of the the action taken by the listener returned as an instance of {@link AddSpecResponse}.
    * */
-  Map<String, AddSpecResponse> put(Spec spec);
+  Map<String, AddSpecResponse> put(Spec spec) throws Throwable;
 
   /**
    * Removes an existing {@link Spec} with the given URI.

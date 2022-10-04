@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
@@ -112,6 +113,13 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   }
 
   /**
+   * Get all flow configs in between start and start + count - 1
+   */
+  public Collection<FlowConfig> getAllFlowConfigs(int start, int count) {
+    return flowCatalog.getAllSpecs(start, count).stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
+  }
+
+  /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
@@ -133,7 +141,15 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     if (!flowConfig.hasSchedule() && this.flowCatalog.exists(flowSpec.getUri())) {
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
-      this.flowCatalog.put(flowSpec, triggerListener);
+      try {
+        this.flowCatalog.put(flowSpec, triggerListener);
+      } catch (QuotaExceededException e) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+      } catch (Throwable e) {
+        // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+        log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
+        throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      }
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
     }
   }
@@ -145,10 +161,14 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     return this.createFlowConfig(flowConfig, true);
   }
 
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener) {
+    // Set the max version to be the largest value so that we blindly update the flow spec in this case
+    return updateFlowConfig(flowId, flowConfig, triggerListener, Long.MAX_VALUE);
+  }
   /**
    * Update flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
-  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener) {
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long modifiedWatermark) {
     log.info("[GAAS-REST] Update called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     if (!flowId.getFlowGroup().equals(flowConfig.getId().getFlowGroup()) || !flowId.getFlowName().equals(flowConfig.getId().getFlowName())) {
@@ -168,8 +188,15 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
       flowConfig = originalFlowConfig;
     }
-
-    this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
+    try {
+      this.flowCatalog.update(createFlowSpecForConfig(flowConfig), triggerListener, modifiedWatermark);
+    } catch (QuotaExceededException e) {
+      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+    } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      log.warn(String.format("Failed to add flow configuration %s.%sto catalog due to", flowId.getFlowGroup(), flowId.getFlowName()), e);
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+    }
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
 

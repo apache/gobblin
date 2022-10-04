@@ -57,6 +57,8 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   private final Boolean isRunImmediately;
   private final String owningGroup;
   private final String propertyFilter;
+  private final int start;
+  private final int count;
 
   public static FlowSpecSearchObject fromFlowId(FlowId flowId) {
     return FlowSpecSearchObject.builder().flowGroup(flowId.getFlowGroup()).flowName(flowId.getFlowName()).build();
@@ -67,6 +69,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
   public String augmentBaseGetStatement(String baseStatement)
       throws IOException {
     List<String> conditions = new ArrayList<>();
+    List<String> limitAndOffset = new ArrayList<>();
 
     /*
      * IMPORTANT: the order of `conditions` added must align with the order of parameter binding later in `completePreparedStatement`!
@@ -116,6 +119,14 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       conditions.add("owning_group = ?");
     }
 
+    if (this.getCount() > 0) {
+      // Order by two fields to make a full order by
+      limitAndOffset.add(" ORDER BY modified_time DESC, spec_uri ASC LIMIT ?");
+      if (this.getStart() > 0) {
+        limitAndOffset.add(" OFFSET ?");
+      }
+    }
+
     // If the propertyFilter is myKey=myValue, it looks for a config where key is `myKey` and value contains string `myValue`.
     // If the propertyFilter string does not have `=`, it considers the string as a key and just looks for its existence.
     // Multiple occurrences of `=` in  propertyFilter are not supported and ignored completely.
@@ -136,11 +147,10 @@ public class FlowSpecSearchObject implements SpecSearchObject {
       }
     }
 
-    if (conditions.size() == 0) {
+    if (conditions.size() == 0 && limitAndOffset.size() == 0) {
       throw new IOException("At least one condition is required to query flow configs.");
     }
-
-    return baseStatement + String.join(" AND ", conditions);
+    return baseStatement + String.join(" AND ", conditions) + String.join(" ", limitAndOffset);
   }
 
   @Override
@@ -181,7 +191,7 @@ public class FlowSpecSearchObject implements SpecSearchObject {
     }
 
     if (this.getSchedule() != null) {
-      statement.setString(++i, this.getModifiedTimestamp());
+      statement.setString(++i, this.getSchedule());
     }
 
     if (this.getIsRunImmediately() != null) {
@@ -190,6 +200,13 @@ public class FlowSpecSearchObject implements SpecSearchObject {
 
     if (this.getOwningGroup() != null) {
       statement.setString(++i, this.getOwningGroup());
+    }
+
+    if (this.getCount() > 0) {
+      statement.setInt(++i, this.getCount());
+      if (this.getStart() > 0) {
+        statement.setInt(++i, this.getStart());
+      }
     }
   }
 }

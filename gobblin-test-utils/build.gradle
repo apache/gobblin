@@ -101,3 +101,5 @@ findbugs {
 }
 
 ext.classification="library"
+// Ignore the generated java code and avro residing in main
+checkstyleMain.source = "src/main/java"

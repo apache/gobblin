@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +29,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -35,6 +37,8 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.commons.collections.CollectionUtils;
+import com.google.common.annotations.VisibleForTesting;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -53,15 +57,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.writer.HiveMetadataWriterWithPartitionInfoException;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
@@ -104,13 +112,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   List<MetadataWriter> metadataWriters;
   Map<String, TableStatus> tableOperationTypeMap;
   @Getter
-  Map<String, Map<String, GobblinMetadataException>> datasetErrorMap;
+  Map<String, Map<String, List<GobblinMetadataException>>> datasetErrorMap;
   Set<String> acceptedClusters;
   protected State state;
   private final ParallelRunner parallelRunner;
   private int parallelRunnerTimeoutMills;
   private Map<String, Cache<String, Collection<HiveSpec>>> oldSpecsMaps;
   private Map<String, Cache<String, Collection<HiveSpec>>> newSpecsMaps;
+  private Map<String, List<HiveRegistrationUnit.Column>> partitionKeysMap;
   private Closer closer = Closer.create();
   protected final AtomicLong recordCount = new AtomicLong(0L);
   @Setter
@@ -131,6 +140,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
     datasetErrorMap = new HashMap<>();
+    partitionKeysMap = new HashMap<>();
     acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
     maxErrorDataset = state.getPropAsInt(GMCE_METADATA_WRITER_MAX_ERROR_DATASET, DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET);
@@ -142,7 +152,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         FileSystem.get(HadoopUtils.getConfFromState(properties))));
     parallelRunnerTimeoutMills =
         state.getPropAsInt(METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS, DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS);
-    MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass());
+    List<Tag<?>> tags = Lists.newArrayList();
+    String clusterIdentifier = ClustersNames.getInstance().getClusterName();
+    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
     eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
   }
 
@@ -176,8 +189,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
             //Use raw path to comply with HDFS federation setting.
             Path rawPath = new Path(regPath.toUri().getRawPath());
             specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
-          } catch (Exception e) {
-            log.warn("Cannot get Hive Spec for {} using policy {}", file, policy.toString());
+          } catch (Throwable e) {
+            //todo: Emit failed GMCE in the future to easily track the error gmce and investigate the reason for that.
+            log.warn("Cannot get Hive Spec for {} using policy {} due to:", file, policy.toString());
+            log.warn(e.getMessage());
           }
           return null;
         }
@@ -271,6 +286,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String dbName = spec.getTable().getDbName();
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
+      partitionKeysMap.put(tableString, spec.getTable().getPartitionKeys());
       if (!tableOperationTypeMap.containsKey(tableString)) {
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
@@ -282,18 +298,37 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
             ((LongWatermark)watermark.getWatermark()).getValue()-1, ((LongWatermark)watermark.getWatermark()).getValue()));
       }
       tableOperationTypeMap.get(tableString).gmceHighWatermark = ((LongWatermark)watermark.getWatermark()).getValue();
-      write(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
+
+      List<MetadataWriter> allowedWriters = getAllowedMetadataWriters(gmce, metadataWriters);
+      writeWithMetadataWriters(recordEnvelope, allowedWriters, newSpecsMap, oldSpecsMap, spec);
     }
     this.recordCount.incrementAndGet();
   }
 
-  // Add fault tolerant ability and make sure we can emit GTE as desired
-  private void write(RecordEnvelope recordEnvelope, ConcurrentHashMap newSpecsMap, ConcurrentHashMap oldSpecsMap, HiveSpec spec) throws IOException {
+  /**
+   * Entry point for calling the allowed metadata writers specified in the GMCE
+   * Adds fault tolerant ability and make sure we can emit GTE as desired
+   * Visible for testing because the WriteEnvelope method has complicated hive logic
+   * @param recordEnvelope
+   * @param allowedWriters metadata writers that will be written to
+   * @param newSpecsMap
+   * @param oldSpecsMap
+   * @param spec
+   * @throws IOException when max number of dataset errors is exceeded
+   */
+  @VisibleForTesting
+  void writeWithMetadataWriters(
+      RecordEnvelope<GenericRecord> recordEnvelope,
+      List<MetadataWriter> allowedWriters,
+      ConcurrentHashMap newSpecsMap,
+      ConcurrentHashMap oldSpecsMap,
+      HiveSpec spec
+  ) throws IOException {
     boolean meetException = false;
     String dbName = spec.getTable().getDbName();
     String tableName = spec.getTable().getTableName();
     String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
-    for (MetadataWriter writer : metadataWriters) {
+    for (MetadataWriter writer : allowedWriters) {
       if (meetException) {
         writer.reset(dbName, tableName);
       } else {
@@ -302,24 +337,52 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         } catch (Exception e) {
           meetException = true;
           writer.reset(dbName, tableName);
-          addOrThrowException(e, tableString, dbName, tableName);
+          addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
         }
       }
     }
   }
 
-  private void addOrThrowException(Exception e, String tableString, String dbName, String tableName) throws IOException{
+  /**
+   *   All metadata writers will be returned if no metadata writers are specified in gmce
+   * @param gmce
+   * @param metadataWriters
+   * @return The metadata writers allowed as specified by GMCE. Relative order of {@code metadataWriters} is maintained
+   */
+  @VisibleForTesting
+  static List<MetadataWriter> getAllowedMetadataWriters(GobblinMetadataChangeEvent gmce, List<MetadataWriter> metadataWriters) {
+    if (CollectionUtils.isEmpty(gmce.getAllowedMetadataWriters())) {
+      return metadataWriters;
+    }
+
+    Set<String> allowSet = new HashSet<>(gmce.getAllowedMetadataWriters());
+    return metadataWriters.stream()
+        .filter(writer -> allowSet.contains(writer.getClass().getName()))
+        .collect(Collectors.toList());
+  }
+
+  private void addOrThrowException(Exception e, String tableString, String dbName, String tableName, List<String> failedWriters) throws IOException {
     TableStatus tableStatus = tableOperationTypeMap.get(tableString);
-    Map<String, GobblinMetadataException> tableErrorMap = this.datasetErrorMap.getOrDefault(tableStatus.datasetPath, new HashMap<>());
-    if (tableErrorMap.containsKey(tableString)) {
-      tableErrorMap.get(tableString).highWatermark = tableStatus.gmceHighWatermark;
+    Map<String, List<GobblinMetadataException>> tableErrorMap = this.datasetErrorMap.getOrDefault(tableStatus.datasetPath, new HashMap<>());
+    GobblinMetadataException lastException = null;
+    if (tableErrorMap.containsKey(tableString) && !tableErrorMap.get(tableString).isEmpty()) {
+      lastException = tableErrorMap.get(tableString).get(tableErrorMap.get(tableString).size() - 1);
     } else {
-      GobblinMetadataException gobblinMetadataException =
-          new GobblinMetadataException(tableStatus.datasetPath, dbName, tableName, tableStatus.gmceTopicPartition, tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, e);
-      tableErrorMap.put(tableString, gobblinMetadataException);
+      tableErrorMap.put(tableString, new ArrayList<>());
+    }
+    // If operationType has changed, add a new exception to the list so that each failure event represents an offset range all containing the same operation
+    if (lastException != null && lastException.operationType.equals(tableStatus.operationType)) {
+      lastException.highWatermark = tableStatus.gmceHighWatermark;
+    } else {
+      lastException = new GobblinMetadataException(tableStatus.datasetPath, dbName, tableName, tableStatus.gmceTopicPartition,
+          tableStatus.gmceLowWatermark, tableStatus.gmceHighWatermark, failedWriters, tableStatus.operationType, partitionKeysMap.get(tableString), e);
+      tableErrorMap.get(tableString).add(lastException);
+    }
+    if (e instanceof HiveMetadataWriterWithPartitionInfoException) {
+      lastException.addedPartitionValues.addAll(((HiveMetadataWriterWithPartitionInfoException) e).addedPartitionValues);
+      lastException.droppedPartitionValues.addAll(((HiveMetadataWriterWithPartitionInfoException) e).droppedPartitionValues);
     }
     this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
-    tableOperationTypeMap.remove(tableString);
     log.error(String.format("Meet exception when flush table %s", tableString), e);
     if (datasetErrorMap.size() > maxErrorDataset) {
       //Fail the job if the error size exceeds some number
@@ -344,18 +407,20 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         } catch (IOException e) {
           meetException = true;
           writer.reset(dbName, tableName);
-          addOrThrowException(e, tableString, dbName, tableName);
+          addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
         }
       }
     }
-    String datasetPath = tableOperationTypeMap.get(tableString).datasetPath;
-    if (!meetException && datasetErrorMap.containsKey(datasetPath) && datasetErrorMap.get(datasetPath).containsKey(tableString)) {
-      // We only want to emit GTE when the table watermark moves. There can be two scenario that watermark move, one is after one flush interval,
-      // we commit new watermark to state store, anther is here, where during the flush interval, we flush table because table operation changes.
-      // Under this condition, error map contains this dataset means we met error before this flush, but this time when flush succeed and
-      // the watermark inside the table moves, so we want to emit GTE to indicate there is some data loss here
-      submitFailureEvent(datasetErrorMap.get(datasetPath).get(tableString));
-      this.datasetErrorMap.get(datasetPath).remove(tableString);
+    if (!meetException) {
+      String datasetPath = tableOperationTypeMap.get(tableString).datasetPath;
+      if (datasetErrorMap.containsKey(datasetPath) && datasetErrorMap.get(datasetPath).containsKey(tableString)) {
+        // We only want to emit GTE when the table watermark moves. There can be two scenario that watermark move, one is after one flush interval,
+        // we commit new watermark to state store, anther is here, where during the flush interval, we flush table because table operation changes.
+        // Under this condition, error map contains this dataset means we met error before this flush, but this time when flush succeed and
+        // the watermark inside the table moves, so we want to emit GTE to indicate there is some data loss here
+        submitFailureEvents(datasetErrorMap.get(datasetPath).get(tableString));
+        this.datasetErrorMap.get(datasetPath).remove(tableString);
+      }
     }
   }
 
@@ -373,7 +438,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    */
   @Override
   public void flush() throws IOException {
-    log.info(String.format("start to flushing %s records", String.valueOf(recordCount.get())));
+    log.info(String.format("begin flushing %s records", String.valueOf(recordCount.get())));
     for (String tableString : tableOperationTypeMap.keySet()) {
       List<String> tid = Splitter.on(TABLE_NAME_DELIMITER).splitToList(tableString);
       flush(tid.get(0), tid.get(1));
@@ -381,9 +446,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     tableOperationTypeMap.clear();
     recordCount.lazySet(0L);
     // Emit events for all current errors, since the GMCE watermark will be advanced
-    for (Map.Entry<String, Map<String, GobblinMetadataException>> entry : datasetErrorMap.entrySet()) {
-      for (GobblinMetadataException exception : entry.getValue().values()) {
-        submitFailureEvent(exception);
+    for (Map.Entry<String, Map<String, List<GobblinMetadataException>>> entry : datasetErrorMap.entrySet()) {
+      for (List<GobblinMetadataException> exceptionList : entry.getValue().values()) {
+        submitFailureEvents(exceptionList);
       }
       entry.getValue().clear();
     }
@@ -436,20 +501,40 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   }
 
   /**
-   * Submit event indicating that a specific set of GMCEs have been skipped, so there is a gap in the registration
+   * Submit events indicating that a specific set of GMCEs have been skipped, so there is a gap in the registration
    */
-  private void submitFailureEvent(GobblinMetadataException exception) {
-    log.warn(String.format("Sending GTE to indicate table flush failure for %s.%s", exception.dbName, exception.tableName));
+  private void submitFailureEvents(List<GobblinMetadataException> exceptionList) {
+    if (exceptionList.isEmpty()) {
+      return;
+    }
+    log.warn(String.format("Sending GTEs to indicate table flush failure for %s.%s", exceptionList.get(0).dbName, exceptionList.get(0).tableName));
 
-    GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(IcebergMCEMetadataKeys.METADATA_WRITER_FAILURE_EVENT);
+    for (GobblinMetadataException exception : exceptionList) {
+      GobblinEventBuilder gobblinTrackingEvent = new GobblinEventBuilder(MetadataWriterKeys.METADATA_WRITER_FAILURE_EVENT);
 
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.DATASET_HDFS_PATH, exception.datasetPath);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_DB_NAME, exception.dbName);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.FAILURE_EVENT_TABLE_NAME, exception.tableName);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition);
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
-    gobblinTrackingEvent.addMetadata(IcebergMCEMetadataKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATASET_HDFS_PATH, exception.datasetPath);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.DATABASE_NAME_KEY, exception.dbName);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.TABLE_NAME_KEY, exception.tableName);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_NAME, exception.GMCETopicPartition.split("-")[0]);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_TOPIC_PARTITION, exception.GMCETopicPartition.split("-")[1]);
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_HIGH_WATERMARK, Long.toString(exception.highWatermark));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.GMCE_LOW_WATERMARK, Long.toString(exception.lowWatermark));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_WRITERS_KEY, Joiner.on(',').join(exception.failedWriters));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.OPERATION_TYPE_KEY, exception.operationType.toString());
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_TO_ADD_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.addedPartitionValues));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.FAILED_TO_DROP_PARTITION_VALUES_KEY, Joiner.on(',').join(exception.droppedPartitionValues));
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_KEYS, Joiner.on(',').join(exception.partitionKeys.stream()
+          .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
 
-    eventSubmitter.submit(gobblinTrackingEvent);
+      String message = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
+      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.EXCEPTION_MESSAGE_KEY_NAME, message);
+
+      eventSubmitter.submit(gobblinTrackingEvent);
+    }
+  }
+
+  private List<String> getFailedWriterList(MetadataWriter failedWriter) {
+    List<MetadataWriter> failedWriters = metadataWriters.subList(metadataWriters.indexOf(failedWriter), metadataWriters.size());
+    return failedWriters.stream().map(writer -> writer.getClass().getName()).collect(Collectors.toList());
   }
 }

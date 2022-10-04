@@ -42,7 +42,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.Builder;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ObjectUtils;
@@ -113,13 +112,19 @@ public class AzkabanClient implements Closeable {
 
     this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
         .retryIfExceptionOfType(InvalidSessionException.class)
-        .retryIfExceptionOfType(TimeoutException.class)
         .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.requestTimeout.toMillis(), TimeUnit.MILLISECONDS,
             this.executorService))
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(3))
         .build();
-    this.sessionId = this.sessionManager.fetchSession();
+    try {
+      this.sessionId = this.sessionManager.fetchSession();
+    } catch (Exception e) {
+      this.sessionId = null;
+      this.sessionCreationTime = -1;
+      log.error("Failed to fetch session in constructor due to: ", e);
+      return;
+    }
     this.sessionCreationTime = System.nanoTime();
   }
 
@@ -130,7 +135,7 @@ public class AzkabanClient implements Closeable {
     }
   }
 
-  private void initializeSessionManager() throws AzkabanClientException {
+  private void initializeSessionManager() {
     if (sessionManager == null) {
       this.sessionManager = new AzkabanSessionManager(this.httpClient,
                                                       this.url,

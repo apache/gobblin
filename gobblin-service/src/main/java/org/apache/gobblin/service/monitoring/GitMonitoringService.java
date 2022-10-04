@@ -15,26 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service.monitoring;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Base64;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.TransportConfigCallback;
@@ -53,14 +49,13 @@ import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.util.FS;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.AbstractIdleService;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
@@ -73,16 +68,19 @@ import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.util.PullFileLoader;
 
 
+/**
+ * Base monitoring service that polls git and applies changes to each of its listeners
+ * Implementation classes should also define {@link GitDiffListener} to apply changes from git
+ * It is possible to have multiple listeners to the same repository, and each can apply their own changes, but
+ * determining if a change is made and their order is centrally controlled by processGitConfigChanges()
+ */
 @Slf4j
 public abstract class GitMonitoringService extends AbstractIdleService {
   private static final String REMOTE_NAME = "origin";
   private static final int TERMINATION_TIMEOUT = 30;
 
-  static final String JAVA_PROPS_EXTENSIONS = "javaPropsExtensions";
-  static final String HOCON_FILE_EXTENSIONS = "hoconFileExtensions";
   static final String SHOULD_CHECKPOINT_HASHES = "shouldCheckpointHashes";
 
   private final Integer pollingInterval;
@@ -97,12 +95,10 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   private String knownHostsFile;
 
   final GitMonitoringService.GitRepository gitRepo;
-  final String repositoryDir;
-  final String folderName;
-  final PullFileLoader pullFileLoader;
-  final Set<String> javaPropsExtensions;
-  final Set<String> hoconFileExtensions;
+  protected final String repositoryDir;
+  protected final String folderName;
 
+  protected List<GitDiffListener> listeners = new ArrayList<>();
   protected volatile boolean isActive = false;
 
   GitMonitoringService(Config config) {
@@ -168,17 +164,6 @@ public abstract class GitMonitoringService extends AbstractIdleService {
       throw new RuntimeException("Could not open git repository", e);
     }
 
-    Path folderPath = new Path(this.repositoryDir, this.folderName);
-    this.javaPropsExtensions = Sets.newHashSet(config.getString(JAVA_PROPS_EXTENSIONS).split(","));
-    this.hoconFileExtensions = Sets.newHashSet(config.getString(HOCON_FILE_EXTENSIONS).split(","));
-    try {
-      this.pullFileLoader = new PullFileLoader(folderPath,
-          FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
-          this.javaPropsExtensions, this.hoconFileExtensions);
-    } catch (IOException e) {
-      throw new RuntimeException("Could not create pull file loader", e);
-    }
-
     this.scheduledExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("FetchGitConfExecutor")));
   }
@@ -234,20 +219,22 @@ public abstract class GitMonitoringService extends AbstractIdleService {
    */
   void processGitConfigChangesHelper(List<DiffEntry> changes) throws IOException {
     for (DiffEntry change : changes) {
-      switch (change.getChangeType()) {
-        case ADD:
-        case MODIFY:
-          addChange(change);
-          break;
-        case DELETE:
-          removeChange(change);
-          break;
-        case RENAME:
-          removeChange(change);
-          addChange(change);
-          break;
-        default:
-          throw new RuntimeException("Unsupported change type " + change.getChangeType());
+      for (GitDiffListener listener: this.listeners) {
+        switch (change.getChangeType()) {
+          case ADD:
+          case MODIFY:
+            listener.addChange(change);
+            break;
+          case DELETE:
+            listener.removeChange(change);
+            break;
+          case RENAME:
+            listener.removeChange(change);
+            listener.addChange(change);
+            break;
+          default:
+            throw new RuntimeException("Unsupported change type " + change.getChangeType());
+        }
       }
     }
 
@@ -487,8 +474,4 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   }
 
   public abstract boolean shouldPollGit();
-
-  public abstract void addChange(DiffEntry change);
-
-  public abstract void removeChange(DiffEntry change);
 }

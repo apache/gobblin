@@ -18,6 +18,9 @@
 package org.apache.gobblin.util;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import java.io.IOException;
 import org.apache.avro.file.CodecFactory;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -30,6 +33,11 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.Extract.TableType;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+
 
 /**
  * Tests for {@link WriterUtils}.
@@ -123,6 +131,36 @@ public class WriterUtilsTest {
     Assert.assertEquals(WriterUtils.getWriterFilePath(state, 0, 0), new Path(state.getExtract().getOutputFilePath()));
     Assert.assertEquals(WriterUtils.getWriterFilePath(state, 2, 0), new Path(state.getExtract().getOutputFilePath(),
         ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + "0"));
+  }
+
+  @Test
+  public void testMkdirsPermissionsSet() throws IOException {
+    Path testRoot = new Path("/tmp");
+    Path testParent = new Path(testRoot, "mkdirs-1");
+    Path testChild = new Path(testParent, "mkdirs-2/mkdirs-3/mkdirs-4");
+
+    Config retryConfig = ConfigFactory.empty();
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    try {
+      fs.delete(testParent, true);
+
+      FsPermission all = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, testParent, all, retryConfig);
+      Assert.assertTrue(fs.exists(testParent));
+      Assert.assertEquals(fs.getFileStatus(testParent).getPermission(), all);
+
+      FsPermission restricted = new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.EXECUTE);
+      WriterUtils.mkdirsWithRecursivePermissionWithRetry(fs, testChild, restricted, retryConfig);
+      Assert.assertTrue(fs.exists(testChild));
+
+      // created parent permission remains unchanged but uncreated parents and new dir set to restricted
+      Assert.assertEquals(fs.getFileStatus(testParent).getPermission(), all);
+      Assert.assertEquals(fs.getFileStatus(testChild.getParent().getParent()).getPermission(), restricted);
+      Assert.assertEquals(fs.getFileStatus(testChild.getParent()).getPermission(), restricted);
+      Assert.assertEquals(fs.getFileStatus(testChild).getPermission(), restricted);
+    } finally {
+      fs.delete(testParent, true);
+    }
   }
 
   @Test

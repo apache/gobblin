@@ -106,7 +106,12 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
-    return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+    // Check to see if the count and start parameters are user defined or default from the framework
+    if (!pagingContext.hasCount() && !pagingContext.hasStart())
+      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+    else {
+      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs(pagingContext.getStart(), pagingContext.getCount());
+    }
   }
 
   /**
@@ -125,9 +130,21 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("isRunImmediately") Boolean isRunImmediately,
       @Optional @QueryParam("owningGroup") String owningGroup,
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
-    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
-        templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
-        isRunImmediately, owningGroup, propertyFilter);
+    FlowSpecSearchObject flowSpecSearchObject;
+    // Check to see if the count and start parameters are user defined or default from the framework
+    // Start is the index of the first specStore configurations to return
+    // Count is the total number of specStore configurations to return
+    if (!context.hasCount() && !context.hasStart()){
+      flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
+          templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
+          isRunImmediately, owningGroup, propertyFilter, -1, -1);
+    }
+    else {
+      flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
+          templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
+          isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount());
+    }
+
     return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 

@@ -296,6 +296,8 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
   public static final String WORK_UNIT_DATE_PARTITION_NAME = "workunit.source.date.partitionName";
+  public static final String WORK_UNIT_GENERATOR_FAILURE_IS_FATAL = "workunit.generator.failure.is.fatal";
+  public static final boolean DEFAULT_WORK_UNIT_FAST_FAIL_ENABLED = true;
 
   /**
    * Task execution properties.
@@ -1014,6 +1016,14 @@ public class ConfigurationKeys {
   public static final String DATASET_BASE_OUTPUT_PATH_KEY = "gobblin.flow.dataset.baseOutputPath";
   public static final String DATASET_COMBINE_KEY = "gobblin.flow.dataset.combine";
   public static final String WHITELISTED_EDGE_IDS = "gobblin.flow.whitelistedEdgeIds";
+  public static final String GOBBLIN_OUTPUT_JOB_LEVEL_METRICS = "gobblin.job.outputJobLevelMetrics";
+
+  /**
+   * Configuration properties related to flowGraphs
+   */
+
+  public static final String JAVA_PROPS_EXTENSIONS = "javaPropsExtensions";
+  public static final String HOCON_FILE_EXTENSIONS = "hoconFileExtensions";
 
   /***
    * Configuration properties related to TopologySpec Store
@@ -1131,4 +1141,8 @@ public class ConfigurationKeys {
    * */
   public static final String TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = "gobblin.troubleshooter.inMemoryIssueRepository.maxSize";
   public static final int DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = 100;
+
+  public static final String JOB_METRICS_REPORTER_CLASS_KEY = "gobblin.job.metrics.reporter.class";
+  public static final String DEFAULT_JOB_METRICS_REPORTER_CLASS = "org.apache.gobblin.runtime.metrics.DefaultGobblinJobMetricReporter";
+
 }
