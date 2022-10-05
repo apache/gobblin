@@ -81,7 +81,7 @@ public class PathUtils {
   }
 
   /**
-   * Returns the root path for the specified path.
+   * Returns the root path parent for the specified path.
    *
    * @see Path
    */

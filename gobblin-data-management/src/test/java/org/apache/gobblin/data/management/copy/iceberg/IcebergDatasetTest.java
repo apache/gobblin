@@ -342,8 +342,6 @@ public class IcebergDatasetTest {
 <<<<<<< HEAD
 =======
   private void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities) {
-
-
     List<JsonObject> ancestorsOwnerAndPermissionsList = new ArrayList<>();
     List<JsonObject> destinationOwnerAndPermissionsList = new ArrayList<>();
 
