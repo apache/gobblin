@@ -78,6 +78,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   }
 
   @Override
+  protected void assignTopicPartitions() {
+    ChangeMonitorUtils.assignTopicPartitionsHelper(this.topic, this.getGobblinKafkaConsumerClient());
+  }
+
+  @Override
   /*
   This class is multi-threaded and this message will be called by multiple threads, however any given message will be
   partitioned and processed by only one thread (and corresponding queue).
@@ -86,24 +91,18 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String key = (String) message.getKey();
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
-    Long timestamp = value.getTimestamp();
-    String operation = value.getOperationType().name();
+    Long timestamp = value.getChangeEventIdentifier().getTimestamp();
+    String operation = value.getChangeEventIdentifier().getOperationType().name();
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    log.info("Processing Dag Action message for flow group: {} name: {} executionId: {}", flowGroup, flowName,
-        flowExecutionId);
+    log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} timestamp {} operation {}",
+        flowGroup, flowName, flowExecutionId, timestamp, operation);
 
-    // If we've already processed a message with this timestamp and flow before then skip duplicate message
-    String changeIdentifier = timestamp.toString() + key;
-    if (dagActionsSeenCache.getIfPresent(changeIdentifier) != null) {
-      return;
-    }
-
-    // If event is a heartbeat type then log it and skip processing
-    if (operation == "HEARTBEAT") {
-      log.debug("Received heartbeat message from time {}", timestamp);
+    String changeIdentifier = timestamp + key;
+    if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
+        timestamp.toString())) {
       return;
     }
 
@@ -126,7 +125,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     }
 
     try {
-      if (operation == "INSERT") {
+      if (operation.equals("INSERT")) {
         if (dagAction.equals(DagActionStore.DagActionValue.RESUME)) {
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
@@ -138,12 +137,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           this.unexpectedErrors.mark();
           return;
         }
-      } else if (operation == "UPDATE") {
+      } else if (operation.equals("UPDATE")) {
         log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
             + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
             flowExecutionId, dagAction);
         this.unexpectedErrors.mark();
-      } else if (operation == "DELETE") {
+      } else if (operation.equals("DELETE")) {
         log.debug("Deleted flow group: {} name: {} executionId {} from DagActionStore", flowGroup, flowName, flowExecutionId);
       } else {
         log.warn("Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
