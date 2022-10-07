@@ -177,15 +177,35 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     Iterator<IcebergSnapshotInfo> icebergIncrementalSnapshotInfos = icebergTable.getIncrementalSnapshotInfosIterator();
     Iterator<String> filePathsIterator = Iterators.concat(
         Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
-          // TODO: decide: is it too much to print for every snapshot--instead use `.debug`?
+          // log each snapshot, for context, in case of `FileNotFoundException` during `FileSystem.getFileStatus()`
           String manListPath = snapshotInfo.getManifestListPath();
           log.info("{}.{} - loaded snapshot '{}' at '{}' from metadata path: '{}'", dbName, inputTableName,
               snapshotInfo.getSnapshotId(), manListPath, snapshotInfo.getMetadataPath().orElse("<<inherited>>"));
+          // ALGO: an iceberg's files form a tree of four levels: metadata.json -> manifest-list -> manifest -> data;
+          // most critically, all are presumed immutable and uniquely named, although any may be replaced.  we depend
+          // also on incremental copy being run always atomically: to commit each iceberg only upon its full success.
+          // thus established, the presence of a file at dest (identified by path/name) guarantees its entire subtree is
+          // already copied--and, given immutability, completion of a prior copy naturally renders that file up-to-date.
+          // hence, its entire subtree may be short-circuited.  nevertheless, absence of a file at dest cannot imply
+          // its entire subtree necessarily requires copying, because it is possible, even likely in practice, that some
+          // metadata files would have been replaced (e.g. during snapshot compaction).  in such instances, at least
+          // some of the children pointed to within could have been copied prior, when they previously appeared as a
+          // child of the current file's predecessor (which this new meta file now replaces).
           if (!isPathPresentOnTarget(new Path(manListPath), targetFs, copyConfig)) {
-            return snapshotInfo.getAllPaths().iterator();
+            List<String> missingPaths = snapshotInfo.getSnapshotApexPaths();
+            for (IcebergSnapshotInfo.ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
+              if (!isPathPresentOnTarget(new Path(mfi.getManifestFilePath()), targetFs, copyConfig)) {
+                missingPaths.add(mfi.getManifestFilePath());
+                mfi.getListedFilePaths().stream().filter(p ->
+                    !isPathPresentOnTarget(new Path(p), targetFs, copyConfig)
+                ).forEach(missingPaths::add);
+              }
+            }
+            return missingPaths.iterator();
           } else {
-            log.info("{}.{} - snapshot '{}' already present on target... skipping contents", dbName, inputTableName, snapshotInfo.getSnapshotId());
-            // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot that reuses list
+            log.info("{}.{} - snapshot '{}' already present on target... skipping (with contents)",
+                dbName, inputTableName, snapshotInfo.getSnapshotId());
+            // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot reusing mf-list
             Optional<String> nonReplicatedMetadataPath = snapshotInfo.getMetadataPath().filter(p ->
                 !isPathPresentOnTarget(new Path(p), targetFs, copyConfig));
             log.info("{}.{} - metadata is {}already present on target", dbName, inputTableName, nonReplicatedMetadataPath.isPresent() ? "NOT " : "");

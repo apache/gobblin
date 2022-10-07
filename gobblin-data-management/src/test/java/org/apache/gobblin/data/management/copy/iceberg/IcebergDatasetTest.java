@@ -119,7 +119,26 @@ public class IcebergDatasetTest {
   }
 
   @Test
-  public void testGetFilePathsThatMissingSourceFileJustSkipped() throws IOException {
+  public void testGetFilePathsWhenOneManifestAtDest() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList(MANIFEST_PATH_1);
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
+    expectedResultPaths.add(new Path(MANIFEST_LIST_PATH_1)); // expect manifest's parent, despite manifest subtree skip
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+  }
+
+  @Test
+  public void testGetFilePathsWhenSomeDataFilesAtDest() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<String> existingDestPaths = Lists.newArrayList(MANIFEST_DATA_PATH_1B, MANIFEST_DATA_PATH_0A);
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1), SNAPSHOT_PATHS_0);
+    expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_1B));
+    expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_0A));
+    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+  }
+
+  @Test
+  public void testGetFilePathsWillSkipMissingSourceFile() throws IOException {
     List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
     // pretend this path doesn't exist on source:
     Path missingPath = new Path(MANIFEST_DATA_PATH_0A);
