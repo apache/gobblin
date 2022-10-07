@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.common.collect.Iterators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -31,8 +30,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import lombok.Data;
 
 import org.apache.hadoop.conf.Configuration;
@@ -174,6 +176,23 @@ public class IcebergDatasetTest {
     Mockito.verifyNoMoreInteractions(mockTable);
   }
 
+  /** Exception wrapping is used internally--ensure that doesn't lapse into silently swallowing errors */
+  @Test(expectedExceptions = IOException.class)
+  public void testGetFilePathsDoesNotSwallowDestFileSystemException() throws IOException {
+    IcebergTable icebergTable = MockIcebergTable.withSnapshots(Lists.newArrayList(SNAPSHOT_PATHS_0));
+
+    MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI);
+    FileSystem sourceFs = sourceFsBuilder.build();
+    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+
+    MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
+    FileSystem destFs = destFsBuilder.build();
+    Mockito.doThrow(new IOException("Ha - not so fast!")).when(destFs).getFileStatus(new Path(SNAPSHOT_PATHS_0.manifestListPath));
+
+    CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
+    icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
+  }
+
   /**
    * Test case to generate copy entities for all the file paths for a mocked iceberg table.
    * The assumption here is that we create copy entities for all the matching file paths,
@@ -252,14 +271,12 @@ public class IcebergDatasetTest {
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), sourceFs);
+    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     destFsBuilder.addPaths(existingDestPaths);
     FileSystem destFs = destFsBuilder.build();
-    CopyConfiguration copyConfiguration = CopyConfiguration.builder(destFs, copyConfigProperties)
-        .copyContext(new CopyContext())
-        .build();
+    CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
 
     Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
     Assert.assertEquals(filePathsToFileStatus.keySet(), expectedResultPaths);
@@ -280,6 +297,11 @@ public class IcebergDatasetTest {
     return paths;
   }
 
+  private CopyConfiguration createEmptyCopyConfiguration(FileSystem fs) {
+    return CopyConfiguration.builder(fs, copyConfigProperties)
+        .copyContext(new CopyContext())
+        .build();
+  }
 
   private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expected) {
     List<String> actual = new ArrayList<>();
@@ -323,6 +345,7 @@ public class IcebergDatasetTest {
     public MockFileSystemBuilder(URI fsURI) {
       this(fsURI, false);
     }
+
     public MockFileSystemBuilder(URI fsURI, boolean shouldRepresentEveryPath) {
       this.fsURI = fsURI;
       this.optPaths = shouldRepresentEveryPath ? Optional.empty() : Optional.of(Sets.newHashSet());
@@ -389,7 +412,12 @@ public class IcebergDatasetTest {
       private final List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles;
 
       public IcebergSnapshotInfo asSnapshotInfo() {
-        return asSnapshotInfo(0L, Instant.ofEpochMilli(0L));
+        return asSnapshotInfo(0L);
+      }
+
+      /** @param snapshotIdIndex used both as snapshot ID and as snapshot (epoch) timestamp */
+      public IcebergSnapshotInfo asSnapshotInfo(long snapshotIdIndex) {
+        return asSnapshotInfo(snapshotIdIndex, Instant.ofEpochMilli(snapshotIdIndex));
       }
 
       public IcebergSnapshotInfo asSnapshotInfo(Long snapshotId, Instant timestamp) {
@@ -397,17 +425,27 @@ public class IcebergDatasetTest {
       }
     }
 
-    public static IcebergTable withSnapshots(List<SnapshotPaths> snapshotPathsList) throws IOException {
+    public static IcebergTable withSnapshots(List<SnapshotPaths> snapshotPathSets) throws IOException {
       IcebergTable table = Mockito.mock(IcebergTable.class);
-      Mockito.when(table.getCurrentSnapshotInfoOverviewOnly())
-          .thenReturn(snapshotPathsList.get(snapshotPathsList.size() - 1).asSnapshotInfo());
+      int lastIndex = snapshotPathSets.size() - 1;
+      Mockito.when(table.getCurrentSnapshotInfoOverviewOnly()).thenReturn(
+          snapshotPathSets.get(lastIndex).asSnapshotInfo(lastIndex));
       // ADMISSION: this is strictly more analogous to `IcebergTable.getAllSnapshotInfosIterator()`, as it doesn't
       // filter only the delta... nonetheless, it should work fine for the tests herein
-      Mockito.when(table.getIncrementalSnapshotInfosIterator())
-          .thenReturn(Iterators.transform(snapshotPathsList.iterator(), SnapshotPaths::asSnapshotInfo));
+      Mockito.when(table.getIncrementalSnapshotInfosIterator()).thenReturn(
+          IndexingStreams.transformWithIndex(snapshotPathSets.stream(),
+              (pathSet, i) -> pathSet.asSnapshotInfo(i)).iterator());
       return table;
     }
+  }
 
+  public static class IndexingStreams {
+    /** @return {@link Stream} equivalent of `inputs.zipWithIndex.map(f)` in scala */
+    public static <T, R> Stream<R> transformWithIndex(Stream<T> inputs, BiFunction<T, Integer, R> f) {
+      // given sketchy import, sequester for now within enclosing test class, rather than adding to `gobblin-utility`
+      return org.apache.iceberg.relocated.com.google.common.collect.Streams.zip(
+          inputs, IntStream.iterate(0, i -> i + 1).boxed(), f);
+    }
   }
 }
 

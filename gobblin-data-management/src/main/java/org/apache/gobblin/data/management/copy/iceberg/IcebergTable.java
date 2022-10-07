@@ -101,18 +101,16 @@ public class IcebergTable {
    */
   public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() throws IOException {
     // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
-    Set<String> knownManifestListFilePaths = Sets.newHashSet();
-    Set<String> knownManifestFilePaths = Sets.newHashSet();
-    Set<String> knownListedFilePaths = Sets.newHashSet();
+    Set<String> knownFilePaths = Sets.newHashSet(); // as absolute paths are clearly unique, use a single set for all
     return Iterators.filter(Iterators.transform(getAllSnapshotInfosIterator(), snapshotInfo -> {
-      if (false == knownManifestListFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
+      if (false == knownFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
         return snapshotInfo.toBuilder().manifestListPath(null).build(); // use `null` as marker to surrounding `filter`
       }
       List<IcebergSnapshotInfo.ManifestFileInfo> novelManifestInfos = Lists.newArrayList();
       for (ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
-        if (true == knownManifestFilePaths.add(mfi.getManifestFilePath())) { // heretofore unknown
+        if (true == knownFilePaths.add(mfi.getManifestFilePath())) { // heretofore unknown
           List<String> novelListedPaths = mfi.getListedFilePaths().stream()
-              .filter(fpath -> true == knownListedFilePaths.add(fpath)) // heretofore unknown
+              .filter(fpath -> true == knownFilePaths.add(fpath)) // heretofore unknown
               .collect(Collectors.toList());
           if (novelListedPaths.size() == mfi.getListedFilePaths().size()) { // nothing filtered
             novelManifestInfos.add(mfi); // reuse orig

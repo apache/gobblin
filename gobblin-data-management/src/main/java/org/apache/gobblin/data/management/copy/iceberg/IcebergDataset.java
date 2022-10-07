@@ -29,10 +29,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
+import java.util.function.Function;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.util.function.CheckedExceptionFunction;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -132,7 +133,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus(targetFs, copyConfig);
-    log.info("{}.{} - found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
+    log.info("~{}.{}~ found {} candidate source paths", dbName, inputTableName, pathToFileStatus.size());
 
     Configuration defaultHadoopConfiguration = new Configuration();
     for (Map.Entry<Path, FileStatus> entry : pathToFileStatus.entrySet()) {
@@ -152,33 +153,29 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
-    log.info("{}.{} - generated {} copy entities", dbName, inputTableName, copyEntities.size());
+    log.info("~{}.{}~ generated {} copy entities", dbName, inputTableName, copyEntities.size());
     return copyEntities;
-  }
-
-  /** Not intended to escape this class... yet `public` visibility in case it somehow does */
-  @RequiredArgsConstructor
-  public static class WrappedIOException extends RuntimeException {
-    @Getter
-    private final IOException wrappedException;
-
-    public void rethrowWrapped() throws IOException {
-      throw wrappedException;
-    }
   }
 
   /**
    * Finds all files of the Iceberg's current snapshot
-   * Returns a map of path, file status for each file that needs to be copied
+   * @return a map of path, file status for each file that needs to be copied
    */
   protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     Map<Path, FileStatus> results = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
+    /** @return whether `pathStr` is present on `targetFs`, caching results while tunneling checked exceptions outward */
+    Function<String, Boolean> isPresentOnTarget = CheckedExceptionFunction.wrapToTunneled(pathStr ->
+      // omit considering timestamp (or other markers of freshness), as files should be immutable
+      // ATTENTION: `CopyContext.getFileStatus()`, to partake in caching
+      copyConfig.getCopyContext().getFileStatus(targetFs, new Path(pathStr)).isPresent()
+    );
+
     // check first for case of nothing to replicate, to avoid needless scanning of a potentially massive iceberg
     IcebergSnapshotInfo currentSnapshotOverview = icebergTable.getCurrentSnapshotInfoOverviewOnly();
-    if (currentSnapshotOverview.getMetadataPath().map(p -> isPathPresentOnTarget(new Path(p), targetFs, copyConfig)).orElse(false) &&
-        isPathPresentOnTarget(new Path(currentSnapshotOverview.getManifestListPath()), targetFs, copyConfig)) {
-      log.info("{}.{} - skipping entire iceberg, since snapshot '{}' at '{}' and metadata '{}' both present on target",
+    if (currentSnapshotOverview.getMetadataPath().map(isPresentOnTarget).orElse(false) &&
+        isPresentOnTarget.apply(currentSnapshotOverview.getManifestListPath())) {
+      log.info("~{}.{}~ skipping entire iceberg, since snapshot '{}' at '{}' and metadata '{}' both present on target",
           dbName, inputTableName, currentSnapshotOverview.getSnapshotId(),
           currentSnapshotOverview.getManifestListPath(),
           currentSnapshotOverview.getMetadataPath().orElse("<<ERROR: MISSING!>>"));
@@ -189,7 +186,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
         Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
           // log each snapshot, for context, in case of `FileNotFoundException` during `FileSystem.getFileStatus()`
           String manListPath = snapshotInfo.getManifestListPath();
-          log.info("{}.{} - loaded snapshot '{}' at '{}' from metadata path: '{}'", dbName, inputTableName,
+          log.info("~{}.{}~ loaded snapshot '{}' at '{}' from metadata path: '{}'", dbName, inputTableName,
               snapshotInfo.getSnapshotId(), manListPath, snapshotInfo.getMetadataPath().orElse("<<inherited>>"));
           // ALGO: an iceberg's files form a tree of four levels: metadata.json -> manifest-list -> manifest -> data;
           // most critically, all are presumed immutable and uniquely named, although any may be replaced.  we depend
@@ -201,24 +198,25 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
           // metadata files would have been replaced (e.g. during snapshot compaction).  in such instances, at least
           // some of the children pointed to within could have been copied prior, when they previously appeared as a
           // child of the current file's predecessor (which this new meta file now replaces).
-          if (!isPathPresentOnTarget(new Path(manListPath), targetFs, copyConfig)) {
+          if (!isPresentOnTarget.apply(manListPath)) {
             List<String> missingPaths = snapshotInfo.getSnapshotApexPaths();
             for (IcebergSnapshotInfo.ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
-              if (!isPathPresentOnTarget(new Path(mfi.getManifestFilePath()), targetFs, copyConfig)) {
+              if (!isPresentOnTarget.apply(mfi.getManifestFilePath())) {
                 missingPaths.add(mfi.getManifestFilePath());
-                mfi.getListedFilePaths().stream().filter(p ->
-                    !isPathPresentOnTarget(new Path(p), targetFs, copyConfig)
-                ).forEach(missingPaths::add);
+                mfi.getListedFilePaths().stream().filter(p -> !isPresentOnTarget.apply(p)).forEach(missingPaths::add);
               }
             }
             return missingPaths.iterator();
           } else {
-            log.info("{}.{} - snapshot '{}' already present on target... skipping (with contents)",
+            log.info("~{}.{}~ snapshot '{}' already present on target... skipping (including contents)",
                 dbName, inputTableName, snapshotInfo.getSnapshotId());
             // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot reusing mf-list
-            Optional<String> nonReplicatedMetadataPath = snapshotInfo.getMetadataPath().filter(p ->
-                !isPathPresentOnTarget(new Path(p), targetFs, copyConfig));
-            log.info("{}.{} - metadata is {}already present on target", dbName, inputTableName, nonReplicatedMetadataPath.isPresent() ? "NOT " : "");
+            Optional<String> metadataPath = snapshotInfo.getMetadataPath();
+            Optional<String> nonReplicatedMetadataPath = metadataPath.filter(p -> !isPresentOnTarget.apply(p));
+            metadataPath.ifPresent(ignore ->
+                log.info("~{}.{}~ metadata IS {} already present on target", dbName, inputTableName,
+                    nonReplicatedMetadataPath.isPresent() ? "NOT" : "ALSO")
+            );
             return nonReplicatedMetadataPath.map(p -> Lists.newArrayList(p).iterator()).orElse(Collections.emptyIterator());
           }
         })
@@ -236,25 +234,15 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
             throw fnfe;
           } else {
             // log, but otherwise swallow... to continue on
-            log.warn("MIA source file... did premature deletion subvert time-travel or maybe metadata read interleaved with delete?", fnfe);
+            String speculation = "either premature deletion broke time-travel or metadata read interleaved among delete";
+            log.warn("~{}.{}~ source file not found: '{}' ({}...)", dbName, inputTableName, pathString, speculation);
           }
         }
       }
-    } catch (WrappedIOException wrapper) {
+    } catch (CheckedExceptionFunction.WrappedIOException wrapper) {
       wrapper.rethrowWrapped();
     }
     return results;
-  }
-
-  /** @returns whether `path` is present on `targetFs`, tunneling checked exceptions and caching results throughout */
-  protected static boolean isPathPresentOnTarget(Path path, FileSystem targetFs, CopyConfiguration copyConfig) {
-    try {
-      // omit considering timestamp (or other markers of freshness), as files should be immutable
-      // ATTENTION: `CopyContext.getFileStatus()`, to partake in caching
-      return copyConfig.getCopyContext().getFileStatus(targetFs, path).isPresent();
-    } catch (IOException e) {
-      throw new WrappedIOException(e); // halt execution and tunnel the original error outward
-    }
   }
 
   /** Add layer of indirection to permit test mocking by working around `FileSystem.get()` `static` method */
