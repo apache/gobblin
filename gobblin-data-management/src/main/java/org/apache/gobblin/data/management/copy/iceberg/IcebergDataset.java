@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -63,6 +64,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private final IcebergTable icebergTable;
   protected final Properties properties;
   protected final FileSystem sourceFs;
+  private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
   private final Optional<URI> sourceCatalogMetastoreURI;
   private final Optional<URI> targetCatalogMetastoreURI;
@@ -196,8 +198,17 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       // TODO: investigate whether streaming initialization of `Map` preferable--`getFileStatus()` network calls likely
       // to benefit from parallelism
       for (String pathString : filePathsIterable) {
-        Path path = new Path(pathString);
-        result.put(path, this.sourceFs.getFileStatus(path));
+        try {
+          Path path = new Path(pathString);
+          result.put(path, this.sourceFs.getFileStatus(path));
+        } catch (FileNotFoundException fnfe) {
+          if (!shouldTolerateMissingSourceFiles) {
+            throw fnfe;
+          } else {
+            // log, but otherwise swallow... to continue on
+            log.warn("MIA source file... did premature deletion subvert time-travel or maybe metadata read interleave with delete?", fnfe);
+          }
+        }
       }
     } catch (WrappedIOException wrapper) {
       wrapper.rethrowWrapped();

@@ -25,7 +25,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +119,23 @@ public class IcebergDatasetTest {
   }
 
   @Test
+  public void testGetFilePathsThatMissingSourceFileJustSkipped() throws IOException {
+    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    // pretend this path doesn't exist on source:
+    Path missingPath = new Path(MANIFEST_DATA_PATH_0A);
+    Set<Path> existingSourcePaths = withAllSnapshotPaths(withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1), SNAPSHOT_PATHS_0);
+    existingSourcePaths.remove(missingPath);
+    List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1);
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
+    expectedResultPaths.remove(missingPath);
+    validateGetFilePathsGivenDestState(
+        icebergSnapshotInfos,
+        Optional.of(existingSourcePaths.stream().map(Path::toString).collect(Collectors.toList())),
+        existingDestPaths,
+        expectedResultPaths);
+  }
+
+  @Test
   public void testGetFilePathsWhenManifestListsAtDestButNotMetadata() throws IOException {
     List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1, MANIFEST_LIST_PATH_0);
@@ -194,10 +210,21 @@ public class IcebergDatasetTest {
       List<IcebergSnapshotInfo> sourceSnapshotInfos,
       List<String> existingDestPaths,
       Set<Path> expectedResultPaths) throws IOException {
+    validateGetFilePathsGivenDestState(sourceSnapshotInfos, Optional.empty(),existingDestPaths, expectedResultPaths);
+  }
+
+  /** exercise {@link IcebergDataset::getFilePaths} and validate the result */
+  protected void validateGetFilePathsGivenDestState(
+      List<IcebergSnapshotInfo> sourceSnapshotInfos,
+      Optional<List<String>> optExistingSourcePaths,
+      List<String> existingDestPaths,
+      Set<Path> expectedResultPaths) throws IOException {
     IcebergTable icebergTable = Mockito.mock(IcebergTable.class);
     Mockito.when(icebergTable.getIncrementalSnapshotInfosIterator()).thenReturn(sourceSnapshotInfos.iterator());
 
-    FileSystem sourceFs = Mockito.mock(FileSystem.class);
+    MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
+    optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
+    FileSystem sourceFs = sourceFsBuilder.build();
     IcebergDataset icebergDataset = new IcebergDataset("test_db_name", "test_tbl_name", icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
@@ -209,10 +236,10 @@ public class IcebergDatasetTest {
 
     Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
     Assert.assertEquals(filePathsToFileStatus.keySet(), expectedResultPaths);
-    // verify all values `null` (because `sourceFs.getFileStatus()` not mocked)
-    Set<FileStatus> expectedFileStatusSet =
-        expectedResultPaths.isEmpty() ? Sets.newHashSet() : new HashSet<>(Arrays.asList(new FileStatus[] { null }));
-    Assert.assertEquals(Sets.newHashSet(filePathsToFileStatus.values()), expectedFileStatusSet);
+    // verify solely the path portion of the `FileStatus`, since that's all mock sets up
+    Assert.assertEquals(
+        filePathsToFileStatus.values().stream().map(FileStatus::getPath).collect(Collectors.toSet()),
+        expectedResultPaths);
   }
 
   /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */
