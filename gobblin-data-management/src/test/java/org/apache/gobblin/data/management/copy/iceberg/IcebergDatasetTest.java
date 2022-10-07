@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import com.google.common.collect.Iterators;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -25,7 +26,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,7 +78,7 @@ public class IcebergDatasetTest {
   private static final String MANIFEST_PATH_0 = ROOT_PATH + "metadata/manifest.a";
   private static final String MANIFEST_DATA_PATH_0A = ROOT_PATH + "data/p0/a";
   private static final String MANIFEST_DATA_PATH_0B = ROOT_PATH + "data/p0/b";
-  private static final MockedIcebergTable.SnapshotPaths SNAPSHOT_PATHS_0 = new MockedIcebergTable.SnapshotPaths(
+  private static final MockIcebergTable.SnapshotPaths SNAPSHOT_PATHS_0 = new MockIcebergTable.SnapshotPaths(
       Optional.of(METADATA_PATH), MANIFEST_LIST_PATH_0,
       Arrays.asList(new IcebergSnapshotInfo.ManifestFileInfo(
           MANIFEST_PATH_0, Arrays.asList(MANIFEST_DATA_PATH_0A, MANIFEST_DATA_PATH_0B)))
@@ -87,7 +87,7 @@ public class IcebergDatasetTest {
   private static final String MANIFEST_PATH_1 = MANIFEST_PATH_0.replaceAll("\\.a$", ".b");
   private static final String MANIFEST_DATA_PATH_1A = MANIFEST_DATA_PATH_0A.replaceAll("/p0/", "/p1/");
   private static final String MANIFEST_DATA_PATH_1B = MANIFEST_DATA_PATH_0B.replaceAll("/p0/", "/p1/");
-  private static final MockedIcebergTable.SnapshotPaths SNAPSHOT_PATHS_1 = new MockedIcebergTable.SnapshotPaths(
+  private static final MockIcebergTable.SnapshotPaths SNAPSHOT_PATHS_1 = new MockIcebergTable.SnapshotPaths(
       Optional.empty(), MANIFEST_LIST_PATH_1,
       Arrays.asList(new IcebergSnapshotInfo.ManifestFileInfo(
           MANIFEST_PATH_1, Arrays.asList(MANIFEST_DATA_PATH_1A, MANIFEST_DATA_PATH_1B)))
@@ -104,51 +104,51 @@ public class IcebergDatasetTest {
 
   @Test
   public void testGetFilePathsWhenDestEmpty() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList();
     Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
   @Test
   public void testGetFilePathsWhenOneManifestListAtDest() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1);
     Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
   @Test
   public void testGetFilePathsWhenOneManifestAtDest() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_PATH_1);
     Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
     expectedResultPaths.add(new Path(MANIFEST_LIST_PATH_1)); // expect manifest's parent, despite manifest subtree skip
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
   @Test
   public void testGetFilePathsWhenSomeDataFilesAtDest() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_DATA_PATH_1B, MANIFEST_DATA_PATH_0A);
-    Set<Path> expectedResultPaths = withAllSnapshotPaths(withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1), SNAPSHOT_PATHS_0);
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_1B));
     expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_0A));
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
   @Test
   public void testGetFilePathsWillSkipMissingSourceFile() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     // pretend this path doesn't exist on source:
     Path missingPath = new Path(MANIFEST_DATA_PATH_0A);
-    Set<Path> existingSourcePaths = withAllSnapshotPaths(withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1), SNAPSHOT_PATHS_0);
+    Set<Path> existingSourcePaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     existingSourcePaths.remove(missingPath);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1);
     Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_0);
     expectedResultPaths.remove(missingPath);
     validateGetFilePathsGivenDestState(
-        icebergSnapshotInfos,
+        icebergSnapshots,
         Optional.of(existingSourcePaths.stream().map(Path::toString).collect(Collectors.toList())),
         existingDestPaths,
         expectedResultPaths);
@@ -156,19 +156,22 @@ public class IcebergDatasetTest {
 
   @Test
   public void testGetFilePathsWhenManifestListsAtDestButNotMetadata() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_LIST_PATH_1, MANIFEST_LIST_PATH_0);
     Set<Path> expectedResultPaths = Sets.newHashSet();
     expectedResultPaths.add(new Path(METADATA_PATH));
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
   @Test
   public void testGetFilePathsWhenAllAtDest() throws IOException {
-    List<IcebergSnapshotInfo> icebergSnapshotInfos = Lists.newArrayList(SNAPSHOT_PATHS_1.asSnapshotInfo(), SNAPSHOT_PATHS_0.asSnapshotInfo());
+    List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(METADATA_PATH, MANIFEST_LIST_PATH_1, MANIFEST_LIST_PATH_0);
     Set<Path> expectedResultPaths = Sets.newHashSet(); // not expecting any delta
-    validateGetFilePathsGivenDestState(icebergSnapshotInfos, existingDestPaths, expectedResultPaths);
+    IcebergTable mockTable = validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
+    // ensure short-circuiting was able to avert iceberg manifests scan
+    Mockito.verify(mockTable, Mockito.times(1)).getCurrentSnapshotInfoOverviewOnly();
+    Mockito.verifyNoMoreInteractions(mockTable);
   }
 
   /**
@@ -185,7 +188,7 @@ public class IcebergDatasetTest {
     sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable icebergTable = new MockedIcebergTable(Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
     IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
@@ -210,7 +213,7 @@ public class IcebergDatasetTest {
     sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable icebergTable = new MockedIcebergTable(Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
+    IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
     IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
@@ -224,22 +227,27 @@ public class IcebergDatasetTest {
     verifyCopyEntities(copyEntities, expectedPaths);
   }
 
-  /** exercise {@link IcebergDataset::getFilePaths} and validate the result */
-  protected void validateGetFilePathsGivenDestState(
-      List<IcebergSnapshotInfo> sourceSnapshotInfos,
+  /**
+   *  exercise {@link IcebergDataset::getFilePaths} and validate the result
+   *  @return {@link IcebergTable} (mock!), for behavioral verification
+   */
+  protected IcebergTable validateGetFilePathsGivenDestState(
+      List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
       List<String> existingDestPaths,
       Set<Path> expectedResultPaths) throws IOException {
-    validateGetFilePathsGivenDestState(sourceSnapshotInfos, Optional.empty(),existingDestPaths, expectedResultPaths);
+    return validateGetFilePathsGivenDestState(sourceSnapshotPathSets, Optional.empty(),existingDestPaths, expectedResultPaths);
   }
 
-  /** exercise {@link IcebergDataset::getFilePaths} and validate the result */
-  protected void validateGetFilePathsGivenDestState(
-      List<IcebergSnapshotInfo> sourceSnapshotInfos,
+  /**
+   *  exercise {@link IcebergDataset::getFilePaths} and validate the result
+   *  @return {@link IcebergTable} (mock!), for behavioral verification
+   */
+  protected IcebergTable validateGetFilePathsGivenDestState(
+      List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
       Optional<List<String>> optExistingSourcePaths,
       List<String> existingDestPaths,
       Set<Path> expectedResultPaths) throws IOException {
-    IcebergTable icebergTable = Mockito.mock(IcebergTable.class);
-    Mockito.when(icebergTable.getIncrementalSnapshotInfosIterator()).thenReturn(sourceSnapshotInfos.iterator());
+    IcebergTable icebergTable = MockIcebergTable.withSnapshots(sourceSnapshotPathSets);
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
@@ -259,10 +267,11 @@ public class IcebergDatasetTest {
     Assert.assertEquals(
         filePathsToFileStatus.values().stream().map(FileStatus::getPath).collect(Collectors.toSet()),
         expectedResultPaths);
+    return icebergTable;
   }
 
   /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */
-  protected static Set<Path> withAllSnapshotPaths(Set<Path> paths, MockedIcebergTable.SnapshotPaths... snapshotDefs) {
+  protected static Set<Path> withAllSnapshotPaths(Set<Path> paths, MockIcebergTable.SnapshotPaths... snapshotDefs) {
     Arrays.stream(snapshotDefs).flatMap(snapshotDef ->
         snapshotDef.asSnapshotInfo().getAllPaths().stream()
     ).forEach(p ->
@@ -371,7 +380,7 @@ public class IcebergDatasetTest {
   }
 
 
-  private static class MockedIcebergTable extends IcebergTable {
+  private static class MockIcebergTable {
 
     @Data
     public static class SnapshotPaths {
@@ -388,20 +397,17 @@ public class IcebergDatasetTest {
       }
     }
 
-    private final List<SnapshotPaths> snapshotPathsList;
-
-    public MockedIcebergTable(List<SnapshotPaths> snapshotPathsList) {
-      super(null, null);
-      this.snapshotPathsList = Lists.newCopyOnWriteArrayList(snapshotPathsList);
+    public static IcebergTable withSnapshots(List<SnapshotPaths> snapshotPathsList) throws IOException {
+      IcebergTable table = Mockito.mock(IcebergTable.class);
+      Mockito.when(table.getCurrentSnapshotInfoOverviewOnly())
+          .thenReturn(snapshotPathsList.get(snapshotPathsList.size() - 1).asSnapshotInfo());
+      // ADMISSION: this is strictly more analogous to `IcebergTable.getAllSnapshotInfosIterator()`, as it doesn't
+      // filter only the delta... nonetheless, it should work fine for the tests herein
+      Mockito.when(table.getIncrementalSnapshotInfosIterator())
+          .thenReturn(Iterators.transform(snapshotPathsList.iterator(), SnapshotPaths::asSnapshotInfo));
+      return table;
     }
 
-    @Override
-    public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() {
-      List<IcebergSnapshotInfo> snapshotInfos = snapshotPathsList.stream()
-          .map(SnapshotPaths::asSnapshotInfo)
-          .collect(Collectors.toList());
-      return snapshotInfos.iterator();
-    }
   }
 }
 

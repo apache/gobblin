@@ -172,8 +172,18 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    * Returns a map of path, file status for each file that needs to be copied
    */
   protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
-    Map<Path, FileStatus> result = Maps.newHashMap();
+    Map<Path, FileStatus> results = Maps.newHashMap();
     IcebergTable icebergTable = this.getIcebergTable();
+    // check first for case of nothing to replicate, to avoid needless scanning of a potentially massive iceberg
+    IcebergSnapshotInfo currentSnapshotOverview = icebergTable.getCurrentSnapshotInfoOverviewOnly();
+    if (currentSnapshotOverview.getMetadataPath().map(p -> isPathPresentOnTarget(new Path(p), targetFs, copyConfig)).orElse(false) &&
+        isPathPresentOnTarget(new Path(currentSnapshotOverview.getManifestListPath()), targetFs, copyConfig)) {
+      log.info("{}.{} - skipping entire iceberg, since snapshot '{}' at '{}' and metadata '{}' both present on target",
+          dbName, inputTableName, currentSnapshotOverview.getSnapshotId(),
+          currentSnapshotOverview.getManifestListPath(),
+          currentSnapshotOverview.getMetadataPath().orElse("<<ERROR: MISSING!>>"));
+      return results;
+    }
     Iterator<IcebergSnapshotInfo> icebergIncrementalSnapshotInfos = icebergTable.getIncrementalSnapshotInfosIterator();
     Iterator<String> filePathsIterator = Iterators.concat(
         Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
@@ -220,20 +230,20 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       for (String pathString : filePathsIterable) {
         try {
           Path path = new Path(pathString);
-          result.put(path, this.sourceFs.getFileStatus(path));
+          results.put(path, this.sourceFs.getFileStatus(path));
         } catch (FileNotFoundException fnfe) {
           if (!shouldTolerateMissingSourceFiles) {
             throw fnfe;
           } else {
             // log, but otherwise swallow... to continue on
-            log.warn("MIA source file... did premature deletion subvert time-travel or maybe metadata read interleave with delete?", fnfe);
+            log.warn("MIA source file... did premature deletion subvert time-travel or maybe metadata read interleaved with delete?", fnfe);
           }
         }
       }
     } catch (WrappedIOException wrapper) {
       wrapper.rethrowWrapped();
     }
-    return result;
+    return results;
   }
 
   /** @returns whether `path` is present on `targetFs`, tunneling checked exceptions and caching results throughout */

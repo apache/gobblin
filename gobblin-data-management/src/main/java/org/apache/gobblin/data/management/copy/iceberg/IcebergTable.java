@@ -72,6 +72,12 @@ public class IcebergTable {
     return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
   }
 
+  /** @return metadata info for most recent snapshot, wherein manifests and their child data files ARE NOT listed */
+  public IcebergSnapshotInfo getCurrentSnapshotInfoOverviewOnly() throws IOException {
+    TableMetadata current = accessTableMetadata();
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), true);
+  }
+
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
   public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
     TableMetadata current = accessTableMetadata();
@@ -130,15 +136,18 @@ public class IcebergTable {
   }
 
   protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {
+    return createSnapshotInfo(snapshot, metadataFileLocation, false);
+  }
+
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, boolean skipManifestFileInfo) throws IOException {
     // TODO: verify correctness, even when handling 'delete manifests'!
-    List<ManifestFile> manifests = snapshot.allManifests();
     return new IcebergSnapshotInfo(
         snapshot.snapshotId(),
         Instant.ofEpochMilli(snapshot.timestampMillis()),
         metadataFileLocation,
         snapshot.manifestListLocation(),
         // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
-        calcAllManifestFileInfos(manifests, tableOps.io())
+        skipManifestFileInfo ? Lists.newArrayList() : calcAllManifestFileInfos(snapshot.allManifests(), tableOps.io())
       );
   }
 
