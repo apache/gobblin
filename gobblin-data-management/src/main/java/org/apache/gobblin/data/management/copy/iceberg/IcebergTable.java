@@ -96,8 +96,16 @@ public class IcebergTable {
   }
 
   /**
-   * @return metadata info for all known snapshots, but incrementally, so content overlap between snapshots appears
-   * only within the first as they're ordered historically, with *most recent last*
+   * @return metadata info for all known snapshots, but incrementally, so overlapping entries within snapshots appear
+   * only with the first as they're ordered historically, with *most recent last*.
+   *
+   * This means the {@link IcebergSnapshotInfo#getManifestFiles()} for the (n+1)-th element of the iterator will omit
+   * all manifest files and listed data files, already reflected in a {@link IcebergSnapshotInfo#getManifestFiles()}
+   * from the n-th or prior elements.  Given the order of the {@link Iterator<IcebergSnapshotInfo>} returned, this
+   * mirrors the snapshot-to-file dependencies: each file is returned exactly once with the (oldest) snapshot from
+   * which it first becomes reachable.
+   *
+   * Only the final {@link IcebergSnapshotInfo#getMetadataPath()} is present (for the snapshot it itself deems current).
    */
   public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() throws IOException {
     // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
