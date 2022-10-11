@@ -204,8 +204,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
             for (IcebergSnapshotInfo.ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
               if (!isPresentOnTarget.apply(mfi.getManifestFilePath())) {
                 missingPaths.add(mfi.getManifestFilePath());
-                // being incremental info, add all listed paths, as none would have appeared prior w/ other manifests;
-                // despite corner cases of some already at dest, skip verification, given expense when 1000s of files
+                // being incremental info, no listed paths would have appeared prior w/ other manifests, so add all now;
+                // although corner cases of some already at dest, skip verification, given expense when 1000s of files
                 missingPaths.addAll(mfi.getListedFilePaths());
               }
             }
