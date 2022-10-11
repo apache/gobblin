@@ -134,8 +134,9 @@ public class IcebergDatasetTest {
     List<MockIcebergTable.SnapshotPaths> icebergSnapshots = Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
     List<String> existingDestPaths = Lists.newArrayList(MANIFEST_DATA_PATH_1B, MANIFEST_DATA_PATH_0A);
     Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
-    expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_1B));
-    expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_0A));
+    // despite already existing on target, expect anyway: per-file check skipped for optimization's sake
+    // expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_1B));
+    // expectedResultPaths.remove(new Path(MANIFEST_DATA_PATH_0A));
     validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
   }
 
