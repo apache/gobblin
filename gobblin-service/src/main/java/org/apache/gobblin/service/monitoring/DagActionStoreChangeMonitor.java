@@ -88,6 +88,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   partitioned and processed by only one thread (and corresponding queue).
    */
   protected void processMessage(DecodeableKafkaRecord message) {
+    // TODO: Add metric that service is healthy and we're continuously processing messages.
     String key = (String) message.getKey();
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
@@ -108,20 +109,20 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
     // retrieve operation type from MySQL table OR from the event itself
     DagActionStore.DagActionValue dagAction = null;
-    try {
-      dagAction = dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId).getDagActionValue();
-    } catch (IOException e) {
-      log.warn("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. "
-          + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
-      this.unexpectedErrors.mark();
-    } catch (SpecNotFoundException e) {
-      log.warn("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
-          flowExecutionId, e);
-      this.unexpectedErrors.mark();
-    } catch (SQLException throwables) {
-      log.warn("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. "
-          + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
-      throwables.printStackTrace();
+    if (!operation.equals("DELETE")) {
+      try {
+        dagAction = dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId).getDagActionValue();
+      } catch (IOException e) {
+        log.warn("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
+        this.unexpectedErrors.mark();
+      } catch (SpecNotFoundException e) {
+        log.warn("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
+            flowExecutionId, e);
+        this.unexpectedErrors.mark();
+      } catch (SQLException throwables) {
+        log.warn("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
+        throwables.printStackTrace();
+      }
     }
 
     try {

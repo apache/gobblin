@@ -93,6 +93,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
   protected void processMessage(DecodeableKafkaRecord message) {
+    // TODO: Add metric that service is healthy and we're continuously processing messages.
     String key = (String) message.getKey();
     GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
@@ -113,14 +114,12 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     try {
       specAsUri = new URI(key);
     } catch (URISyntaxException e) {
-      if (operation.equals("DELETE")) {
-        log.warn("Could not create URI object for specUri {} due to error {}", key, e.getMessage());
-        this.unexpectedErrors.mark();
-        return;
-      }
+      log.warn("Could not create URI object for specUri {} due to error {}", key, e.getMessage());
+      this.unexpectedErrors.mark();
+      return;
     }
 
-    spec = (operation.equals("DELETE")) ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
+    spec = (!operation.equals("DELETE")) ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
 
     // The monitor should continue to process messages regardless of failures with individual messages, instead we use
     // metrics to keep track of failure to process certain SpecStoreChange events
