@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import java.util.function.Function;
+import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -225,9 +226,10 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     try {
       // TODO: investigate whether streaming initialization of `Map` preferable--`getFileStatus()` network calls likely
       // to benefit from parallelism
+      PathErrorConsolidator errorConsolidator = new PathErrorConsolidator();
       for (String pathString : filePathsIterable) {
+        Path path = new Path(pathString);
         try {
-          Path path = new Path(pathString);
           results.put(path, this.sourceFs.getFileStatus(path));
         } catch (FileNotFoundException fnfe) {
           if (!shouldTolerateMissingSourceFiles) {
@@ -235,7 +237,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
           } else {
             // log, but otherwise swallow... to continue on
             String speculation = "either premature deletion broke time-travel or metadata read interleaved among delete";
-            log.warn("~{}.{}~ source file not found: '{}' ({}...)", dbName, inputTableName, pathString, speculation);
+            errorConsolidator.prepLogMsg(path).ifPresent(msg ->
+                log.warn("~{}.{}~ source {} ({}...)", dbName, inputTableName, msg, speculation)
+            );
           }
         }
       }
@@ -243,6 +247,43 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       wrapper.rethrowWrapped();
     }
     return results;
+  }
+
+  /**
+   * Stateful object to consolidate error messages (e.g. for logging), per a {@link Path} consolidation strategy.
+   * OVERVIEW: to avoid run-away logging into the 1000s of lines, consolidate to parent (directory) level:
+   * 1. on the first path within the dir, log that specific path
+   * 2. on the second path within the dir, log the dir path as a summarization (with ellipsis)
+   * 3. thereafter, skip, logging nothing
+   * The directory, parent path is the default consolidation strategy, yet may be overridden.
+   */
+  @NotThreadSafe
+  protected static class PathErrorConsolidator {
+    private final Map<Path, Boolean> consolidatedPathToWhetherErrorLogged = Maps.newHashMap();
+
+    /** @return consolidated message to log, iff appropriate; else `Optional.empty()` when deserves inhibition */
+    public Optional<String> prepLogMsg(Path path) {
+      Path consolidatedPath = calcPathConsolidation(path);
+      Boolean hadAlreadyLoggedConsolidation = this.consolidatedPathToWhetherErrorLogged.get(consolidatedPath);
+      if (!Boolean.valueOf(true).equals(hadAlreadyLoggedConsolidation)) {
+        boolean shouldLogConsolidationNow = hadAlreadyLoggedConsolidation != null;
+        consolidatedPathToWhetherErrorLogged.put(consolidatedPath, shouldLogConsolidationNow);
+        String pathLogString = shouldLogConsolidationNow ? (consolidatedPath.toString() + "/...") : path.toString();
+        return Optional.of("path" + (shouldLogConsolidationNow ? "s" : "") + " not found: '" + pathLogString + "'");
+      } else {
+        return Optional.empty();
+      }
+    }
+
+    /** @return a {@link Path} to consolidate around; default is: {@link Path#getParent()} */
+    protected Path calcPathConsolidation(Path path) {
+      return path.getParent();
+    }
+  }
+
+  @VisibleForTesting
+  static PathErrorConsolidator createPathErrorConsolidator() {
+    return new PathErrorConsolidator();
   }
 
   /** Add layer of indirection to permit test mocking by working around `FileSystem.get()` `static` method */
