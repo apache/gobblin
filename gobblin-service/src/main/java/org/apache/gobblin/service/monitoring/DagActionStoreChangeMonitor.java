@@ -107,7 +107,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       return;
     }
 
-    // retrieve operation type from MySQL table OR from the event itself
+    // Retrieve the Dag Action taken from MySQL table unless operation is DELETE
     DagActionStore.DagActionValue dagAction = null;
     if (!operation.equals("DELETE")) {
       try {
@@ -125,6 +125,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       }
     }
 
+    // We only expert INSERT and DELETE operations done to this table. INSERTs correspond to resume or delete flow
+    // requests that have to be processed. DELETEs require no action.
     try {
       if (operation.equals("INSERT")) {
         if (dagAction.equals(DagActionStore.DagActionValue.RESUME)) {
