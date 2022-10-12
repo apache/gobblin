@@ -18,11 +18,13 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
@@ -35,11 +37,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.flowgraph.FSPathAlterationFlowGraphListener;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 
@@ -74,13 +79,18 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
         TimeUnit.SECONDS.toMillis(configWithFallbacks.getLong(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL));
     this.flowGraphPath = new Path(configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR));
     this.observer = new PathAlterationObserver(flowGraphPath);
-    this.flowGraphHelper = new BaseFlowGraphHelper(flowTemplateCatalog, topologySpecMap, flowGraphPath.toString(),
-        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS),
-        configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS), instrumentationEnabled, config);
+    try {
+      String helperClassName = ConfigUtils.getString(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY,
+          BaseFlowGraphHelper.class.getCanonicalName());
+      this.flowGraphHelper = (BaseFlowGraphHelper) ConstructorUtils.invokeConstructor(Class.forName(new ClassAliasResolver<>(BaseFlowGraphHelper.class).resolve(helperClassName)), flowTemplateCatalog, topologySpecMap, flowGraphPath.toString(),
+          configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_BASE_DIR), configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS),
+          configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS), instrumentationEnabled, config);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
     this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, compiler, flowGraphPath.toString(), this.flowGraphHelper);
-
-   this.compiler = compiler;
-   this.initComplete = initComplete;
+    this.compiler = compiler;
+    this.initComplete = initComplete;
 
     if (pollingInterval == ConfigurationKeys.DISABLED_JOB_CONFIG_FILE_MONITOR_POLLING_INTERVAL) {
       this.pathAlterationDetector = null;
