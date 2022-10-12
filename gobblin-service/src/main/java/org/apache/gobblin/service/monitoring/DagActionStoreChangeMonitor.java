@@ -70,6 +70,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @Inject
   protected DagManager dagManager;
 
+  // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
+  // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, int numThreads) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
@@ -79,7 +81,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Override
   protected void assignTopicPartitions() {
-    ChangeMonitorUtils.assignTopicPartitionsHelper(this.topic, this.getGobblinKafkaConsumerClient());
+    // Expects underlying consumer to handle initializing partitions and offset for the topic -
+    // subscribe to all partitions from latest offset
+    return;
   }
 
   @Override

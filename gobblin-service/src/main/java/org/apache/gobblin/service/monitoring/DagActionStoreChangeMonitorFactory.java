@@ -35,7 +35,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public class DagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_NAME = "org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor";
-  static final String DAG_ACTION_STORE_CHANGE_MONITOR_TOPIC_KEY = "topic";
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
@@ -46,7 +45,7 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   private DagActionStoreChangeMonitor createDagActionStoreMonitor()
     throws ReflectiveOperationException {
     Config dagActionStoreChangeConfig = config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
-    String topic = dagActionStoreChangeConfig.getString(DAG_ACTION_STORE_CHANGE_MONITOR_TOPIC_KEY);
+    String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
     return (DagActionStoreChangeMonitor) GobblinConstructorUtils.invokeConstructor(
