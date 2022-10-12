@@ -200,7 +200,7 @@ public class IcebergDatasetTest {
     IcebergDataset.PathErrorConsolidator pec = IcebergDataset.createPathErrorConsolidator();
     Optional<String> msg0 = pec.prepLogMsg(new Path("/a/b/c/file0"));
     Assert.assertTrue(msg0.isPresent());
-    Assert.assertEquals(msg0.get(), "path not found: '/a/b/c/file0'");
+    Assert.assertEquals(msg0.get(), "path  not found: '/a/b/c/file0'");
     Optional<String> msg1 = pec.prepLogMsg(new Path("/a/b/c/file1"));
     Assert.assertTrue(msg1.isPresent());
     Assert.assertEquals(msg1.get(), "paths not found: '/a/b/c/...'");
