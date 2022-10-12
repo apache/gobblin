@@ -288,6 +288,9 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
         longWatermarkMap.put(topicPartition, new LongWatermark(0L));
       }
     }
+    for (Map.Entry<KafkaPartition, LongWatermark> entry : longWatermarkMap.entrySet()) {
+      log.info("Retrieved watermark {} for partition {}", entry.getValue().toString(), entry.getKey().toString());
+    }
     return longWatermarkMap;
   }
 
