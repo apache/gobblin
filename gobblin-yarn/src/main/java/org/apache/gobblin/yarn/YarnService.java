@@ -20,6 +20,7 @@ package org.apache.gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,12 +28,14 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import lombok.AllArgsConstructor;
 import org.apache.hadoop.conf.Configuration;
@@ -194,7 +197,7 @@ public class YarnService extends AbstractIdleService {
   private final Set<String> unusedHelixInstanceNames = ConcurrentHashMap.newKeySet();
 
   // The map from helix tag to allocated container count
-  private final Map<String, Integer> allocatedContainerCountMap = Maps.newConcurrentMap();
+  private final ConcurrentMap<String, AtomicInteger> allocatedContainerCountMap = Maps.newConcurrentMap();
 
   private final boolean isPurgingOfflineHelixInstancesEnabled;
   private final long helixPurgeLaggingThresholdMs;
@@ -394,8 +397,8 @@ public class YarnService extends AbstractIdleService {
       if (!this.containerMap.isEmpty()) {
         synchronized (this.allContainersStopped) {
           try {
-            // Wait 5 minutes for the containers to stop
-            this.allContainersStopped.wait(5 * 60 * 1000);
+            Duration waitTimeout = Duration.ofMinutes(5);
+            this.allContainersStopped.wait(waitTimeout.toMillis());
             LOGGER.info("All of the containers have been stopped");
           } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
@@ -461,8 +464,8 @@ public class YarnService extends AbstractIdleService {
    * @param inUseInstances  a set of in use instances
    */
   public synchronized void requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
-    LOGGER.debug("Requesting numTargetContainers {}, in use instances count is {}, container map size is {}",
-        yarnContainerRequestBundle.getTotalContainers(), inUseInstances, this.containerMap.size());
+    LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
+        yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
@@ -474,11 +477,21 @@ public class YarnService extends AbstractIdleService {
     for (Map.Entry<String, Integer> entry : yarnContainerRequestBundle.getHelixTagContainerCountMap().entrySet()) {
       String currentHelixTag = entry.getKey();
       int desiredContainerCount = entry.getValue();
+      Resource resourceForHelixTag = yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag);
+
       // Calculate requested container count based on adding allocated count and outstanding ContainerRequests in Yarn
-      int requestedContainerCount = allocatedContainerCountMap.getOrDefault(currentHelixTag, 0)
-          + getMatchingRequestsCount(yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag));
-      for(; requestedContainerCount < desiredContainerCount; requestedContainerCount++) {
-        requestContainer(Optional.absent(), yarnContainerRequestBundle.getHelixTagResourceMap().get(currentHelixTag));
+      allocatedContainerCountMap.putIfAbsent(currentHelixTag, new AtomicInteger(0));
+      int allocatedContainers = allocatedContainerCountMap.get(currentHelixTag).get();
+      int outstandingContainerRequests = getMatchingRequestsCount(resourceForHelixTag);
+      int requestedContainerCount = allocatedContainers + outstandingContainerRequests;
+      int numContainersNeeded = desiredContainerCount - requestedContainerCount;
+      LOGGER.info("helixTag={}, allocatedContainers={}, outstandingContainerRequests={}, desiredContainerCount={}, numContainersNeeded={}",
+          currentHelixTag, allocatedContainers, outstandingContainerRequests, desiredContainerCount, numContainersNeeded);
+
+      if (numContainersNeeded > 0) {
+        requestContainers(numContainersNeeded, resourceForHelixTag);
+      } else {
+        LOGGER.info("Not requesting any containers because numContainersNeeded={} which is not > 0", numContainersNeeded);
       }
     }
 
@@ -487,10 +500,11 @@ public class YarnService extends AbstractIdleService {
     // and assigned work. Resizing based on numRequestedContainers at this point may release a container right before
     // or soon after it is assigned work.
     if (numTargetContainers < numAllocatedContainers) {
-      LOGGER.debug("Shrinking number of containers by {}", (numAllocatedContainers - numTargetContainers));
-
       List<Container> containersToRelease = new ArrayList<>();
       int numToShutdown = numAllocatedContainers - numTargetContainers;
+
+      LOGGER.info("Shrinking number of containers by {} because numTargetContainers < numAllocatedContainers ({} < {})",
+          numToShutdown, numTargetContainers, numAllocatedContainers);
 
       // Look for eligible containers to release. If a container is in use then it is not released.
       for (Map.Entry<ContainerId, ContainerInfo> entry : this.containerMap.entrySet()) {
@@ -504,7 +518,7 @@ public class YarnService extends AbstractIdleService {
         }
       }
 
-      LOGGER.debug("Shutting down containers {}", containersToRelease);
+      LOGGER.info("Shutting down {} containers. containersToRelease={}", containersToRelease.size(), containersToRelease);
 
       this.eventBus.post(new ContainerReleaseRequest(containersToRelease));
     }
@@ -525,6 +539,18 @@ public class YarnService extends AbstractIdleService {
     Resource desiredResource = resourceOptional.or(Resource.newInstance(
         this.requestedContainerMemoryMbs, this.requestedContainerCores));
     requestContainer(preferredNode, desiredResource);
+  }
+
+  /**
+   * Request {@param numContainers} from yarn with the specified resource. Resources will be allocated without a preferred
+   * node
+   * @param numContainers
+   * @param resource
+   */
+  private void requestContainers(int numContainers, Resource resource) {
+    LOGGER.info("Requesting {} containers with resource={}", numContainers, resource);
+    IntStream.range(0, numContainers)
+        .forEach(i -> requestContainer(Optional.absent(), resource));
   }
 
   // Request containers with specific resource requirement
@@ -690,7 +716,7 @@ public class YarnService extends AbstractIdleService {
     //containerId missing from the containersMap.
     String completedInstanceName = completedContainerInfo == null?  UNKNOWN_HELIX_INSTANCE : completedContainerInfo.getHelixParticipantId();
     String helixTag = completedContainerInfo == null ? helixInstanceTags : completedContainerInfo.getHelixTag();
-    allocatedContainerCountMap.put(helixTag, allocatedContainerCountMap.get(helixTag) - 1);
+    allocatedContainerCountMap.get(helixTag).decrementAndGet();
 
     LOGGER.info(String.format("Container %s running Helix instance %s with tag %s has completed with exit status %d",
         containerStatus.getContainerId(), completedInstanceName, helixTag, containerStatus.getExitStatus()));
@@ -789,11 +815,17 @@ public class YarnService extends AbstractIdleService {
 
   /**
    * Get the number of matching container requests for the specified resource memory and cores.
+   * Due to YARN-1902, this API is not 100% accurate. However, {@link AMRMClientCallbackHandler#onContainersAllocated(List)}
+   * contains logic for best effort clean up of duplicate requests, and in practice is pretty accurate.
    */
   private int getMatchingRequestsCount(Resource resource) {
     int priorityNum = resourcePriorityMap.getOrDefault(resource.toString(), 0);
     Priority priority = Priority.newInstance(priorityNum);
-    return getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource).size();
+    List<? extends Collection> outstandingRequests = getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
+    return outstandingRequests == null ? 0 : outstandingRequests.stream()
+        .filter(Objects::nonNull)
+        .mapToInt(Collection::size)
+        .sum();
   }
 
   /**
@@ -845,8 +877,6 @@ public class YarnService extends AbstractIdleService {
               instanceName = null;
             }
           }
-          allocatedContainerCountMap.put(containerHelixTag,
-              allocatedContainerCountMap.getOrDefault(containerHelixTag, 0) + 1);
         }
 
         if (Strings.isNullOrEmpty(instanceName)) {
@@ -857,6 +887,8 @@ public class YarnService extends AbstractIdleService {
 
         ContainerInfo containerInfo = new ContainerInfo(container, instanceName, containerHelixTag);
         containerMap.put(container.getId(), containerInfo);
+        allocatedContainerCountMap.putIfAbsent(containerHelixTag, new AtomicInteger(0));
+        allocatedContainerCountMap.get(containerHelixTag).incrementAndGet();
 
         // Find matching requests and remove the request to reduce the chance that a subsequent request
         // will request extra containers. YARN does not have a delta request API and the requests are not
