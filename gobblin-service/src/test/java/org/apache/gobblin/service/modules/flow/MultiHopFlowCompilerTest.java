@@ -33,7 +33,9 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -41,12 +43,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
-import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.lib.RepositoryCache;
-import org.eclipse.jgit.transport.RefSpec;
-import org.eclipse.jgit.util.FS;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -54,7 +50,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -64,7 +59,6 @@ import com.typesafe.config.ConfigSyntax;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -75,7 +69,6 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
@@ -95,7 +88,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 @Slf4j
 public class MultiHopFlowCompilerTest {
-  private FlowGraph flowGraph;
+  private AtomicReference<FlowGraph> flowGraph;
   private MultiHopFlowCompiler specCompiler;
   private final String TESTDIR = "/tmp/mhCompiler/gitFlowGraphTestDir";
 
@@ -103,7 +96,7 @@ public class MultiHopFlowCompilerTest {
   public void setUp()
       throws URISyntaxException, IOException, ReflectiveOperationException, FlowEdgeFactory.FlowEdgeCreationException {
     //Create a FlowGraph
-    this.flowGraph = new BaseFlowGraph();
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
 
     //Add DataNodes to the graph from the node properties files
     URI dataNodesUri = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/datanodes").toURI();
@@ -119,7 +112,7 @@ public class MultiHopFlowCompilerTest {
         Class dataNodeClass = Class.forName(ConfigUtils
             .getString(nodeConfig, FlowGraphConfigurationKeys.DATA_NODE_CLASS, FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, nodeConfig);
-        this.flowGraph.addDataNode(dataNode);
+        this.flowGraph.get().addDataNode(dataNode);
       }
     }
 
@@ -153,7 +146,7 @@ public class MultiHopFlowCompilerTest {
           specExecutors.add(topologySpecMap.get(new URI(specExecutorName)).getSpecExecutor());
         }
         FlowEdge edge = flowEdgeFactory.createFlowEdge(flowEdgeConfig, flowCatalog, specExecutors);
-        this.flowGraph.addFlowEdge(edge);
+        this.flowGraph.get().addFlowEdge(edge);
       }
     }
     this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
@@ -400,7 +393,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowWithRetention")
   public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.get().deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -522,7 +515,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowAfterFirstEdgeDeletion")
   public void testCompileFlowAfterSecondEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-2_HDFS-2_hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.get().deleteFlowEdge("HDFS-2_HDFS-2_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -672,67 +665,6 @@ public class MultiHopFlowCompilerTest {
     Assert.assertNull(dag);
     Assert.assertEquals(spec.getCompilationErrors().size(), 1);
     spec.getCompilationErrors().stream().anyMatch(s -> s.errorMessage.contains("Flowgraph does not have a node with id"));
-  }
-
-  @Test (dependsOnMethods = "testMissingDestinationNodeError")
-  public void testGitFlowGraphMonitorService()
-      throws IOException, GitAPIException, URISyntaxException, InterruptedException {
-    File remoteDir = new File(TESTDIR + "/remote");
-    File cloneDir = new File(TESTDIR + "/clone");
-    File flowGraphDir = new File(cloneDir, "/gobblin-flowgraph");
-
-    //Clean up
-    cleanUpDir(TESTDIR);
-
-    // Create a bare repository
-    RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(remoteDir, FS.DETECTED);
-    Repository remoteRepo = fileKey.open(false);
-    remoteRepo.create(true);
-
-    Git gitForPush = Git.cloneRepository().setURI(remoteRepo.getDirectory().getAbsolutePath()).setDirectory(cloneDir).call();
-
-    // push an empty commit as a base for detecting changes
-    gitForPush.commit().setMessage("First commit").call();
-    RefSpec masterRefSpec = new RefSpec("master");
-    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
-
-    URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
-
-    Config config = ConfigBuilder.create()
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "."
-            + ConfigurationKeys.GIT_MONITOR_REPO_URI, remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TESTDIR + "/git-flowgraph")
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
-        .addPrimitive(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString())
-        .build();
-
-    //Create a MultiHopFlowCompiler instance
-    specCompiler = new MultiHopFlowCompiler(config, Optional.absent(), false);
-
-    specCompiler.setActive(true);
-
-    //Ensure node1 is not present in the graph
-    Assert.assertNull(specCompiler.getFlowGraph().getNode("node1"));
-
-    // push a new node file
-    File nodeDir = new File(flowGraphDir, "node1");
-    File nodeFile = new File(nodeDir, "node1.properties");
-    nodeDir.mkdirs();
-    nodeFile.createNewFile();
-    Files.write(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam1=val1" + "\n", nodeFile, Charsets.UTF_8);
-
-    // add, commit, push node
-    gitForPush.add().addFilepattern(formNodeFilePath(flowGraphDir, nodeDir.getName(), nodeFile.getName())).call();
-    gitForPush.commit().setMessage("Node commit").call();
-    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
-
-    // polling is every 5 seconds, so wait twice as long and check
-    TimeUnit.SECONDS.sleep(10);
-
-    //Test that a DataNode is added to FlowGraph
-    DataNode dataNode = specCompiler.getFlowGraph().getNode("node1");
-    Assert.assertEquals(dataNode.getId(), "node1");
-    Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "val1");
   }
 
   private String formNodeFilePath(File flowGraphDir, String groupDir, String fileName) {

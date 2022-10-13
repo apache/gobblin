@@ -45,12 +45,13 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
+  // Synchronize read/write access while the flowgraph is in the middle of an update
   private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
-  private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
-  private Map<String, DataNode> dataNodeMap = new HashMap<>();
-  private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
-  private Map<String, String> dataNodeAliasMap;
+  private final Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
+  private final Map<String, DataNode> dataNodeMap = new HashMap<>();
+  private final Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
+  private final Map<String, String> dataNodeAliasMap;
 
   public BaseFlowGraph() {
     this(new HashMap<>());
@@ -239,15 +240,17 @@ public class BaseFlowGraph implements FlowGraph {
 
   /**{@inheritDoc}**/
   @Override
-  public FlowGraphPath findPath(FlowSpec flowSpec) throws PathFinder.PathFinderException, ReflectiveOperationException {
+  public FlowGraphPath findPath(FlowSpec flowSpec)
+      throws PathFinder.PathFinderException, ReflectiveOperationException {
     try {
       rwLock.readLock().lock();
       //Instantiate a PathFinder.
-      Class pathFinderClass = Class.forName(ConfigUtils
-          .getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
+      Class pathFinderClass = Class.forName(
+          ConfigUtils.getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
               FlowGraphConfigurationKeys.DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS));
       PathFinder pathFinder =
-          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec, dataNodeAliasMap);
+          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec,
+              dataNodeAliasMap);
       return pathFinder.findPath();
     } finally {
       rwLock.readLock().unlock();

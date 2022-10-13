@@ -43,9 +43,9 @@ public class PathAlterationObserver {
   private final PathFilter pathFilter;
   private final Comparator<Path> comparator;
   private final FileSystem fs;
-
   private final Path[] EMPTY_PATH_ARRAY = new Path[0];
 
+  private boolean changeApplied = false;
   /**
    * Final processing.
    */
@@ -163,13 +163,15 @@ public class PathAlterationObserver {
   /**
    * Check whether the file and its children have been created, modified or deleted.
    */
-  public void checkAndNotify()
+  public synchronized void checkAndNotify()
       throws IOException {
+    // If any files or directories are modified this flag will be set to true
+    this.changeApplied = false;
+
     /* fire onStart() */
     for (final PathAlterationListener listener : listeners.values()) {
       listener.onStart(this);
     }
-
     /* fire directory/file events */
     final Path rootPath = rootEntry.getPath();
 
@@ -183,10 +185,18 @@ public class PathAlterationObserver {
       // Didn't exist and still doesn't
     }
 
+    if (this.changeApplied) {
+      for (final PathAlterationListener listener : listeners.values()) {
+        // Fire onCheckDetectedChange to notify when one check contains any number of changes
+        listener.onCheckDetectedChange();
+      }
+    }
+
     /* fire onStop() */
     for (final PathAlterationListener listener : listeners.values()) {
       listener.onStop(this);
     }
+
   }
 
   /**
@@ -196,7 +206,7 @@ public class PathAlterationObserver {
    * @param previous The original list of paths
    * @param currentPaths The current list of paths
    */
-  private void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] currentPaths)
+  private synchronized void checkAndNotify(final FileStatusEntry parent, final FileStatusEntry[] previous, final Path[] currentPaths)
       throws IOException {
 
     int c = 0;
@@ -265,8 +275,8 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-  private void doCreate(final FileStatusEntry entry) {
-
+  protected synchronized void doCreate(final FileStatusEntry entry) {
+    this.changeApplied = true;
     for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryCreate(entry.getPath());
@@ -286,9 +296,10 @@ public class PathAlterationObserver {
    * @param entry The previous file system entry
    * @param path The current file
    */
-  private void doMatch(final FileStatusEntry entry, final Path path)
+  private synchronized void doMatch(final FileStatusEntry entry, final Path path)
       throws IOException {
     if (entry.refresh(path)) {
+      this.changeApplied = true;
       for (final PathAlterationListener listener : listeners.values()) {
         if (entry.isDirectory()) {
           listener.onDirectoryChange(path);
@@ -304,8 +315,9 @@ public class PathAlterationObserver {
    *
    * @param entry The file entry
    */
-  private void doDelete(final FileStatusEntry entry) {
-    for (final PathAlterationListener listener : listeners.values()) {
+   private synchronized void doDelete(final FileStatusEntry entry) {
+     this.changeApplied = true;
+     for (final PathAlterationListener listener : listeners.values()) {
       if (entry.isDirectory()) {
         listener.onDirectoryDelete(entry.getPath());
       } else {

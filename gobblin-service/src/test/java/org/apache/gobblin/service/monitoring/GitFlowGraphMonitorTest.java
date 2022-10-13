@@ -21,14 +21,18 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+
+import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.dircache.DirCache;
@@ -83,7 +87,7 @@ public class GitFlowGraphMonitorTest {
   private RefSpec masterRefSpec = new RefSpec("master");
   private Optional<FSFlowTemplateCatalog> flowCatalog;
   private Config config;
-  private BaseFlowGraph flowGraph;
+  private AtomicReference<FlowGraph> flowGraph;
   private GitFlowGraphMonitor gitFlowGraphMonitor;
 
   @BeforeClass
@@ -120,11 +124,10 @@ public class GitFlowGraphMonitorTest {
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     this.flowCatalog = Optional.of(new FSFlowTemplateCatalog(templateCatalogCfg));
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
+    MultiHopFlowCompiler mhfc = new MultiHopFlowCompiler(config, this.flowGraph);
 
-    //Create a FlowGraph instance with defaults
-    this.flowGraph = new BaseFlowGraph();
-
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, mhfc, topologySpecMap, new CountDownLatch(1), true);
     this.gitFlowGraphMonitor.setActive(true);
   }
 
@@ -143,7 +146,7 @@ public class GitFlowGraphMonitorTest {
       String paramKey = "param" + (i + 1);
       String paramValue = "value" + (i + 1);
       //Check if nodes have been added to the FlowGraph
-      DataNode dataNode = this.flowGraph.getNode(nodeId);
+      DataNode dataNode = this.flowGraph.get().getNode(nodeId);
       Assert.assertEquals(dataNode.getId(), nodeId);
       Assert.assertTrue(dataNode.isActive());
       Assert.assertEquals(dataNode.getRawConfig().getString(paramKey), paramValue);
@@ -191,7 +194,7 @@ public class GitFlowGraphMonitorTest {
 
     this.gitFlowGraphMonitor.processGitConfigChanges();
     //Check if node has been updated in the FlowGraph
-    DataNode dataNode = this.flowGraph.getNode("node1");
+    DataNode dataNode = this.flowGraph.get().getNode("node1");
     Assert.assertEquals(dataNode.getId(), "node1");
     Assert.assertTrue(dataNode.isActive());
     Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "value3");
@@ -204,7 +207,7 @@ public class GitFlowGraphMonitorTest {
     edge1File.delete();
 
     //Node1 has 1 edge before delete
-    Set<FlowEdge> edgeSet = this.flowGraph.getEdges("node1");
+    Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges("node1");
     Assert.assertEquals(edgeSet.size(), 1);
 
     // delete, commit, push
@@ -216,7 +219,7 @@ public class GitFlowGraphMonitorTest {
     this.gitFlowGraphMonitor.processGitConfigChanges();
 
     //Check if edge1 has been deleted from the graph
-    edgeSet = this.flowGraph.getEdges("node1");
+    edgeSet = this.flowGraph.get().getEdges("node1");
     Assert.assertTrue(edgeSet.size() == 0);
   }
 
@@ -227,9 +230,9 @@ public class GitFlowGraphMonitorTest {
     node2File.delete();
 
     //Ensure node1 and node2 are present in the graph before delete
-    DataNode node1 = this.flowGraph.getNode("node1");
+    DataNode node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNotNull(node1);
-    DataNode node2 = this.flowGraph.getNode("node2");
+    DataNode node2 = this.flowGraph.get().getNode("node2");
     Assert.assertNotNull(node2);
 
     // delete, commit, push
@@ -241,9 +244,9 @@ public class GitFlowGraphMonitorTest {
     this.gitFlowGraphMonitor.processGitConfigChanges();
 
     //Check if node1 and node 2 have been deleted from the graph
-    node1 = this.flowGraph.getNode("node1");
+    node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNull(node1);
-    node2 = this.flowGraph.getNode("node2");
+    node2 = this.flowGraph.get().getNode("node2");
     Assert.assertNull(node2);
   }
 
@@ -270,9 +273,9 @@ public class GitFlowGraphMonitorTest {
 
     this.gitFlowGraphMonitor.processGitConfigChanges();
     //Ensure node1 and node2 are present in the graph
-    DataNode node1 = this.flowGraph.getNode("node1");
+    DataNode node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNotNull(node1);
-    DataNode node2 = this.flowGraph.getNode("node2");
+    DataNode node2 = this.flowGraph.get().getNode("node2");
     Assert.assertNotNull(node2);
     testIfEdgeSuccessfullyAdded("node1", "node2", "edge1", "value1");
 
@@ -293,9 +296,9 @@ public class GitFlowGraphMonitorTest {
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     this.gitFlowGraphMonitor.processGitConfigChanges();
-    node1 = this.flowGraph.getNode("node1");
+    node1 = this.flowGraph.get().getNode("node1");
     Assert.assertNotNull(node1);
-    Assert.assertEquals(this.flowGraph.getEdges(node1).size(), 0);
+    Assert.assertEquals(this.flowGraph.get().getEdges(node1).size(), 0);
   }
 
   @AfterClass
@@ -339,7 +342,7 @@ public class GitFlowGraphMonitorTest {
   }
 
   private void testIfEdgeSuccessfullyAdded(String node1, String node2, String edgeName, String value) throws ExecutionException, InterruptedException {
-    Set<FlowEdge> edgeSet = this.flowGraph.getEdges(node1);
+    Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges(node1);
     Assert.assertEquals(edgeSet.size(), 1);
     FlowEdge flowEdge = edgeSet.iterator().next();
     Assert.assertEquals(flowEdge.getId(), Joiner.on("_").join(node1, node2, edgeName));

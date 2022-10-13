@@ -30,5 +30,4 @@ public interface FlowGraphMonitor extends Service {
    * @param value whether GaaS is ready
    */
   void setActive(boolean value);
-
 }

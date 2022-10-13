@@ -107,7 +107,7 @@ public class CallbacksDispatcher<L> implements Closeable {
   public synchronized void addListener(L listener) {
     Preconditions.checkNotNull(listener);
 
-    _log.info("Adding listener:" + listener);
+    _log.debug("Adding listener:" + listener);
     _listeners.add(listener);
   }
 
