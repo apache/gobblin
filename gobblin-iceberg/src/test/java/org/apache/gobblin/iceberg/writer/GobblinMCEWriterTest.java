@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import lombok.SneakyThrows;
@@ -55,6 +56,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Sets;
 
 import static org.mockito.Mockito.*;
 
@@ -210,6 +213,15 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
     Assert.assertEquals(allowedWriters.size(), 2);
     Assert.assertEquals(allowedWriters.get(0).getClass().getName(), mockWriter.getClass().getName());
     Assert.assertEquals(allowedWriters.get(1).getClass().getName(), exceptionWriter.getClass().getName());
+  }
+
+  @Test
+  public void testDetectTransientException() {
+    Set<String> transientExceptions = Sets.newHashSet("Filesystem closed", "Hive timeout");
+    IOException transientException = new IOException("test1 Filesystem closed test");
+    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(transientException, transientExceptions));
+    IOException nonTransientException = new IOException("Write failed due to bad schema");
+    Assert.assertFalse(GobblinMCEWriter.isExceptionTransient(nonTransientException, transientExceptions));
   }
 
   @DataProvider(name="AllowMockMetadataWriter")
