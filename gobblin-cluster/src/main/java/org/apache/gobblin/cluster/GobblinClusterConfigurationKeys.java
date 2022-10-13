@@ -175,6 +175,12 @@ public class GobblinClusterConfigurationKeys {
   public static final String CANCEL_RUNNING_JOB_ON_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelRunningJobOnDelete";
   public static final String DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE = "false";
 
+  // By default we cancel job by calling helix stop API. In some cases, jobs just hang in STOPPING state and preventing
+  // new job being launched. We provide this config to give an option to cancel jobs by calling Delete API. Directly delete
+  // a Helix workflow should be safe in Gobblin world, as Gobblin job is stateless for Helix since we implement our own state store
+  public static final String CANCEL_HELIX_JOB_BY_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelHelixJobByDelete";
+  public static final boolean DEFAULT_CANCEL_HELIX_JOB_BY_DELETE = false;
+
   public static final String HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "job.stoppingStateTimeoutSeconds";
   public static final long DEFAULT_HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS = 300;
   public static final String CONTAINER_HEALTH_METRICS_SERVICE_ENABLED = GOBBLIN_CLUSTER_PREFIX + "container.health.metrics.service.enabled" ;

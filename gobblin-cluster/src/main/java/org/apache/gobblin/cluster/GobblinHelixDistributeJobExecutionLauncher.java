@@ -110,6 +110,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   @Getter
   private DistributeJobMonitor jobMonitor;
 
+  private final Config combinedConfigs;
+
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) {
     this.planningJobHelixManager = builder.planningJobHelixManager;
 
@@ -118,19 +120,19 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     this.jobPlanningProps = builder.jobPlanningProps;
     this.jobSubmitted = false;
 
-    Config combined = ConfigUtils.propertiesToConfig(jobPlanningProps)
+    combinedConfigs = ConfigUtils.propertiesToConfig(jobPlanningProps)
         .withFallback(ConfigUtils.propertiesToConfig(sysProps));
 
-    this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
+    this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(this.combinedConfigs,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
     this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
-    this.nonBlockingMode = ConfigUtils.getBoolean(combined,
+    this.nonBlockingMode = ConfigUtils.getBoolean(this.combinedConfigs,
         GobblinClusterConfigurationKeys.NON_BLOCKING_PLANNING_JOB_ENABLED,
         GobblinClusterConfigurationKeys.DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED);
     this.helixMetrics = builder.helixMetrics;
     this.jobsMapping = builder.jobsMapping;
-    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(this.combinedConfigs,
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
   }
@@ -144,18 +146,17 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       String planningJobId = getPlanningJobId(this.jobPlanningProps);
       try {
         if (this.cancellationRequested && !this.cancellationExecuted) {
-          // TODO : fix this when HELIX-1180 is completed
-          // work flow should never be deleted explicitly because it has a expiry time
-          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(planningJobId, this.helixJobStopTimeoutSeconds * 1000);
-          log.info("Stopped the workflow {}", planningJobId);
+          boolean cancelByDelete = ConfigUtils.getBoolean(this.combinedConfigs, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
+              GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE);
+          HelixUtils.cancelWorkflow(planningJobId, this.planningJobHelixManager, helixJobStopTimeoutSeconds * 1000, cancelByDelete);
+          log.info("Canceled the workflow {}", planningJobId);
         }
       } catch (HelixException e) {
-        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // Cancellation may throw an exception, but Helix set the job state to STOP/DELETE and it should eventually be cleaned up
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
-        log.error("Failed to stop workflow {} in Helix", planningJobId, e);
+        log.error("Failed to cancel workflow {} in Helix", planningJobId, e);
       } catch (InterruptedException e) {
-        log.error("Thread interrupted while trying to stop the workflow {} in Helix", planningJobId);
+        log.error("Thread interrupted while trying to cancel the workflow {} in Helix", planningJobId);
         Thread.currentThread().interrupt();
       }
     }

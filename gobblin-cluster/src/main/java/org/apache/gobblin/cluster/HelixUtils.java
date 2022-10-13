@@ -323,6 +323,19 @@ public class HelixUtils {
     }
   }
 
+  // Cancel the job by calling either Delete or Stop Helix API
+  public static void cancelWorkflow(String workflowName, HelixManager helixManager, long timeOut, boolean cancelByDelete)
+      throws InterruptedException {
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+    if (cancelByDelete) {
+      taskDriver.deleteAndWaitForCompletion(workflowName, timeOut);
+      log.info("Canceling Helix workflow: {} through delete API", workflowName);
+    } else {
+      taskDriver.waitToStop(workflowName, timeOut);
+      log.info("Canceling Helix workflow: {} through stop API", workflowName);
+    }
+  }
+
   static void deleteWorkflow (String workflowName, HelixManager helixManager, long timeOut) throws InterruptedException {
     TaskDriver taskDriver = new TaskDriver(helixManager);
     taskDriver.deleteAndWaitForCompletion(workflowName, timeOut);
@@ -340,10 +353,7 @@ public class HelixUtils {
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);
     }
-    // TODO : fix this when HELIX-1180 is completed
-    // We should not be deleting a workflow explicitly.
-    // Workflow state should be set to a final state, which will remove it automatically because expiry time is set.
-    // After that, all delete calls can be replaced by something like HelixUtils.setStateToFinal();
+    // Make sure the job is fully cleaned up
     HelixUtils.deleteStoppedHelixJob(helixManager, workFlowName, jobName);
     log.info("Stopped and deleted the workflow {}", workFlowName);
   }
@@ -358,14 +368,18 @@ public class HelixUtils {
    */
   private static void deleteStoppedHelixJob(HelixManager helixManager, String workFlowName, String jobName)
       throws InterruptedException {
+    long deleteTimeout = 10000L;
     WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
-    while (workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) != STOPPED) {
+    while (workflowContext != null &&
+        workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) != STOPPED) {
       log.info("Waiting for job {} to stop...", jobName);
       workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       Thread.sleep(1000);
     }
-    // deleting the entire workflow, as one workflow contains only one job
-    new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
+    if (workflowContext != null) {
+      // deleting the entire workflow, as one workflow contains only one job
+      new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, deleteTimeout);
+    }
     log.info("Workflow deleted.");
   }
 
