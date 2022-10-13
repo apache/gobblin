@@ -111,6 +111,8 @@ public class IcebergTable {
     // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
     Set<String> knownFilePaths = Sets.newHashSet(); // as absolute paths are clearly unique, use a single set for all
     return Iterators.filter(Iterators.transform(getAllSnapshotInfosIterator(), snapshotInfo -> {
+      log.info("~{}~ before snapshot '{}' - '{}' total known iceberg paths",
+          tableId, snapshotInfo.getSnapshotId(), knownFilePaths.size());
       if (false == knownFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
         return snapshotInfo.toBuilder().manifestListPath(null).build(); // use `null` as marker to surrounding `filter`
       }

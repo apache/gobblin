@@ -30,12 +30,13 @@ import java.util.Optional;
 import java.util.Properties;
 
 import java.util.function.Function;
-import java.util.stream.LongStream;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.util.function.CheckedExceptionFunction;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -257,41 +258,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       wrapper.rethrowWrapped();
     }
     return results;
-  }
-
-  /** Stateful class to track growth/accumulation/"high watermark" against milestones */
-  protected static class GrowthMilestoneTracker {
-    private final Iterator<Long> milestoneSequence = createMilestoneSequence();
-    private Long nextMilestone = milestoneSequence.next();
-
-    /** @return whether `n >=` the next monotonically increasing milestone (with no effort to handle wrap-around) */
-    public final boolean isAnotherMilestone(long n) {
-      return this.calcLargestNewMilestone(n).isPresent();
-    }
-
-    /** @return the largest monotonically increasing milestone iff `n >=` a new one (no effort to handle wrap-around) */
-    public final Optional<Long> calcLargestNewMilestone(long n) {
-      if (n < this.nextMilestone) {
-        return Optional.empty();
-      }
-      Long largestMilestoneAchieved;
-      do {
-        largestMilestoneAchieved = this.nextMilestone;
-        this.nextMilestone = this.milestoneSequence.hasNext() ? this.milestoneSequence.next() : Long.MAX_VALUE;
-      } while (n >= this.nextMilestone);
-      return Optional.of(largestMilestoneAchieved);
-    }
-
-    /**
-     * @return positive monotonically increasing milestones, for {@link GrowthMilestoneTracker#isAnotherMilestone(long)}
-     * to track against; if/whenever exhausted, {@link Long#MAX_VALUE} becomes stand-in thereafter
-     * DEFAULT SEQ: [1, 10, 1000, 10000, 15000, 20000, 25000, ... )
-     */
-    protected Iterator<Long> createMilestoneSequence() {
-      LongStream initially = LongStream.iterate(1L, i -> i * 10).limit((long) Math.log10(10000));
-      LongStream thereafter = LongStream.iterate(5000L, i -> i + 5000);
-      return LongStream.concat(initially, thereafter).iterator();
-    }
   }
 
   /**
