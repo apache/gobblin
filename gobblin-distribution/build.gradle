@@ -24,6 +24,7 @@ configurations {
     }
     if (rootProject.hasProperty('excludeHiveDeps')) {
       exclude group: "org.apache.hive"
+      exclude group: "com.linkedin.hive"
     }
     exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
   }
