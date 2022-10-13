@@ -233,6 +233,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     );
 
     Map<Path, FileStatus> results = Maps.newHashMap();
+    long numSourceFilesNotFound = 0L;
     Iterable<String> filePathsIterable = () -> filePathsIterator;
     try {
       // TODO: investigate whether streaming initialization of `Map` preferable--`getFileStatus()` network calls likely
@@ -251,9 +252,10 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
             throw fnfe;
           } else {
             // log, but otherwise swallow... to continue on
+            String total = ++numSourceFilesNotFound + " total";
             String speculation = "either premature deletion broke time-travel or metadata read interleaved among delete";
             errorConsolidator.prepLogMsg(path).ifPresent(msg ->
-                log.warn("~{}.{}~ source {} ({}...)", dbName, inputTableName, msg, speculation)
+                log.warn("~{}.{}~ source {} ({}... {})", dbName, inputTableName, msg, speculation, total)
             );
           }
         }
