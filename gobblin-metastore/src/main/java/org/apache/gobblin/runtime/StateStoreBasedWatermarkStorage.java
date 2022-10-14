@@ -115,6 +115,7 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     for (CheckpointableWatermark watermark: watermarks) {
       String tableName = watermark.getSource();
       _stateStore.put(_storeName, tableName, new CheckpointableWatermarkState(watermark, GSON));
+      log.info("Committed watermark {} for table {}", watermark.getWatermark().toString(), tableName);
     }
   }
 
