@@ -62,12 +62,14 @@ public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
 
   protected String sharedNodeFolder;
   private static String NODE_FILE_SUFFIX = ".properties";
+  private static String SHARED_NODE_FOLDER_NAME = "nodes";
+  private static int NODE_FOLDER_DEPTH = 2;
 
   public SharedFlowGraphHelper(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       Map<URI, TopologySpec> topologySpecMap, String baseDirectory, String flowGraphFolderName,
       String javaPropsExtentions, String hoconFileExtensions, boolean instrumentationEnabled, Config config) {
     super(flowTemplateCatalog, topologySpecMap, baseDirectory, flowGraphFolderName, javaPropsExtentions, hoconFileExtensions, instrumentationEnabled, config);
-    this.sharedNodeFolder = baseDirectory + File.separator + "nodes";
+    this.sharedNodeFolder = baseDirectory + File.separator + SHARED_NODE_FOLDER_NAME;
   }
 
   /**
@@ -118,7 +120,7 @@ public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
 
   @Override
   protected int getNodeFileDepth() {
-    return 2;
+    return NODE_FOLDER_DEPTH;
   }
 }
 
