@@ -145,13 +145,13 @@ public class AvroFieldsPickConverter extends AvroToAvroConverterBase {
 
       if (child.children.isEmpty()) { //Leaf
         newFields.add(
-            new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultValue()));
+            new Field(innerSrcField.name(), innerSrcField.schema(), innerSrcField.doc(), innerSrcField.defaultVal()));
       } else {
         Schema innerSrcSchema = innerSrcField.schema();
 
         Schema innerDestSchema = createSchemaHelper(innerSrcSchema, child); //Recurse of schema
         Field innerDestField =
-            new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultValue());
+            new Field(innerSrcField.name(), innerDestSchema, innerSrcField.doc(), innerSrcField.defaultVal());
         newFields.add(innerDestField);
       }
     }

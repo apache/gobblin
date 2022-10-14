@@ -86,9 +86,9 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
       if (!field.schema().getType().equals(Schema.Type.MAP)) {
         if (fieldsRenameMap.containsKey(curFieldName)) {
           newFields.add(
-              new Schema.Field(fieldsRenameMap.get(curFieldName), field.schema(), field.doc(), field.defaultValue()));
+              new Schema.Field(fieldsRenameMap.get(curFieldName), field.schema(), field.doc(), field.defaultVal()));
         } else {
-          newFields.add(new Schema.Field(curFieldName, field.schema(), field.doc(), field.defaultValue()));
+          newFields.add(new Schema.Field(curFieldName, field.schema(), field.doc(), field.defaultVal()));
         }
         this.nonMapFields.add(curFieldName);
       } else {
