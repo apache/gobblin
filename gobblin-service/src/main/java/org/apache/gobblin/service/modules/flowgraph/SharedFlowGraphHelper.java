@@ -43,16 +43,16 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * Node definitions are shared between each subgraph, but can be overwritten within the subgraph
  * Edge definitions are only defined in the subgraphs
  * e.g.
- * /gobblin-flowgraph
+ * /gobblin-flowgraph-absolute-dir
  *   /subgraphA
- *     /nodeA
+ *     /nodeA (NODE_FOLDER_DEPTH)
  *       /nodeB
  *         edgeAB.properties
  *   /subgraphB
  *     /nodeA
  *       /nodeB
- *         edgeAB.properties
- *       A.properties
+ *         edgeAB.properties (EDGE_FILE_DEPTH)
+ *       A.properties (NODE_FILE_DEPTH)
  *  /nodes
  *    A.properties
  *    B.properties
@@ -108,7 +108,7 @@ public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
       if (this.flowGraphUpdateFailedMeter.isPresent()) {
         this.flowGraphUpdateFailedMeter.get().mark();
       }
-      log.warn("Could not add DataNode defined in {} due to exception {}", path, e);
+      log.warn("Could not add DataNode {} defined in {} due to exception {}", path, e);
     }
   }
 

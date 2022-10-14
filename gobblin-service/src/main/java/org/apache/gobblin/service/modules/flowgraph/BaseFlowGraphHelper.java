@@ -57,6 +57,16 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * Provides the common set of functionalities needed by {@link FlowGraphMonitor} to read changes in files and
  * apply them to a {@link FlowGraph}
  * Assumes that the directory structure between flowgraphs configuration files are the same.
+ *
+ * Assumes that the flowgraph follows this format
+ *  /gobblin-flowgraph
+ *    /nodeA
+ *      /nodeB
+ *        edgeAB.properties
+ *      A.properties
+ *    /nodeB
+ *      B.properties
+ *
  */
 @Slf4j
 public class BaseFlowGraphHelper {
@@ -197,7 +207,7 @@ public class BaseFlowGraphHelper {
     for (int i = 0; i < depth - 1; i++) {
       path = path.getParent();
     }
-    return path.getName().equals(flowGraphFolderName);
+    return path != null ? path.getName().equals(flowGraphFolderName) : false;
   }
 
   /**

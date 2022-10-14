@@ -82,7 +82,7 @@ public class FsFlowGraphMonitorTest {
   @BeforeClass
   public void setUp() throws Exception {
     cleanUpDir(TEST_DIR.toString());
-
+    TEST_DIR.mkdirs();
 
     URI topologyCatalogUri = this.getClass().getClassLoader().getResource("topologyspec_catalog").toURI();
     this.topologySpecMap = MultiHopFlowCompilerTest.buildTopologySpecMap(topologyCatalogUri);
@@ -256,7 +256,6 @@ public class FsFlowGraphMonitorTest {
     //delete node files
     FileUtils.deleteDirectory(node1FlowGraphFile);
     FileUtils.deleteDirectory(node2FlowGraphFile);
-    FileUtils.deleteDirectory(node2FlowGraphFile);
     // Let the monitor pick up the edges that were recently deleted
     Thread.sleep(3000);
 
@@ -334,13 +333,13 @@ public class FsFlowGraphMonitorTest {
   }
 
   private void cleanUpDir(String dir) {
-    File specStoreDir = new File(dir);
+    File dirToDelete = new File(dir);
 
     // cleanup is flaky on Travis, so retry a few times and then suppress the error if unsuccessful
     for (int i = 0; i < 5; i++) {
       try {
-        if (specStoreDir.exists()) {
-          FileUtils.deleteDirectory(specStoreDir);
+        if (dirToDelete.exists()) {
+          FileUtils.deleteDirectory(dirToDelete);
         }
         // if delete succeeded then break out of loop
         break;
