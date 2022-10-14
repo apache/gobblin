@@ -69,6 +69,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService implements FlowGra
       .put(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
       .put(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
       .put(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS)
+      .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
       .put(SHOULD_CHECKPOINT_HASHES, false).build());
 
   private final Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
