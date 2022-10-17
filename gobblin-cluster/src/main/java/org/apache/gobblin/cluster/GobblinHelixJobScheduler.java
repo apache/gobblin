@@ -396,12 +396,12 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (planningJob.isPresent()) {
       LOGGER.info("Cancelling planning job helix workflow: {}", planningJob.get());
-      new TaskDriver(this.taskDriverHelixManager.get()).waitToStop(planningJob.get(), this.helixJobStopTimeoutMillis);
+      new TaskDriver(this.taskDriverHelixManager.get()).deleteAndWaitForCompletion(planningJob.get(), this.helixJobStopTimeoutMillis);
     }
 
     if (actualJob.isPresent()) {
       LOGGER.info("Cancelling actual job helix workflow: {}", actualJob.get());
-      new TaskDriver(this.jobHelixManager).waitToStop(actualJob.get(), this.helixJobStopTimeoutMillis);
+      new TaskDriver(this.jobHelixManager).deleteAndWaitForCompletion(actualJob.get(), this.helixJobStopTimeoutMillis);
     }
 
     this.jobSchedulerMetrics.numCancellationStart.decrementAndGet();
@@ -431,8 +431,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
-        LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+        //Instead of stop, direct cancel the workflow
+        taskDriver.deleteAndWaitForCompletion(workflowId, this.helixJobStopTimeoutMillis);
+        LOGGER.info("Cancelled workflow: {}", deleteJobArrival.getJobName());
         //Wait until the cancelled job is complete.
         waitForJobCompletion(deleteJobArrival.getJobName());
       } else {

@@ -255,18 +255,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     if (this.jobSubmitted) {
       try {
         if (this.cancellationRequested && !this.cancellationExecuted) {
-          // TODO : fix this when HELIX-1180 is completed
-          // work flow should never be deleted explicitly because it has a expiry time
-          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds * 1000);
-          log.info("stopped the workflow {}", this.helixWorkFlowName);
+          this.helixTaskDriver.deleteAndWaitForCompletion(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds * 1000);
+          log.info("deleted the workflow {}", this.helixWorkFlowName);
         }
       } catch (RuntimeException e) {
-        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // Cancellation may throw an exception, but Helix set the job state to DELETE and it should eventually stop
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
-        log.error("Failed to stop workflow {} in Helix", helixWorkFlowName, e);
+        log.error("Failed to delete workflow {} in Helix", helixWorkFlowName, e);
       } catch (InterruptedException e) {
-        log.error("Thread interrupted while trying to stop the workflow {} in Helix", helixWorkFlowName);
+        log.error("Thread interrupted while trying to delete the workflow {} in Helix", helixWorkFlowName);
         Thread.currentThread().interrupt();
       }
     }

@@ -340,10 +340,7 @@ public class HelixUtils {
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);
     }
-    // TODO : fix this when HELIX-1180 is completed
-    // We should not be deleting a workflow explicitly.
-    // Workflow state should be set to a final state, which will remove it automatically because expiry time is set.
-    // After that, all delete calls can be replaced by something like HelixUtils.setStateToFinal();
+    //todo: as we already delete the flow in cancel method, do we still need to call delete here?
     HelixUtils.deleteStoppedHelixJob(helixManager, workFlowName, jobName);
     log.info("Stopped and deleted the workflow {}", workFlowName);
   }
@@ -359,13 +356,15 @@ public class HelixUtils {
   private static void deleteStoppedHelixJob(HelixManager helixManager, String workFlowName, String jobName)
       throws InterruptedException {
     WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
-    while (workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) != STOPPED) {
+    while (workflowContext != null && workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) != STOPPED) {
       log.info("Waiting for job {} to stop...", jobName);
       workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       Thread.sleep(1000);
     }
-    // deleting the entire workflow, as one workflow contains only one job
-    new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
+    if (workflowContext != null) {
+      // deleting the entire workflow, as one workflow contains only one job
+      new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
+    }
     log.info("Workflow deleted.");
   }
 
