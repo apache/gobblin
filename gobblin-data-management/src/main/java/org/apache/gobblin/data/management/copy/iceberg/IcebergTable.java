@@ -72,6 +72,12 @@ public class IcebergTable {
     return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
   }
 
+  /** @return metadata info for most recent snapshot, wherein manifests and their child data files ARE NOT listed */
+  public IcebergSnapshotInfo getCurrentSnapshotInfoOverviewOnly() throws IOException {
+    TableMetadata current = accessTableMetadata();
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), true);
+  }
+
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
   public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
     TableMetadata current = accessTableMetadata();
@@ -90,23 +96,31 @@ public class IcebergTable {
   }
 
   /**
-   * @return metadata info for all known snapshots, but incrementally, so content overlap between snapshots appears
-   * only within the first as they're ordered historically, with *most recent last*
+   * @return metadata info for all known snapshots, but incrementally, so overlapping entries within snapshots appear
+   * only with the first as they're ordered historically, with *most recent last*.
+   *
+   * This means the {@link IcebergSnapshotInfo#getManifestFiles()} for the (n+1)-th element of the iterator will omit
+   * all manifest files and listed data files, already reflected in a {@link IcebergSnapshotInfo#getManifestFiles()}
+   * from the n-th or prior elements.  Given the order of the {@link Iterator<IcebergSnapshotInfo>} returned, this
+   * mirrors the snapshot-to-file dependencies: each file is returned exactly once with the (oldest) snapshot from
+   * which it first becomes reachable.
+   *
+   * Only the final {@link IcebergSnapshotInfo#getMetadataPath()} is present (for the snapshot it itself deems current).
    */
   public Iterator<IcebergSnapshotInfo> getIncrementalSnapshotInfosIterator() throws IOException {
     // TODO: investigate using `.addedFiles()`, `.deletedFiles()` to calc this
-    Set<String> knownManifestListFilePaths = Sets.newHashSet();
-    Set<String> knownManifestFilePaths = Sets.newHashSet();
-    Set<String> knownListedFilePaths = Sets.newHashSet();
+    Set<String> knownFilePaths = Sets.newHashSet(); // as absolute paths are clearly unique, use a single set for all
     return Iterators.filter(Iterators.transform(getAllSnapshotInfosIterator(), snapshotInfo -> {
-      if (false == knownManifestListFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
+      log.info("~{}~ before snapshot '{}' - '{}' total known iceberg paths",
+          tableId, snapshotInfo.getSnapshotId(), knownFilePaths.size());
+      if (false == knownFilePaths.add(snapshotInfo.getManifestListPath())) { // already known manifest list!
         return snapshotInfo.toBuilder().manifestListPath(null).build(); // use `null` as marker to surrounding `filter`
       }
       List<IcebergSnapshotInfo.ManifestFileInfo> novelManifestInfos = Lists.newArrayList();
       for (ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
-        if (true == knownManifestFilePaths.add(mfi.getManifestFilePath())) { // heretofore unknown
+        if (true == knownFilePaths.add(mfi.getManifestFilePath())) { // heretofore unknown
           List<String> novelListedPaths = mfi.getListedFilePaths().stream()
-              .filter(fpath -> true == knownListedFilePaths.add(fpath)) // heretofore unknown
+              .filter(fpath -> true == knownFilePaths.add(fpath)) // heretofore unknown
               .collect(Collectors.toList());
           if (novelListedPaths.size() == mfi.getListedFilePaths().size()) { // nothing filtered
             novelManifestInfos.add(mfi); // reuse orig
@@ -130,15 +144,18 @@ public class IcebergTable {
   }
 
   protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {
+    return createSnapshotInfo(snapshot, metadataFileLocation, false);
+  }
+
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, boolean skipManifestFileInfo) throws IOException {
     // TODO: verify correctness, even when handling 'delete manifests'!
-    List<ManifestFile> manifests = snapshot.allManifests();
     return new IcebergSnapshotInfo(
         snapshot.snapshotId(),
         Instant.ofEpochMilli(snapshot.timestampMillis()),
         metadataFileLocation,
         snapshot.manifestListLocation(),
         // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
-        calcAllManifestFileInfos(manifests, tableOps.io())
+        skipManifestFileInfo ? Lists.newArrayList() : calcAllManifestFileInfos(snapshot.allManifests(), tableOps.io())
       );
   }
 

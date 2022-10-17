@@ -56,9 +56,15 @@ public class IcebergSnapshotInfo {
     return manifestFiles.stream().map(ManifestFileInfo::getListedFilePaths).flatMap(List::stream).collect(Collectors.toList());
   }
 
-  public List<String> getAllPaths() {
+  /** @return the `manifestListPath` and `metadataPath`, if present */
+  public List<String> getSnapshotApexPaths() {
     List<String> result = metadataPath.map(Lists::newArrayList).orElse(Lists.newArrayList());
     result.add(manifestListPath);
+    return result;
+  }
+
+  public List<String> getAllPaths() {
+    List<String> result = getSnapshotApexPaths();
     result.addAll(getManifestFilePaths());
     result.addAll(getAllDataFilePaths());
     return result;

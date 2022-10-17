@@ -19,6 +19,7 @@ package org.apache.gobblin.hive.writer;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
@@ -62,6 +63,7 @@ import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
@@ -147,8 +149,12 @@ public class HiveMetadataWriter implements MetadataWriter {
           // Since TimeoutException should always be a transient issue, throw RuntimeException which will fail/retry container
           throw new RuntimeException("Timeout waiting for result of registration for table " + tableKey, e);
         } catch (InterruptedException | ExecutionException e) {
-          Set<String> partitions = executionMap.keySet().stream().flatMap(List::stream).collect(Collectors.toSet());
-          throw new HiveMetadataWriterWithPartitionInfoException(partitions, Collections.emptySet(), e);
+          if (Throwables.getRootCause(e) instanceof AlreadyExistsException) {
+            log.warn("Caught AlreadyExistsException for db {}, table {}, ignoring", dbName, tableName);
+          } else {
+            Set<String> partitions = executionMap.keySet().stream().flatMap(List::stream).collect(Collectors.toSet());
+            throw new HiveMetadataWriterWithPartitionInfoException(partitions, Collections.emptySet(), e);
+          }
         }
         Cache<List<String>, HiveSpec> cache = specMaps.get(tableKey);
         if (cache != null) {

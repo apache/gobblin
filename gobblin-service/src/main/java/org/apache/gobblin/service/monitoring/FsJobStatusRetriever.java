@@ -123,7 +123,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     try {
       String storeNamePrefix = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, "");
       List<String> storeNamesForFlowGroup = stateStore.getStoreNames(storeName -> storeName.startsWith(storeNamePrefix));
-      List<State> flowGroupExecutionsStates = storeNamesForFlowGroup.stream().flatMap(CheckedExceptionFunction.wrapUnchecked(storeName ->
+      List<State> flowGroupExecutionsStates = storeNamesForFlowGroup.stream().flatMap(CheckedExceptionFunction.wrapToUnchecked(storeName ->
           stateStore.getAll(storeName).stream()
       )).collect(Collectors.toList());
       return asFlowStatuses(groupByFlowExecutionAndRetainLatest(flowGroup, flowGroupExecutionsStates, countJobStatusesPerFlowName));
