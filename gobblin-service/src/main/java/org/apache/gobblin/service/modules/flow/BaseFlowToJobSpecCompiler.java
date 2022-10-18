@@ -26,6 +26,7 @@ import java.util.Properties;
 
 import javax.inject.Inject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
@@ -191,7 +192,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     // always try to compile the flow to verify if it is compilable
     Dag<JobExecutionPlan> dag = this.compileFlow(flowSpec);
 
-    if (this.warmStandbyEnabled &&
+    // If dag is null then a compilation error has occurred
+    if (dag != null && !dag.isEmpty()) {
+      response = dag.toString();
+    }
+
+    if (FlowCatalog.isCompileSuccessful(response) && this.warmStandbyEnabled && !flowSpec.isExplain() &&
         (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
       try {
         userQuotaManager.checkQuota(dag.getStartNodes());
@@ -201,11 +207,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       }
     }
 
-    // If dag is null then a compilation error has occurred
-    if (dag != null && !dag.isEmpty()) {
-      response = dag.toString();
-    }
-    // todo: should we check quota here?
     return new AddSpecResponse<>(response);
   }
 
