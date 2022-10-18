@@ -46,6 +46,7 @@ dependencies {
 
   runtimeOnly(externalDependency.hiveService) {
     exclude group: 'org.apache.hive', module: 'hive-exec'
+    exclude group: 'com.linkedin.hive', module: 'hive-exec'
   }
   runtimeOnly externalDependency.hiveJdbc
   runtimeOnly externalDependency.hiveMetastore

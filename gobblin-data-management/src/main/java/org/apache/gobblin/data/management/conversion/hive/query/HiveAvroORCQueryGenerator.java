@@ -369,15 +369,6 @@ public class HiveAvroORCQueryGenerator {
   }
 
   /***
-   * Adapt Avro schema / types to Hive column types
-   * @param schema Schema to adapt and generate Hive columns with corresponding types
-   * @param hiveColumns Optional Map to populate with the generated hive columns for reference of caller
-   * @param topLevel If this is first level
-   * @return Generate Hive columns with types for given Avro schema
-   */
-
-
-  /***
    * Use destination table schema to generate column mapping
    * @param hiveColumns Optional Map to populate with the generated hive columns for reference of caller
    * @param destinationTableMeta destination table metadata

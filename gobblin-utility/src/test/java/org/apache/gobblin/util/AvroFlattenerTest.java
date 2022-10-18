@@ -114,8 +114,7 @@ public class AvroFlattenerTest {
 
     Schema originalSchema = readSchemaFromJsonFile("optionWithinOptionWithinRecord_original.json");
     Schema expectedSchema = readSchemaFromJsonFile("optionWithinOptionWithinRecord_flattened.json");
-
-    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false).toString(), expectedSchema.toString());
   }
 
   /**

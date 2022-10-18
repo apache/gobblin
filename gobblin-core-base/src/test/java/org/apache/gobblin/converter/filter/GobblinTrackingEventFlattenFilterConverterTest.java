@@ -45,12 +45,13 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
     Schema output = converter.convertSchema(
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState);
-    Assert.assertEquals(output, new Schema.Parser().parse(
+    Schema parsedSchema = new Schema.Parser().parse(
         "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"name\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field1\",\"type\":\"string\",\"doc\":\"\"},"
-            + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}"));
+            + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}");
+    Assert.assertEquals(output.toString(), parsedSchema.toString());
 
     props.put(GobblinTrackingEventFlattenFilterConverter.class.getSimpleName() + "."
         + GobblinTrackingEventFlattenFilterConverter.FIELDS_RENAME_MAP, "name:eventName,field1:field3");
@@ -61,11 +62,12 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
     Schema output2 = converter.convertSchema(
         new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc")),
         workUnitState2);
-    Assert.assertEquals(output2, new Schema.Parser().parse(
+    parsedSchema = new Schema.Parser().parse(
         "{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":"
             + "[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},"
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"eventName\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field3\",\"type\":\"string\",\"doc\":\"\"},"
-            + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}"));
+            + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}");
+    Assert.assertEquals(output2.toString(), parsedSchema.toString());
   }
 }

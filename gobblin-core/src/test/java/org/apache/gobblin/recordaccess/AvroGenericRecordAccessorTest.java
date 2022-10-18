@@ -139,6 +139,12 @@ public class AvroGenericRecordAccessorTest {
 
   @Test
   public void testGetMultiConvertsStrings() throws IOException {
+    // The below error is due to invalid avro data. As per avro, the default value must have the same type as the first 
+    // entry in the union. As the default value is null, type with "null" union must have "null" type first and then
+    // actual type. This is corrected in fieldPickInput.avsc file and fieldPickInput_arrays.avro
+    // Error: org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null
+    // not a [{"type":"array","items":"string"},"null"]
+    // Correct data: "type": ["null", { "type": "array", "items": "string"}, "default": null]
     updateRecordFromTestResource("converter/fieldPickInput", "converter/fieldPickInput_arrays.avro");
     Map<String, Object> ret = accessor.getMultiGeneric("favorite_quotes");
     Object val = ret.get("favorite_quotes");

@@ -29,7 +29,10 @@ repositories {
   maven {
     url "https://linkedin.jfrog.io/artifactory/open-source/"
   }
-  mavenCentral()
+  maven {
+    url "https://linkedin.jfrog.io/artifactory/gobblin-hive/"
+  }
+  mavenLocal()
 }
 
 try {

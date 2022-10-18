@@ -38,7 +38,7 @@ public class PoliciesResourceTest {
     ThrottlingPolicyFactory factory = new ThrottlingPolicyFactory();
     SharedLimiterKey res1key = new SharedLimiterKey("res1");
 
-    Map<String, String> configMap = avro.shaded.com.google.common.collect.ImmutableMap.<String, String>builder()
+    Map<String, String> configMap = com.google.common.collect.ImmutableMap.<String, String>builder()
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, ThrottlingPolicyFactory.POLICY_KEY),
             CountBasedPolicy.FACTORY_ALIAS)
         .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, CountBasedPolicy.COUNT_KEY), "100")

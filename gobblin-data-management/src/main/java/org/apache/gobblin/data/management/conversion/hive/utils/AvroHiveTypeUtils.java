@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.conversion.hive.utils;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import java.util.List;
 import java.util.Map;
 
@@ -205,7 +206,8 @@ public class AvroHiveTypeUtils {
         .equalsIgnoreCase(schema.getProp(AvroSerDe.AVRO_PROP_LOGICAL_TYPE))) {
       int maxLength = 0;
       try {
-        maxLength = schema.getJsonProp(AvroSerDe.AVRO_PROP_MAX_LENGTH).getValueAsInt();
+        maxLength = Integer.parseInt(AvroCompatibilityHelper.getSchemaPropAsJsonString(schema, 
+            AvroSerDe.AVRO_PROP_MAX_LENGTH, false, false));
       } catch (Exception ex) {
         throw new AvroSerdeException("Failed to obtain maxLength value from file schema: " + schema, ex);
       }

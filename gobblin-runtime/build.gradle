@@ -74,6 +74,7 @@ dependencies {
   compile externalDependency.httpcore
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
+  compile externalDependency.jacksonMapperAsl
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
   compile externalDependency.metricsCore

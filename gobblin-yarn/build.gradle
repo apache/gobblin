@@ -100,6 +100,7 @@ shadowJar {
     exclude dependency('org.mockito:.*')
     exclude dependency('org.datanucleus:.*')
     exclude dependency('org.apache.hive:.*')
+    exclude dependency('com.linkedin.hive:.*')
     exclude dependency('org.scala-lang:scala-library:.*')
     exclude dependency('org.apache.derby:.*')
   }
