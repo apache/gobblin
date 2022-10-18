@@ -1,0 +1,20 @@
+{
+  "type": "record",
+  "name": "name",
+  "namespace": "namespace",
+  "doc": "",
+  "fields": [
+    {
+      "name": "key",
+      "type": "long",
+      "doc": "",
+      "default": 0
+    },
+    {
+      "name": "double",
+      "type": "double",
+      "doc": "",
+      "default": 0.0
+    }
+  ]
+}

@@ -17,51 +17,68 @@
 
 package org.apache.gobblin.util;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
+import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 
 
 /**
  * Avro schema utility class to perform schema property conversion to the appropriate data types
  */
+@Slf4j
 public class AvroSchemaUtils {
 
   private AvroSchemaUtils() {
 
   }
 
+  /**
+   * Get schema property value as integer
+   * @param schema
+   * @param prop
+   * @return Integer
+   */
   public static Integer getValueAsInteger(final Schema schema, String prop) {
-    Object value = schema.getObjectProp(prop);
-    if (value instanceof Integer) {
-      return (Integer) value;
-    } else if (value instanceof String) {
-      return Integer.parseInt((String) value);
+    String value = AvroCompatibilityHelper.getSchemaPropAsJsonString(schema, prop, 
+        false, false);
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException ex) {
+      log.error("Exception while converting to integer ", ex.getCause());
+      throw new IllegalArgumentException(ex);
     }
-    return null;
   }
 
-  public static Integer getValueAsInteger(final Schema.Field field, String prop) {
-    Object value = field.getObjectProp(prop);
-    if (value instanceof Integer) {
-      return (Integer) value;
-    } else if (value instanceof String) {
-      return Integer.parseInt((String) value);
+  /***
+   * Copy properties to an Avro Schema field
+   * @param fromField Avro Schema Field to copy properties from
+   * @param toField Avro Schema Field to copy properties to
+   */
+  public static void copyFieldProperties(final Schema.Field fromField, final Schema.Field toField) {
+    List<String> allPropNames = AvroCompatibilityHelper.getAllPropNames(fromField);
+    if (null != allPropNames) {
+      for (String propName : allPropNames) {
+        String propValue = AvroCompatibilityHelper.getFieldPropAsJsonString(fromField, propName, 
+            true, false);
+        AvroCompatibilityHelper.setFieldPropFromJsonString(toField, propName, propValue, false);
+      }
     }
-    return null;
   }
 
-  public static String getValueAsString(final Schema schema, String prop) {
-    Object value = schema.getObjectProp(prop);
-    if (value instanceof String) {
-      return (String) value;
+  /***
+   * Copy properties to an Avro Schema
+   * @param fromSchema Avro Schema to copy properties from
+   * @param toSchema Avro Schema to copy properties to
+   */
+  public static void copySchemaProperties(final Schema fromSchema, final Schema toSchema) {
+    List<String> allPropNames = AvroCompatibilityHelper.getAllPropNames(fromSchema);
+    if (null != allPropNames) {
+      for (String propName : allPropNames) {
+        String propValue = AvroCompatibilityHelper.getSchemaPropAsJsonString(fromSchema, propName, 
+            true, false);
+        AvroCompatibilityHelper.setSchemaPropFromJsonString(toSchema, propName, propValue, false);
+      }
     }
-    return null;
-  }
-
-  public static String getValueAsString(final Schema.Field field, String prop) {
-    Object value = field.getObjectProp(prop);
-    if (value instanceof String) {
-      return (String) value;
-    }
-    return null;
   }
 }

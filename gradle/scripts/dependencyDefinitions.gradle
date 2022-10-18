@@ -26,7 +26,7 @@ ext.externalDependency = [
     "assertj": "org.assertj:assertj-core:3.20.2",
     "avro": "org.apache.avro:avro:" + avroVersion,
     "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
-    "avroCompatHelper": "com.linkedin.avroutil1:helper-all:0.2.81",
+    "avroCompatHelper": "com.linkedin.avroutil1:helper-all:0.2.117",
     "avroCompiler": "org.apache.avro:avro-compiler:" + avroVersion,
     "awsCore": "com.amazonaws:aws-java-sdk-core:" + awsVersion,
     "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:" + awsVersion,

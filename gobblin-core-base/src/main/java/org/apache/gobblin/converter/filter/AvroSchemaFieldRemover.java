@@ -29,9 +29,8 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.gobblin.util.AvroSchemaUtils;
 import org.apache.gobblin.util.AvroUtils;
-
-import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
 
 
 /**
@@ -110,7 +109,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
-    convertFieldToSchemaWithProps(schema.getObjectProps(), newRecord);
+    AvroSchemaUtils.copySchemaProperties(schema, newRecord);
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.
@@ -129,10 +128,8 @@ public class AvroSchemaFieldRemover {
               DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
               AvroUtils.getCompatibleDefaultValue(field));
         }
-        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
-        for (Map.Entry<String, Object> objectEntry : field.getObjectProps().entrySet()) {
-          newField.addProp(objectEntry.getKey(), objectEntry.getValue());
-        }
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with AvroCompatibilityHelper methods
+        AvroSchemaUtils.copyFieldProperties(field, newField);
         newFields.add(newField);
       }
     }
