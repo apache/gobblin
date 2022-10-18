@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import lombok.SneakyThrows;
 import org.apache.gobblin.configuration.State;
@@ -217,11 +218,15 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
 
   @Test
   public void testDetectTransientException() {
-    Set<String> transientExceptions = Sets.newHashSet("Filesystem closed", "Hive timeout");
+    Set<String> transientExceptions = Sets.newHashSet("Filesystem closed", "Hive timeout", "RejectedExecutionException");
     IOException transientException = new IOException("test1 Filesystem closed test");
+    IOException wrapperException = new IOException("wrapper exception", transientException);
     Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(transientException, transientExceptions));
+    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(wrapperException, transientExceptions));
     IOException nonTransientException = new IOException("Write failed due to bad schema");
     Assert.assertFalse(GobblinMCEWriter.isExceptionTransient(nonTransientException, transientExceptions));
+    RejectedExecutionException rejectedExecutionException = new RejectedExecutionException("");
+    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(rejectedExecutionException, transientExceptions));
   }
 
   @DataProvider(name="AllowMockMetadataWriter")
