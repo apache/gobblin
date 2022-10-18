@@ -88,7 +88,8 @@ public class DagManagerFlowTest {
     dagActionStore = new MysqlDagActionStore(config);
     dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
     dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
-    dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), Optional.of(dagActionStore), false);
+    dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), false);
+    dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
     Thread.sleep(10000);
@@ -325,11 +326,7 @@ class CancelPredicate implements Predicate<Void> {
 class MockedDagManager extends DagManager {
 
   public MockedDagManager(Config config, boolean instrumentationEnabled) {
-    super(config, createJobStatusRetriever(), Optional.absent(), instrumentationEnabled);
-  }
-
-  public MockedDagManager(Config config, Optional<DagActionStore> dagactionStore, boolean instrumentationEnabled) {
-    super(config, createJobStatusRetriever(), dagactionStore, instrumentationEnabled);
+    super(config, createJobStatusRetriever(), instrumentationEnabled);
   }
 
   private static JobStatusRetriever createJobStatusRetriever() {
