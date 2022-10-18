@@ -20,7 +20,6 @@ package org.apache.gobblin.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
@@ -418,10 +417,8 @@ public class AvroFlattener {
         if (StringUtils.isNotBlank(flattenSource)) {
           field.addProp(FLATTENED_SOURCE_KEY, flattenSource);
         }
-        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
-        for (Map.Entry<String, Object> entry : f.getObjectProps().entrySet()) {
-          field.addProp(entry.getKey(), entry.getValue());
-        }
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with AvroCompatibilityHelper methods
+        AvroSchemaUtils.copyFieldProperties(f, field);
         flattenedFields.add(field);
       }
     }
@@ -468,24 +465,7 @@ public class AvroFlattener {
   private static void copyProperties(Schema oldSchema, Schema newSchema) {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
-    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
-    Map<String, Object> props = oldSchema.getObjectProps();
-    copyProperties(props, newSchema);
-  }
-
-  /***
-   * Copy properties to an Avro Schema
-   * @param props Properties to copy to Avro Schema
-   * @param schema Avro Schema to copy properties to
-   */
-  private static void copyProperties(Map<String, Object> props, Schema schema) {
-    Preconditions.checkNotNull(schema);
-
-    // (if null, don't copy but do not throw exception)
-    if (null != props) {
-      for (Map.Entry<String, Object> prop : props.entrySet()) {
-        schema.addProp(prop.getKey(), prop.getValue());
-      }
-    }
+    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps using AvroCompatibilityHelper methods
+    AvroSchemaUtils.copySchemaProperties(oldSchema, newSchema);
   }
 }

@@ -34,7 +34,9 @@ public class InMemoryMultiContextIssueRepositoryTest extends MultiContextIssueRe
     int jobCount = 100;
     int jobCapacity = 50;
 
-    MultiContextIssueRepository repository = new InMemoryMultiContextIssueRepository(50, 10);
+    MultiContextIssueRepository repository = new InMemoryMultiContextIssueRepository(
+        InMemoryMultiContextIssueRepository.Configuration.builder().maxContextCount(50).maxIssuesPerContext(10)
+            .build());
 
     for (int j = 0; j < jobCount; j++) {
       repository.put("job" + j, getTestIssue("issue 1", "code1"));

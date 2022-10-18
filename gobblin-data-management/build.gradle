@@ -47,6 +47,10 @@ dependencies {
   compile externalDependency.junit
   compile externalDependency.jacksonMapperAsl
 
+  testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '0.11.1', classifier: 'tests') {
+    transitive = false
+  }
+  testCompile('org.apache.hadoop:hadoop-common:2.6.0')
   testCompile project(":gobblin-test-utils")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
 

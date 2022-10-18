@@ -17,6 +17,7 @@
 package org.apache.gobblin.util.retry;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.RetryListener;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Predicate;
@@ -54,17 +56,12 @@ public class RetryerFactory<T> {
   private static final Predicate<Throwable> RETRY_EXCEPTION_PREDICATE;
   private static final Config DEFAULTS;
   static {
-    RETRY_EXCEPTION_PREDICATE = new Predicate<Throwable>() {
-      @Override
-      public boolean apply(Throwable t) {
-        return !(t instanceof NonTransientException);
-      }
-    };
+    RETRY_EXCEPTION_PREDICATE = t -> !(t instanceof NonTransientException);
 
     Map<String, Object> configMap = ImmutableMap.<String, Object>builder()
                                                 .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(5L))
                                                 .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(30L))
-                                                .put(RETRY_MULTIPLIER, 2L)
+                                                .put(RETRY_MULTIPLIER, TimeUnit.SECONDS.toMillis(1L))
                                                 .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
                                                 .put(RETRY_TIMES, 2)
                                                 .build();
@@ -83,47 +80,57 @@ public class RetryerFactory<T> {
    * You can use State along with ConfigBuilder and config prefix to build config.
    *
    * @param config
-   * @return
+   * @param optRetryListener e.g. for logging failures
    */
-  public static <T> Retryer<T> newInstance(Config config) {
+  public static <T> Retryer<T> newInstance(Config config, Optional<RetryListener> optRetryListener) {
     config = config.withFallback(DEFAULTS);
     RetryType type = RetryType.valueOf(config.getString(RETRY_TYPE).toUpperCase());
 
+    RetryerBuilder<T> builder;
     switch (type) {
       case EXPONENTIAL:
-        return newExponentialRetryer(config);
+        builder = newExponentialRetryerBuilder(config);
+        break;
       case FIXED:
-        return newFixedRetryer(config);
+        builder = newFixedRetryerBuilder(config);
+        break;
       case FIXED_ATTEMPT:
-        return newFixedAttemptBoundRetryer(config);
+        builder = newFixedAttemptBoundRetryerBuilder(config);
+        break;
       default:
         throw new IllegalArgumentException(type + " is not supported");
     }
+    optRetryListener.ifPresent(builder::withRetryListener);
+    return builder.build();
   }
 
-  private static <T> Retryer<T> newFixedRetryer(Config config) {
+  /**
+   * Creates new instance of retryer based on the config and having no {@link RetryListener}
+   */
+  public static <T> Retryer<T> newInstance(Config config) {
+    return newInstance(config, Optional.empty());
+  }
+
+  private static <T> RetryerBuilder<T> newFixedRetryerBuilder(Config config) {
     return RetryerBuilder.<T> newBuilder()
         .retryIfException(RETRY_EXCEPTION_PREDICATE)
         .withWaitStrategy(WaitStrategies.fixedWait(config.getLong(RETRY_INTERVAL_MS), TimeUnit.MILLISECONDS))
-        .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS))
-        .build();
+        .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS));
   }
 
-  private static <T> Retryer<T> newExponentialRetryer(Config config) {
+  private static <T> RetryerBuilder<T> newExponentialRetryerBuilder(Config config) {
     return RetryerBuilder.<T> newBuilder()
         .retryIfException(RETRY_EXCEPTION_PREDICATE)
         .withWaitStrategy(WaitStrategies.exponentialWait(config.getLong(RETRY_MULTIPLIER),
                                                          config.getLong(RETRY_INTERVAL_MS),
                                                          TimeUnit.MILLISECONDS))
-        .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS))
-        .build();
+        .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS));
   }
 
-  private static <T> Retryer<T> newFixedAttemptBoundRetryer(Config config) {
+  private static <T> RetryerBuilder<T> newFixedAttemptBoundRetryerBuilder(Config config) {
     return RetryerBuilder.<T> newBuilder()
         .retryIfException(RETRY_EXCEPTION_PREDICATE)
         .withWaitStrategy(WaitStrategies.fixedWait(config.getLong(RETRY_INTERVAL_MS), TimeUnit.MILLISECONDS))
-        .withStopStrategy(StopStrategies.stopAfterAttempt(config.getInt(RETRY_TIMES)))
-        .build();
+        .withStopStrategy(StopStrategies.stopAfterAttempt(config.getInt(RETRY_TIMES)));
   }
 }

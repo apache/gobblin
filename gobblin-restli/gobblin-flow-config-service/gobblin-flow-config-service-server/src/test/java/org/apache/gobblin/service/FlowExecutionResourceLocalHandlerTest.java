@@ -51,7 +51,7 @@ public class FlowExecutionResourceLocalHandlerTest {
     int copyPercentage = 25;
 
     long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
-    Assert.assertEquals(timeLeft,10500);
+    Assert.assertEquals(timeLeft, 10500);
   }
 
   @Test

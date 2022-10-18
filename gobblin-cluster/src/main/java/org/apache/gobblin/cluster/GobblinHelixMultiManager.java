@@ -28,17 +28,18 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
-import org.apache.helix.LiveInstanceChangeListener;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.api.listeners.ControllerChangeListener;
+import org.apache.helix.api.listeners.LiveInstanceChangeListener;
+import org.apache.helix.manager.zk.ZKHelixAdmin;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
 import org.apache.helix.task.TargetState;
@@ -87,6 +88,9 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   @Getter
   private HelixManager jobClusterHelixManager = null;
 
+  @Getter
+  private HelixAdmin jobClusterHelixAdmin = null;
+
   /**
    * Helix manager to handle planning job distribution.
    * Corresponds to cluster with key name {@link GobblinClusterConfigurationKeys#HELIX_CLUSTER_NAME_KEY}.
@@ -123,25 +127,19 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
    */
   private boolean dedicatedJobClusterController = true;
 
-  /**
-   * Create a dedicated controller for planning job distribution.
-   */
-  private boolean dedicatedTaskDriverClusterController = true;
-
   @Getter
   boolean isLeader = false;
   boolean isStandaloneMode = false;
-  private GobblinClusterManager.StopStatus stopStatus;
-  private Config config;
-  private EventBus eventBus;
-  private final MetricContext metricContext;
+  private final GobblinClusterManager.StopStatus stopStatus;
+  private final Config config;
+  private final EventBus eventBus;
   private final HelixManagerMetrics metrics;
-  private final MessageHandlerFactory userDefinedMessageHandlerFactory;
-  private List<LeadershipChangeAwareComponent> leadershipChangeAwareComponents = Lists.newArrayList();
+  private final MultiTypeMessageHandlerFactory userDefinedMessageHandlerFactory;
+  private final List<LeadershipChangeAwareComponent> leadershipChangeAwareComponents = Lists.newArrayList();
 
   public GobblinHelixMultiManager(
       Config config,
-      Function<Void, MessageHandlerFactory> messageHandlerFactoryFunction,
+      Function<Void, MultiTypeMessageHandlerFactory> messageHandlerFactoryFunction,
       EventBus eventBus,
       GobblinClusterManager.StopStatus stopStatus) {
     this.config = config;
@@ -149,8 +147,8 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     this.stopStatus = stopStatus;
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new HelixManagerMetrics(this.metricContext, this.config);
+    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
+    this.metrics = new HelixManagerMetrics(metricContext, this.config);
     this.dedicatedManagerCluster = ConfigUtils.getBoolean(config,
        GobblinClusterConfigurationKeys.DEDICATED_MANAGER_CLUSTER_ENABLED,false);
     this.dedicatedTaskDriverCluster = ConfigUtils.getBoolean(config,
@@ -166,32 +164,41 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   /**
    * Build the {@link HelixManager} for the Application Master.
    */
-  protected static HelixManager buildHelixManager(Config config, String zkConnectionString, String clusterName, InstanceType type) {
+  protected static HelixManager buildHelixManager(Config config, String clusterName, InstanceType type) {
+    Preconditions.checkArgument(config.hasPath(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY));
+    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    log.info("Using ZooKeeper connection string: " + zkConnectionString);
+
     String helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
-    return HelixManagerFactory.getZKHelixManager(
+    return GobblinHelixManagerFactory.getZKHelixManager(
         config.getString(clusterName), helixInstanceName, type, zkConnectionString);
   }
 
-  public void initialize() {
-    Preconditions.checkArgument(this.config.hasPath(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY));
-    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    log.info("Using ZooKeeper connection string: " + zkConnectionString);
+  /**
+   * Build the {@link org.apache.helix.HelixAdmin} for the AM
+   */
+  protected static HelixAdmin buildHelixAdmin(Config cfg) {
+    String zkConnectionString = cfg.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    return new ZKHelixAdmin.Builder()
+        .setZkAddress(zkConnectionString)
+        .build();
+  }
 
+  public void initialize() {
     if (this.dedicatedManagerCluster) {
       Preconditions.checkArgument(this.config.hasPath(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY));
       log.info("We will use separate clusters to manage GobblinClusterManager and job distribution.");
       // This will create and register a Helix controller in ZooKeeper
       this.managerClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY,
           InstanceType.CONTROLLER);
 
       // This will create a Helix administrator to dispatch jobs to ZooKeeper
       this.jobClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           InstanceType.ADMINISTRATOR);
+      this.jobClusterHelixAdmin = buildHelixAdmin(this.config);
 
       // This will create a dedicated controller for job distribution
       this.dedicatedJobClusterController = ConfigUtils.getBoolean(
@@ -201,26 +208,27 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
 
       if (this.dedicatedJobClusterController) {
         this.jobClusterController = Optional.of(GobblinHelixMultiManager
-            .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
+            .buildHelixManager(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
                 InstanceType.CONTROLLER));
       }
 
       if (this.dedicatedTaskDriverCluster) {
         // This will create a Helix administrator to dispatch jobs to ZooKeeper
         this.taskDriverHelixManager = Optional.of(buildHelixManager(this.config,
-            zkConnectionString,
             GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
             InstanceType.ADMINISTRATOR));
 
-        this.dedicatedTaskDriverClusterController = ConfigUtils.getBoolean(
-            this.config,
-            GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED,
-            true);
+        /**
+         * Create a dedicated controller for planning job distribution.
+         */
+        boolean dedicatedTaskDriverClusterController = ConfigUtils
+            .getBoolean(this.config, GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED,
+                true);
 
-        // This will creat a dedicated controller for planning job distribution
-        if (this.dedicatedTaskDriverClusterController) {
+        // This will create a dedicated controller for planning job distribution
+        if (dedicatedTaskDriverClusterController) {
           this.taskDriverClusterController = Optional.of(GobblinHelixMultiManager
-              .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
+              .buildHelixManager(this.config, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
                   InstanceType.CONTROLLER));
         }
       }
@@ -230,10 +238,10 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
           GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
       this.managerClusterHelixManager = buildHelixManager(this.config,
-          zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
           isHelixClusterManaged ? InstanceType.PARTICIPANT : InstanceType.CONTROLLER);
       this.jobClusterHelixManager = this.managerClusterHelixManager;
+      this.jobClusterHelixAdmin = buildHelixAdmin(this.config);
     }
   }
 
@@ -266,12 +274,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       // standalone mode listens for controller change
       if (this.isStandaloneMode) {
         // Subscribe to leadership changes
-        this.managerClusterHelixManager.addControllerListener(new ControllerChangeListener() {
-          @Override
-          public void onControllerChange(NotificationContext changeContext) {
-            handleLeadershipChange(changeContext);
-          }
-        });
+        this.managerClusterHelixManager.addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
       }
     } catch (Exception e) {
       log.error("HelixManager failed to connect", e);
@@ -311,11 +314,12 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
    * A custom implementation of {@link LiveInstanceChangeListener}.
    */
   private static class GobblinLiveInstanceChangeListener implements LiveInstanceChangeListener {
-
     @Override
     public void onLiveInstanceChange(List<LiveInstance> liveInstances, NotificationContext changeContext) {
-      for (LiveInstance liveInstance : liveInstances) {
-        log.info("Live Helix participant instance: " + liveInstance.getInstanceName());
+      if (log.isDebugEnabled()) {
+        for (LiveInstance liveInstance : liveInstances) {
+          log.debug("Live Helix participant instance: " + liveInstance.getInstanceName());
+        }
       }
     }
   }
@@ -368,9 +372,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   public void cleanUpJobs() {
     cleanUpJobs(this.jobClusterHelixManager);
 
-    if (this.taskDriverHelixManager.isPresent()) {
-      cleanUpJobs(this.taskDriverHelixManager.get());
-    }
+    this.taskDriverHelixManager.ifPresent(this::cleanUpJobs);
   }
 
   private void cleanUpJobs(HelixManager helixManager) {
@@ -408,10 +410,10 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
    * "SHUTDOWN" for shutting down the controller.
    */
-  private class ControllerShutdownMessageHandlerFactory implements MessageHandlerFactory {
+  private class ControllerShutdownMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -443,7 +445,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       }
 
       @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         String messageSubType = this._message.getMsgSubType();
         Preconditions.checkArgument(
             messageSubType.equalsIgnoreCase(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString()),
@@ -493,10 +495,10 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ControllerUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  static class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  static class ControllerUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -533,7 +535,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       }
 
       @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         log.warn(String
             .format("No handling setup for %s message of subtype: %s", Message.MessageType.USER_DEFINE_MSG.toString(),
                 this._message.getMsgSubType()));
@@ -555,9 +557,9 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   /**
    * Helix related metrics
    */
-  private class HelixManagerMetrics extends StandardMetricsBridge.StandardMetrics {
+  private static class HelixManagerMetrics extends StandardMetricsBridge.StandardMetrics {
     public static final String CLUSTER_LEADERSHIP_CHANGE = "clusterLeadershipChange";
-    private ContextAwareHistogram clusterLeadershipChange;
+    private final ContextAwareHistogram clusterLeadershipChange;
     public HelixManagerMetrics(final MetricContext metricContext, final Config config) {
       int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
       this.clusterLeadershipChange = metricContext.contextAwareHistogram(CLUSTER_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);

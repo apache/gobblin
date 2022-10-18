@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy.hive;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +43,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.mockito.Mockito;
@@ -430,6 +432,120 @@ public class HiveCopyEntityHelperTest {
     );
 
     Assert.assertEquals(helper.getDataset().getDatasetPath(), "/targetPath/db/table");
+  }
+
+  @Test
+  public void testPartitionedTableCompatibility() throws Exception {
+    FieldSchema partitionSchema = new FieldSchema("part", "string", "some comment");
+    List partitions = new ArrayList();
+    Path testPath = new Path("/testPath/db/table");
+    Path existingTablePath = new Path("/existing/testPath/db/table");
+    org.apache.hadoop.hive.ql.metadata.Table table = new org.apache.hadoop.hive.ql.metadata.Table("testDb","table1");
+    table.setDataLocation(testPath);
+    partitions.add(partitionSchema);
+    table.setPartCols(partitions);
+    org.apache.hadoop.hive.ql.metadata.Table existingTargetTable = new Table("testDb","table1");
+    existingTargetTable.setDataLocation(existingTablePath);
+    existingTargetTable.setPartCols(partitions);
+    HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
+    Mockito.when(helper.getExistingTargetTable()).thenReturn(Optional.of(existingTargetTable));
+    Mockito.when(helper.getTargetTable()).thenReturn(table);
+    // Mock filesystem resolver
+    FileSystem mockFS = Mockito.mock(FileSystem.class);
+    Mockito.when(helper.getTargetFs()).thenReturn(mockFS);
+    Mockito.when(mockFS.resolvePath(Mockito.any())).thenReturn(new Path("hdfs://testPath/db/table"));
+
+    Mockito.doCallRealMethod().when(helper).checkPartitionedTableCompatibility(table, existingTargetTable);
+    helper.checkPartitionedTableCompatibility(table, existingTargetTable);
+  }
+
+  @Test
+  public void testPartitionedTableEqualityPathNotExist() throws Exception {
+    // If the paths are not equal, test if the parents are equivalent
+    FieldSchema partitionSchema = new FieldSchema("part", "string", "some comment");
+    List partitions = new ArrayList();
+    Path testPath = new Path("/testPath/db/table");
+    Path existingTablePath = new Path("/existing/testPath/db/table");
+    org.apache.hadoop.hive.ql.metadata.Table table = new org.apache.hadoop.hive.ql.metadata.Table("testDb","table1");
+    table.setDataLocation(testPath);
+    partitions.add(partitionSchema);
+    table.setPartCols(partitions);
+    org.apache.hadoop.hive.ql.metadata.Table existingTargetTable = new Table("testDb","table1");
+    existingTargetTable.setDataLocation(existingTablePath);
+    existingTargetTable.setPartCols(partitions);
+    HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
+    Mockito.when(helper.getExistingTargetTable()).thenReturn(Optional.of(existingTargetTable));
+    Mockito.when(helper.getTargetTable()).thenReturn(table);
+    // Mock filesystem resolver
+    FileSystem mockFS = Mockito.mock(FileSystem.class);
+    Mockito.when(helper.getTargetFs()).thenReturn(mockFS);
+    Mockito.when(mockFS.resolvePath(existingTablePath)).thenThrow(FileNotFoundException.class);
+    Mockito.when(mockFS.resolvePath(existingTablePath.getParent())).thenReturn(new Path("hdfs://testPath/db/"));
+    Mockito.when(mockFS.resolvePath(testPath.getParent())).thenReturn(new Path("hdfs://testPath/db/"));
+
+    Mockito.doCallRealMethod().when(helper).checkPartitionedTableCompatibility(table, existingTargetTable);
+    helper.checkPartitionedTableCompatibility(table, existingTargetTable);
+  }
+
+  @Test
+  public void testTablePathInequality() throws Exception {
+    // If the child directory of the user specified path and the existing table path differs, there will never be a match
+    FieldSchema partitionSchema = new FieldSchema("part", "string", "some comment");
+    List partitions = new ArrayList();
+    Path testPath = new Path("/existing/testPath/db/newTable");
+    Path existingTablePath = new Path("/existing/testPath/db/table");
+    org.apache.hadoop.hive.ql.metadata.Table table = new org.apache.hadoop.hive.ql.metadata.Table("testDb","table1");
+    table.setDataLocation(testPath);
+    partitions.add(partitionSchema);
+    table.setPartCols(partitions);
+    org.apache.hadoop.hive.ql.metadata.Table existingTargetTable = new Table("testDb","table1");
+    existingTargetTable.setDataLocation(existingTablePath);
+    existingTargetTable.setPartCols(partitions);
+    HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
+    Mockito.when(helper.getExistingTargetTable()).thenReturn(Optional.of(existingTargetTable));
+    Mockito.when(helper.getTargetTable()).thenReturn(table);
+    // Mock filesystem resolver
+    FileSystem mockFS = Mockito.mock(FileSystem.class);
+    Mockito.when(helper.getTargetFs()).thenReturn(mockFS);
+    Mockito.when(mockFS.resolvePath(existingTablePath)).thenThrow(FileNotFoundException.class);
+
+    Mockito.doCallRealMethod().when(helper).checkPartitionedTableCompatibility(table, existingTargetTable);
+    Assert.assertThrows(IOException.class, () -> helper.checkPartitionedTableCompatibility(table, existingTargetTable));
+  }
+
+  @Test
+  public void testTablePathEqualityExactPathMatch() throws Exception {
+    // If the user does not specify a difference in the paths, there shouldn't be any error thrown
+    FieldSchema partitionSchema = new FieldSchema("part", "string", "some comment");
+    List partitions = new ArrayList();
+    Path testPath = new Path("/existing/testPath/db/table");
+    Path existingTablePath = new Path("/existing/testPath/db/table");
+    org.apache.hadoop.hive.ql.metadata.Table table = new org.apache.hadoop.hive.ql.metadata.Table("testDb","table1");
+    table.setDataLocation(testPath);
+    partitions.add(partitionSchema);
+    table.setPartCols(partitions);
+    org.apache.hadoop.hive.ql.metadata.Table existingTargetTable = new Table("testDb","table1");
+    existingTargetTable.setDataLocation(existingTablePath);
+    existingTargetTable.setPartCols(partitions);
+    HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
+    HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
+    Mockito.when(helper.getExistingTargetTable()).thenReturn(Optional.of(existingTargetTable));
+    Mockito.when(helper.getTargetTable()).thenReturn(table);
+    // Mock filesystem resolver
+    FileSystem mockFS = Mockito.mock(FileSystem.class);
+    Mockito.when(helper.getTargetFs()).thenReturn(mockFS);
+    // Shouldn't matter since the strings are exact matches
+    Mockito.when(mockFS.resolvePath(existingTablePath)).thenThrow(FileNotFoundException.class);
+
+    Mockito.doCallRealMethod().when(helper).checkPartitionedTableCompatibility(table, existingTargetTable);
+    helper.checkPartitionedTableCompatibility(table, existingTargetTable);
   }
 
   private boolean containsPath(Collection<FileStatus> statuses, Path path) {

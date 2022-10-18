@@ -94,7 +94,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   public GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
       InputStream is = new ByteArrayInputStream(message.getValue());
-      schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+      schemaVersionWriter.advanceInputStreamToRecord(new DataInputStream(is));
       Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
 
       return this.reader.get().read(null, decoder);
@@ -160,6 +160,13 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         break;
       case TimingEvent.FlowTimings.FLOW_CANCELLED:
       case TimingEvent.LauncherTimings.JOB_CANCEL:
+      case TimingEvent.JOB_SKIPPED_TIME:
+        properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
+        properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
+        break;
+      case TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED:
+      case TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED:
+        properties.put(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY, true);
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
         properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
         break;

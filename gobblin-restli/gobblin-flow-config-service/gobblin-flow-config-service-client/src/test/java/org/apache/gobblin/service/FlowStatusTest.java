@@ -28,13 +28,13 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
-import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
@@ -55,7 +55,7 @@ public class FlowStatusTest {
   class TestJobStatusRetriever extends JobStatusRetriever {
 
     protected TestJobStatusRetriever(MultiContextIssueRepository issueRepository) {
-      super(issueRepository);
+      super(ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED, issueRepository);
     }
 
     @Override
@@ -86,6 +86,12 @@ public class FlowStatusTest {
       Collections.reverse(flowExecutionIds);
       return flowExecutionIds;
     }
+
+    @Override
+    public List<org.apache.gobblin.service.monitoring.FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup,
+        int countJobStatusesPerFlowName) {
+      return Lists.newArrayList(); // (as this method not exercised within `FlowStatusResource`)
+    }
   }
 
   @BeforeClass
@@ -102,7 +108,7 @@ public class FlowStatusTest {
     });
 
     _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowStatusResource.class)).injector(injector).build();
+        Lists.newArrayList(FlowStatusResource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();
@@ -121,29 +127,32 @@ public class FlowStatusTest {
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Test message 1").processedCount(100)
-            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").issues(Collections.emptyList())
-            .build();
+            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2")
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(5000L)
-            .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).issues(Collections.emptyList()).build();
+            .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0)
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     org.apache.gobblin.service.monitoring.JobStatus js2 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job1").jobTag("dataset1").startTime(2000L).endTime(6000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Test message 2").processedCount(200)
-            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").issues(Collections.emptyList())
+            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus js3 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job2").jobTag("dataset2").startTime(2000L).endTime(6000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Test message 3").processedCount(200)
-            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").issues(Collections.emptyList())
+            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus fs2 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Flow message")
-            .issues(Collections.emptyList()).build();
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList1 = Lists.newArrayList(js1, fs1);
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList2 = Lists.newArrayList(js2, js3, fs2);
     _listOfJobStatusLists = Lists.newArrayList();
@@ -192,19 +201,21 @@ public class FlowStatusTest {
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Test message 1").processedCount(100)
-            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").issues(Collections.emptyList())
+            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus js2 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Test message 2").processedCount(200)
-            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").issues(Collections.emptyList())
+            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Flow message")
-            .issues(Collections.emptyList()).build();
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
@@ -241,19 +252,21 @@ public class FlowStatusTest {
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
             .eventName(ExecutionStatus.RUNNING.name()).flowExecutionId(0).message("Test message 1").processedCount(100)
-            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").issues(Collections.emptyList())
+            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus js2 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Test message 2").processedCount(200)
-            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").issues(Collections.emptyList())
+            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY)
             .eventName(ExecutionStatus.RUNNING.name()).flowExecutionId(0).message("Flow message")
-            .issues(Collections.emptyList()).build();
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
@@ -264,7 +277,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 0L);
+    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 6000L);
     Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.RUNNING);
 
@@ -290,19 +303,21 @@ public class FlowStatusTest {
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
             .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Test message 1").processedCount(100)
-            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").issues(Collections.emptyList())
+            .jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus js2 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup("jgroup1").jobName("job2").startTime(2000L).endTime(6000L)
             .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).message("Test message 2").processedCount(200)
-            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").issues(Collections.emptyList())
+            .jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3")
+            .issues(Suppliers.ofInstance(Collections.emptyList()))
             .build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 =
         org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1").flowName("flow1")
             .jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
             .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).message("Flow message")
-            .issues(Collections.emptyList()).build();
+            .issues(Suppliers.ofInstance(Collections.emptyList())).build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);

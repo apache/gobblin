@@ -288,10 +288,13 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
         longWatermarkMap.put(topicPartition, new LongWatermark(0L));
       }
     }
+    for (Map.Entry<KafkaPartition, LongWatermark> entry : longWatermarkMap.entrySet()) {
+      log.info("Retrieved watermark {} for partition {}", entry.getValue().toString(), entry.getKey().toString());
+    }
     return longWatermarkMap;
   }
 
-  private List<KafkaPartition> getTopicPartitionsFromWorkUnit(WorkUnitState state) {
+  public static List<KafkaPartition> getTopicPartitionsFromWorkUnit(WorkUnitState state) {
     // what topic partitions are we responsible for?
     List<KafkaPartition> topicPartitions = new ArrayList<>();
 
@@ -302,7 +305,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
 
     for (int i = 0; i < numOfPartitions; ++i) {
       if (workUnit.getProp(topicNameProp, null) == null) {
-        log.warn("There's no topic.name property being set in workunt which could be an illegal state");
+        log.warn("There's no topic.name property being set in workunit which could be an illegal state");
         break;
       }
       String topicName = workUnit.getProp(topicNameProp);
@@ -323,8 +326,10 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
   @Override
   public S getSchema() {
     try {
-      Schema schema = (Schema) this._schemaRegistry.get().getLatestSchemaByTopic(this.topicPartitions.get(0).getTopicName());
-      return (S) schema;
+      if(this._schemaRegistry.isPresent()) {
+        return (S)(Schema) this._schemaRegistry.get().getLatestSchemaByTopic(this.topicPartitions.get(0).getTopicName());
+      }
+      return (S) this.topicPartitions.iterator().next().getTopicName();
     } catch (SchemaRegistryException e) {
       e.printStackTrace();
     }

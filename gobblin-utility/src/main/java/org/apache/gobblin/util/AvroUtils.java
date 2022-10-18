@@ -94,7 +94,7 @@ public class AvroUtils {
 
   public static final String FIELD_LOCATION_DELIMITER = ".";
 
-  private static final String AVRO_SUFFIX = ".avro";
+  public static final String AVRO_SUFFIX = ".avro";
 
   private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
 
@@ -138,22 +138,10 @@ public class AvroUtils {
         .map(field -> {
           Field f = AvroCompatibilityHelper.createSchemaField(field.name(), field.schema(), field.doc(),
               getCompatibleDefaultValue(field), field.order());
-          field.getObjectProps().forEach((key, value) -> f.addProp(key, value));
+          AvroSchemaUtils.copyFieldProperties(field, f);
           return f;
         })
         .collect(Collectors.toList());
-  }
-
-  /**
-   * Generate a {@link Schema} object from {@link Schema.Field} with Field's properties carried over to the new object.
-   * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
-   * object for non-root level.
-   */
-  public static void convertFieldToSchemaWithProps(Map<String,Object> fieldProps,
-      Schema targetSchemaObj) {
-    for (Map.Entry<String, Object> objectEntry : fieldProps.entrySet()) {
-      targetSchemaObj.addProp(objectEntry.getKey(), objectEntry.getValue());
-    }
   }
 
 
@@ -839,25 +827,8 @@ public class AvroUtils {
   private static void copyProperties(Schema oldSchema, Schema newSchema) {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
-    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
-    Map<String, Object> props = oldSchema.getObjectProps();
-    copyProperties(props, newSchema);
-  }
-
-  /***
-   * Copy properties to an Avro Schema
-   * @param props Properties to copy to Avro Schema
-   * @param schema Avro Schema to copy properties to
-   */
-  private static void copyProperties(Map<String, Object> props, Schema schema) {
-    Preconditions.checkNotNull(schema);
-
-    // (if null, don't copy but do not throw exception)
-    if (null != props) {
-      for (Map.Entry<String, Object> prop : props.entrySet()) {
-        schema.addProp(prop.getKey(), prop.getValue());
-      }
-    }
+    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps using AvroCompatibilityHelper methods
+    AvroSchemaUtils.copySchemaProperties(oldSchema, newSchema);
   }
 
   /**
@@ -1151,7 +1122,7 @@ public class AvroUtils {
    * @param copiedField
    */
   private static void copyFieldProperties(Schema.Field sourceField, Schema.Field copiedField) {
-    sourceField.getObjectProps().forEach((key, value) -> copiedField.addProp(key, value));
+    AvroSchemaUtils.copyFieldProperties(sourceField, copiedField);
   }
 
   @Nullable

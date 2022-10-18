@@ -74,7 +74,7 @@ public class MysqlDatasetStateStore extends MysqlStateStore<JobState.DatasetStat
    */
   public Map<String, JobState.DatasetState> getLatestDatasetStatesByUrns(String jobName) throws IOException {
     List<JobState.DatasetState> previousDatasetStates =
-        getAll(jobName, "%" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX, true);
+        getAll(jobName, "%" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX, JobStateSearchColumns.TABLE_NAME_ONLY);
 
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
 

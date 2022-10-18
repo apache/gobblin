@@ -148,13 +148,16 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
-    if (!canCopyTable()) {
+    if (!canCopyTable(configuration)) {
       return Iterators.emptyIterator();
     }
     try {
       return new HiveCopyEntityHelper(this, configuration, targetFs).getCopyEntities(configuration);
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
+      if (configuration.isAbortOnSingleDatasetFailure()) {
+        throw new RuntimeException(ioe);
+      }
       return Iterators.emptyIterator();
     }
   }
@@ -167,7 +170,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration,
       Comparator<FileSet<CopyEntity>> prioritizer, PushDownRequestor<FileSet<CopyEntity>> requestor)
       throws IOException {
-    if (!canCopyTable()) {
+    if (!canCopyTable(configuration)) {
       return Iterators.emptyIterator();
     }
     try {
@@ -177,6 +180,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return fileSetList.iterator();
     } catch (IOException ioe) {
       log.error("Failed to copy table " + this.table, ioe);
+      if (configuration.isAbortOnSingleDatasetFailure()) {
+        throw new RuntimeException(ioe);
+      }
       return Iterators.emptyIterator();
     }
   }
@@ -329,10 +335,14 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     }
   }
 
-  private boolean canCopyTable() {
+  private boolean canCopyTable(CopyConfiguration configuration) {
     if (!COPYABLE_TABLES.contains(this.table.getTableType())) {
-      log.warn(String.format("Not copying %s: tables of type %s are not copyable.", this.table.getCompleteName(),
-          this.table.getTableType()));
+      String message = String.format("Not copying %s: tables of type %s are not copyable.", this.table.getCompleteName(),
+          this.table.getTableType());
+      log.warn(message);
+      if (configuration.isAbortOnSingleDatasetFailure()) {
+        throw new RuntimeException(message);
+      }
       return false;
     }
     return true;

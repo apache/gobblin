@@ -35,6 +35,7 @@ import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 
 
@@ -57,10 +58,14 @@ public class ManagedCleanableDatasetFinder
 
   @Override
   public ConfigurableCleanableDataset<FileSystemDatasetVersion> datasetAtPath(Path path) throws IOException {
+    Properties datasetProps = new Properties();
+    datasetProps.putAll(this.props);
+    datasetProps.setProperty(FsCleanableHelper.RETENTION_DATASET_ROOT, path.toString());
+
     try {
-      return new ConfigurableCleanableDataset<>(this.fs, this.props, path,
+      return new ConfigurableCleanableDataset<>(this.fs, datasetProps, path,
           this.client
-              .getConfig(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI) + path.toString()),
+              .getConfig(this.props.getProperty(ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI) + path),
           LoggerFactory.getLogger(ConfigurableCleanableDataset.class));
     } catch (VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException
         | URISyntaxException e) {

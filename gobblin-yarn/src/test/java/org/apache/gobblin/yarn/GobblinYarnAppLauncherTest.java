@@ -527,7 +527,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   private static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
-      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, null);
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, null, null);
     }
 
     @Override

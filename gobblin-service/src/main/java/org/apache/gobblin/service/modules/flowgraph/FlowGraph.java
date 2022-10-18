@@ -39,35 +39,35 @@ public interface FlowGraph {
    * @param nodeId {@link DataNode} identifier.
    * @return the {@link DataNode} object if the node is present in the {@link FlowGraph}.
    */
-  public DataNode getNode(String nodeId);
+  DataNode getNode(String nodeId);
 
   /**
    * Add a {@link DataNode} to the {@link FlowGraph}
    * @param node {@link DataNode} to be added
    * @return true if {@link DataNode} is added to the {@link FlowGraph} successfully.
    */
-  public boolean addDataNode(DataNode node);
+  boolean addDataNode(DataNode node);
 
   /**
    * Add a {@link FlowEdge} to the {@link FlowGraph}
    * @param edge {@link FlowEdge} to be added
    * @return true if {@link FlowEdge} is added to the {@link FlowGraph} successfully.
    */
-  public boolean addFlowEdge(FlowEdge edge);
+  boolean addFlowEdge(FlowEdge edge);
 
   /**
    * Remove a {@link DataNode} and all its incident edges from the {@link FlowGraph}
    * @param nodeId identifier of the {@link DataNode} to be removed
    * @return true if {@link DataNode} is removed from the {@link FlowGraph} successfully.
    */
-  public boolean deleteDataNode(String nodeId);
+  boolean deleteDataNode(String nodeId);
 
   /**
    * Remove a {@link FlowEdge} from the {@link FlowGraph}
    * @param edgeId label of the edge to be removed
    * @return true if edge is removed from the {@link FlowGraph} successfully.
    */
-  public boolean deleteFlowEdge(String edgeId);
+  boolean deleteFlowEdge(String edgeId);
 
   /**
    * Get a collection of edges adjacent to a {@link DataNode}. Useful for path finding algorithms and graph
@@ -75,14 +75,14 @@ public interface FlowGraph {
    * @param nodeId identifier of the {@link DataNode}
    * @return a collection of edges adjacent to the {@link DataNode}
    */
-  public Collection<FlowEdge> getEdges(String nodeId);
+  Collection<FlowEdge> getEdges(String nodeId);
 
   /**
    * Get a collection of edges adjacent to a {@link DataNode}.
    * @param node {@link DataNode}
    * @return a collection of edges adjacent to the {@link DataNode}
    */
-  public Collection<FlowEdge> getEdges(DataNode node);
+  Collection<FlowEdge> getEdges(DataNode node);
 
   /**
    * A method that takes a {@link FlowSpec} containing the source and destination {@link DataNode}s, as well as the
@@ -95,5 +95,6 @@ public interface FlowGraph {
    * @return an instance of {@link FlowGraphPath} that encapsulates a sequence of {@link org.apache.gobblin.runtime.api.JobSpec}s
    * satisfying flowSpec.
    */
-  public FlowGraphPath findPath(FlowSpec flowSpec) throws PathFinder.PathFinderException, ReflectiveOperationException;
+  FlowGraphPath findPath(FlowSpec flowSpec)
+      throws PathFinder.PathFinderException, ReflectiveOperationException;
 }

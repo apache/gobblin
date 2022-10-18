@@ -168,6 +168,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                   @Override
                   public DataWriter<D> get() {
                     try {
+                      log.info(String.format("Adding one more writer to loading cache of existing writer "
+                          + "with size = %d", partitionWriters.size()));
                       return createPartitionWriter(key);
                     } catch (IOException e) {
                       throw new RuntimeException("Error creating writer", e);

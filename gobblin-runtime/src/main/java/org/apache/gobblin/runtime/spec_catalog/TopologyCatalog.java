@@ -233,6 +233,15 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
+  public int getSize() {
+    try {
+      return specStore.getSize();
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve number of specs from Spec store", e);
+    }
+  }
+
+  @Override
   public Spec getSpecs(URI uri) throws SpecNotFoundException {
     try {
       return specStore.getSpec(uri);

@@ -37,7 +37,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 import org.codehaus.jackson.node.JsonNodeFactory;
-import org.codehaus.jackson.node.NullNode;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 
 
@@ -78,7 +78,7 @@ public final class TypeInfoToSchemaParser {
       fieldName = (String) this._downToUpCaseMap.getOrDefault(fieldName, fieldName);
       Schema schema = this.parseSchemaFromTypeInfo(fieldTypeInfo, recordNamespace + "." + recordName.toLowerCase(),
           StringUtils.capitalize(fieldName));
-      Field f = new Field(fieldName, schema, (String) null, this._mkFieldsOptional ? NullNode.instance : null);
+      Field f = AvroCompatibilityHelper.createSchemaField(fieldName, schema, null, null);
       fields.add(f);
     }
 

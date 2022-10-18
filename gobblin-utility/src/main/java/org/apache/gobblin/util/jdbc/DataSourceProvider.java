@@ -17,9 +17,14 @@
 
 package org.apache.gobblin.util.jdbc;
 
+import java.time.Duration;
+import java.util.Arrays;
 import java.util.Properties;
 
 import javax.sql.DataSource;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.dbcp.BasicDataSource;
 
@@ -34,6 +39,7 @@ import org.apache.gobblin.password.PasswordManager;
  * A provider class for {@link javax.sql.DataSource}s.
  */
 public class DataSourceProvider implements Provider<DataSource> {
+  private static final Logger LOG = LoggerFactory.getLogger(DataSourceProvider.class);
 
   public static final String GOBBLIN_UTIL_JDBC_PREFIX = "gobblin.util.jdbc.";
   public static final String CONN_DRIVER = GOBBLIN_UTIL_JDBC_PREFIX + "conn.driver";
@@ -41,6 +47,7 @@ public class DataSourceProvider implements Provider<DataSource> {
 
   public static final String USERNAME = GOBBLIN_UTIL_JDBC_PREFIX + "username";
   public static final String PASSWORD = GOBBLIN_UTIL_JDBC_PREFIX + "password";
+  public static final String SKIP_VALIDATION_QUERY = GOBBLIN_UTIL_JDBC_PREFIX + "skip.validation.query";
   public static final String MAX_IDLE_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.idle.connections";
   public static final String MAX_ACTIVE_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.active.connections";
   public static final String DEFAULT_CONN_DRIVER = "com.mysql.jdbc.Driver";
@@ -51,6 +58,15 @@ public class DataSourceProvider implements Provider<DataSource> {
   public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
     this.basicDataSource = new BasicDataSource();
     this.basicDataSource.setDriverClassName(properties.getProperty(CONN_DRIVER, DEFAULT_CONN_DRIVER));
+    // the validation query should work beyond mysql; still, to bypass for any reason, heed directive
+    if (!Boolean.parseBoolean(properties.getProperty(SKIP_VALIDATION_QUERY, "false"))) {
+      // MySQL server can timeout a connection so need to validate connections before use
+      final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
+      LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
+      this.basicDataSource.setValidationQuery(validationQuery);
+      this.basicDataSource.setTestOnBorrow(true);
+      this.basicDataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(60).toMillis());
+    }
     this.basicDataSource.setUrl(properties.getProperty(CONN_URL));
     if (properties.containsKey(USERNAME) && properties.containsKey(PASSWORD)) {
       this.basicDataSource.setUsername(properties.getProperty(USERNAME));
@@ -66,6 +82,9 @@ public class DataSourceProvider implements Provider<DataSource> {
   }
 
   public DataSourceProvider() {
+    LOG.warn("Creating {} without setting validation query.\n Stacktrace of current thread {}",
+        this.getClass().getSimpleName(),
+        Arrays.toString(Thread.currentThread().getStackTrace()).replace(", ", "\n  at "));
     this.basicDataSource = new BasicDataSource();
   }
 

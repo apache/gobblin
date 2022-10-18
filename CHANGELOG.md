@@ -1,3 +1,83 @@
+GOBBLIN 0.16.0
+--------------
+
+### Created Date: 11/08/2021
+
+## HIGHLIGHTS
+* New Kafka 1.1 Writer.  
+* Support for logical types in Avro-to-ORC.  
+* Multiple improvements and bug fixes as detailed below. 
+
+## NEW FEATURES
+* [Writer] [GOBBLIN-1325] Add Kafka 1.1 Module : Writer
+* [Writer] [GOBBLIN-1250] ORC Writer
+* [AvroToORC] [GOBBLIN-1024] Support logical types in Avro-to-ORC
+* [CLI] [GOBBLIN-1267] Support for running a single ingestion job using Gobblin CLI
+* [GaaS] [GOBBLIN-1421] Add running status gauge in DagManager
+
+## IMPROVEMENTS
+* [Cluster] [GOBBLIN-1329] Suppress Helix log as part of TaskResult
+* [Cluster] [GOBBLIN-1243] Add common job properties in hashtable and not as `default` properties
+* [Cluster] [GOBBLIN-1251] Propagate failure from statsTracker scheduling
+* [Cluster] [GOBBLIN-1355] Make task interruption optional on Gobblin task cancellation
+* [GaaS] [GOBBLIN-1370] Make flow resume a restli action instead of partial update
+* [GaaS] [GOBBLIN-1453] Improve error reporting on flow configs that fail to compile
+* [GaaS] [GOBBLIN-1456] GobblinServiceJobScheduler update logic
+* [Source] [GOBBLIN-968] Honor file split size for HadoopFileInputSource
+* [Source] [GOBBLIN-1373] Remove fixed sleep time in HighLevelConsumer
+* [Extractor] [GOBBLIN-1058] Make emitTrackingEvents method accept additional PartitionsToTags map for ease of extension on metrics
+* [Writer] [GOBBLIN-1338] Log and suppress exceptions in FsDataWriter.getFinalState
+* [Hive Registration] [GOBBLIN-1263] Enable dataset-specific DBName for registration
+* [Hive Registration] [GOBBLIN-1272] Handling empty string in config-store loading during hive-Registration
+* [Hive Registration] [GOBBLIN-1278] Close HiveRegister in completion action usage
+* [Hive Registration] [GOBBLIN-1309] Abort operation when registration against a view
+* [Hive Registration] [GOBBLIN-1389] Logging with exception propagated on HiveRegister
+* [ORC] [GOBBLIN-1305] Processing Split correctly in ORC RecordReader
+* [ORC] [GOBBLIN-1264] Publish separate GOBBLIN-orc module
+* [ORC] [GOBBLIN-1265] Use shadowed imports from ORC library with nohive classifier in GOBBLIN-orc module
+* [ORC] [GOBBLIN-1270] Remove reference to determineSchemaOrReturnErrorSchema
+* [ORC] [GOBBLIN-1290] Auto tune ORC writer parameters
+* [ORC] [GOBBLIN-1330] Add support for decimal type in the GobblinOrcWriter
+* [ORC] [GOBBLIN-1465] Refactor the GobblinOrcWriter to support using a different OrcValueWriter
+* [Salesforce] [GOBBLIN-1298] Return JsonElement instead of null for the last element in resultChaining iterator
+* [Salesforce] [GOBBLIN-1426] Let child classes use SalesforceConnector code
+* [Core] [GOBBLIN-1495] NPE when trying to fetch Hadoop tokens for cluster with no remote namenodes
+* [Core] [GOBBLIN-1249] Log failure info when MRTask is failed
+* [State Store] [GOBBLIN-1380] Add retention to failed dag state store
+* [Metastore] [GOBBLIN-1044] Enrich fork-failure information when task failed
+* [Job Launcher] [GOBBLIN-1366] Add an option to skip initialization of hadoop tokens in the AzkabanJobLauncher
+* [Util] [GOBBLIN-1227] Treat AccessDeniedException in RenameRecursively as an existence indicator
+* [Util] [GOBBLIN-1392] Safe temporary file creation
+* [Util] [GOBBLIN-1429] Add secure TrustManager for LDAP Utils
+* [Runtime] [GOBBLIN-1372] Refactor runtime-jvm argument setting
+* [Documentation] [GOBBLIN-1376] Add docker guide link to readme
+* [Documentation] [GOBBLIN-1371] Improve Readme to reflect current capabilities
+* [Documentation] [GOBBLIN-1501] IcebergMetadataWriter Documentation and cleanup
+* [Documentation] [GOBBLIN-1275] Migrate Gitter links to Slack links in docs
+* [Github] [GOBBLIN-1332] Move to CommunityInviter based links to prevent expiring Slack invites
+* [Github] [GOBBLIN-1333] Update Github About section for Gobblin
+* [Build] [GOBBLIN-1293] Upgrade Gradle from 4.9 to 5.6
+* [Build] [GOBBLIN-1313] Create Github Actions to Automatically build and publish Docker Images
+* [Build] [GOBBLIN-1346] Clean up deprecated Docker images, change latest tag to only be generated on releases
+* [Build] [GOBBLIN-1361] Provide client-specific ivysettings.xml without conflicts with existed setting files
+
+## BUG FIXES 
+* [Bug] [GOBBLIN-831] Fix NPE in KafkaWorkUnitPacker when there is no WorkUnit created
+* [Bug] [GOBBLIN-1042] ForkMetrics generates parent metric object with incorrect type
+* [Bug] [GOBBLIN-1060] Fix YarnAppLauncher resource existence checking with wrong fs object
+* [Bug] [GOBBLIN-1274] Fix a typo in import statement
+* [Bug] [GOBBLIN-1348] Github actions fails due to restriction to only verified actions
+* [Bug] [GOBBLIN-1353] Slack link in Readme has expired
+* [Bug] [GOBBLIN-1354] Fix Documentation Build
+* [Bug] [GOBBLIN-1362] Fix bug where state is set twice when no workunits created
+* [Bug] [GOBBLIN-1407] Fix wrong google-http-client import
+* [Bug] [GOBBLIN-1431] Fix unit-test TestSingleTask
+* [Bug] [GOBBLIN-1432] JVM hangs on flushing events after OOM
+* [Bug] [GOBBLIN-1433] Github Actions Tests break with SSL Handshake error for SQL
+* [Bug] [GOBBLIN-1294] Alpine Linux Docker images no longer work
+* [Bug] [GOBBLIN-1369] Fix wrong method name: exractSampleRecordCountFromQuery
+* [Bug] [GOBBLIN-1379] Distcp hides real exception when retry happen
+
 GOBBLIN 0.15.0
 --------------
 
@@ -48,7 +128,7 @@ GOBBLIN 0.15.0
 * [Source] [GOBBLIN-628] Zuora Connector
 * [Hive Registration] [GOBBLIN-693] Add ORC hive serde manager
 
-##IMPROVEMENTS
+## IMPROVEMENTS
 * [Cluster] [GOBBLIN-1260] add some logs in GobblinHelixTask
 * [Cluster] [GOBBLIN-1251] Propagate exception in TaskStateTracker for caller to trigger Helix retry
 * [Cluster] [GOBBLIN-1213] add common job properties to jobProps using putAll
@@ -448,7 +528,7 @@ GOBBLIN 0.15.0
 * [Documentation] [GOBBLIN-669] Configuration Properties Glossary section of Docs hard to read
 * [Documentation] [GOBBLIN-598] Add documentation on split enabled distcp (config glossary & gobblin distcp page)
 
-##BUG FIXES
+## BUG FIXES
 * [Bug] [GOBBLIN-1270] Fix reference to determineSchemaOrReturnErrorSchema which is backward incompatible
 * [Bug] [GOBBLIN-1248] Fix discrepancy between table schema and file schema
 * [Bug] [GOBBLIN-1228] Do not localize token file on new TaskRunner launch

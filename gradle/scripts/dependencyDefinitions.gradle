@@ -23,9 +23,10 @@ dependencyManagement {
 
 ext.externalDependency = [
     "antlrRuntime": "org.antlr:antlr-runtime:3.5.2",
+    "assertj": "org.assertj:assertj-core:3.20.2",
     "avro": "org.apache.avro:avro:" + avroVersion,
     "avroMapredH2": "org.apache.avro:avro-mapred:" + avroVersion,
-    "avroCompatHelper": "com.linkedin.avroutil1:helper-all:0.2.74",
+    "avroCompatHelper": "com.linkedin.avroutil1:helper-all:0.2.117",
     "avroCompiler": "org.apache.avro:avro-compiler:" + avroVersion,
     "awsCore": "com.amazonaws:aws-java-sdk-core:" + awsVersion,
     "awsAsg": "com.amazonaws:aws-java-sdk-autoscaling:" + awsVersion,
@@ -37,6 +38,7 @@ ext.externalDependency = [
     "commonsCli": "commons-cli:commons-cli:1.3.1",
     "commonsCodec": "commons-codec:commons-codec:1.10",
     "commonsDbcp": "commons-dbcp:commons-dbcp:1.4",
+    "commonsDbcp2": "org.apache.commons:commons-dbcp2:2.9.0",
     "commonsEmail": "org.apache.commons:commons-email:1.4",
     "commonsLang": "commons-lang:commons-lang:2.6",
     "commonsLang3": "org.apache.commons:commons-lang3:3.4",
@@ -67,7 +69,7 @@ ext.externalDependency = [
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
     "hdrHistogram": "org.hdrhistogram:HdrHistogram:2.1.11",
-    "helix": "org.apache.helix:helix-core:0.9.4",
+    "helix": "org.apache.helix:helix-core:1.0.2",
     "hiveCommon": "com.linkedin.hive:hive-common:" + hiveVersion,
     "hiveService": "com.linkedin.hive:hive-service:" + hiveVersion,
     "hiveJdbc": "com.linkedin.hive:hive-jdbc:" + hiveVersion,
@@ -111,6 +113,7 @@ ext.externalDependency = [
     "metricsCore": "io.dropwizard.metrics:metrics-core:" + dropwizardMetricsVersion,
     "metricsJvm": "io.dropwizard.metrics:metrics-jvm:" + dropwizardMetricsVersion,
     "metricsGraphite": "io.dropwizard.metrics:metrics-graphite:" + dropwizardMetricsVersion,
+    "metricsJmx": "io.dropwizard.metrics:metrics-jmx:" + dropwizardMetricsVersion,
     "jsch": "com.jcraft:jsch:0.1.54",
     "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
@@ -132,7 +135,7 @@ ext.externalDependency = [
     "lombok":"org.projectlombok:lombok:1.18.16",
     "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
     "xerces":"xerces:xercesImpl:2.11.0",
-    "typesafeConfig": "com.typesafe:config:1.2.1",
+    "typesafeConfig": "com.typesafe:config:1.4.1",
     "byteman": "org.jboss.byteman:byteman:" + bytemanVersion,
     "bytemanBmunit": "org.jboss.byteman:byteman-bmunit:" + bytemanVersion,
     "bcpgJdk15on": "org.bouncycastle:bcpg-jdk15on:1.52",
@@ -171,7 +174,7 @@ ext.externalDependency = [
     "reflections" : "org.reflections:reflections:0.9.10",
     "embeddedProcess": "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.2",
     "testMysqlServer": "com.wix:wix-embedded-mysql:4.6.1",
-    "flyway": "org.flywaydb:flyway-core:3.2.1",
+    "flyway": "org.flywaydb:flyway-core:7.9.2",
     "oltu": "org.apache.oltu.oauth2:org.apache.oltu.oauth2.client:1.0.2",
     "googleAnalytics": "com.google.apis:google-api-services-analytics:v3-rev134-1.22.0",
     "googleDrive": "com.google.apis:google-api-services-drive:v3-rev42-1.22.0",
@@ -207,7 +210,8 @@ ext.externalDependency = [
         "org.slf4j:slf4j-log4j12:" + slf4jVersion
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
-    "assertj": 'org.assertj:assertj-core:3.8.0',
+    "testContainers": "org.testcontainers:testcontainers:1.17.3",
+    "testContainersMysql": "org.testcontainers:mysql:1.17.3"
 ]
 
 if (!isDefaultEnvironment)

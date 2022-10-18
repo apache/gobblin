@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -243,10 +244,11 @@ public class AvroUtilsTest {
     schema.addProp("prop2", "val2");
     List<Schema.Field> fieldList = Lists.newArrayList();
     Schema.Field field1 =
-        new Schema.Field("key", Schema.create(Schema.Type.LONG), "", 0L);
+        AvroCompatibilityHelper.createSchemaField("key", Schema.create(Schema.Type.LONG), "", 0L);
     field1.addProp("primaryKey", "true");
     fieldList.add(field1);
-    Schema.Field field2 = new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
+    Schema.Field field2 = 
+        AvroCompatibilityHelper.createSchemaField("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
     fieldList.add(field2);
 
     schema.setFields(Lists.newArrayList(fieldList));
@@ -257,8 +259,14 @@ public class AvroUtilsTest {
 
     Assert.assertEquals(newSchema.getNamespace(), newNamespace);
     Assert.assertEquals(newSchema.getName(), originalName);
+    System.out.println("newSchema: " + newSchema);
     for(Schema.Field field : newSchema.getFields()) {
-      Assert.assertEquals(field, schema.getField(field.name()));
+      Schema.Field oldField = schema.getField(field.name());
+      System.out.println("OldField: " + oldField);
+      System.out.println("Field: " + field);
+      Boolean bool = oldField.equals(field);
+      System.out.println("Equal: " + bool);
+      Assert.assertEquals(field.toString(), oldField.toString());
     }
 
     Assert.assertTrue(schema.getObjectProps().equals(newSchema.getObjectProps()));

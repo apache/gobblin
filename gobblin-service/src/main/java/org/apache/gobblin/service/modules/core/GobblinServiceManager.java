@@ -31,12 +31,15 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.api.listeners.ControllerChangeListener;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +81,7 @@ import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
@@ -90,12 +94,14 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -189,6 +195,16 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Inject(optional = true)
   protected KafkaJobStatusMonitor jobStatusMonitor;
 
+  @Inject
+  protected MultiContextIssueRepository issueRepository;
+
+  @Inject
+  protected ServiceDatabaseManager databaseManager;
+
+  @Inject(optional=true)
+  @Getter
+  protected Optional<UserQuotaManager> quotaManager;
+
   protected Optional<HelixLeaderState> helixLeaderGauges;
 
   @Inject(optional = true)
@@ -196,6 +212,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   private final MetricContext metricContext;
   private final Metrics metrics;
+
+  @Inject(optional = true)
+  protected SpecStoreChangeMonitor specStoreChangeMonitor;
+
+  @Inject(optional = true)
+  protected DagActionStoreChangeMonitor dagActionStoreChangeMonitor;
 
   @Inject
   protected GobblinServiceManager(GobblinServiceConfiguration configuration) throws Exception {
@@ -348,6 +370,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.serviceLauncher.addService(dagManager);
     }
 
+    this.serviceLauncher.addService(databaseManager);
+    this.serviceLauncher.addService(issueRepository);
+
     if (configuration.isJobStatusMonitorEnabled()) {
       this.serviceLauncher.addService(jobStatusMonitor);
     }
@@ -359,6 +384,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     if (configuration.isRestLIServerEnabled()) {
       this.serviceLauncher.addService(restliServer);
+    }
+
+    if (this.configuration.isWarmStandbyEnabled()) {
+      this.serviceLauncher.addService(specStoreChangeMonitor);
+      this.serviceLauncher.addService(dagActionStoreChangeMonitor);
     }
   }
 
@@ -377,13 +407,16 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     registerServicesInLauncher();
 
     // Register Scheduler to listen to changes in Flows
-    if (configuration.isSchedulerEnabled()) {
+    // In warm standby mode, instead of scheduler we will add orchestrator as listener
+    if(configuration.isWarmStandbyEnabled()) {
+      this.flowCatalog.addListener(this.orchestrator);
+    } else if (configuration.isSchedulerEnabled()) {
       this.flowCatalog.addListener(this.scheduler);
     }
   }
 
   private void ensureInjected() {
-    if (resourceHandler == null) {
+    if (v2ResourceHandler == null) {
       throw new IllegalStateException("GobblinServiceManager should be constructed through Guice dependency injection "
           + "or through a static factory method");
     }
@@ -406,12 +439,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     if (this.helixManager.isPresent()) {
       // Subscribe to leadership changes
-      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
-        @Override
-        public void onControllerChange(NotificationContext changeContext) {
-          handleLeadershipChange(changeContext);
-        }
-      });
+      this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
 
 
       // Update for first time since there might be no notification
@@ -503,7 +531,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.helixManager.get()
             .getMessagingService()
             .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
-                new ControllerUserDefinedMessageHandlerFactory(flowCatalogLocalCommit, scheduler, resourceHandler,
+                new ControllerUserDefinedMessageHandlerFactory(flowCatalogLocalCommit, scheduler, v2ResourceHandler,
                     configuration.getServiceName()));
       }
     } catch (Exception e) {

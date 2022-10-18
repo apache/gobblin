@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -35,7 +36,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.util.ProxiedFileSystemCache;
-
 
 /**
  * An implementation of {@link org.apache.gobblin.data.management.trash.Trash} that allows deleting files as different users.
@@ -49,6 +49,14 @@ public class ProxiedTrash extends Trash implements GobblinProxiedTrash {
   public ProxiedTrash(FileSystem fs, Properties props, String user) throws IOException {
     super(fs, props, user);
     this.properties = props;
+  }
+
+  public static ProxiedTrash getProxiedTrash(FileSystem fs, Properties props, String user) throws IOException {
+    if (props.containsKey(TRASH_CLASS_KEY)) {
+      return GobblinConstructorUtils.invokeConstructor(ProxiedTrash.class, props.getProperty(TRASH_CLASS_KEY), fs, props, user);
+    } else {
+      return new ProxiedTrash(fs, props, user);
+    }
   }
 
   /**

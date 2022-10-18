@@ -162,4 +162,67 @@ public class JobExecutionPlanDagFactoryTest {
     Assert.assertEquals(dag.getNodes().get(1).getParentNodes().get(0), dag.getNodes().get(0));
     Assert.assertEquals(dag.getNodes().get(2).getParentNodes().get(0), dag.getNodes().get(1));
   }
+
+  @Test
+  public void testCreateDagAdhoc() throws Exception {
+    Config flowConfig1 = ConfigBuilder.create().addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flowName")
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "flowGroup")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+    Config flowConfig2 = ConfigBuilder.create().addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flowName")
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "flowGroup").build();
+
+    List<Config> flowConfigs = Arrays.asList(flowConfig1, flowConfig2);
+
+    Config jobConfig1 = ConfigBuilder.create().addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job1")
+        .addPrimitive(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "source:destination:edgeName1")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+    Config jobConfig2 = ConfigBuilder.create().addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job2")
+        .addPrimitive(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "source:destination:edgeName2").build();
+    List<Config> jobConfigs = Arrays.asList(jobConfig1, jobConfig2);
+
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
+
+    for (int i = 0; i < 2; i++) {
+      Config jobConfig = jobConfigs.get(i);
+      FlowSpec flowSpec = FlowSpec.builder("testFlowSpec").withConfig(flowConfigs.get(i)).build();
+      jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
+          ConfigValueFactory.fromAnyRef("testUri")), new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty()));
+    }
+
+    Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlans.get(0)));
+    Dag<JobExecutionPlan> dag2 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlans.get(1)));
+
+
+    Assert.assertEquals(dag1.getStartNodes().size(), 1);
+    Assert.assertEquals(dag1.getEndNodes().size(), 1);
+    Assert.assertEquals(dag1.getNodes().size(), 1);
+    Assert.assertEquals(dag2.getStartNodes().size(), 1);
+    Assert.assertEquals(dag2.getEndNodes().size(), 1);
+    Assert.assertEquals(dag2.getNodes().size(), 1);
+    // Dag1 is scheduled so should be adhoc and output metrics, but not dag2
+    Assert.assertTrue(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS));
+    Assert.assertFalse(dag2.getStartNodes().get(0).getValue().getJobSpec().getConfig().getBoolean(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS));
+  }
+
+  @Test
+  public void testCreateDagLongName() throws Exception {
+    // flowName and flowGroup are both 128 characters long, the maximum for flowName and flowGroup
+    Config flowConfig = ConfigBuilder.create().addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "uwXJwZPAPygvmSAfhtrzXL7ovIEKOBZdulBiNIGzaT7vILrK9QB5EDJj0fc4pkgNHuIKZ3d18TZzyH6a9HpaZACwpWpIpf8SYcSfKtXeoF8IJY064BqEUXR32k3ox31G")
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "4mdfSGSv6GoFW7ICWubN2ORK4s5PMTQ60yIWkcbJOVneTSPn12cXT5ueEgij907tjzLlbcjdVjWFITFf9Y5sB9i0EvKGmTbUF98hJGoQlAhmottaipDEFTdbyzt5Loxg")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+
+    Config jobConfig = ConfigBuilder.create()
+        .addPrimitive(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "source:destination:edgeName1")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+
+    FlowSpec flowSpec = FlowSpec.builder("testFlowSpec").withConfig(flowConfig).build();
+    JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
+        ConfigValueFactory.fromAnyRef("testUri")), new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty());
+
+    Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlan));
+
+    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY).length(), 142);
+
+  }
+
 }

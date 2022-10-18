@@ -20,7 +20,9 @@ package org.apache.gobblin.troubleshooter;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
+import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -62,7 +64,7 @@ public class AutoTroubleshooterLogAppenderTest {
     Assert.assertEquals(issue.getSeverity(), IssueSeverity.WARN);
     Assert.assertEquals(issue.getSummary(), "test");
     Assert.assertEquals(issue.getSourceClass(), getClass().getName());
-        Assert.assertTrue(issue.getTime().isAfter(ZonedDateTime.now().minus(1, ChronoUnit.MINUTES)));
+    Assert.assertTrue(issue.getTime().isAfter(ZonedDateTime.now().minus(1, ChronoUnit.MINUTES)));
     Assert.assertTrue(issue.getTime().isBefore(ZonedDateTime.now().plus(1, ChronoUnit.MINUTES)));
     Assert.assertTrue(issue.getCode().length() > 1);
 
@@ -94,6 +96,34 @@ public class AutoTroubleshooterLogAppenderTest {
   }
 
   @Test
+  public void willGetSameErrorCodesForSameStackTraces()
+      throws Exception {
+
+    for (int i = 0; i < 5; i++) {
+      Exception exception;
+      try {
+        // Throwing exception to get a real stack trace in it
+        // Messages are intentionally different in every loop. We are checking that as all exceptions with
+        // same stack trace will get the same event code
+
+        try {
+          throw new InvalidOperationException("test inner exception " + i);
+        } catch (Exception inner) {
+          throw new IOException("test outer exception " + i, inner);
+        }
+      } catch (Exception e) {
+        exception = e;
+      }
+
+      appender.append(
+          new LoggingEvent(log.getName(), log, System.currentTimeMillis(), Level.ERROR, "test message", exception));
+    }
+
+    List<Issue> issues = issueRepository.getAll();
+    Assert.assertEquals(issues.size(), 1); // all issues should have the same error code and get deduplicated
+  }
+
+  @Test
   public void canLogExceptionWithSpecificErrorCode()
       throws Exception {
 
@@ -112,7 +142,6 @@ public class AutoTroubleshooterLogAppenderTest {
     Assert.assertEquals(issue.getSeverity(), IssueSeverity.ERROR);
     Assert.assertEquals(issue.getCode(), "TestCode");
   }
-
 
   private static class TestException extends Exception implements ThrowableWithErrorCode {
     String errorCode;

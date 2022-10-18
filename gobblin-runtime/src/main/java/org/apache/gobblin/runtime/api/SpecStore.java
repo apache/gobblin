@@ -79,6 +79,16 @@ public interface SpecStore {
   Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException;
 
   /***
+   * Update {@link Spec} in the {@link SpecStore} when modification time of current entry is smaller than {@link modifiedWatermark}.
+   * @param spec {@link Spec} to be updated.
+   * @param modifiedWatermark largest modifiedWatermark that current spec should be
+   * @throws IOException Exception in updating the {@link Spec}.
+   * @return Updated {@link Spec}.
+   * @throws SpecNotFoundException If {@link Spec} being updated is not present in store.
+   */
+  default Spec updateSpec(Spec spec, long modifiedWatermark) throws IOException, SpecNotFoundException {return updateSpec(spec);};
+
+  /***
    * Retrieve the latest version of the {@link Spec} by URI from the {@link SpecStore}.
    * @param specUri URI for the {@link Spec} to be retrieved.
    * @throws IOException Exception in retrieving the {@link Spec}.
@@ -116,6 +126,12 @@ public interface SpecStore {
    */
   Collection<Spec> getSpecs() throws IOException;
 
+  /***
+   * Get all {@link Spec}s from the {@link SpecStore} with pagination input.
+   * @throws IOException Exception in retrieving {@link Spec}s.
+   */
+  Collection<Spec> getSpecs(int start, int count) throws IOException;
+
   /**
    * Return an iterator of Spec URIs(Spec identifiers)
    */
@@ -139,4 +155,10 @@ public interface SpecStore {
    * with root-level FileSystem directory.
    */
   Optional<URI> getSpecStoreURI();
+
+  /***
+   * Returns the number of {@link Spec}s in the {@link SpecStore}.
+   * @throws IOException Exception in retrieving the count of {@link Spec}s.
+   */
+  int getSize() throws IOException;
 }

@@ -32,7 +32,6 @@ repositories {
   maven {
     url "https://linkedin.jfrog.io/artifactory/gobblin-hive/"
   }
-  jcenter()
   mavenLocal()
 }
 

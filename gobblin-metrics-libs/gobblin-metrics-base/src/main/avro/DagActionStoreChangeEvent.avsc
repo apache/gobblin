@@ -1,0 +1,28 @@
+{
+  "type" : "record",
+  "name" : "DagActionStoreChangeEvent",
+  "namespace" : "org.apache.gobblin.service.monitoring",
+  "doc" : "Contains information to identify a change that occurred in the DagActionStore which contains pending kill or resume requests",
+  "fields" : [ {
+    "name" : "changeEventIdentifier",
+    "type" : "GenericStoreChangeEvent",
+    "doc" : "properties common to any store's change event",
+    "compliance" : "NONE"
+  },{
+    "name" : "flowGroup",
+    "type" : "string",
+    "doc" : "flow group for the dag action",
+    "compliance" : "NONE"
+  }, {
+    "name" : "flowName",
+    "type" : "string",
+    "doc" : "flow name for the dag action",
+    "compliance" : "NONE"
+  }, {
+    "name" : "flowExecutionId",
+    "type" : "string",
+    "doc" : "flow execution id for the dag action",
+    "compliance" : "NONE"
+  }
+  ]
+}

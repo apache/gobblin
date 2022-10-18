@@ -56,7 +56,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
   @Override
   public FlowExecution get(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
-    FlowExecution flowExecution = convertFlowStatus(getFlowStatusFromGenerator(key, this.flowStatusGenerator));
+    FlowExecution flowExecution = convertFlowStatus(getFlowStatusFromGenerator(key, this.flowStatusGenerator), true);
     if (flowExecution == null) {
       throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowStatusId " + key.getKey()
           + ". The flowStatusId may be incorrect, or the flow execution may have been cleaned up.");
@@ -65,15 +65,38 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus) {
+  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
+      String executionStatus, Boolean includeIssues) {
     List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = getLatestFlowStatusesFromGenerator(flowId, count, tag, executionStatus, this.flowStatusGenerator);
 
     if (flowStatuses != null) {
-      return flowStatuses.stream().map(FlowExecutionResourceLocalHandler::convertFlowStatus).collect(Collectors.toList());
+      return flowStatuses.stream()
+          .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
+          .collect(Collectors.toList());
     }
 
     throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowId " + flowId
-        + ". The flowId may be incorrect, or the flow execution may have been cleaned up.");
+        + ". The flowId may be incorrect, the flow execution may have been cleaned up, or not matching tag (" + tag
+        + ") and/or execution status (" + executionStatus + ").");
+  }
+
+  @Override
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow,
+      String tag, Boolean includeIssues) {
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
+        getLatestFlowGroupStatusesFromGenerator(flowGroup, countPerFlow, tag, this.flowStatusGenerator);
+
+    if (flowStatuses != null) {
+      // todo: flow end time will be incorrect when dag manager is not used
+      //       and FLOW_SUCCEEDED/FLOW_CANCELLED/FlowFailed events are not sent
+      return flowStatuses.stream()
+          .map((FlowStatus monitoringFlowStatus) -> convertFlowStatus(monitoringFlowStatus, includeIssues))
+          .collect(Collectors.toList());
+    }
+
+    throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow executions found for flowGroup " + flowGroup
+        + ". The group name may be incorrect, the flow execution may have been cleaned up, or not matching tag (" + tag
+        + ").");
   }
 
   @Override
@@ -107,12 +130,23 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
     return flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count, tag, executionStatus);
   }
 
+  public static List<FlowStatus> getLatestFlowGroupStatusesFromGenerator(String flowGroup,
+      Integer countPerFlowName, String tag, FlowStatusGenerator flowStatusGenerator) {
+    if (countPerFlowName == null) {
+      countPerFlowName = 1;
+    }
+    log.info("get latest (for group) called with flowGroup " + flowGroup + " count " + countPerFlowName);
+
+    return flowStatusGenerator.getFlowStatusesAcrossGroup(flowGroup, countPerFlowName, tag);
+  }
+
   /**
    * Forms a {@link FlowExecution} from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    * @param monitoringFlowStatus
    * @return a {@link FlowExecution} converted from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    */
-  public static FlowExecution convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus) {
+  public static FlowExecution convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus,
+      boolean includeIssues) {
     if (monitoringFlowStatus == null) {
       return null;
     }
@@ -123,8 +157,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
 
     long flowEndTime = 0L;
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
-
+    long maxJobEndTime = Long.MIN_VALUE;
     String flowMessage = "";
 
     while (jobStatusIter.hasNext()) {
@@ -133,12 +166,13 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
       // Check if this is the flow status instead of a single job status
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
         flowEndTime = queriedJobStatus.getEndTime();
-        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();
         }
         continue;
       }
+
+      maxJobEndTime = Math.max(maxJobEndTime, queriedJobStatus.getEndTime());
 
       JobStatus jobStatus = new JobStatus();
 
@@ -146,7 +180,8 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
           queriedJobStatus.getProgressPercentage());
 
       jobStatus.setFlowId(flowId)
-          .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
+          .setJobId(new JobId()
+              .setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
           .setJobTag(queriedJobStatus.getJobTag(), SetMode.IGNORE_NULL)
           .setExecutionStatistics(new JobStatistics()
@@ -157,10 +192,17 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
               .setEstimatedSecondsToCompletion(timeLeft))
           .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
-          .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
-              setHighWatermark(queriedJobStatus.getHighWatermark()))
-          .setIssues(new IssueArray(queriedJobStatus.getIssues().stream()
-              .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject).collect(Collectors.toList())));
+          .setJobState(new JobState()
+              .setLowWatermark(queriedJobStatus.getLowWatermark()).
+              setHighWatermark(queriedJobStatus.getHighWatermark()));
+
+      if (includeIssues) {
+        jobStatus.setIssues(new IssueArray(queriedJobStatus.getIssues().get().stream()
+                                               .map(FlowExecutionResourceLocalHandler::convertIssueToRestApiObject)
+                                               .collect(Collectors.toList())));
+      } else {
+        jobStatus.setIssues(new IssueArray());
+      }
 
       if (!Strings.isNullOrEmpty(queriedJobStatus.getMetrics())) {
         jobStatus.setMetrics(queriedJobStatus.getMetrics());
@@ -168,6 +210,9 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
       jobStatusArray.add(jobStatus);
     }
+
+    // If DagManager is not enabled, we have to determine flow end time by individual job's end times.
+    flowEndTime = flowEndTime == 0L ? maxJobEndTime : flowEndTime;
 
     jobStatusArray.sort(Comparator.comparing((JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
 
@@ -177,7 +222,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
-        .setExecutionStatus(flowExecutionStatus)
+        .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
         .setJobStatuses(jobStatusArray);
   }
 
@@ -222,8 +267,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
     Instant current = Instant.ofEpochMilli(currentTime);
     Instant start = Instant.ofEpochMilli(startTime);
-    Long timeElapsed = Duration.between(start, current).getSeconds();
-    Long timeLeft = (long) (timeElapsed * (100.0 / Double.valueOf(completionPercentage) - 1));
-    return timeLeft;
+    long timeElapsed = Duration.between(start, current).getSeconds();
+    return (long) (timeElapsed * (100.0 / (double) completionPercentage - 1));
   }
 }

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -25,6 +26,11 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -57,29 +63,53 @@ public class DagManagerFlowTest {
   MockedDagManager dagManager;
   int dagNumThreads;
   static final String ERROR_MESSAGE = "Waiting for the map to update";
+  private static final String USER = "testUser";
+  private static final String PASSWORD = "testPassword";
+  private static final String TABLE = "dag_action_store";
+  private static final String flowGroup = "testFlowGroup";
+  private static final String flowName = "testFlowName";
+  private static final String flowExecutionId = "12345677";
+  private static final String flowExecutionId_2 = "12345678";
+  private DagActionStore dagActionStore;
 
   @BeforeClass
-  public void setUp() {
+  public void setUp() throws Exception {
     Properties props = new Properties();
     props.put(DagManager.JOB_STATUS_POLLING_INTERVAL_KEY, 1);
+    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+
+    Config config = ConfigBuilder.create()
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .build();
+
+    dagActionStore = new MysqlDagActionStore(config);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), false);
+    dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
+    Thread.sleep(10000);
+    // On active, should proceed request and delete action entry
+    Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
   }
 
   @Test
   void testAddDeleteSpec() throws Exception {
-    Long flowExecutionId1 = System.currentTimeMillis();
-    Long flowExecutionId2 = flowExecutionId1 + 1;
-    Long flowExecutionId3 = flowExecutionId1 + 2;
+    long flowExecutionId1 = System.currentTimeMillis();
+    long flowExecutionId2 = flowExecutionId1 + 1;
+    long flowExecutionId3 = flowExecutionId1 + 2;
 
     Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("0", flowExecutionId1, "FINISH_RUNNING", 1);
     Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", flowExecutionId2, "FINISH_RUNNING", 1);
     Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", flowExecutionId3, "FINISH_RUNNING", 1);
 
-    String dagId1 = DagManagerUtils.generateDagId(dag1);
-    String dagId2 = DagManagerUtils.generateDagId(dag2);
-    String dagId3 = DagManagerUtils.generateDagId(dag3);
+    String dagId1 = DagManagerUtils.generateDagId(dag1).toString();
+    String dagId2 = DagManagerUtils.generateDagId(dag2).toString();
+    String dagId3 = DagManagerUtils.generateDagId(dag3).toString();
 
     int queue1 = DagManagerUtils.getDagQueueId(dag1, dagNumThreads);
     int queue2 = DagManagerUtils.getDagQueueId(dag2, dagNumThreads);
@@ -144,7 +174,7 @@ public class DagManagerFlowTest {
   void testFlowSlaWithoutConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("3", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow3"), eq("group3"), anyInt()))
@@ -181,7 +211,7 @@ public class DagManagerFlowTest {
   void testFlowSlaWithConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("4", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow4"), eq("group4"), anyInt()))
@@ -221,7 +251,7 @@ public class DagManagerFlowTest {
   void testOrphanFlowKill() throws Exception {
     Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("6", flowExecutionId, "FINISH_RUNNING", 1);
-    String dagId = DagManagerUtils.generateDagId(dag);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     // change config to set a small sla
@@ -303,7 +333,7 @@ class MockedDagManager extends DagManager {
     JobStatusRetriever mockedJbStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).
         getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
-    return  mockedJbStatusRetriever;
+    return mockedJbStatusRetriever;
   }
 
   @Override

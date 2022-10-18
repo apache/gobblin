@@ -29,12 +29,15 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.data.management.ConversionHiveTestUtils;
 import org.apache.gobblin.data.management.conversion.hive.query.HiveAvroORCQueryGenerator;
 import org.apache.gobblin.util.AvroFlattener;
+
+import static org.apache.gobblin.data.management.conversion.hive.utils.AvroHiveTypeUtils.generateAvroToHiveColumnMapping;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })
@@ -343,6 +346,40 @@ public class HiveAvroORCQueryGeneratorTest {
     String ddl = HiveAvroORCQueryGenerator.generateDropTableDDL("db1", "table1");
 
     Assert.assertEquals(ddl, "DROP TABLE IF EXISTS `db1`.`table1`");
+  }
+
+  @Test
+  public void testAvroToHiveTypeMapping() throws Exception {
+
+    // test for record, this record-schema will be reused in the tests afterwards.
+    Schema record_1 =
+        Schema.createRecord("record_1","","", false, ImmutableList.<Schema.Field>of(
+            new Schema.Field("a", Schema.create(Schema.Type.LONG), "", null),
+            new Schema.Field("b", Schema.create(Schema.Type.BOOLEAN), "", null)
+        ));
+
+    String hiveSchema_1 = generateAvroToHiveColumnMapping(record_1, Optional.absent(), false, "");
+    // the backtick was added on purpose to avoid preserved keywords appearing as part of column name
+    String expectedHiveSchema_1 = "struct<`a`:bigint,`b`:boolean>";
+    org.junit.Assert.assertEquals(hiveSchema_1, expectedHiveSchema_1);
+
+    // test for union (fake union, actually represents default value)
+    Schema union_1 = Schema.createUnion(Schema.create(Schema.Type.NULL), record_1);
+    String hiveSchema_2 = generateAvroToHiveColumnMapping(union_1, Optional.absent(), false, "");
+    String expectedHiveSchema_2 = "struct<`a`:bigint,`b`:boolean>";
+    org.junit.Assert.assertEquals(hiveSchema_2, expectedHiveSchema_2);
+
+    // test for array
+    Schema array_1 = Schema.createArray(record_1);
+    String hiveSchema_3 = generateAvroToHiveColumnMapping(array_1, Optional.absent(), false, "");
+    String expectedHiveSchema_3 = "array<struct<`a`:bigint,`b`:boolean>>";
+    org.junit.Assert.assertEquals(hiveSchema_3, expectedHiveSchema_3);
+
+    // test for map
+    Schema map_1 = Schema.createMap(array_1);
+    String hiveSchema_4 = generateAvroToHiveColumnMapping(map_1, Optional.absent(), false, "");
+    String expectedHiveSchema_4 = "map<string,array<struct<`a`:bigint,`b`:boolean>>>";
+    org.junit.Assert.assertEquals(hiveSchema_4, expectedHiveSchema_4);
   }
 
   @Test

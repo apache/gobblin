@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce.avro;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,9 +26,9 @@ import java.util.concurrent.ExecutionException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.gobblin.util.AvroSchemaUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.JsonParser;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ObjectNode;
@@ -80,9 +81,9 @@ public class FieldAttributeBasedDeltaFieldsProvider implements AvroDeltaFieldNam
   private List<String> getDeltaFieldNamesForNewSchema(Schema originalSchema) {
     List<String> deltaFields = new ArrayList<>();
     for (Field field : originalSchema.getFields()) {
-      // Avro 1.9 compatible change - replaced deprecated public api getJsonProp with getObjectProp
-      // Use AvroSchemaUtils to convert object to the string value
-      String deltaAttributeField = AvroSchemaUtils.getValueAsString(field, this.attributeField);
+      // Avro 1.9 compatible change - replaced deprecated public api getJsonProp with AvroCompatibilityHelper methods
+      String deltaAttributeField = AvroCompatibilityHelper.getFieldPropAsJsonString(field, this.attributeField, 
+          true, false);
       ObjectNode objectNode = getDeltaPropValue(deltaAttributeField);
       if (objectNode == null || objectNode.get(this.deltaPropName) == null) {
         continue;
@@ -101,7 +102,8 @@ public class FieldAttributeBasedDeltaFieldsProvider implements AvroDeltaFieldNam
       JsonParser jp = jf.createJsonParser(json);
       ObjectMapper objMap = new ObjectMapper(jf);
       jp.setCodec(objMap);
-      return (ObjectNode) jp.readValueAsTree();
+      JsonNode jsonNode = jp.readValueAsTree();
+      return (ObjectNode) objMap.readTree(jsonNode.asText());
     } catch (IOException e) {
       return null;
     }

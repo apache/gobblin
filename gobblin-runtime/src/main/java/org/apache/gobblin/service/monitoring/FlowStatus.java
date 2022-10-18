@@ -19,10 +19,12 @@ package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**
@@ -31,9 +33,12 @@ import lombok.Getter;
 @Alpha
 @AllArgsConstructor
 @Getter
+@ToString
 public class FlowStatus {
   private final String flowName;
   private final String flowGroup;
   private final long flowExecutionId;
+  @ToString.Exclude // (to avoid side-effecting exhaustion of `Iterator`)
   private final Iterator<JobStatus> jobStatusIterator;
+  private final ExecutionStatus flowExecutionStatus;
 }

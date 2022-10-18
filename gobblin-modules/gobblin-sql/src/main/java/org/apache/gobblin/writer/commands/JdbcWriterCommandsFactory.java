@@ -38,13 +38,16 @@ public class JdbcWriterCommandsFactory {
    * @return Provides JdbcWriterCommands bases on destination.
    */
   public JdbcWriterCommands newInstance(Destination destination, Connection conn) {
+
+    boolean overwriteRecords = destination.getProperties().getPropAsBoolean(ConfigurationKeys.ALLOW_JDBC_RECORD_OVERWRITE);
+
     switch (destination.getType()) {
       case MYSQL:
-        return new MySqlWriterCommands(destination.getProperties(), conn);
+        return new MySqlWriterCommands(destination.getProperties(), conn, overwriteRecords);
       case TERADATA:
-        return new TeradataWriterCommands(destination.getProperties(), conn);
+        return new TeradataWriterCommands(destination.getProperties(), conn, overwriteRecords);
       case POSTGRES:
-        return new PostgresWriterCommands(destination.getProperties(), conn);
+        return new PostgresWriterCommands(destination.getProperties(), conn, overwriteRecords);
       default:
         throw new IllegalArgumentException(destination.getType() + " is not supported");
     }

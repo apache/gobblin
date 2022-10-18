@@ -117,6 +117,21 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   @Override
   public Schema readSchemaVersioningInformation(DataInputStream inputStream)
       throws IOException {
+    String hexKey = getSchemaHexKey(inputStream);
+
+    try {
+      return this.registry.getSchemaByKey(hexKey);
+    } catch (SchemaRegistryException sre) {
+      throw new IOException("Failed to retrieve schema for key " + hexKey, sre);
+    }
+  }
+
+  @Override
+  public void advanceInputStreamToRecord(DataInputStream inputStream) throws IOException {
+    getSchemaHexKey(inputStream);
+  }
+
+  private String getSchemaHexKey(DataInputStream inputStream) throws IOException {
     if (inputStream.readByte() != KafkaAvroSchemaRegistry.MAGIC_BYTE) {
       throw new IOException("MAGIC_BYTE not found in Avro message.");
     }
@@ -128,12 +143,6 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
           .format("Could not read enough bytes for schema id. Expected: %d, found: %d.", schemaIdLengthBytes,
               bytesRead));
     }
-    String hexKey = Hex.encodeHexString(byteKey);
-
-    try {
-      return this.registry.getSchemaByKey(hexKey);
-    } catch (SchemaRegistryException sre) {
-      throw new IOException("Failed to retrieve schema for key " + hexKey, sre);
-    }
+    return Hex.encodeHexString(byteKey);
   }
 }

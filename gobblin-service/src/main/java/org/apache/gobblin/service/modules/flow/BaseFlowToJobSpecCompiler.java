@@ -24,7 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.inject.Inject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +93,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Setter
   protected boolean active;
 
+  private boolean warmStandbyEnabled;
+
+  @Inject
+  UserQuotaManager userQuotaManager;
+
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
   }
@@ -117,6 +126,8 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       this.flowCompilationTimer = Optional.absent();
       this.dataAuthorizationTimer = Optional.absent();
     }
+
+    this.warmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
 
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
@@ -149,15 +160,63 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     return;
   }
 
-  @Override
-  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
-    TopologySpec spec = (TopologySpec) addedSpec;
-    log.info ("Loading topology {}", spec.toLongString());
-    for (Map.Entry entry: spec.getConfigAsProperties().entrySet()) {
-      log.info ("topo: {} --> {}", entry.getKey(), entry.getValue());
+  private synchronized  AddSpecResponse onAddTopologySpec(TopologySpec spec) {
+    log.info("Loading topology {}", spec.toLongString());
+    for (Map.Entry entry : spec.getConfigAsProperties().entrySet()) {
+      log.info("topo: {} --> {}", entry.getKey(), entry.getValue());
     }
 
-    topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
+    topologySpecMap.put(spec.getUri(), spec);
+    return new AddSpecResponse(null);
+  }
+
+  private  AddSpecResponse onAddFlowSpec(FlowSpec flowSpec) {
+    Properties flowSpecProperties = flowSpec.getConfigAsProperties();
+    if (topologySpecMap.containsKey(flowSpec.getUri())) {
+      log.error("flow spec URI: {} is the same as one of the spec executors uris, ignore the flow", flowSpec.getUri());
+      flowSpec.getCompilationErrors().add(new FlowSpec.CompilationError(0, "invalid flow spec uri " + flowSpec.getUri() + " because it is the same as one of the spec executors uri"));
+      return null;
+    }
+    if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils.isNotBlank(
+        flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
+      try {
+        new CronExpression(flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+      } catch (Exception e) {
+        log.error("invalid cron schedule: {}", flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY), e);
+        flowSpec.getCompilationErrors().add(new FlowSpec.CompilationError(0, "invalid cron schedule: " + flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY) + e.getMessage()));
+        return null;
+      }
+    }
+    String response = null;
+
+    // always try to compile the flow to verify if it is compilable
+    Dag<JobExecutionPlan> dag = this.compileFlow(flowSpec);
+
+    // If dag is null then a compilation error has occurred
+    if (dag != null && !dag.isEmpty()) {
+      response = dag.toString();
+    }
+
+    if (FlowCatalog.isCompileSuccessful(response) && this.warmStandbyEnabled && !flowSpec.isExplain() &&
+        (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
+      try {
+        userQuotaManager.checkQuota(dag.getStartNodes());
+        flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    return new AddSpecResponse<>(response);
+  }
+
+  @Override
+  public AddSpecResponse onAddSpec(Spec addedSpec) {
+    if (addedSpec instanceof FlowSpec) {
+      return onAddFlowSpec((FlowSpec) addedSpec);
+    } else if (addedSpec instanceof TopologySpec) {
+      return onAddTopologySpec( (TopologySpec) addedSpec);
+    }
     return new AddSpecResponse(null);
   }
 

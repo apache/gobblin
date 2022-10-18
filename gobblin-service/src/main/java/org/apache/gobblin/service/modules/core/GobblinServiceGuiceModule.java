@@ -19,6 +19,15 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+//import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +68,9 @@ import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.NoopRequesterService;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -66,13 +78,16 @@ import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2Resou
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
+import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -129,11 +144,21 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
-        .to(serviceConfig.getServiceName());
-
-    binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
-    binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
-    binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
+        .to(serviceConfig.isFlowCatalogLocalCommit());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
+        .to(serviceConfig.isWarmStandbyEnabled());
+    OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
+    if (serviceConfig.isWarmStandbyEnabled()) {
+      binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
+      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
+      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
+      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
+    } else {
+      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
+      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
+      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
+    }
 
 
     binder.bind(FlowConfigsResource.class);
@@ -190,6 +215,10 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(Orchestrator.class);
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
+      OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);
+      binder.bind(UserQuotaManager.class)
+          .to(getClassByNameOrAlias(UserQuotaManager.class, serviceConfig.getInnerConfig(),
+              ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER));
     }
 
     if (serviceConfig.isGitConfigMonitorEnabled()) {
@@ -205,12 +234,28 @@ public class GobblinServiceGuiceModule implements Module {
             JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
 
     if (serviceConfig.isRestLIServerEnabled()) {
-      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class).in(Singleton.class);
+      binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
+    }
+
+    if (serviceConfig.isWarmStandbyEnabled()) {
+      binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
+      binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
     }
 
     binder.bind(GobblinServiceManager.class);
 
-    binder.bind(MultiContextIssueRepository.class).to(InMemoryMultiContextIssueRepository.class);
+    binder.bind(ServiceDatabaseProvider.class).to(ServiceDatabaseProviderImpl.class);
+    binder.bind(ServiceDatabaseProviderImpl.Configuration.class);
+
+    binder.bind(ServiceDatabaseManager.class);
+
+    binder.bind(MultiContextIssueRepository.class)
+        .to(getClassByNameOrAlias(MultiContextIssueRepository.class, serviceConfig.getInnerConfig(),
+                                  ServiceConfigKeys.ISSUE_REPO_CLASS,
+                                  InMemoryMultiContextIssueRepository.class.getName()));
+
+    binder.bind(MySqlMultiContextIssueRepository.Configuration.class);
+    binder.bind(InMemoryMultiContextIssueRepository.Configuration.class);
 
     binder.bind(JobIssueEventHandler.class);
 

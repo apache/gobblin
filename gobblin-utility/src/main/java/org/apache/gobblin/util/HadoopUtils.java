@@ -210,9 +210,20 @@ public class HadoopUtils {
    * @throws IOException
    */
   public static void moveToTrash(FileSystem fs, Path path) throws IOException {
-    Trash trash = new Trash(fs, new Configuration());
-    trash.moveToTrash(path);
+    moveToTrash(fs, path, new Configuration());
   }
+
+  /**
+   * Moves the object to the filesystem trash according to the file system policy.
+   * @param fs FileSystem object
+   * @param path Path to the object to be moved to trash.
+   * @param conf Configurations
+   * @throws IOException
+   */
+  public static void moveToTrash(FileSystem fs, Path path, Configuration conf) throws IOException {
+    Trash.moveToAppropriateTrash(fs, path, conf);
+  }
+
   /**
    * Renames a src {@link Path} on fs {@link FileSystem} to a dst {@link Path}. If fs is a {@link LocalFileSystem} and
    * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
@@ -265,8 +276,20 @@ public class HadoopUtils {
   /**
    * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
    * {@link FileSystem#rename(Path, Path)} returns False.
+   * @param fs FileSystem object
+   * @param oldName old name of the path
+   * @param new name of the path
+   * @throws IOException
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
+    renamePath(fs, oldName, newName, overwrite, new Configuration());
+  }
+
+  /**
+   * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
+   * {@link FileSystem#rename(Path, Path)} returns False.
+   */
+  public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite, Configuration conf) throws IOException {
     //In default implementation of rename with rewrite option in FileSystem, if the parent dir of dst does not exist, it will throw exception,
     //Which will fail some of our job unintentionally. So we only call that method when fs is an instance of DistributedFileSystem to avoid inconsistency problem
     if(fs instanceof DistributedFileSystem) {
@@ -278,7 +301,7 @@ public class HadoopUtils {
       }
       if (fs.exists(newName)) {
         if (overwrite) {
-          HadoopUtils.moveToTrash(fs, newName);
+          HadoopUtils.moveToTrash(fs, newName, conf);
         } else {
           throw new FileAlreadyExistsException(String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
         }
@@ -629,7 +652,7 @@ public class HadoopUtils {
         }
 
       } catch (IOException ioe) {
-        throw new RuntimeException(ioe);
+        throw new RuntimeException("Failed to rename " + this.from.getPath() + " to " + this.to, ioe);
       }
     }
   }

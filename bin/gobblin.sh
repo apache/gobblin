@@ -106,7 +106,7 @@ function print_gobblin_cli_usage() {
                 job-store-schema-manager    Database job history store schema manager
                 gobblin-classpath           shows the constructed gobblin classpath"
     echo ""
-    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/cli'."
+    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '\$GOBBLIN_HOME/conf/cli'."
     echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/cli/log4j.properties'."
     echo "    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH."
@@ -133,7 +133,7 @@ function print_gobblin_service_usage() {
     echo "    --jt <resource manager URL>           Only for mapreduce mode: Job submission URL, if not set, taken from \${HADOOP_HOME}/conf."
     echo "    --fs <file system URL>                Only for mapreduce mode: Target file system, if not set, taken from \${HADOOP_HOME}/conf."
     echo "    --job-conf-file <job-conf-file-path>  Only for mapreduce mode: configuration file for the job to run"
-    echo "    --log-to-stdout                     Outputs to stdout rather than to a log file"
+    echo "    --log-to-stdout                       Outputs to stdout rather than to a log file"
     echo "    --help                                Display this help."
     echo "    --verbose                             Display full command used to start the process."
 }
@@ -301,7 +301,7 @@ fi
 
 function build_classpath(){
     GOBBLIN_CLASSPATH=''
-    # Build classpth
+    # Build classpath
     GOBBLIN_JARS=''
     GOBBLIN_HADOOP_JARS=''
     GOBBLIN_CLASSPATH=''
@@ -332,7 +332,8 @@ function build_classpath(){
     GOBBLIN_CLASSPATH=${GOBBLIN_JARS}:${GOBBLIN_HADOOP_CLASSPATH}
 
     if [[ -n "$EXTRA_JARS" ]]; then
-        GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:"$EXTRA_JARS"
+        # EXTRA_JARS has comma separated jars. Replace commas with colon for the classpath.
+        GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:${EXTRA_JARS//,/:}
     fi
 
     GOBBLIN_CLASSPATH=${GOBBLIN_CONF}:${GOBBLIN_CLASSPATH}

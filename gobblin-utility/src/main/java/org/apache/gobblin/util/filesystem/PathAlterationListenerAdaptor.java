@@ -44,4 +44,7 @@ public class PathAlterationListenerAdaptor implements PathAlterationListener {
 
   public void onFileDelete(final Path path) {
   }
+
+  public void onCheckDetectedChange() {
+  }
 }

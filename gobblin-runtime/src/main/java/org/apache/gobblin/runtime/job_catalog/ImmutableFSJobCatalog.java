@@ -208,7 +208,6 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
 
   /**
    * Fetch single job file based on its URI,
-   * return null requested URI not existed
    * @param uri The relative Path to the target job configuration.
    * @return
    */

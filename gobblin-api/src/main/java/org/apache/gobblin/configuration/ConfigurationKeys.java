@@ -156,6 +156,8 @@ public class ConfigurationKeys {
   public static final String JOB_GROUP_KEY = "job.group";
   public static final String JOB_TAG_KEY = "job.tag";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
+  public static final String JOB_CURRENT_ATTEMPTS = "job.currentAttempts";
+  public static final String JOB_CURRENT_GENERATION = "job.currentGeneration";
   // Job launcher type
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
@@ -215,6 +217,11 @@ public class ConfigurationKeys {
   public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
   public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
+
+  /**
+   * Optional property to specify whether existing data in databases can be overwritten during ingestion jobs
+   */
+  public static final String ALLOW_JDBC_RECORD_OVERWRITE = "allow.jdbc.record.overwrite";
 
   /**
    * Optional property to specify a default Authenticator class for a job
@@ -289,6 +296,8 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
   public static final String WORK_UNIT_DATE_PARTITION_NAME = "workunit.source.date.partitionName";
+  public static final String WORK_UNIT_GENERATOR_FAILURE_IS_FATAL = "workunit.generator.failure.is.fatal";
+  public static final boolean DEFAULT_WORK_UNIT_FAST_FAIL_ENABLED = true;
 
   /**
    * Task execution properties.
@@ -318,6 +327,12 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
   public static final String EXTRACT_ID_TIME_ZONE = "extract.extractIdTimeZone";
   public static final String DEFAULT_EXTRACT_ID_TIME_ZONE = "UTC";
+  public static final String EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS_KEY =
+      "extract.salesforce.bulkApi.minWaitTimeInMillis";
+  public static final long DEFAULT_EXTRACT_SALESFORCE_BULK_API_MIN_WAIT_TIME_IN_MILLIS = 60 * 1000L; // 1 min
+  public static final String EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS_KEY =
+      "extract.salesforce.bulkApi.maxWaitTimeInMillis";
+  public static final long DEFAULT_EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS = 10 * 60 * 1000L; // 10 min
 
   /**
    * Converter configuration properties.
@@ -752,6 +767,10 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_KAFKA_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
+  public static final String METRICS_REPORTING_KAFKA_METRICS_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.metrics.enabled";
+  public static final String METRICS_REPORTING_KAFKA_EVENTS_ENABLED_KEY =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.events.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS =
       "org.apache.gobblin.metrics.kafka.KafkaMetricReporterFactory";
   public static final String DEFAULT_EVENTS_REPORTING_KAFKA_REPORTER_CLASS =
@@ -990,13 +1009,27 @@ public class ConfigurationKeys {
   public static final String DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT = "MINUTES";
   public static final String GOBBLIN_JOB_START_SLA_TIME = "gobblin.job.start.sla.time";
   public static final String GOBBLIN_JOB_START_SLA_TIME_UNIT = "gobblin.job.start.sla.timeunit";
-  public static final long DEFAULT_GOBBLIN_JOB_START_SLA_TIME = 10L;
-  public static final String DEFAULT_GOBBLIN_JOB_START_SLA_TIME_UNIT = "MINUTES";
+  public static final long FALLBACK_GOBBLIN_JOB_START_SLA_TIME = 10L;
+  public static final String FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT = "MINUTES";
   public static final String DATASET_SUBPATHS_KEY = "gobblin.flow.dataset.subPaths";
   public static final String DATASET_BASE_INPUT_PATH_KEY = "gobblin.flow.dataset.baseInputPath";
   public static final String DATASET_BASE_OUTPUT_PATH_KEY = "gobblin.flow.dataset.baseOutputPath";
   public static final String DATASET_COMBINE_KEY = "gobblin.flow.dataset.combine";
   public static final String WHITELISTED_EDGE_IDS = "gobblin.flow.whitelistedEdgeIds";
+  public static final String GOBBLIN_OUTPUT_JOB_LEVEL_METRICS = "gobblin.job.outputJobLevelMetrics";
+
+  /**
+   * Configuration properties related to flowGraphs
+   */
+
+  public static final String FLOWGRAPH_JAVA_PROPS_EXTENSIONS = "flowGraph.javaPropsExtensions";
+  public static final String FLOWGRAPH_HOCON_FILE_EXTENSIONS = "flowGraph.hoconFileExtensions";
+  public static final String DEFAULT_PROPERTIES_EXTENSIONS = "properties";
+  public static final String DEFAULT_CONF_EXTENSIONS = "conf";
+  public static final String FLOWGRAPH_POLLING_INTERVAL = "flowGraph.pollingInterval";
+  public static final String FLOWGRAPH_BASE_DIR = "flowGraph.configBaseDirectory";
+  public static final String FLOWGRAPH_ABSOLUTE_DIR = "flowGraph.absoluteDirectory";
+
 
   /***
    * Configuration properties related to TopologySpec Store
@@ -1087,6 +1120,7 @@ public class ConfigurationKeys {
   public static final String DESTINATION_DATASET_HANDLER_CLASS = "gobblin.destination.datasetHandlerClass";
   public static final String DATASET_DESTINATION_PATH = "gobblin.dataset.destination.path";
   public static final String TMP_DIR = ".temp";
+  public static final String TRASH_DIR = ".trash";
   public static final String STAGING_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskStaging";
   public static final String OUTPUT_DIR_DEFAULT_SUFFIX = "/" + TMP_DIR + "/taskOutput";
   public static final String ROW_LEVEL_ERR_FILE_DEFAULT_SUFFIX = "/err";
@@ -1113,4 +1147,8 @@ public class ConfigurationKeys {
    * */
   public static final String TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = "gobblin.troubleshooter.inMemoryIssueRepository.maxSize";
   public static final int DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE = 100;
+
+  public static final String JOB_METRICS_REPORTER_CLASS_KEY = "gobblin.job.metrics.reporter.class";
+  public static final String DEFAULT_JOB_METRICS_REPORTER_CLASS = "org.apache.gobblin.runtime.metrics.DefaultGobblinJobMetricReporter";
+
 }

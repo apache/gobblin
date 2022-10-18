@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Histogram;
-import com.codahale.metrics.JmxReporter;
+import com.codahale.metrics.jmx.JmxReporter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -612,20 +612,26 @@ public class GobblinMetrics {
   private void buildKafkaMetricReporter(Properties properties)
       throws MultiReporterException {
     List<MetricReporterException> reporterExceptions = Lists.newArrayList();
-    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
+    if (!Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return;
     }
 
-    try {
-      buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS);
-    } catch (MetricReporterException e) {
-      reporterExceptions.add(e);
+    if (Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_METRICS_ENABLED_KEY,
+        Boolean.toString(true)))) {
+      try {
+        buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS);
+      } catch (MetricReporterException e) {
+        reporterExceptions.add(e);
+      }
     }
-    try {
-      buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_EVENTS_REPORTING_KAFKA_REPORTER_CLASS);
-    } catch (MetricReporterException e) {
-      reporterExceptions.add(e);
+    if (Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_EVENTS_ENABLED_KEY,
+        Boolean.toString(true)))) {
+      try {
+        buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_EVENTS_REPORTING_KAFKA_REPORTER_CLASS);
+      } catch (MetricReporterException e) {
+        reporterExceptions.add(e);
+      }
     }
     if (!reporterExceptions.isEmpty()) {
       throw new MultiReporterException("Failed to start one or more Kafka reporters", reporterExceptions);

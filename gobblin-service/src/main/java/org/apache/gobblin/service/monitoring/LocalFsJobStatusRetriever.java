@@ -37,6 +37,8 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.spec_executorInstance.LocalFsSpecProducer;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 
 /**
  * A job status monitor for jobs completed by a Gobblin Standalone instance running on the same machine. Mainly used for sandboxing/testing
@@ -47,17 +49,16 @@ import org.apache.gobblin.service.ExecutionStatus;
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
   public static final String CONF_PREFIX = "localFsJobStatusRetriever.";
-  private String JOB_DONE_SUFFIX = ".done";
-  private String specProducerPath;
+  private final String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   @Inject
   public LocalFsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED, issueRepository);
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
-  private Boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
+  private boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
     try {
@@ -88,6 +89,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     List<JobStatus> jobStatuses = new ArrayList<>();
     JobStatus jobStatus;
 
+    String JOB_DONE_SUFFIX = ".done";
     if (this.doesJobExist(flowName, flowGroup, flowExecutionId, JOB_DONE_SUFFIX)) {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();
@@ -116,6 +118,18 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     //TODO: implement this
 
     return null;
+  }
+
+  /**
+   * @param flowGroup
+   * @return the last <code>countJobStatusesPerFlowName</code> flow statuses within the given flowGroup.
+   */
+  @Override
+  public List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName) {
+    Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(countJobStatusesPerFlowName > 0,
+        "Number of job statuses per flow name must be at least 1 (was: %s).", countJobStatusesPerFlowName);
+    throw new UnsupportedOperationException("Not yet implemented");
   }
 
   public StateStore<State> getStateStore() {

@@ -32,6 +32,7 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.avroCompiler
   compile externalDependency.avroCompatHelper
+  compile externalDependency.orcCore
   compile externalDependency.hiveMetastore
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore

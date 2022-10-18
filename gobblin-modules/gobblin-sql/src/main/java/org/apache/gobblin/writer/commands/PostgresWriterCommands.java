@@ -24,13 +24,13 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-import org.apache.gobblin.converter.jdbc.JdbcType;
-
 import com.google.common.collect.ImmutableMap;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.converter.jdbc.JdbcType;
 
 
 /**
@@ -51,7 +51,11 @@ public class PostgresWriterCommands implements JdbcWriterCommands {
   private final JdbcBufferedInserter jdbcBufferedWriter;
   private final Connection conn;
 
-  public PostgresWriterCommands(State state, Connection conn) {
+  public PostgresWriterCommands(State state, Connection conn, boolean overwriteRecords) throws UnsupportedOperationException {
+    if (overwriteRecords) {
+      throw new IllegalArgumentException("Replace existing records is not supported in PostgresWriterCommands");
+    }
+
     this.conn = conn;
     this.jdbcBufferedWriter = new PostgresBufferedInserter(state, conn);
   }

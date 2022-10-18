@@ -27,11 +27,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import javax.annotation.Nullable;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -45,6 +40,10 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
+
+import javax.annotation.Nullable;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -210,10 +209,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       Iterator<FileSet<CopyEntity>> prioritizedFileSets =
           allocator.allocateRequests(requestorIterator, copyConfiguration.getMaxToCopy());
 
-      //Submit alertable events for unfulfilled requests
+      //Submit alertable events for unfulfilled requests and fail if all of the allocated requests were rejected due to size
       submitUnfulfilledRequestEvents(allocator);
+      failJobIfAllRequestsRejected(allocator, prioritizedFileSets);
 
       String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, FileSetWorkUnitGenerator.class.getName());
+      boolean shouldWuGeneratorFailureBeFatal = state.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_GENERATOR_FAILURE_IS_FATAL, ConfigurationKeys.DEFAULT_WORK_UNIT_FAST_FAIL_ENABLED);
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(prioritizedFileSets, new Function<FileSet<CopyEntity>, Callable<Void>>() {
             @Nullable
@@ -239,6 +240,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             future.get();
           } catch (ExecutionException exc) {
             log.error("Failed to get work units for dataset.", exc.getCause());
+            if (shouldWuGeneratorFailureBeFatal) {
+              throw new RuntimeException("Failed to get work units for dataset.", exc.getCause());
+            }
           }
         }
       } catch (InterruptedException ie) {
@@ -289,6 +293,20 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
                   .put(FILESET_TOTAL_SIZE_IN_BYTES, Long.toString(fileSet.getTotalSizeInBytes()))
                   .put(FILESET_NAME, fileSet.getName()).build()).build();
       this.metricContext.submitEvent(event);
+    }
+  }
+
+  void failJobIfAllRequestsRejected(RequestAllocator<FileSet<CopyEntity>> allocator,
+      Iterator<FileSet<CopyEntity>> allocatedRequests) throws IOException {
+    // TODO: we should set job as partial success if there is a mix of allocated requests and rejections
+    if (PriorityIterableBasedRequestAllocator.class.isAssignableFrom(allocator.getClass())) {
+      PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>> priorityIterableBasedRequestAllocator =
+          (PriorityIterableBasedRequestAllocator<FileSet<CopyEntity>>) allocator;
+      // If there are no allocated items and are there items exceeding the available resources, then we can infer all items exceed resources
+      if (!allocatedRequests.hasNext() && priorityIterableBasedRequestAllocator.getRequestsExceedingAvailableResourcePool().size() > 0) {
+        throw new IOException(String.format("Requested copy datasets are all larger than the available resource pool. Try increasing %s and/or %s",
+            CopyConfiguration.MAX_COPY_PREFIX + "." + CopyResourcePool.ENTITIES_KEY, CopyConfiguration.MAX_COPY_PREFIX + ".size"));
+      }
     }
   }
 

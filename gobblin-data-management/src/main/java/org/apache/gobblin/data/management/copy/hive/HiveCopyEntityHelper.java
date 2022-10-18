@@ -748,11 +748,12 @@ public class HiveCopyEntityHelper {
     return builder.build();
   }
 
-  private void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable)
+  @VisibleForTesting
+  protected void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable)
       throws IOException {
-    if (!desiredTargetTable.getDataLocation().equals(existingTargetTable.getDataLocation())) {
-      throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(),
-          existingTargetTable.getDataLocation());
+
+    if (!HiveUtils.areTablePathsEquivalent(getTargetFs(), desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation())) {
+      throw new HiveTableLocationNotMatchException(desiredTargetTable.getDataLocation(), existingTargetTable.getDataLocation());
     }
 
     if (desiredTargetTable.isPartitioned() != existingTargetTable.isPartitioned()) {

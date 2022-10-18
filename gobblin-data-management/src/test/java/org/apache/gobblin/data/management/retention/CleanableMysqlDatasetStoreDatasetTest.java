@@ -112,7 +112,7 @@ public class CleanableMysqlDatasetStoreDatasetTest {
    * Test cleanup of the job state store
    * @throws IOException
    */
-  @Test
+  @Test(enabled = false)
   public void testCleanJobStateStore() throws IOException {
     JobState jobState = new JobState(TEST_JOB_NAME1, getJobId(TEST_JOB_ID, 1));
     jobState.setId(getJobId(TEST_JOB_ID, 1));
@@ -176,7 +176,7 @@ public class CleanableMysqlDatasetStoreDatasetTest {
    *
    * @throws IOException
    */
-  @Test
+  @Test(enabled = false)
   public void testCleanDatasetStateStore() throws IOException {
     JobState.DatasetState datasetState = new JobState.DatasetState(TEST_JOB_NAME1, getJobId(TEST_JOB_ID, 1));
 

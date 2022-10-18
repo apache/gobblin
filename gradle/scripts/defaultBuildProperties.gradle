@@ -31,7 +31,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
     .register(new BuildProperty("hadoopVersion", "2.3.0", "Hadoop dependencies version"))
     .register(new BuildProperty("hiveVersion", "1.0.1-avro", "Hive dependencies version"))
-    .register(new BuildProperty("icebergVersion", "0.10.0", "Iceberg dependencies version"))
+    .register(new BuildProperty("icebergVersion", "0.11.1", "Iceberg dependencies version"))
     .register(new BuildProperty("jdkVersion", JavaVersion.VERSION_1_8.toString(),
     "Java languange compatibility; supported versions: " + JavaVersion.VERSION_1_8))
     .register(new BuildProperty("kafka08Version", "0.8.2.2", "Kafka 0.8 dependencies version"))

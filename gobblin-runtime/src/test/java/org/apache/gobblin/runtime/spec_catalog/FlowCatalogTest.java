@@ -21,6 +21,7 @@ import com.google.common.base.Optional;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -105,16 +107,24 @@ public class FlowCatalogTest {
     return initFlowSpec(specStore, uri, "flowName");
   }
 
-  /**
-   * Create FLowSpec with specified URI and SpecStore location.
-   */
+    /**
+     * Create FLowSpec with specified URI and SpecStore location.
+     */
   public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
+    return initFlowSpec(specStore, uri, flowName, "", ConfigFactory.empty());
+  }
+
+  public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName, String flowGroup, Config additionalConfigs) {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
+    properties.put("job.name", flowName);
+    properties.put("job.group", flowGroup);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
-    Config config = ConfigUtils.propertiesToConfig(properties);
-
+    properties.put("job.schedule", "0 0 0 ? * * 2050");
+    Config defaults = ConfigUtils.propertiesToConfig(properties);
+    Config config = additionalConfigs.withFallback(defaults);
     SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);
 
     FlowSpec.Builder flowSpecBuilder = null;
@@ -138,7 +148,7 @@ public class FlowCatalogTest {
   }
 
   @Test
-  public void createFlowSpec() {
+  public void createFlowSpec() throws Throwable {
     // List Current Specs
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
@@ -147,7 +157,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);
@@ -160,7 +170,8 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should contain 1 Spec after addition");
   }
 
   @Test (dependsOnMethods = "createFlowSpec")
@@ -178,8 +189,8 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 1, "Spec store should initially have 1 Spec before deletion");
-
+    Assert.assertEquals(specs.size(), 1, "Spec store should initially have 1 Spec before deletion");
+    Assert.assertEquals(flowCatalog.getSize(), 1, "Spec store should initially have 1 Spec before deletion");
     this.flowCatalog.remove(flowSpec.getUri());
 
     // List Specs after adding
@@ -190,11 +201,12 @@ public class FlowCatalogTest {
       flowSpec = (FlowSpec) spec;
       logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty after deletion");
+    Assert.assertEquals(flowCatalog.getSize(), 0, "Spec store should be empty after deletion");
   }
 
   @Test (dependsOnMethods = "deleteFlowSpec")
-  public void testRejectBadFlow() {
+  public void testRejectBadFlow() throws Throwable {
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
     int i=0;
@@ -202,7 +214,7 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
     FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
@@ -214,10 +226,11 @@ public class FlowCatalogTest {
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
   }
 
   @Test (dependsOnMethods = "testRejectBadFlow")
-  public void testRejectMissingListener() {
+  public void testRejectMissingListener() throws Throwable {
     flowCatalog.removeListener(this.mockListener);
     Collection<Spec> specs = flowCatalog.getSpecs();
     logger.info("[Before Create] Number of specs: " + specs.size());
@@ -226,12 +239,39 @@ public class FlowCatalogTest {
       FlowSpec flowSpec = (FlowSpec) spec;
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
 
     // Create and add Spec
 
     Map<String, AddSpecResponse> response = this.flowCatalog.put(flowSpec);
 
+    // Spec should be rejected from being stored
+    specs = flowCatalog.getSpecs();
+    Assert.assertEquals(specs.size(), 0);
+    Assert.assertEquals(flowCatalog.getSize(), 0);
+  }
+
+  @Test (dependsOnMethods = "testRejectMissingListener")
+  public void testRejectQuotaExceededFlow() {
+    Collection<Spec> specs = flowCatalog.getSpecs();
+    logger.info("[Before Create] Number of specs: " + specs.size());
+    int i=0;
+    for (Spec spec : specs) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+    }
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
+
+    // Create and add Spec
+    FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
+
+    // Assume that spec is rejected
+    when(this.mockListener.onAddSpec(any())).thenThrow(new RuntimeException(new QuotaExceededException("error")));
+    try {
+      Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
+    } catch (Throwable e) {
+      Assert.assertTrue(e instanceof QuotaExceededException);
+    }
     // Spec should be rejected from being stored
     specs = flowCatalog.getSpecs();
     Assert.assertEquals(specs.size(), 0);

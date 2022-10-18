@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.util.filesystem;
 
+import java.util.Arrays;
+import java.util.concurrent.Callable;
+
 import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.util.Decorator;
@@ -42,73 +45,83 @@ public class ExceptionCatchingPathAlterationListenerDecorator implements PathAlt
 
   @Override
   public void onStart(PathAlterationObserver observer) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onStart(observer);
-    } catch (Throwable exc) {
-      log.error("onStart failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onFileCreate(Path path) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onFileCreate(path);
-    } catch (Throwable exc) {
-      log.error("onFileCreate failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onFileChange(Path path) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onFileChange(path);
-    } catch (Throwable exc) {
-      log.error("onFileChange failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onStop(PathAlterationObserver observer) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onStop(observer);
-    } catch (Throwable exc) {
-      log.error("onStop failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onDirectoryCreate(Path directory) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onDirectoryCreate(directory);
-    } catch (Throwable exc) {
-      log.error("onDirectoryCreate failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onDirectoryChange(Path directory) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onDirectoryChange(directory);
-    } catch (Throwable exc) {
-      log.error("onDirectoryChange failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onDirectoryDelete(Path directory) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onDirectoryDelete(directory);
-    } catch (Throwable exc) {
-      log.error("onDirectoryDelete failure: ", exc);
-    }
+      return null;
+    });
   }
 
   @Override
   public void onFileDelete(Path path) {
-    try {
+    logSwallowedThrowable(() -> {
       this.underlying.onFileDelete(path);
+      return null;
+    });
+  }
+
+  @Override
+  public void onCheckDetectedChange() {
+    logSwallowedThrowable(() -> {
+      this.underlying.onCheckDetectedChange();
+      return null;
+    });
+  }
+
+  protected void logSwallowedThrowable(Callable<Void> c) {
+    try {
+      c.call();
     } catch (Throwable exc) {
-      log.error("onFileDelete failure: ", exc);
+      String methodName = Arrays.stream(exc.getStackTrace()).findFirst().get().getMethodName();
+      log.error(methodName + " failed due to exception:", exc);
     }
   }
+
 }

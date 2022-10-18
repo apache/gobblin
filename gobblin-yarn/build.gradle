@@ -56,7 +56,9 @@ dependencies {
   compile externalDependency.hadoopYarnClient
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
-  compile externalDependency.helix
+  compile (externalDependency.helix) {
+    exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
+  }
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
@@ -65,6 +67,7 @@ dependencies {
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+  testCompile externalDependency.powermock
 
   testCompile ('com.google.inject:guice:3.0') {
     force = true
@@ -97,6 +100,7 @@ shadowJar {
     exclude dependency('org.mockito:.*')
     exclude dependency('org.datanucleus:.*')
     exclude dependency('org.apache.hive:.*')
+    exclude dependency('com.linkedin.hive:.*')
     exclude dependency('org.scala-lang:scala-library:.*')
     exclude dependency('org.apache.derby:.*')
   }

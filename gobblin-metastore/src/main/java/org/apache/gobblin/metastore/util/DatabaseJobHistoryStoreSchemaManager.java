@@ -23,23 +23,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 
-import com.google.common.io.Closer;
-
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.configuration.AbstractConfiguration;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.configuration.SystemConfiguration;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.runtime.cli.CliApplication;
+import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfoService;
-import org.flywaydb.core.Flyway;
 import org.flywaydb.core.internal.info.MigrationInfoDumper;
 
+import com.google.common.io.Closer;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.metastore.DatabaseJobHistoryStore;
+import org.apache.gobblin.runtime.cli.CliApplication;
 
 
 /**
@@ -54,9 +55,7 @@ public class DatabaseJobHistoryStoreSchemaManager implements CliApplication, Clo
   private final Flyway flyway;
 
   private DatabaseJobHistoryStoreSchemaManager(Properties properties) {
-    flyway = new Flyway();
-    flyway.configure(properties);
-    flyway.setClassLoader(this.getClass().getClassLoader());
+    flyway = Flyway.configure(this.getClass().getClassLoader()).configuration(properties).load();
   }
 
   public static DataSourceBuilder builder() {

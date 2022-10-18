@@ -46,7 +46,7 @@ public class HdfsDataNode extends FileSystemDataNode {
   public boolean isUriValid(URI fsUri) {
     String scheme = fsUri.getScheme();
     //Check that the scheme is "hdfs"
-    if (!scheme.equals(HDFS_SCHEME)) {
+    if (!scheme.equals(getDefaultDatasetDescriptorPlatform())) {
       return false;
     }
     //Ensure that the authority is not empty

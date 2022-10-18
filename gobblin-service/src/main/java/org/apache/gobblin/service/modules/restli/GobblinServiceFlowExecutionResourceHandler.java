@@ -40,7 +40,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.FlowStatusId;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.service.modules.utils.InjectionNames;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
 
@@ -73,8 +73,15 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   }
 
   @Override
-  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus) {
-    return this.localHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus);
+  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
+      String executionStatus, Boolean includeIssues) {
+    return this.localHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus, includeIssues);
+  }
+
+  @Override
+  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFlow,
+      String tag, Boolean includeIssues) {
+    return this.localHandler.getLatestFlowGroupExecutions(context, flowGroup, countPerFlow, tag, includeIssues);
   }
 
   @Override

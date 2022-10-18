@@ -61,6 +61,7 @@ import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.writer.HiveMetadataWriter;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
 import org.apache.gobblin.metadata.DataOrigin;
@@ -136,11 +137,11 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
       client.createDatabase(
           new Database(dedupedDbName, "dedupeddatabase", tmpDir.getAbsolutePath() + "/metastore_deduped", Collections.emptyMap()));
     }
-    hourlyDataFile_1 = new File(tmpDir, "data/tracking/testTable/hourly/2020/03/17/08/data.avro");
+    hourlyDataFile_1 = new File(tmpDir, "testDB/testTable/hourly/2020/03/17/08/data.avro");
     Files.createParentDirs(hourlyDataFile_1);
-    hourlyDataFile_2 = new File(tmpDir, "data/tracking/testTable/hourly/2020/03/17/09/data.avro");
+    hourlyDataFile_2 = new File(tmpDir, "testDB/testTable/hourly/2020/03/17/09/data.avro");
     Files.createParentDirs(hourlyDataFile_2);
-    dailyDataFile = new File(tmpDir, "data/tracking/testTable/daily/2020/03/17/data.avro");
+    dailyDataFile = new File(tmpDir, "testDB/testTable/daily/2020/03/17/data.avro");
     Files.createParentDirs(dailyDataFile);
     dataDir = new File(hourlyDataFile_1.getParent());
     Assert.assertTrue(dataDir.exists());
@@ -152,8 +153,8 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     gmce = GobblinMetadataChangeEvent.newBuilder()
         .setDatasetIdentifier(DatasetIdentifier.newBuilder()
             .setDataOrigin(DataOrigin.EI)
-            .setDataPlatformUrn("urn:li:dataPlatform:hdfs")
-            .setNativeName("/data/tracking/testTable")
+            .setDataPlatformUrn("urn:namespace:dataPlatform:hdfs")
+            .setNativeName("/testDB/testTable")
             .build())
         .setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "0-1000").build())
         .setFlowId("testFlow")
@@ -169,6 +170,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
         .setPartitionColumns(Lists.newArrayList("testpartition"))
         .setRegistrationPolicy(TestHiveRegistrationPolicy.class.getName())
         .setRegistrationProperties(registrationState)
+        .setAllowedMetadataWriters(Collections.singletonList(HiveMetadataWriter.class.getName()))
         .build();
     state.setProp(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS,
         KafkaStreamTestUtils.MockSchemaRegistry.class.getName());
@@ -177,8 +179,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     state.setProp("gmce.metadata.writer.classes", "org.apache.gobblin.hive.writer.HiveMetadataWriter");
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
   }
-
-  @Test( priority = 3 )
+  @Test
   public void testHiveWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
@@ -215,7 +216,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
 
   }
 
-  @Test(dependsOnMethods = {"testHiveWriteAddFileGMCE"})
+  @Test(dependsOnMethods = {"testHiveWriteAddFileGMCE"}, groups={"hiveMetadataWriterTest"})
   public void testHiveWriteRewriteFileGMCE() throws IOException {
     gmce.setTopicPartitionOffsetsRange(null);
     Map<String, String> registrationState = gmce.getRegistrationProperties();

@@ -28,7 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,6 +87,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
+  protected final boolean isWarmStandbyEnabled;
   @Getter
   protected final SpecStore specStore;
   // a map which keeps a handle of condition variables for each spec being added to the flow catalog
@@ -98,17 +101,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public FlowCatalog(Config config, Optional<Logger> log) {
-    this(config, log, Optional.<MetricContext>absent(), true);
+    this(config, log, Optional.<MetricContext>absent(), true, false);
   }
 
   @Inject
-  public FlowCatalog(Config config, GobblinInstanceEnvironment env) {
+  public FlowCatalog(Config config, GobblinInstanceEnvironment env, @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled) {
     this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
-        env.isInstrumentationEnabled());
+        env.isInstrumentationEnabled(), isWarmStandbyEnabled);
   }
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext,
-      boolean instrumentationEnabled) {
+      boolean instrumentationEnabled, boolean isWarmStandbyEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new SpecCatalogListenersList(log);
     if (instrumentationEnabled) {
@@ -121,6 +124,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.metricContext = null;
       this.metrics = null;
     }
+    this.isWarmStandbyEnabled = isWarmStandbyEnabled;
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
 
@@ -266,6 +270,18 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  /**
+   * Get number of specs from {@link SpecStore}
+   */
+  @Override
+  public int getSize() {
+    try {
+      return specStore.getSize();
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve number of specs from Spec store", e);
+    }
+  }
+
   public boolean exists(URI uri) {
     try {
       return specStore.exists(uri);
@@ -301,6 +317,23 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   /**
+   * A function to get all specs in the {@link SpecStore} between the provided start index and (start + count - 1) index, inclusive.
+   * This enables pagination so getting SpecStore object will not timeout, and can be tuned to how many results is desired at any one time.
+   * The {@link Spec} in {@link SpecStore} are sorted in descending order of the modified_time while paginating.
+   *
+   * @param start The start index.
+   * @param count The total number of records to get.
+   * @return A collection of specs between start and start + count - 1, inclusive.
+   */
+  public Collection<Spec> getAllSpecs(int start, int count) {
+    try {
+      return specStore.getSpecs(start, count);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve specs from Spec stores between " + start + " and " + (start + count - 1), e);
+    }
+  }
+
+  /**
    * A wrapper of getSpecs that handles {@link SpecNotFoundException} properly.
    * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
    * need to implement specific catch-block logic.
@@ -316,21 +349,33 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return spec;
   }
 
+
+  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) throws Throwable {
+    return updateOrAddSpecHelper(spec, triggerListener, false, Long.MAX_VALUE);
+  }
+
+  public Map<String, AddSpecResponse> update(Spec spec, boolean triggerListener, long modifiedWatermark) throws Throwable {
+    return updateOrAddSpecHelper(spec, triggerListener, true, modifiedWatermark);
+  }
+
   /**
    * Persist {@link Spec} into {@link SpecStore} and notify {@link SpecCatalogListener} if triggerListener
    * is set to true.
    * If the {@link Spec} is a {@link FlowSpec} it is persisted if it can be compiled at the time this method received
    * the spec. `explain` specs are not persisted. The logic of this method is tightly coupled with the logic of
-   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}.
+   * {@link GobblinServiceJobScheduler#onAddSpec()} or {@link Orchestrator#onAddSpec()} in warm standby mode,
+   * which is one of the listener of {@link FlowCatalog}.
    * We use condition variables {@link #specSyncObjects} to achieve synchronization between
    * {@link GobblinServiceJobScheduler#NonScheduledJobRunner} thread and this thread to ensure deletion of
    * {@link FlowSpec} happens after the corresponding run once flow is submitted to the orchestrator.
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
+   * @param isUpdate Whether this is update or add operation, it will call different method in spec store to persist the spec
+   * @param modifiedWatermark If it's update operation, the largest modifiedWatermark that it can modify, or in other word, the timestamp which old spec should be modified before
    * @return a map of listeners and their {@link AddSpecResponse}s
    */
-  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
+  private Map<String, AddSpecResponse> updateOrAddSpecHelper(Spec spec, boolean triggerListener, boolean isUpdate, long modifiedWatermark) throws Throwable {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -343,23 +388,42 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
-      // If flow fails compilation, the result will have a non-empty string with the error
       for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
+      // If flow fails compilation, the result will have a non-empty string with the error
+      if (response.getValue().getFailures().size() > 0) {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
+          throw entry.getValue().getError().getCause();
+        }
+      }
     }
+    AddSpecResponse<String> compileResponse;
+    if (isWarmStandbyEnabled) {
+      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS, new AddSpecResponse<>(null));
+      //todo: do we check quota here? or in compiler? Quota manager need dag to check quota which is not accessable from this class
+    } else {
+      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
+    }
+    responseMap.put(ServiceConfigKeys.COMPILATION_RESPONSE, compileResponse);
 
-    if (isCompileSuccessful(responseMap)) {
+    // Check that the flow configuration is valid and matches to a corresponding edge
+    if (isCompileSuccessful(compileResponse.getValue())) {
       synchronized (syncObject) {
         try {
           if (!flowSpec.isExplain()) {
             long startTime = System.currentTimeMillis();
-            specStore.addSpec(spec);
+            if (isUpdate) {
+              specStore.updateSpec(spec, modifiedWatermark);
+            } else {
+              specStore.addSpec(spec);
+            }
             metrics.updatePutSpecTime(startTime);
           }
           responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
         } catch (IOException e) {
-          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+          String operation = isUpdate ? "update" : "add";
+          throw new RuntimeException("Cannot " + operation + " Spec to Spec store: " + flowSpec, e);
         } finally {
           syncObject.notifyAll();
           this.specSyncObjects.remove(flowSpec.getUri().toString());
@@ -372,19 +436,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return responseMap;
   }
 
-  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    // If we cannot get the response from the scheduler, assume that the flow failed compilation
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
-    return isCompileSuccessful(addSpecResponse.getValue());
-  }
-
   public static boolean isCompileSuccessful(String dag) {
     return dag != null && !dag.contains(ConfigException.class.getSimpleName());
   }
 
   @Override
-  public Map<String, AddSpecResponse> put(Spec spec) {
+  public Map<String, AddSpecResponse> put(Spec spec) throws Throwable {
     return put(spec, true);
   }
 

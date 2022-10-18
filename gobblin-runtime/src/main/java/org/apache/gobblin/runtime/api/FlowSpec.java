@@ -19,8 +19,9 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -91,7 +92,7 @@ public class FlowSpec implements Configurable, Spec {
   final Optional<List<Spec>> childSpecs;
 
   /** List of exceptions that occurred during compilation of this FlowSpec **/
-  final Set<String> compilationErrors = new HashSet<>();
+  final List<CompilationError> compilationErrors = new ArrayList<>();
 
   public static FlowSpec.Builder builder(URI flowSpecUri) {
     return new FlowSpec.Builder(flowSpecUri);
@@ -124,6 +125,33 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
+  public void addCompilationError(String src, String dst, String errorMessage) {
+    this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
+  }
+
+  @EqualsAndHashCode
+  public static class CompilationError {
+    public int errorPriority;
+    public String errorMessage;
+
+    public CompilationError(Config config, String src, String dst, String errorMessage) {
+      errorPriority = 0;
+      if (!src.equals(ConfigUtils.getString(config, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))){
+        errorPriority++;
+      }
+      if (!ConfigUtils.getStringList(config, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY)
+          .containsAll(Arrays.asList(StringUtils.split(dst, ",")))){
+        errorPriority++;
+      }
+      this.errorMessage = errorMessage;
+    }
+
+    public CompilationError(int errorPriority, String errorMessage) {
+      this.errorPriority = errorPriority;
+      this.errorMessage = errorMessage;
+    }
+  }
+
 
   public String toShortString() {
     return getUri().toString() + "/" + getVersion();

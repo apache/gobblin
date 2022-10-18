@@ -54,7 +54,7 @@ public class PostgresWriterCommandsTest {
     ResultSet rs = createMockResultSet();
     when(pstmt.executeQuery()).thenReturn(rs);
 
-    PostgresWriterCommands writerCommands = new PostgresWriterCommands(new State(), conn);
+    PostgresWriterCommands writerCommands = new PostgresWriterCommands(new State(), conn, false);
     Map<String, JdbcType> actual = writerCommands.retrieveDateColumns("db", "users");
 
     ImmutableMap.Builder<String, JdbcType> builder = ImmutableMap.builder();

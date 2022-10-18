@@ -61,7 +61,11 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   @Override
   public void run() throws Exception {
     if (this.datasetCleaner != null) {
-      this.datasetCleaner.clean();
+      try {
+        this.datasetCleaner.clean();
+      } finally {
+        this.datasetCleaner.close();
+      }
     }
   }
 

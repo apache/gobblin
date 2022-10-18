@@ -94,7 +94,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
         }
       } else if (jobProps.containsKey(datasetFinderImportedByKey())) {
 
-        log.info("Instatiating dataset finders using tag " + jobProps.getProperty(datasetFinderImportedByKey()));
+        log.info("Instantiating dataset finders using tag " + jobProps.getProperty(datasetFinderImportedByKey()));
 
         ConfigClient client = ConfigClientCache.getClient(VersionStabilityPolicy.STRONG_LOCAL_STABILITY);
         Collection<URI> importedBys = Lists.newArrayList();

@@ -40,14 +40,17 @@ import com.google.gson.JsonParser;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.completeness.audit.AuditCountHttpClient;
 import org.apache.gobblin.configuration.State;
 
 /**
  * A {@link AuditCountClient} which uses {@link org.apache.http.client.HttpClient}
  * to perform audit count query.
+ * @Deprecated {@link AuditCountHttpClient}
  */
 @Slf4j
 @ThreadSafe
+@Deprecated
 public class KafkaAuditCountHttpClient implements AuditCountClient {
 
   // Keys

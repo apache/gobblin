@@ -1,0 +1,34 @@
+{
+  "type": "record",
+  "name": "SchemaWithLogicalType",
+  "fields": [
+    {
+      "name": "fieldInt",
+      "type": "int"
+    },
+    {
+      "name": "logicalFieldVarchar",
+      "type": {
+        "type": "string",
+        "logicalType": "varchar",
+        "maxLength": "256"
+      }
+    },
+    {
+      "name": "logicalFieldDecimal",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 4,
+        "scale": 2
+      }
+    },
+    {
+      "name": "logicalFieldDate",
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      }
+    }
+  ]
+}

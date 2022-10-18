@@ -27,7 +27,6 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -45,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -72,6 +72,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final MutableJobCatalog _jobCatalog;
   private final MetricContext _metricContext;
   private final Metrics _metrics;
+  private final int _jobSpecQueueSize;
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
@@ -86,8 +87,9 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     }
 
     _jobCatalog = jobCatalog;
-    _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
-        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
+    _jobSpecQueueSize = ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
+        DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE);
+    _jobSpecQueue = new LinkedBlockingQueue<>(_jobSpecQueueSize);
     _metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     _metrics = new Metrics(this._metricContext);
   }
@@ -111,13 +113,16 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
     try {
       Pair<SpecExecutor.Verb, Spec> specPair = _jobSpecQueue.take();
-      _metrics.jobSpecDeqCount.incrementAndGet();
+      int numSpecFetched = 0;
       do {
+        _metrics.specConsumerJobSpecDeq.mark();
+        numSpecFetched ++;
         changesSpecs.add(specPair);
 
         // if there are more elements then pass them along in this call
         specPair = _jobSpecQueue.poll();
-      } while (specPair != null);
+        // comparing numSpecFetched to _jobSpecQueueSize to make sure the loop will not run infinitely even in peak time
+      } while (specPair != null && numSpecFetched < _jobSpecQueueSize);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -132,6 +137,16 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     //            StreamingKafkaSpecConsumer is boot after jobCatalog in GobblinClusterManager::startAppLauncherAndServices()
     _jobCatalog.addListener(new JobSpecListener());
     _jobMonitor.startAsync().awaitRunning();
+    addJobMonitorMetrics();
+  }
+
+  private void addJobMonitorMetrics() {
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getNewSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getUpdatedSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getRemovedSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getCancelledSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getTotalSpecs());
+    _metrics.getContextAwareMetrics().add(_jobMonitor.getMessageParseFailures());
   }
 
   @Override
@@ -158,7 +173,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
       try {
         _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.ADD, addedJob));
-        _metrics.jobSpecEnqCount.incrementAndGet();
+        _metrics.specConsumerJobSpecEnq.mark();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -173,7 +188,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
         jobSpecBuilder.withVersion(deletedJobVersion).withConfigAsProperties(props);
 
         _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
-        _metrics.jobSpecEnqCount.incrementAndGet();
+        _metrics.specConsumerJobSpecEnq.mark();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -186,6 +201,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
         JobSpec.Builder jobSpecBuilder = JobSpec.builder(cancelledJobURI);
         jobSpecBuilder.withConfigAsProperties(new Properties());
         _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.CANCEL, jobSpecBuilder.build()));
+        _metrics.specConsumerJobSpecEnq.mark();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -196,7 +212,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
       try {
         _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.UPDATE, updatedJob));
-        _metrics.jobSpecEnqCount.incrementAndGet();
+        _metrics.specConsumerJobSpecEnq.mark();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -204,37 +220,26 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   }
 
   private class Metrics extends StandardMetricsBridge.StandardMetrics {
-    private AtomicLong jobSpecEnqCount = new AtomicLong(0);
-    private AtomicLong jobSpecDeqCount = new AtomicLong(0);
+    private final ContextAwareMeter specConsumerJobSpecEnq;
+    private final ContextAwareMeter specConsumerJobSpecDeq;
 
     public static final String SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE = "specConsumerJobSpecQueueSize";
     public static final String SPEC_CONSUMER_JOB_SPEC_ENQ = "specConsumerJobSpecEnq";
     public static final String SPEC_CONSUMER_JOB_SPEC_DEQ = "specConsumerJobSpecDeq";
-    public static final String SPEC_CONSUMER_JOB_SPEC_CONSUMED = "specConsumerJobSpecConsumed";
-    public static final String SPEC_CONSUMER_JOB_SPEC_PARSE_FAILURES = "specConsumerJobSpecParseFailures";
 
     public Metrics(MetricContext context) {
-      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE, ()->StreamingKafkaSpecConsumer.this._jobSpecQueue.size()));
-      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_ENQ, ()->jobSpecEnqCount.get()));
-      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_DEQ, ()->jobSpecDeqCount.get()));
-      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_CONSUMED,
-          ()->getNewSpecs() + getRemovedSpecs() + getMessageParseFailures()));
-      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_PARSE_FAILURES, ()->getMessageParseFailures()));
-    }
-
-    private long getNewSpecs() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getNewSpecs() != null?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getNewSpecs().getCount() : 0;
-    }
-
-    private long getRemovedSpecs() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getRemovedSpecs() != null?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getRemovedSpecs().getCount() : 0;
-    }
-
-    private long getMessageParseFailures() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getMessageParseFailures() != null?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getMessageParseFailures().getCount():0;
+      this.contextAwareMetrics.add(context.newContextAwareGauge(SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE,
+          StreamingKafkaSpecConsumer.this._jobSpecQueue::size));
+      this.specConsumerJobSpecEnq = context.contextAwareMeter(SPEC_CONSUMER_JOB_SPEC_ENQ);
+      this.contextAwareMetrics.add(this.specConsumerJobSpecEnq);
+      this.specConsumerJobSpecDeq = context.contextAwareMeter(SPEC_CONSUMER_JOB_SPEC_DEQ);
+      this.contextAwareMetrics.add(this.specConsumerJobSpecDeq);
+      this.contextAwareMetrics.add(_jobMonitor.getNewSpecs());
+      this.contextAwareMetrics.add(_jobMonitor.getUpdatedSpecs());
+      this.contextAwareMetrics.add(_jobMonitor.getRemovedSpecs());
+      this.contextAwareMetrics.add(_jobMonitor.getCancelledSpecs());
+      this.contextAwareMetrics.add(_jobMonitor.getTotalSpecs());
+      this.contextAwareMetrics.add(_jobMonitor.getMessageParseFailures());
     }
   }
 

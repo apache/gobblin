@@ -42,6 +42,9 @@ import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.function.CheckedExceptionFunction;
 
 
 /**
@@ -59,7 +62,8 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
 
   @Inject
   public FsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(issueRepository);
+    super(ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY,
+        ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED), issueRepository);
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }
@@ -69,7 +73,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
-    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
+    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(flowExecutionId + ".");
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
       List<String> tableNames = this.stateStore.getTableNames(storeName, flowExecutionIdPredicate);
@@ -83,7 +87,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
       }
       return jobStatuses.iterator();
     } catch (IOException e) {
-      log.error("IOException encountered when retrieving job statuses for flow: {},{},{}", flowGroup, flowName, flowExecutionId, e);
+      log.error(String.format("IOException encountered when retrieving job statuses for flow: %s,%s,%s", flowGroup, flowName, flowExecutionId), e);
       return Iterators.emptyIterator();
     }
   }
@@ -106,8 +110,26 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
         return Iterators.singletonIterator(getJobStatus(jobStates.get(0)));
       }
     } catch (IOException e) {
-      log.error("Exception encountered when listing files", e);
+      log.error(String.format("Exception encountered when listing files for flow: %s,%s,%s;%s,%s", flowGroup, flowName, flowExecutionId, jobGroup, jobName), e);
       return Iterators.emptyIterator();
+    }
+  }
+
+  @Override
+  public List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName) {
+    Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(countJobStatusesPerFlowName > 0,
+        "Number of job statuses per flow name must be at least 1 (was: %s).", countJobStatusesPerFlowName);
+    try {
+      String storeNamePrefix = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, "");
+      List<String> storeNamesForFlowGroup = stateStore.getStoreNames(storeName -> storeName.startsWith(storeNamePrefix));
+      List<State> flowGroupExecutionsStates = storeNamesForFlowGroup.stream().flatMap(CheckedExceptionFunction.wrapToUnchecked(storeName ->
+          stateStore.getAll(storeName).stream()
+      )).collect(Collectors.toList());
+      return asFlowStatuses(groupByFlowExecutionAndRetainLatest(flowGroup, flowGroupExecutionsStates, countJobStatusesPerFlowName));
+    } catch (IOException | RuntimeException e) { // (latter likely wrapping `IOException` originating within `wrapUnchecked`)
+      log.error(String.format("Exception encountered when listing files for flow group: %s", flowGroup), e);
+      return ImmutableList.of();
     }
   }
 

@@ -1,0 +1,32 @@
+{
+  "type" : "record",
+  "name" : "GenericStoreChangeEvent",
+  "namespace" : "org.apache.gobblin.service.monitoring",
+  "doc" : "Contains information to identify a change that occurred in any store producing change events",
+  "fields" : [ {
+    "name" : "key",
+    "type" : "string",
+    "doc" : "Primary key for the store",
+    "compliance" : "NONE"
+  }, {
+    "name" : "timestamp",
+    "type" : "long",
+    "doc" : "Time the change occurred",
+    "compliance" : "NONE"
+  }, {
+    "name": "operationType",
+    "type": {
+      "type": "enum",
+      "name": "OperationType",
+      "symbols": [
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "HEARTBEAT"
+      ]
+    },
+    "doc": "Change operation type",
+    "compliance": "NONE"
+    }
+  ]
+}

@@ -107,13 +107,13 @@ public class MysqlDagStateStore implements DagStateStore {
   @Override
   public void writeCheckpoint(Dag<JobExecutionPlan> dag)
       throws IOException {
-    mysqlStateStore.put(getStoreNameFromDagId(generateDagId(dag)), getTableNameFromDagId(generateDagId(dag)), convertDagIntoState(dag));
+    mysqlStateStore.put(getStoreNameFromDagId(generateDagId(dag).toString()), getTableNameFromDagId(generateDagId(dag).toString()), convertDagIntoState(dag));
   }
 
   @Override
   public void cleanUp(Dag<JobExecutionPlan> dag)
       throws IOException {
-    cleanUp(generateDagId(dag));
+    cleanUp(generateDagId(dag).toString());
   }
 
   @Override

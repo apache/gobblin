@@ -26,6 +26,7 @@ import java.util.List;
 
 import java.util.stream.Collectors;
 import org.apache.avro.Schema;
+import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,9 +35,8 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
+import org.apache.hadoop.hive.ql.io.orc.TypeDescriptionToObjectInspectorUtil;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.SerDeException;
-import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -59,6 +59,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.orc.TypeDescription;
 
 /**
  * A derived class of {@link org.apache.gobblin.hive.HiveSerDeManager} that is mainly responsible for adding schema
@@ -203,7 +204,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
       }
       return getSchemaFromLatestFile(files.get(0).getPath(), fs);
     } else {
-       return TypeInfoUtils.getTypeInfoFromObjectInspector(OrcFile.createReader(fs, path).getObjectInspector());
+      return TypeInfoUtils.getTypeInfoFromObjectInspector(OrcFile.createReader(fs, path).getObjectInspector());
     }
   }
 
@@ -270,24 +271,26 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     TypeInfo schema;
-    if(!Strings.isNullOrEmpty(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()))) {
-      try {
-        Schema avroSchema = new Schema.Parser().parse(props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
-        schema = TypeInfoUtils.getTypeInfoFromObjectInspector(new AvroObjectInspectorGenerator(avroSchema).getObjectInspector());
-      } catch (SerDeException e) {
-        throw new IOException(e);
-      }
-    }  else {
+    String schemaString = hiveUnit.getSerDeProps()
+        .getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(),
+            props.getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    if (!Strings.isNullOrEmpty(schemaString)) {
+      Schema avroSchema =
+          new Schema.Parser().parse(schemaString);
+      TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(avroSchema);
+      schema = TypeInfoUtils.getTypeInfoFromObjectInspector(
+          TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
+    } else {
       schema = getSchemaFromLatestFile(path, this.fs);
     }
     if (schema instanceof StructTypeInfo) {
       StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
-      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,
-          Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
-      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES,
-          Joiner.on(",").join(
-              structTypeInfo.getAllStructFieldTypeInfos().stream().map(x -> x.getTypeName())
-                  .collect(Collectors.toList())));
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS, Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES, Joiner.on(",")
+          .join(structTypeInfo.getAllStructFieldTypeInfos()
+              .stream()
+              .map(x -> x.getTypeName())
+              .collect(Collectors.toList())));
     } else {
       // Hive always uses a struct with a field for each of the top-level columns as the root object type.
       // So for here we assume to-be-registered ORC files follow this pattern.
