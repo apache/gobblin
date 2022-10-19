@@ -95,7 +95,7 @@ public class AvroUtils {
 
   public static final String AVRO_SUFFIX = ".avro";
 
-  private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
+  public static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
 
   /**
    * Validates that the provided reader schema can be used to decode avro data written with the

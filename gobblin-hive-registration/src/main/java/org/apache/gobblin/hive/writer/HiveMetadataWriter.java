@@ -80,12 +80,18 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   private static final String HIVE_REGISTRATION_WHITELIST = "hive.registration.whitelist";
   private static final String HIVE_REGISTRATION_BLACKLIST = "hive.registration.blacklist";
+  private static final String HIVE_USE_LATEST_SCHEMA_WHITELIST = "hive.use.latest.schema.whitelist";
+  private static final String HIVE_USE_LATEST_SCHEMA_BLACKLIST = "hive.use.latest.schema.blacklist";
+
   private static final String HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = "hive.registration.timeout.seconds";
   private static final long DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = 60;
   private final Joiner tableNameJoiner = Joiner.on('.');
   private final Closer closer = Closer.create();
   protected final HiveRegister hiveRegister;
   private final WhitelistBlacklist whitelistBlacklist;
+  // Always use the latest table Schema for tables in #useLatestTableSchemaWhiteListBlackList
+  // unless a newer writer schema arrives
+  private final WhitelistBlacklist useLatestTableSchemaWhiteListBlackList;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
@@ -102,7 +108,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   /* Mapping from tableIdentifier to latest schema observed. */
   private final HashMap<String, String> latestSchemaMap;
   private final long timeOutSeconds;
-  private State state;
+  protected State state;
 
   protected EventSubmitter eventSubmitter;
 
@@ -119,6 +125,8 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.latestSchemaMap = new HashMap<>();
+    this.useLatestTableSchemaWhiteListBlackList = new WhitelistBlacklist(state.getProp(HIVE_USE_LATEST_SCHEMA_WHITELIST, ""),
+        state.getProp(HIVE_USE_LATEST_SCHEMA_BLACKLIST, ""));
     this.tableTopicPartitionMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
@@ -183,7 +191,8 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
 
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    if (!latestSchemaMap.containsKey(tableKey)) {
+    if (useLatestTableSchemaWhiteListBlackList.acceptTable(dbName, tableName)
+        || !latestSchemaMap.containsKey(tableKey)) {
       HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
       latestSchemaMap.put(tableKey,
           existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
@@ -312,7 +321,8 @@ public class HiveMetadataWriter implements MetadataWriter {
                 .build());
         if (gmce.getSchemaSource() == SchemaSource.EVENT) {
           // Schema source is Event, update schema anyway
-          latestSchemaMap.put(tableKey, newSchemaString);
+          String schemaToUpdate = overrideSchemaLiteral(spec, newSchemaString, newSchemaCreationTime, gmce.getPartitionColumns());
+          latestSchemaMap.put(tableKey, schemaToUpdate);
           // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
           existedSchemaCreationTimes.cleanUp();
         } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
@@ -322,8 +332,9 @@ public class HiveMetadataWriter implements MetadataWriter {
             Schema latestSchema = (Schema) this.schemaRegistry.getLatestSchemaByTopic(topicName);
             String latestCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
             if (latestCreationTime.equals(newSchemaCreationTime)) {
+              String schemaToUpdate = overrideSchemaLiteral(spec, newSchemaString, newSchemaCreationTime, gmce.getPartitionColumns());
               //new schema is the latest schema, we update our record
-              latestSchemaMap.put(tableKey, newSchemaString);
+              latestSchemaMap.put(tableKey, schemaToUpdate);
             }
             existedSchemaCreationTimes.put(newSchemaCreationTime, "");
           }
@@ -353,6 +364,20 @@ public class HiveMetadataWriter implements MetadataWriter {
       HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
     }
   }
+
+  /**
+   * Method that overrides schema literal in implementation class
+   * @param spec HiveSpec
+   * @param latestSchema returns passed schema as is
+   * @param schemaCreationTime updates schema with creation time
+   * @param partitionNames
+   * @return schema literal
+   */
+  protected String overrideSchemaLiteral(HiveSpec spec, String latestSchema, String schemaCreationTime,
+      List<String> partitionNames) {
+    return latestSchema;
+  }
+
 
   private String fetchSchemaFromTable(String dbName, String tableName) throws IOException {
     String tableKey = tableNameJoiner.join(dbName, tableName);
