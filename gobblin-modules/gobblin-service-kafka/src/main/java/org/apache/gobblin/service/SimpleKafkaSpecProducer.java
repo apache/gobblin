@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service;
 
-import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Joiner;
 import java.io.Closeable;
 import java.io.IOException;
@@ -113,7 +112,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
         newSpec.setUri(new URI(Joiner.on("/").
             join(spec.getUri().toString(), newSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY))));
       } catch (URISyntaxException e) {
-        Log.error("Cannot create job uri to cancel job", e);
+        log.error("Cannot create job uri to cancel job", e);
       }
     }
     return newSpec;
@@ -125,7 +124,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
         originalURI = new URI(Joiner.on("/").
             join(originalURI.toString(), props.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
       } catch (URISyntaxException e) {
-        Log.error("Cannot create job uri to cancel job", e);
+        log.error("Cannot create job uri to cancel job", e);
       }
     }
     return originalURI;
