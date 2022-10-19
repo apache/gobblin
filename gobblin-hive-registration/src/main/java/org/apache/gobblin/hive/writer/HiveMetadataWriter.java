@@ -80,8 +80,8 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   private static final String HIVE_REGISTRATION_WHITELIST = "hive.registration.whitelist";
   private static final String HIVE_REGISTRATION_BLACKLIST = "hive.registration.blacklist";
-  private static final String HIVE_USE_LATEST_SCHEMA_WHITELIST = "hive.use.latest.schema.whitelist";
-  private static final String HIVE_USE_LATEST_SCHEMA_BLACKLIST = "hive.use.latest.schema.blacklist";
+  private static final String HIVE_USE_LATEST_SCHEMA_ALLOWLIST = "hive.use.latest.schema.allowlist";
+  private static final String HIVE_USE_LATEST_SCHEMA_DENYLIST = "hive.use.latest.schema.denylist";
 
   private static final String HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = "hive.registration.timeout.seconds";
   private static final long DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = 60;
@@ -91,7 +91,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   private final WhitelistBlacklist whitelistBlacklist;
   // Always use the latest table Schema for tables in #useLatestTableSchemaWhiteListBlackList
   // unless a newer writer schema arrives
-  private final WhitelistBlacklist useLatestTableSchemaWhiteListBlackList;
+  private final WhitelistBlacklist useLatestTableSchemaAllowDenyList;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
@@ -125,8 +125,8 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.latestSchemaMap = new HashMap<>();
-    this.useLatestTableSchemaWhiteListBlackList = new WhitelistBlacklist(state.getProp(HIVE_USE_LATEST_SCHEMA_WHITELIST, ""),
-        state.getProp(HIVE_USE_LATEST_SCHEMA_BLACKLIST, ""));
+    this.useLatestTableSchemaAllowDenyList = new WhitelistBlacklist(state.getProp(HIVE_USE_LATEST_SCHEMA_ALLOWLIST, ""),
+        state.getProp(HIVE_USE_LATEST_SCHEMA_DENYLIST, ""));
     this.tableTopicPartitionMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
@@ -191,7 +191,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
 
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    if (useLatestTableSchemaWhiteListBlackList.acceptTable(dbName, tableName)
+    if (useLatestTableSchemaAllowDenyList.acceptTable(dbName, tableName)
         || !latestSchemaMap.containsKey(tableKey)) {
       HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
       latestSchemaMap.put(tableKey,
