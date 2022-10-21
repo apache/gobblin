@@ -439,7 +439,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    * to avoid advancing watermarks and skipping GMCEs unnecessarily.
    */
   public static boolean isExceptionTransient(Exception e, Set<String> transientExceptionMessages) {
-    return transientExceptionMessages.stream().anyMatch(message -> e.getMessage().contains(message));
+    return transientExceptionMessages.stream().anyMatch(message -> Throwables.getRootCause(e).toString().contains(message));
   }
 
   /**
