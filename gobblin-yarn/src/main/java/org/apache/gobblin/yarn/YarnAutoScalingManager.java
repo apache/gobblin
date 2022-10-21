@@ -266,7 +266,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       }
       slidingWindowReservoir.add(yarnContainerRequestBundle);
 
-      log.info("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
+      log.debug("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
           yarnContainerRequestBundle.getTotalContainers(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
           yarnContainerRequestBundle.getHelixTagResourceMap());
 
