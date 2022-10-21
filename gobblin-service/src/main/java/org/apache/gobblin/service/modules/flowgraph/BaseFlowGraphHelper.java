@@ -82,8 +82,8 @@ public class BaseFlowGraphHelper {
   protected MetricContext metricContext;
   final String flowGraphFolderName;
   final PullFileLoader pullFileLoader;
-  final Set<String> javaPropsExtensions;
-  final Set<String> hoconFileExtensions;
+  protected final Set<String> javaPropsExtensions;
+  protected final Set<String> hoconFileExtensions;
   protected final Optional<ContextAwareMeter> flowGraphUpdateFailedMeter;
 
   public BaseFlowGraphHelper(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
@@ -133,7 +133,7 @@ public class BaseFlowGraphHelper {
         if (this.flowGraphUpdateFailedMeter.isPresent()) {
           this.flowGraphUpdateFailedMeter.get().mark();
         }
-        log.warn("Could not add DataNode defined in {} due to exception {}", path, e);
+        log.warn(String.format("Could not add DataNode defined in %s due to exception: ", path), e);
       }
     }
   }

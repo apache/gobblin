@@ -20,6 +20,8 @@ package org.apache.gobblin.service.modules.flowgraph;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FilenameUtils;
@@ -61,7 +63,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
 
   protected String sharedNodeFolder;
-  private static String NODE_FILE_SUFFIX = ".properties";
   private static String SHARED_NODE_FOLDER_NAME = "nodes";
   private static int NODE_FOLDER_DEPTH = 2;
 
@@ -83,18 +84,30 @@ public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
     try {
       // Load node from shared folder first if it exists
       Config sharedNodeConfig = ConfigFactory.empty();
-      String nodePropertyFile = path.getFileName().toString() + NODE_FILE_SUFFIX;
-      File sharedNodeFile = new File(this.sharedNodeFolder, nodePropertyFile);
-      if (sharedNodeFile.exists()) {
-        sharedNodeConfig = loadNodeFileWithOverrides(new Path(sharedNodeFile.getPath()));
-      }
-      File nodeFilePath = new File(path.toString(), nodePropertyFile);
-      Config nodeConfig = sharedNodeConfig;
-      if (nodeFilePath.exists()) {
-        nodeConfig = loadNodeFileWithOverrides(new Path(nodeFilePath.getPath())).withFallback(sharedNodeConfig);
+      List<String> nodeFileSuffixes = new ArrayList<>(this.javaPropsExtensions);
+      nodeFileSuffixes.addAll(this.hoconFileExtensions);
+      // Since there can be multiple file types supported, check if there is a shared node definition that matches any of the file types
+      // If multiple definitions in the same folder, only load one of them
+      // Assume that configuration overrides in subfolders use the same file type for the same node
+      Config nodeConfig = ConfigFactory.empty();
+      for (String fileSuffix: nodeFileSuffixes) {
+        String nodePropertyFile = path.getFileName().toString() + "." + fileSuffix;
+        File sharedNodeFile = new File(this.sharedNodeFolder, nodePropertyFile);
+        if (sharedNodeFile.exists()) {
+          nodeConfig = loadNodeFileWithOverrides(new Path(sharedNodeFile.getPath()));
+        }
+        File nodeFilePath = new File(path.toString(), nodePropertyFile);
+        if (nodeFilePath.exists()) {
+          nodeConfig = loadNodeFileWithOverrides(new Path(nodeFilePath.getPath())).withFallback(nodeConfig);
+        }
+        if (!nodeConfig.isEmpty()) {
+          break;
+        }
       }
       if (nodeConfig.isEmpty()) {
-        throw new IOException(String.format("Cannot find expected property file %s in %s or %s", nodePropertyFile, sharedNodeFolder, path));
+        throw new IOException(
+            String.format("Cannot find expected node file starting with %s in %s or %s", path.getFileName().toString(), sharedNodeFolder,
+                path));
       }
       Class dataNodeClass = Class.forName(ConfigUtils.getString(nodeConfig, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
           FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
@@ -104,11 +117,11 @@ public class SharedFlowGraphHelper extends BaseFlowGraphHelper {
       } else {
         log.info("Added Datanode {} to FlowGraph", dataNode.getId());
       }
-    } catch (Exception e) {
+    } catch (IOException | ReflectiveOperationException e) {
       if (this.flowGraphUpdateFailedMeter.isPresent()) {
         this.flowGraphUpdateFailedMeter.get().mark();
       }
-      log.warn("Could not add DataNode {} defined in {} due to exception {}", path, e);
+      log.warn(String.format("Could not add DataNode defined in %s due to exception: ", path), e);
     }
   }
 
