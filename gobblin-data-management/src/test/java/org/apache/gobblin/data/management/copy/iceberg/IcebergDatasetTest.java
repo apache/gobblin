@@ -339,6 +339,42 @@ public class IcebergDatasetTest {
     Assert.assertEqualsNoOrder(actual.toArray(), expected.toArray());
   }
 
+<<<<<<< HEAD
+=======
+  private void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities) {
+
+
+    List<JsonObject> ancestorsOwnerAndPermissionsList = new ArrayList<>();
+    List<JsonObject> destinationOwnerAndPermissionsList = new ArrayList<>();
+
+    for(CopyEntity copyEntity : copyEntities) {
+      String copyEntityJson = copyEntity.toString();
+
+      JsonArray ancestorsOwnerAndPermissions = new Gson().fromJson(copyEntityJson, JsonObject.class)
+          .getAsJsonObject("object-data").getAsJsonArray("ancestorsOwnerAndPermission");
+      JsonObject rootAncestorOwnerAndPermissions = ancestorsOwnerAndPermissions.get(ancestorsOwnerAndPermissions.size()-1)
+          .getAsJsonObject().getAsJsonObject();
+      ancestorsOwnerAndPermissionsList.add(rootAncestorOwnerAndPermissions);
+      String filePath = getFilePathAsStringFromJson(copyEntityJson);
+      Assert.assertEquals(ancestorsOwnerAndPermissions.size(), new Path(filePath).getParent().depth() -1);
+
+      JsonObject destinationOwnerAndPermissions = new Gson().fromJson(copyEntityJson, JsonObject.class)
+          .getAsJsonObject("object-data").getAsJsonObject("destinationOwnerAndPermission");
+      destinationOwnerAndPermissionsList.add(destinationOwnerAndPermissions);
+    }
+    Assert.assertEqualsNoOrder(ancestorsOwnerAndPermissionsList.toArray(), destinationOwnerAndPermissionsList.toArray());
+  }
+
+  private String getFilePathAsStringFromJson(String json) {
+    String filepath = new Gson().fromJson(json, JsonObject.class)
+        .getAsJsonObject("object-data").getAsJsonObject("origin")
+        .getAsJsonObject("object-data").getAsJsonObject("path")
+        .getAsJsonObject("object-data").getAsJsonObject("uri")
+        .getAsJsonPrimitive("object-data").getAsString();
+    return filepath;
+  }
+
+>>>>>>> 7e67f4897 (minor comment: preserving perms till root)
 
   /**
    *  Sadly, this is needed to avoid losing `FileSystem` mock to replacement from the `FileSystem.get` `static`

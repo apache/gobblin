@@ -148,7 +148,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
       Path toPath = PathUtils.getRootPathParent(srcPath);
 
-      // TODO: Add preservation of ancestor ownership and permissions!
+      // preserving ancestor permissions till root between src and dest
       List<OwnerAndPermission> ancestorOwnerAndPermission =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
               srcPath.getParent(), toPath, copyConfig);
