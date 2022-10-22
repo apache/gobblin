@@ -535,31 +535,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
         // For each FileStatus there are chances it could fail in copying at the first attempt, due to file-existence
         // or file-copy is ongoing by other job instance since all Gobblin jobs share the same jar file directory.
         // the retryCount is to avoid cases (if any) where retry is going too far and causes job hanging.
-        int retryCount = 0;
-        boolean shouldFileBeAddedIntoDC = true;
-        Path destJarFile = calculateDestJarFile(status, jarFileDir);
-        // Adding destJarFile into HDFS until it exists and the size of file on targetPath matches the one on local path.
-        while (!this.fs.exists(destJarFile) || fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
-          try {
-            if (this.fs.exists(destJarFile) && fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
-              Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
-              throw new IOException("Waiting for file to complete on uploading ... ");
-            }
-            // Set the first parameter as false for not deleting sourceFile
-            // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
-            // If the file is preExisted but overwrite flag set to false, then an IOException if thrown.
-            this.fs.copyFromLocalFile(false, false, status.getPath(), destJarFile);
-          } catch (IOException | InterruptedException e) {
-            LOG.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
-            retryCount += 1;
-            if (retryCount >= this.jarFileMaximumRetry) {
-              LOG.error("The jar file:" + destJarFile + "failed in being copied into hdfs", e);
-              // If retry reaches upper limit, skip copying this file.
-              shouldFileBeAddedIntoDC = false;
-              break;
-            }
-          }
-        }
+
+        Path destJarFile = calculateDestJarFile(this.fs, this.unsharedJarsDir, jarFileDir, status);
+        boolean shouldFileBeAddedIntoDC = copyJarsToHdfsIfNeeded(this.fs, status, destJarFile, this.jarFileMaximumRetry);
         if (shouldFileBeAddedIntoDC) {
           // Then add the jar file on HDFS to the classpath
           LOG.info(String.format("Adding %s to classpath", destJarFile));
@@ -573,11 +551,37 @@ public class MRJobLauncher extends AbstractJobLauncher {
    * Calculate the target filePath of the jar file to be copied on HDFS,
    * given the {@link FileStatus} of a jarFile and the path of directory that contains jar.
    */
-  private Path calculateDestJarFile(FileStatus status, Path jarFileDir) {
+  public static Path calculateDestJarFile(FileSystem fs, Path unsharedJarsDir, Path jarFileDir, FileStatus status) {
     // SNAPSHOT jars should not be shared, as different jobs may be using different versions of it
-    Path baseDir = status.getPath().getName().contains("SNAPSHOT") ? this.unsharedJarsDir : jarFileDir;
+    Path baseDir = status.getPath().getName().contains("SNAPSHOT") ? unsharedJarsDir : jarFileDir;
     // DistributedCache requires absolute path, so we need to use makeQualified.
-    return new Path(this.fs.makeQualified(baseDir), status.getPath().getName());
+    return new Path(fs.makeQualified(baseDir), status.getPath().getName());
+  }
+
+  public static boolean copyJarsToHdfsIfNeeded(FileSystem fs, FileStatus localFile, Path destJarFile, int maxRetry) throws IOException {
+    int retryCount = 0;
+    // Adding destJarFile into HDFS until it exists and the size of file on targetPath matches the one on local path.
+    while (!fs.exists(destJarFile) || fs.getFileStatus(destJarFile).getLen() != localFile.getLen()) {
+      try {
+        if (fs.exists(destJarFile) && fs.getFileStatus(destJarFile).getLen() != localFile.getLen()) {
+          Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
+          throw new IOException("Waiting for file to complete on uploading ... ");
+        }
+        // Set the first parameter as false for not deleting sourceFile
+        // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
+        // If the file is preExisted but overwrite flag set to false, then an IOException if thrown.
+        fs.copyFromLocalFile(false, false, localFile.getPath(), destJarFile);
+      } catch (IOException | InterruptedException e) {
+        LOG.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
+        retryCount += 1;
+        if (retryCount >= maxRetry) {
+          LOG.error("The jar file:" + destJarFile + "failed in being copied into hdfs", e);
+          // If retry reaches upper limit, skip copying this file.
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   /**

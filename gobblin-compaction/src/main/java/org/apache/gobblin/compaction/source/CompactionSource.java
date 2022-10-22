@@ -64,6 +64,7 @@ import org.apache.gobblin.data.management.dataset.SimpleDatasetRequestor;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
 import org.apache.gobblin.runtime.task.FailedTask;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.Source;
@@ -128,7 +129,12 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
       // Spawn a single thread to create work units
       new Thread(new SingleWorkUnitGeneratorService(state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
-      return new BasicWorkUnitStream.Builder(workUnitIterator).build();
+      WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnitIterator).build();
+      if (workUnitStream.getWorkUnits().hasNext()) {
+        // copy jars iff workunits are created
+        copyJarDependencies(state);
+      }
+      return workUnitStream;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -233,7 +239,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
     initRequestAllocator(state);
     initJobDir(state);
-    copyJarDependencies(state);
 
     optionalInit(state);
   }
@@ -496,15 +501,18 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
     // create sub-dir to save jar files
     LocalFileSystem lfs = FileSystem.getLocal(HadoopUtils.getConfFromState(state));
-    Path tmpJarFileDir = new Path(this.tmpJobDir, MRCompactor.COMPACTION_JAR_SUBDIR);
-    this.fs.mkdirs(tmpJarFileDir);
-    state.setProp(MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
+    Path unsharedJarsDir = new Path(this.tmpJobDir, MRCompactor.COMPACTION_JAR_SUBDIR);
+    Path jarFileDir = state.contains(ConfigurationKeys.MR_JARS_DIR)
+      ? new Path(state.getProp(ConfigurationKeys.MR_JARS_DIR))
+      : unsharedJarsDir;
+    this.fs.mkdirs(jarFileDir);
+    state.setProp(MRCompactor.COMPACTION_JARS, jarFileDir.toString());
 
     // copy jar files to hdfs
     for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
       for (FileStatus status : lfs.globStatus(new Path(jarFile))) {
-        Path tmpJarFile = new Path(this.fs.makeQualified(tmpJarFileDir), status.getPath().getName());
-        this.fs.copyFromLocalFile(status.getPath(), tmpJarFile);
+        Path tmpJarFile = MRJobLauncher.calculateDestJarFile(this.fs, unsharedJarsDir, jarFileDir, status);
+        MRJobLauncher.copyJarsToHdfsIfNeeded(this.fs, status, tmpJarFile, 1);
         log.info(String.format("%s will be added to classpath", tmpJarFile));
       }
     }
