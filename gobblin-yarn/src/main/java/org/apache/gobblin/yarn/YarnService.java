@@ -114,7 +114,6 @@ import org.apache.gobblin.yarn.event.NewContainerRequest;
 
 import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX;
 
-
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
  * ApplicationMaster un-registration, Yarn container management, etc.
@@ -397,6 +396,7 @@ public class YarnService extends AbstractIdleService {
       if (!this.containerMap.isEmpty()) {
         synchronized (this.allContainersStopped) {
           try {
+            // Wait 5 minutes for the containers to stop
             Duration waitTimeout = Duration.ofMinutes(5);
             this.allContainersStopped.wait(waitTimeout.toMillis());
             LOGGER.info("All of the containers have been stopped");
@@ -814,13 +814,26 @@ public class YarnService extends AbstractIdleService {
 
   /**
    * Get the number of matching container requests for the specified resource memory and cores.
-   * Due to YARN-1902, this API is not 100% accurate. However, {@link AMRMClientCallbackHandler#onContainersAllocated(List)}
-   * contains logic for best effort clean up of duplicate requests, and in practice is pretty accurate.
+   * Due to YARN-1902 and YARN-660, this API is not 100% accurate. {@link AMRMClientCallbackHandler#onContainersAllocated(List)}
+   * contains logic for best effort clean up of requests, and the resource tend to match the allocated container. So in practice the count is pretty accurate.
+   *
+   * This API call gets the count of container requests for containers that are > resource if there is no request with the exact same resource
+   * The RM can return containers that are larger (because of normalization etc).
+   * Container may be larger by memory or cpu (e.g. container (1000M, 3cpu) can fit request (1000M, 1cpu) or request (500M, 3cpu).
+   *
+   * Thankfully since each helix tag / resource has a different priority, matching requests for one helix tag / resource
+   * have complete isolation from another helix tag / resource
    */
   private int getMatchingRequestsCount(Resource resource) {
-    int priorityNum = resourcePriorityMap.getOrDefault(resource.toString(), 0);
+    Integer priorityNum = resourcePriorityMap.get(resource.toString());
+    if (priorityNum == null) { // request has never been made with this resource
+      return 0;
+    }
     Priority priority = Priority.newInstance(priorityNum);
-    List<? extends Collection> outstandingRequests = getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
+
+    // Each collection in the list represents a set of requests with each with the same resource requirement.
+    // The reason for differing resources can be due to normalization
+    List<? extends Collection<AMRMClient.ContainerRequest>> outstandingRequests = getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
     return outstandingRequests == null ? 0 : outstandingRequests.stream()
         .filter(Objects::nonNull)
         .mapToInt(Collection::size)
@@ -889,11 +902,11 @@ public class YarnService extends AbstractIdleService {
         allocatedContainerCountMap.putIfAbsent(containerHelixTag, new AtomicInteger(0));
         allocatedContainerCountMap.get(containerHelixTag).incrementAndGet();
 
-        // Find matching requests and remove the request to reduce the chance that a subsequent request
-        // will request extra containers. YARN does not have a delta request API and the requests are not
-        // cleaned up automatically.
+        // Find matching requests and remove the request (YARN-660). We the scheduler are responsible
+        // for cleaning up requests after allocation based on the design in the described ticket.
+        // YARN does not have a delta request API and the requests are not cleaned up automatically.
         // Try finding a match first with the host as the resource name then fall back to any resource match.
-        // See YARN-1902.
+        // Also see YARN-1902. Container count will explode without this logic for removing container requests.
         List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests = amrmClientAsync
             .getMatchingRequests(container.getPriority(), container.getNodeHttpAddress(), container.getResource());
 
