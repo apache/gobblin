@@ -205,7 +205,7 @@ public class FsFlowGraphMonitorTest {
     // Set up node 3
     File node3Folder = new File(this.flowGraphDir, "node3");
     node3Folder.mkdirs();
-    File node3File = new File(this.sharedNodeFolder, "node3.properties");
+    File node3File = new File(this.sharedNodeFolder, "node3.conf");
     String file3Contents = FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam3=value3\n";
 
     // Have different default values for node 1
