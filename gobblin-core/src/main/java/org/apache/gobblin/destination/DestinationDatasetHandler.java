@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
+
 
 /**
  * Performs work related to initializing the target environment before the files are written and published
@@ -31,7 +33,12 @@ public interface DestinationDatasetHandler extends Closeable {
    * Handle destination setup before workunits are sent to writer and publisher
    * @param workUnits
    */
+  @Deprecated
   void handle(Collection<WorkUnit> workUnits) throws IOException;
+
+  default WorkUnitStream handle(WorkUnitStream workUnitStream) throws IOException {
+    return workUnitStream;
+  }
 
   /**
    * Perform cleanup if needed

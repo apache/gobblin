@@ -508,10 +508,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
         }
 
-        // Perform work needed before writing is done
-        Boolean canCleanUp = this.canCleanStagingData(this.jobContext.getJobState());
-        closer.register(new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter))
-            .executeHandlers(workUnitStream);
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
         closer.register(ConverterInitializerFactory.newInstance(jobState, workUnitStream)).initialize();
@@ -544,6 +540,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION);
           // Add task ids
           workUnitStream = prepareWorkUnits(workUnitStream, jobState);
+
+          // Perform work needed before writing is done
+          Boolean canCleanUp = this.canCleanStagingData(this.jobContext.getJobState());
+          try (DestinationDatasetHandlerService destinationDatasetHandlerService =
+              new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter)) {
+            workUnitStream = destinationDatasetHandlerService.executeHandlers(workUnitStream);
+          }
+
           // Remove skipped workUnits from the list of work units to execute.
           workUnitStream = workUnitStream.filter(new SkippedWorkUnitsFilter(jobState));
           // Add surviving tasks to jobState
