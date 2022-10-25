@@ -18,23 +18,22 @@
 package org.apache.gobblin.destination;
 
 import java.io.IOException;
-import java.util.Collection;
+
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 
 
 public class TestDestinationDatasetHandler implements DestinationDatasetHandler {
   public static String TEST_COUNTER_KEY = "counter";
-  private Boolean canCleanUp;
   public TestDestinationDatasetHandler(SourceState state, Boolean canCleanUp){
-    this.canCleanUp = canCleanUp;
   }
 
   @Override
-  public void handle(Collection<WorkUnit> workUnits) {
-    for (WorkUnit wu: workUnits) {
+  public WorkUnitStream handle(WorkUnitStream workUnitSteam) {
+    return workUnitSteam.transform(wu -> {
       wu.setProp(TEST_COUNTER_KEY, wu.getPropAsInt(TEST_COUNTER_KEY, 0) + 1);
-    }
+      return wu;
+    });
   }
 
   @Override
