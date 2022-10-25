@@ -53,17 +53,9 @@ public class DestinationDatasetHandlerService implements Closeable {
    * @param workUnitStream
    */
   public WorkUnitStream executeHandlers(WorkUnitStream workUnitStream) {
-    Collection<WorkUnit> workUnits = workUnitStream.isSafeToMaterialize()
-        ? JobLauncherUtils.flattenWorkUnits(workUnitStream.getMaterializedWorkUnitCollection())
-        : null;
-
     for (DestinationDatasetHandler handler : this.handlers) {
       try {
-        if (workUnitStream.isSafeToMaterialize()) {
-          handler.handle(workUnits);
-        } else {
-          workUnitStream = handler.handle(workUnitStream);
-        }
+       workUnitStream = handler.handle(workUnitStream);
       } catch (IOException e) {
         throw new RuntimeException(String.format("Handler %s failed to execute", handler.getClass().getName()), e);
       }
