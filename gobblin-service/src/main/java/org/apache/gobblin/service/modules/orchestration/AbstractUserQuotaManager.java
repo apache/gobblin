@@ -27,6 +27,8 @@ import lombok.AllArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -42,10 +44,13 @@ abstract public class AbstractUserQuotaManager implements UserQuotaManager {
   public static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private final Map<String, Integer> perUserQuota;
   private final Map<String, Integer> perFlowGroupQuota;
+  protected MetricContext metricContext;
 
   private final int defaultQuota;
 
   public AbstractUserQuotaManager(Config config) {
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
+        this.getClass());
     this.defaultQuota = ConfigUtils.getInt(config, USER_JOB_QUOTA_KEY, DEFAULT_USER_JOB_QUOTA);
     ImmutableMap.Builder<String, Integer> userMapBuilder = ImmutableMap.builder();
     ImmutableMap.Builder<String, Integer> flowGroupMapBuilder = ImmutableMap.builder();

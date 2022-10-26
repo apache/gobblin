@@ -55,6 +55,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
 
   // Metrics
   private Meter successfullyAddedSpecs;
+  private Meter messageProcessedMeter;
   private Meter failedAddedSpecs;
   private Meter deletedSpecs;
   private Meter unexpectedErrors;
@@ -97,7 +98,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
   protected void processMessage(DecodeableKafkaRecord message) {
-    // TODO: Add metric that service is healthy and we're continuously processing messages.
+    // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
+    messageProcessedMeter.mark();
     String key = (String) message.getKey();
     GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
@@ -168,5 +170,6 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.failedAddedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_FAILED_ADDED_SPECS);
     this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
+    this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
   }
 }
