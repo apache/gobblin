@@ -666,10 +666,8 @@ public class DagManager extends AbstractIdleService {
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
       }
-      if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-        props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
-            dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
-      }
+      props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+          ConfigUtils.getString(dagNodeToCancel.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ""));
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
     }
 
