@@ -81,15 +81,15 @@ public class PathUtils {
   }
 
   /**
-   * Returns the root path parent for the specified path.
+   * Returns the root path child for the specified path.
    *
    * @see Path
    */
-  public static Path getRootPathParent(Path path) {
-    if (path.getParent().isRoot()) {
+  public static Path getRootPathChild(Path path) {
+    if (path.getParent() != null && path.getParent().isRoot()) {
       return path;
     }
-    return getRootPathParent(path.getParent());
+    return getRootPathChild(path.getParent());
   }
 
   /**

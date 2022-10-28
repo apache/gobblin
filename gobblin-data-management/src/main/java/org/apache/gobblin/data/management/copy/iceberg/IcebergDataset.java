@@ -47,9 +47,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
@@ -149,9 +146,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       FileStatus srcFileStatus = entry.getValue();
       // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
-      Path toPath = PathUtils.getRootPathParent(srcPath);
+      Path toPath = PathUtils.getRootPathChild(srcPath);
 
-      // preserving ancestor permissions till root between src and dest
+      // preserving ancestor permissions till root path's child between src and dest
       List<OwnerAndPermission> ancestorOwnerAndPermission =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
               srcPath.getParent(), toPath, copyConfig);
