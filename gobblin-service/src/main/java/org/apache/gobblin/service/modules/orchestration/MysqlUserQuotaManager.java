@@ -65,7 +65,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     this.quotaStore = createQuotaStore(config);
     this.runningDagIds = createRunningDagStore(config);
     this.failedQuotaCheck = this.metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_UNEXPECTED_ERRORS);
-    this.quotaExceedsRequests = this.metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_QUOTA_EXCEEDS_REQUESTS);
+    this.quotaExceedsRequests = this.metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_QUOTA_REQUESTS_EXCEEDED);
   }
 
   void addDagId(Connection connection, String dagId) throws IOException {
@@ -88,7 +88,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   @Override
   public void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
     try (Connection connection = this.quotaStore.dataSource.getConnection();
-        Timer.Context context = metricContext.timer(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_CHECK_QUOTA_TIME).time()) {
+        Timer.Context context = metricContext.timer(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_TIME_TO_CHECK_QUOTA).time()) {
       connection.setAutoCommit(false);
 
       for (Dag.DagNode<JobExecutionPlan> dagNode : dagNodes) {
