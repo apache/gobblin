@@ -39,6 +39,8 @@ import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -154,25 +156,28 @@ public class GobblinMCEPublisher extends DataPublisher {
   private Map<Path, Metrics> computeDummyFile(State state) throws IOException {
     Map<Path, Metrics> newFiles = new HashMap<>();
     FileSystem fs = FileSystem.get(conf);
-    for (final String pathString : state.getPropAsList(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, "")) {
-      Path path = new Path(pathString);
-      //
-      PriorityQueue<FileStatus> fileStatuses =
-          new PriorityQueue<>((x, y) -> Long.compare(y.getModificationTime(), x.getModificationTime()));
-      if (fs.exists(path)) {
-        fileStatuses.add(fs.getFileStatus(path));
-      }
-      // Only register files
-      while (!fileStatuses.isEmpty()) {
-        FileStatus fileStatus = fileStatuses.poll();
-        if (fileStatus.isDirectory()) {
-          fileStatuses.addAll(Arrays.asList(fs.listStatus(fileStatus.getPath(), HIDDEN_FILES_FILTER)));
-        } else {
-          Path filePath = fileStatus.getPath();
-          newFiles.put(filePath, null);
-          // Only one concrete file from the path is needed
-          return newFiles;
-        }
+    if (!state.contains(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR)) {
+      return newFiles;
+    }
+    String baseDatasetString = state.getProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR);
+    Path searchPath = new Path(baseDatasetString);
+    if (state.contains(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX)) {
+      searchPath = new Path(searchPath, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX));
+    }
+    PriorityQueue<FileStatus> fileStatuses = new PriorityQueue<>((x, y) -> Long.compare(y.getModificationTime(), x.getModificationTime()));
+    if (fs.exists(searchPath)) {
+      fileStatuses.add(fs.getFileStatus(searchPath));
+    }
+    // Only register files
+    while (!fileStatuses.isEmpty()) {
+      FileStatus fileStatus = fileStatuses.poll();
+      if (fileStatus.isDirectory()) {
+        fileStatuses.addAll(Arrays.asList(fs.listStatus(fileStatus.getPath(), HIDDEN_FILES_FILTER)));
+      } else {
+        Path filePath = fileStatus.getPath();
+        newFiles.put(filePath, null);
+        // Only one concrete file from the path is needed
+        return newFiles;
       }
     }
     return newFiles;

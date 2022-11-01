@@ -97,6 +97,12 @@ public class AvroStringFieldEncryptorConverterTest {
     wuState.getJobState().setProp("converter.encrypt.algorithm", "insecure_shift");
 
     converter.init(wuState);
+    // The below error is due to invalid avro data. As per avro, the default value must have the same type as the first 
+    // entry in the union. As the default value is null, type with "null" union must have "null" type first and then
+    // actual type. This is corrected in fieldPickInput.avsc file and fieldPickInput_arrays.avro
+    // Error: org.apache.avro.AvroTypeException: Invalid default for field favorite_quotes: null
+    // not a [{"type":"array","items":"string"},"null"]
+    // Correct data: "type": ["null", { "type": "array", "items": "string"}, "default": null]
     GenericRecord inputRecord =
         getRecordFromFile(getClass().getClassLoader().getResource("fieldPickInput_arrays.avro").getPath());
     GenericArray origValues = (GenericArray) inputRecord.get("favorite_quotes");

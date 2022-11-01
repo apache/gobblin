@@ -19,14 +19,8 @@ package org.apache.gobblin.service.monitoring;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -34,7 +28,6 @@ import com.codahale.metrics.Meter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -49,14 +42,10 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 
 
 /**
- * A Flow Spec Store change monitor that uses {@link SpecStoreChangeEvent} schema to process Kafka messages received
+ * A Flow Spec Store change monitor that uses {@link GenericStoreChangeEvent} schema to process Kafka messages received
  * from the consumer service. This monitor responds to changes to flow specs (creations, updates, deletes) and acts as
  * a connector between the API and execution layers of GaaS.
  */
@@ -86,6 +75,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   @Inject
   protected GobblinServiceJobScheduler scheduler;
 
+  // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
+  // client itself to determine all Kafka related information dynamically rather than through the config.
   public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
@@ -95,26 +86,9 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
 
   @Override
   protected void assignTopicPartitions() {
-    // The consumer client will assign itself to all partitions for this topic and consume from its latest offset.
-    List<KafkaTopic> kafkaTopicList = this.getGobblinKafkaConsumerClient().getFilteredTopics(Collections.EMPTY_LIST,
-        Lists.newArrayList(Pattern.compile(this.topic)));
-
-    List<KafkaPartition> kafkaPartitions = new ArrayList();
-    for (KafkaTopic topic : kafkaTopicList) {
-      kafkaPartitions.addAll(topic.getPartitions());
-    }
-
-    Map<KafkaPartition, LongWatermark> partitionLongWatermarkMap = new HashMap<>();
-    for (KafkaPartition partition : kafkaPartitions) {
-      try {
-        partitionLongWatermarkMap.put(partition, new LongWatermark(this.getGobblinKafkaConsumerClient().getLatestOffset(partition)));
-      } catch (KafkaOffsetRetrievalFailureException e) {
-        log.warn("Failed to retrieve latest Kafka offset, consuming from beginning for partition {} due to {}",
-            partition, e);
-        partitionLongWatermarkMap.put(partition, new LongWatermark(0L));
-      }
-    }
-    this.getGobblinKafkaConsumerClient().assignAndSeek(kafkaPartitions, partitionLongWatermarkMap);
+    // Expects underlying consumer to handle initializing partitions and offset for the topic -
+    // subscribe to all partitions from latest offset
+    return;
   }
 
   @Override
@@ -123,22 +97,18 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
   protected void processMessage(DecodeableKafkaRecord message) {
-    String specUri = (String) message.getKey();
-    SpecStoreChangeEvent value = (SpecStoreChangeEvent) message.getValue();
+    // TODO: Add metric that service is healthy and we're continuously processing messages.
+    String key = (String) message.getKey();
+    GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
     Long timestamp = value.getTimestamp();
     String operation = value.getOperationType().name();
-    log.info("Processing message with specUri is {} timestamp is {} operation is {}", specUri, timestamp, operation);
 
-    // If we've already processed a message with this timestamp and spec uri before then skip duplicate message
-    String changeIdentifier = timestamp.toString() + specUri;
-    if (specChangesSeenCache.getIfPresent(changeIdentifier) != null) {
-      return;
-    }
+    log.debug("Processing message where specUri is {} timestamp is {} operation is {}", key, timestamp, operation);
 
-    // If event is a heartbeat type then log it and skip processing
-    if (operation == "HEARTBEAT") {
-      log.debug("Received heartbeat message from time {}", timestamp);
+    String changeIdentifier = timestamp + key;
+    if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, specChangesSeenCache, operation,
+        timestamp.toString())) {
       return;
     }
 
@@ -146,23 +116,21 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     URI specAsUri = null;
 
     try {
-      specAsUri = new URI(specUri);
+      specAsUri = new URI(key);
     } catch (URISyntaxException e) {
-      if (operation == "DELETE") {
-        log.warn("Could not create URI object for specUri {} due to error {}", specUri, e.getMessage());
-        this.unexpectedErrors.mark();
-        return;
-      }
+      log.warn("Could not create URI object for specUri {} due to error {}", key, e.getMessage());
+      this.unexpectedErrors.mark();
+      return;
     }
 
-    spec = (operation != "DELETE") ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
+    spec = (!operation.equals("DELETE")) ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
 
     // The monitor should continue to process messages regardless of failures with individual messages, instead we use
     // metrics to keep track of failure to process certain SpecStoreChange events
     try {
       // Call respective action for the type of change received
       AddSpecResponse response;
-      if (operation == "INSERT" || operation == "UPDATE") {
+      if (operation.equals("INSERT") || operation.equals("UPDATE")) {
         response = scheduler.onAddSpec(spec);
 
         // Null response means the dag failed to compile
@@ -175,7 +143,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
               + "invalidate the earlier compilation. Examine changes to locate error. Response is {}", spec, response);
           this.failedAddedSpecs.mark();
         }
-      } else if (operation == "DELETE") {
+      } else if (operation.equals("DELETE")) {
         scheduler.onDeleteSpec(specAsUri, FlowSpec.Builder.DEFAULT_VERSION);
         this.deletedSpecs.mark();
       } else {

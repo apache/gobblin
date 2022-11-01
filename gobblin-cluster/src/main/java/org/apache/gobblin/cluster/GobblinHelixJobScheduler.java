@@ -34,7 +34,6 @@ import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
-import org.apache.helix.task.TaskDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -379,6 +378,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     Optional<String> distributedJobMode;
     Optional<String> planningJob = Optional.empty();
     Optional<String> actualJob = Optional.empty();
+    boolean cancelByDelete = PropertiesUtils.getPropAsBoolean(this.commonJobProperties, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
+        String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE));
 
     this.jobSchedulerMetrics.numCancellationStart.incrementAndGet();
 
@@ -396,12 +397,12 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (planningJob.isPresent()) {
       LOGGER.info("Cancelling planning job helix workflow: {}", planningJob.get());
-      new TaskDriver(this.taskDriverHelixManager.get()).waitToStop(planningJob.get(), this.helixJobStopTimeoutMillis);
+      HelixUtils.cancelWorkflow(planningJob.get(), this.taskDriverHelixManager.get(), this.helixJobStopTimeoutMillis, cancelByDelete);
     }
 
     if (actualJob.isPresent()) {
       LOGGER.info("Cancelling actual job helix workflow: {}", actualJob.get());
-      new TaskDriver(this.jobHelixManager).waitToStop(actualJob.get(), this.helixJobStopTimeoutMillis);
+      HelixUtils.cancelWorkflow(actualJob.get(), this.jobHelixManager, this.helixJobStopTimeoutMillis, cancelByDelete);
     }
 
     this.jobSchedulerMetrics.numCancellationStart.decrementAndGet();
@@ -430,9 +431,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
-        TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
-        LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+        boolean cancelByDelete = PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
+            String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE));
+        HelixUtils.cancelWorkflow(workflowId, this.jobHelixManager, helixJobStopTimeoutMillis, cancelByDelete);
+        LOGGER.info("Cancelled workflow: {}", deleteJobArrival.getJobName());
         //Wait until the cancelled job is complete.
         waitForJobCompletion(deleteJobArrival.getJobName());
       } else {

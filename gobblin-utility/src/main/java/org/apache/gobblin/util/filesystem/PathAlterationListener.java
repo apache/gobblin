@@ -43,4 +43,10 @@ public interface PathAlterationListener {
   void onDirectoryDelete(final Path directory);
 
   void onFileDelete(final Path path);
+
+  /**
+   * Is invoked after any file or directory is modified, after processing the other change events
+   * Is only invoked once per poll, which is found in checkAndNotify() from {@link PathAlterationObserver}
+   */
+  void onCheckDetectedChange();
 }

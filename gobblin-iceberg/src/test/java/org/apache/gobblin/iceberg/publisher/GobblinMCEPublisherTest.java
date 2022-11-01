@@ -53,6 +53,8 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.writer.FsDataWriterBuilder;
 import org.apache.gobblin.writer.GobblinOrcWriter;
 import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -280,6 +282,7 @@ public class GobblinMCEPublisherTest {
     state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir.toString());
     state.setProp(AbstractJob.JOB_ID, "testFlow");
     state.setProp(PartitionedDataWriter.WRITER_LATEST_SCHEMA, _avroPartitionSchema);
+    state.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, "hourly");
   }
 
   private void setGMCEPublisherStateForAvroFile(WorkUnitState state) {

@@ -324,11 +324,12 @@ public class HadoopUtilsTest {
     FileSystem fs = FileSystem.getLocal(conf);
     Trash trash = new Trash(fs, conf);
     TrashPolicy trashPolicy = TrashPolicy.getInstance(conf, fs, fs.getHomeDirectory());
-    Path trashPath = trashPolicy.getCurrentTrashDir();
+    Path trashPath = Path.mergePaths(trashPolicy.getCurrentTrashDir(), hadoopUtilsTestDir);
 
     fs.mkdirs(hadoopUtilsTestDir);
     Assert.assertTrue(fs.exists(hadoopUtilsTestDir));
-    trash.moveToTrash(hadoopUtilsTestDir.getParent());
+    // Move the parent dir to trash because we created it at the beginning of this function.
+    HadoopUtils.moveToTrash(fs, hadoopUtilsTestDir.getParent(), conf);
     Assert.assertFalse(fs.exists(hadoopUtilsTestDir));
     Assert.assertTrue(fs.exists(trashPath));
   }

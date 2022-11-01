@@ -73,6 +73,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -199,11 +200,13 @@ public class DagManager extends AbstractIdleService {
   private final Optional<EventSubmitter> eventSubmitter;
   private final long failedDagRetentionTime;
   private final DagManagerMetrics dagManagerMetrics;
-  private final Optional<DagActionStore> dagActionStore;
+
+  @Inject(optional=true)
+  protected Optional<DagActionStore> dagActionStore;
 
   private volatile boolean isActive = false;
 
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<DagActionStore> dagActionStore, boolean instrumentationEnabled) {
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, boolean instrumentationEnabled) {
     this.config = config;
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     this.runQueue = (BlockingQueue<Dag<JobExecutionPlan>>[]) initializeDagQueue(this.numThreads);
@@ -220,7 +223,6 @@ public class DagManager extends AbstractIdleService {
     } else {
       this.eventSubmitter = Optional.absent();
     }
-    this.dagActionStore = dagActionStore;
     this.dagManagerMetrics = new DagManagerMetrics(metricContext);
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
@@ -248,9 +250,9 @@ public class DagManager extends AbstractIdleService {
     return queue;
   }
 
-  @Inject(optional = true)
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<DagActionStore> dagActionStore) {
-    this(config, jobStatusRetriever, dagActionStore, true);
+  @Inject
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever) {
+    this(config, jobStatusRetriever, true);
   }
 
   /** Do Nothing on service startup. Scheduling of {@link DagManagerThread}s and loading of any {@link Dag}s is done
@@ -327,28 +329,36 @@ public class DagManager extends AbstractIdleService {
 
   @Subscribe
   public void handleKillFlowEvent(KillFlowEvent killFlowEvent) {
+    handleKillFlowRequest(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+  }
+
+  // Method used to handle kill flow requests received from subscriber-event model or from direct invocation
+  public void handleKillFlowRequest(String flowGroup, String flowName, long flowExecutionId) {
     if (isActive) {
-      log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(),
-          killFlowEvent.getFlowExecutionId());
+      log.info("Received kill request for flow ({}, {}, {})", flowGroup, flowName, flowExecutionId);
       try {
-        killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+        killFlow(flowGroup, flowName, flowExecutionId);
       } catch (IOException e) {
         log.warn("Failed to kill flow", e);
       }
     }
   }
 
-  @Subscribe
-  public void handleResumeFlowEvent(ResumeFlowEvent resumeFlowEvent) {
+  // Method used to handle resume flow requests received from subscriber-event model or from direct invocation
+  public void handleResumeFlowRequest(String flowGroup, String flowName, long flowExecutionId) {
     if (isActive) {
-      log.info("Received resume request for flow ({}, {}, {})", resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
-      DagId dagId = DagManagerUtils.generateDagId(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(),
-          resumeFlowEvent.getFlowExecutionId());
-      int queueId = DagManagerUtils.getDagQueueId(resumeFlowEvent.getFlowExecutionId(), this.numThreads);
+      log.info("Received resume request for flow ({}, {}, {})", flowGroup, flowName, flowExecutionId);
+      DagId dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
+      int queueId = DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
       if (!this.resumeQueue[queueId].offer(dagId)) {
         log.warn("Could not add dag " + dagId + " to resume queue");
       }
     }
+  }
+
+  @Subscribe
+  public void handleResumeFlowEvent(ResumeFlowEvent resumeFlowEvent) {
+    handleResumeFlowRequest(resumeFlowEvent.getFlowGroup(), resumeFlowEvent.getFlowName(), resumeFlowEvent.getFlowExecutionId());
   }
 
   public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
@@ -655,6 +665,10 @@ public class DagManager extends AbstractIdleService {
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
+      }
+      if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+        props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+            dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
     }
@@ -963,7 +977,11 @@ public class DagManager extends AbstractIdleService {
       // Run this spec on selected executor
       SpecProducer<Spec> producer;
       try {
-        quotaManager.checkQuota(dagNode);
+        if (!Boolean.parseBoolean(dagNode.getValue().getJobSpec().getConfigAsProperties().getProperty(
+            ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "false"))) {
+          quotaManager.checkQuota(Collections.singleton(dagNode));
+        }
+
         producer = DagManagerUtils.getSpecProducer(dagNode);
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;

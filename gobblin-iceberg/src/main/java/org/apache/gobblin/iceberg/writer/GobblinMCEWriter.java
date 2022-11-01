@@ -43,6 +43,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Iterables;
@@ -105,6 +106,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
   public static final String GMCE_METADATA_WRITER_CLASSES = "gmce.metadata.writer.classes";
   public static final String GMCE_METADATA_WRITER_MAX_ERROR_DATASET = "gmce.metadata.writer.max.error.dataset";
+  public static final String TRANSIENT_EXCEPTION_MESSAGES_KEY = "gmce.metadata.writer.transient.exception.messages";
   public static final int DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET = 0;
   public static final int DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS = 60000;
   public static final String TABLE_NAME_DELIMITER = ".";
@@ -125,6 +127,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   @Setter
   private int maxErrorDataset;
   protected EventSubmitter eventSubmitter;
+  private final Set<String> transientExceptionMessages;
 
   @AllArgsConstructor
   static class TableStatus {
@@ -157,6 +160,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
     MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
     eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
+    transientExceptionMessages = new HashSet<>(properties.getPropAsList(TRANSIENT_EXCEPTION_MESSAGES_KEY, ""));
   }
 
   @Override
@@ -335,6 +339,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         try {
           writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
         } catch (Exception e) {
+          if (isExceptionTransient(e, transientExceptionMessages)) {
+            throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
+          }
           meetException = true;
           writer.reset(dbName, tableName);
           addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
@@ -405,6 +412,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         try {
           writer.flush(dbName, tableName);
         } catch (IOException e) {
+          if (isExceptionTransient(e, transientExceptionMessages)) {
+            throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
+          }
           meetException = true;
           writer.reset(dbName, tableName);
           addOrThrowException(e, tableString, dbName, tableName, getFailedWriterList(writer));
@@ -422,6 +432,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         this.datasetErrorMap.get(datasetPath).remove(tableString);
       }
     }
+  }
+
+  /**
+   * Check if exception is contained within a known list of transient exceptions. These exceptions should not be caught
+   * to avoid advancing watermarks and skipping GMCEs unnecessarily.
+   */
+  public static boolean isExceptionTransient(Exception e, Set<String> transientExceptionMessages) {
+    return transientExceptionMessages.stream().anyMatch(message -> Throwables.getRootCause(e).toString().contains(message));
   }
 
   /**
@@ -526,7 +544,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       gobblinTrackingEvent.addMetadata(MetadataWriterKeys.PARTITION_KEYS, Joiner.on(',').join(exception.partitionKeys.stream()
           .map(HiveRegistrationUnit.Column::getName).collect(Collectors.toList())));
 
-      String message = exception.getCause() == null ? exception.getMessage() : exception.getCause().getMessage();
+      String message = Throwables.getRootCause(exception).getMessage();
       gobblinTrackingEvent.addMetadata(MetadataWriterKeys.EXCEPTION_MESSAGE_KEY_NAME, message);
 
       eventSubmitter.submit(gobblinTrackingEvent);

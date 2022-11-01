@@ -20,13 +20,12 @@ package org.apache.gobblin.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
-import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -412,14 +411,14 @@ public class AvroFlattener {
             }
           }
         }
-        Schema.Field field = new Schema.Field(flattenName, flattenedFieldSchema, f.doc(), f.defaultValue(), f.order());
+        Schema.Field field = AvroCompatibilityHelper.createSchemaField(flattenName, flattenedFieldSchema, f.doc(),
+            AvroUtils.getCompatibleDefaultValue(f), f.order());
 
         if (StringUtils.isNotBlank(flattenSource)) {
           field.addProp(FLATTENED_SOURCE_KEY, flattenSource);
         }
-        for (Map.Entry<String, JsonNode> entry : f.getJsonProps().entrySet()) {
-          field.addProp(entry.getKey(), entry.getValue());
-        }
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with AvroCompatibilityHelper methods
+        AvroSchemaUtils.copyFieldProperties(f, field);
         flattenedFields.add(field);
       }
     }
@@ -466,24 +465,7 @@ public class AvroFlattener {
   private static void copyProperties(Schema oldSchema, Schema newSchema) {
     Preconditions.checkNotNull(oldSchema);
     Preconditions.checkNotNull(newSchema);
-
-    Map<String, JsonNode> props = oldSchema.getJsonProps();
-    copyProperties(props, newSchema);
-  }
-
-  /***
-   * Copy properties to an Avro Schema
-   * @param props Properties to copy to Avro Schema
-   * @param schema Avro Schema to copy properties to
-   */
-  private static void copyProperties(Map<String, JsonNode> props, Schema schema) {
-    Preconditions.checkNotNull(schema);
-
-    // (if null, don't copy but do not throw exception)
-    if (null != props) {
-      for (Map.Entry<String, JsonNode> prop : props.entrySet()) {
-        schema.addProp(prop.getKey(), prop.getValue());
-      }
-    }
+    // Avro 1.9 compatible change - replaced deprecated public api getJsonProps using AvroCompatibilityHelper methods
+    AvroSchemaUtils.copySchemaProperties(oldSchema, newSchema);
   }
 }

@@ -20,6 +20,7 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.util.Properties;
 
+import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.orc.OrcConf;
@@ -90,8 +91,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
 
   private final OrcValueWriter<D> valueWriter;
   @VisibleForTesting
-  final VectorizedRowBatch rowBatch;
+  VectorizedRowBatch rowBatch;
+  private final TypeDescription typeDescription;
   private final Writer orcFileWriter;
+  private final RowBatchPool rowBatchPool;
+  private final boolean enableRowBatchPool;
 
   // the close method may be invoked multiple times, but the underlying writer only supports close being called once
   private volatile boolean closed = false;
@@ -101,7 +105,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   protected final S inputSchema;
 
   /**
-   * There are couple of parameters in ORC writer that requires manual tuning based on record size given that executor
+   * There are a couple of parameters in ORC writer that requires manual tuning based on record size given that executor
    * for running these ORC writers has limited heap space. This helper function wrap them and has side effect for the
    * argument {@param properties}.
    *
@@ -153,14 +157,18 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
 
     // Create value-writer which is essentially a record-by-record-converter with buffering in batch.
     this.inputSchema = builder.getSchema();
-    TypeDescription typeDescription = getOrcSchema();
+    this.typeDescription = getOrcSchema();
     this.valueWriter = getOrcValueWriter(typeDescription, this.inputSchema, properties);
     this.batchSize = properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
-    this.rowBatch = typeDescription.createRowBatch(this.batchSize);
+    this.rowBatchPool = RowBatchPool.instance(properties);
+    this.enableRowBatchPool = properties.getPropAsBoolean(RowBatchPool.ENABLE_ROW_BATCH_POOL, false);
+    this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
     this.deepCleanBatch = properties.getPropAsBoolean(ORC_WRITER_DEEP_CLEAN_EVERY_BATCH, false);
 
     log.info("Created ORC writer, batch size: {}, {}: {}",
-            batchSize, OrcConf.ROWS_BETWEEN_CHECKS.name(), properties.getProp(OrcConf.ROWS_BETWEEN_CHECKS.name(),
+            batchSize, OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(),
+            properties.getProp(
+                    OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(),
                     OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue().toString()));
 
     // Create file-writer
@@ -235,6 +243,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       this.flush();
       this.orcFileWriter.close();
       this.closed = true;
+      if (enableRowBatchPool) {
+        rowBatchPool.recycle(typeDescription, rowBatch);
+      }
     } else {
       // Throw fatal exception if there's outstanding buffered data since there's risk losing data if proceeds.
       if (rowBatch.size > 0) {
@@ -269,6 +280,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   @Override
   public void write(D record)
       throws IOException {
+    Preconditions.checkState(!closed, "Writer already closed");
     valueWriter.write(record, rowBatch);
     if (rowBatch.size == this.batchSize) {
       orcFileWriter.addRowBatch(rowBatch);

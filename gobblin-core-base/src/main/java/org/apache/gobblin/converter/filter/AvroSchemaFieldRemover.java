@@ -22,14 +22,15 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.codehaus.jackson.JsonNode;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
+import org.apache.gobblin.util.AvroSchemaUtils;
+import org.apache.gobblin.util.AvroUtils;
 
 
 /**
@@ -108,7 +109,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
-    convertFieldToSchemaWithProps(schema.getJsonProps(), newRecord);
+    AvroSchemaUtils.copySchemaProperties(schema, newRecord);
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.
@@ -119,15 +120,16 @@ public class AvroSchemaFieldRemover {
       if (!this.shouldRemove(field)) {
         Field newField;
         if (this.children.containsKey(field.name())) {
-          newField = new Field(field.name(), this.children.get(field.name()).removeFields(field.schema(), schemaMap),
-              field.doc(), field.defaultValue());
+          newField = AvroCompatibilityHelper.createSchemaField(field.name(),
+              this.children.get(field.name()).removeFields(field.schema(), schemaMap),
+              field.doc(), AvroUtils.getCompatibleDefaultValue(field));
         } else {
-          newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
-              field.defaultValue());
+          newField = AvroCompatibilityHelper.createSchemaField(field.name(),
+              DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
+              AvroUtils.getCompatibleDefaultValue(field));
         }
-        for (Map.Entry<String, JsonNode> stringJsonNodeEntry : field.getJsonProps().entrySet()) {
-          newField.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
-        }
+        // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with AvroCompatibilityHelper methods
+        AvroSchemaUtils.copyFieldProperties(field, newField);
         newFields.add(newField);
       }
     }

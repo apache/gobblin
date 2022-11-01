@@ -22,6 +22,7 @@ dependencies {
   // but to use HiveStorageAPI 2.x specified below.
   compile (project(':gobblin-core')) {
     exclude group: 'org.apache.hive', module: 'hive-exec'
+    exclude group: 'com.linkedin.hive', module: 'hive-exec'
   }
 
   // Cannot use compileOnly as it cannot cover testCompile

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,12 +46,13 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.avro.util.internal.JacksonUtils;
 import org.apache.commons.math3.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ArrayNode;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -100,7 +102,7 @@ public class AvroUtilsTest {
 
     Schema expectedOutputSchema1 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
-            + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"number\", \"type\": [\"null\", \"int\"]}"
+            + "{\"name\": \"name\", \"type\": \"string\"}, " + "{\"name\": \"number\", \"type\": [\"null\", \"int\"],\"default\":null}]}"
             + "]}");
 
     Assert.assertEquals(expectedOutputSchema1, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1));
@@ -117,7 +119,7 @@ public class AvroUtilsTest {
     Schema expectedOutputSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
             + "{\"name\": \"name\", \"type\": \"string\"}, "
-            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}]}" + "]}");
+            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}],\"default\":null}]}" + "]}");
 
     Assert.assertEquals(expectedOutputSchema2, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2));
   }
@@ -145,10 +147,10 @@ public class AvroUtilsTest {
             .parse("{\"type\":\"record\", \"name\":\"test\", "
                 + "\"fields\":["
                 + "{\"name\": \"name\", \"type\": \"string\"}, "
-                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}]}"
+                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
 
-    Assert.assertEquals(expectedOutputSchema1, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1));
+    Assert.assertEquals(expectedOutputSchema1.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1).toString());
 
     Schema oldSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
@@ -162,9 +164,9 @@ public class AvroUtilsTest {
     Schema expectedOutputSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
             + "{\"name\": \"name\", \"type\": \"string\"}, "
-            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}]}" + "]}");
+            + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}" + "]}");
 
-    Assert.assertEquals(expectedOutputSchema2, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2));
+    Assert.assertEquals(expectedOutputSchema2.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2).toString());
   }
 
   /**
@@ -189,10 +191,10 @@ public class AvroUtilsTest {
             .parse("{\"type\":\"record\", \"name\":\"test\", "
                 + "\"fields\":["
                 + "{\"name\": \"name\", \"type\": \"string\"}, "
-                + "{\"name\": \"color\", \"type\": [\"null\", \"string\"]}, "
-                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}]}"
+                + "{\"name\": \"color\", \"type\": [\"null\", \"string\"], \"default\": null}, "
+                + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
-    Assert.assertEquals(expectedOutputSchema, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema));
+    Assert.assertEquals(expectedOutputSchema.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema).toString());
   }
 
   /**
@@ -242,10 +244,11 @@ public class AvroUtilsTest {
     schema.addProp("prop2", "val2");
     List<Schema.Field> fieldList = Lists.newArrayList();
     Schema.Field field1 =
-        new Schema.Field("key", Schema.create(Schema.Type.LONG), "", 0L);
+        AvroCompatibilityHelper.createSchemaField("key", Schema.create(Schema.Type.LONG), "", 0L);
     field1.addProp("primaryKey", "true");
     fieldList.add(field1);
-    Schema.Field field2 = new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
+    Schema.Field field2 = 
+        AvroCompatibilityHelper.createSchemaField("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
     fieldList.add(field2);
 
     schema.setFields(Lists.newArrayList(fieldList));
@@ -256,8 +259,14 @@ public class AvroUtilsTest {
 
     Assert.assertEquals(newSchema.getNamespace(), newNamespace);
     Assert.assertEquals(newSchema.getName(), originalName);
+    System.out.println("newSchema: " + newSchema);
     for(Schema.Field field : newSchema.getFields()) {
-      Assert.assertEquals(field, schema.getField(field.name()));
+      Schema.Field oldField = schema.getField(field.name());
+      System.out.println("OldField: " + oldField);
+      System.out.println("Field: " + field);
+      Boolean bool = oldField.equals(field);
+      System.out.println("Equal: " + bool);
+      Assert.assertEquals(field.toString(), oldField.toString());
     }
 
     Assert.assertTrue(schema.getObjectProps().equals(newSchema.getObjectProps()));
@@ -620,10 +629,13 @@ public class AvroUtilsTest {
           .getResourceAsStream("recursive_schemas/recursive_" + scenario + "_solution.avsc"));
 
       // get the answer from the input schema (test author needs to provide this)
-      ArrayNode foo = (ArrayNode) inputSchema.getJsonProp("recursive_fields");
+      // Avro 1.9 compatible change - replaced deprecated public api getJsonProps with getObjectProps
+      // Use internal JacksonUtils to convert object to the corresponding JsonNode (ArrayNode)
+      ArrayNode foo = (ArrayNode) JacksonUtils.toJsonNode(inputSchema.getObjectProp(
+          "recursive_fields"));
       HashSet<String> answers = new HashSet<>();
       for (JsonNode fieldsWithRecursion: foo) {
-        answers.add(fieldsWithRecursion.getTextValue());
+        answers.add(fieldsWithRecursion.asText());
       }
 
       Pair<Schema, List<AvroUtils.SchemaEntry>> results = AvroUtils.dropRecursiveFields(inputSchema);

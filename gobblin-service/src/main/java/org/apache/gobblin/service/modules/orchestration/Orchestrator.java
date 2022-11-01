@@ -398,9 +398,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     // Delete all compiled JobSpecs on their respective Executor
     for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
       JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-      Spec jobSpec = jobExecutionPlan.getJobSpec();
+      JobSpec jobSpec = jobExecutionPlan.getJobSpec();
       try {
         SpecProducer<Spec> producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
+        if (jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+          headers.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+        }
         _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
         producer.deleteSpec(jobSpec.getUri(), headers);
       } catch (Exception e) {

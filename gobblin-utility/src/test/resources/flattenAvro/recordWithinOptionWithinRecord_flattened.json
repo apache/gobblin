@@ -4,11 +4,13 @@
   "fields" : [ {
     "name" : "parentFieldUnion__unionRecordMemberFieldLong",
     "type" : [ "null", "long" ],
-    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldLong"
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldLong",
+    "default": null
   }, {
     "name" : "parentFieldUnion__unionRecordMemberFieldString",
     "type" : [ "null", "string" ],
-    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldString"
+    "flatten_source" : "parentFieldUnion.unionRecordMemberFieldString",
+    "default": null
   }, {
     "name" : "parentFieldInt",
     "type" : "int"

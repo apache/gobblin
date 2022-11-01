@@ -50,6 +50,7 @@ dependencies {
   compile (externalDependency.helix) {
     exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
   }
+  compile externalDependency.jacksonMapperAsl
 
   runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
 
