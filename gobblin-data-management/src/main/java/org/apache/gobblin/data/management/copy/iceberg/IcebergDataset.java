@@ -146,12 +146,12 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       FileStatus srcFileStatus = entry.getValue();
       // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
-      Path toPath = PathUtils.getRootPathChild(srcPath);
+      Path greatestAncestorPath = PathUtils.getRootPathChild(srcPath);
 
       // preserving ancestor permissions till root path's child between src and dest
       List<OwnerAndPermission> ancestorOwnerAndPermission =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
-              srcPath.getParent(), toPath, copyConfig);
+              srcPath.getParent(), greatestAncestorPath, copyConfig);
       CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
           actualSourceFs, srcFileStatus, targetFs.makeQualified(srcPath), copyConfig)
           .fileSet(fileSet)
