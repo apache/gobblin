@@ -198,14 +198,16 @@ public class GobblinMultiTaskAttempt {
           interruptTaskExecution(countDownLatch);
           break;
         }
-        log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
-            countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
+        long totalTasks = countDownLatch.totalParties.get();
+        long runningTasks = countDownLatch.getCount();
+        log.info(String.format("%d out of %d tasks of job %s are running in container %s. %d tasks finished.",
+            runningTasks, totalTasks, jobId, containerIdOptional.or(""), totalTasks - runningTasks));
         if (countDownLatch.await(10, TimeUnit.SECONDS)) {
           break;
         }
       }
     } catch (InterruptedException interrupt) {
-      log.info("Job interrupted by InterrupedException.");
+      log.info("Job interrupted by InterruptedException.");
       interruptTaskExecution(countDownLatch);
     }
     log.info("All assigned tasks of job {} have completed in container {}", jobId, containerIdOptional.or(""));
@@ -502,7 +504,7 @@ public class GobblinMultiTaskAttempt {
     EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(),
         "gobblin.runtime");
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
-    eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
+    eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(tasks.size()));
 
     return new Pair<>(tasks, areAllTasksSubmitted);
   }
