@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.codahale.metrics.Meter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.UUID;
@@ -34,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -54,7 +54,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter killsInvoked;
   private ContextAwareMeter resumesInvoked;
   private ContextAwareMeter unexpectedErrors;
-  private Meter messageProcessedMeter;
+  private ContextAwareMeter messageProcessedMeter;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override

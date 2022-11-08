@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.text.StringEscapeUtils;
 
-import com.codahale.metrics.Meter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -35,6 +34,7 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -54,11 +54,11 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
 
   // Metrics
-  private Meter successfullyAddedSpecs;
-  private Meter messageProcessedMeter;
-  private Meter failedAddedSpecs;
-  private Meter deletedSpecs;
-  private Meter unexpectedErrors;
+  private ContextAwareMeter successfullyAddedSpecs;
+  private ContextAwareMeter messageProcessedMeter;
+  private ContextAwareMeter failedAddedSpecs;
+  private ContextAwareMeter deletedSpecs;
+  private ContextAwareMeter unexpectedErrors;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
