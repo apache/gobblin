@@ -50,6 +50,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Singleton
 public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
+  public final static String CONFIG_PREFIX= "MysqlUserQuotaManager";
   public final MysqlQuotaStore quotaStore;
   public final RunningDagIdsStore runningDagIds;
 
@@ -57,8 +58,14 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   @Inject
   public MysqlUserQuotaManager(Config config) throws IOException {
     super(config);
-    this.quotaStore = createQuotaStore(config);
-    this.runningDagIds = createRunningDagStore(config);
+    Config quotaStoreConfig;
+    if (config.hasPath(CONFIG_PREFIX)) {
+      quotaStoreConfig = config.getConfig(CONFIG_PREFIX).withFallback(config);
+    } else {
+      throw new IOException("Please specify the config for MysqlUserQuotaManager");
+    }
+    this.quotaStore = createQuotaStore(quotaStoreConfig);
+    this.runningDagIds = createRunningDagStore(quotaStoreConfig);
   }
 
   void addDagId(Connection connection, String dagId) throws IOException {
@@ -295,7 +302,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       DECREASE_FLOWGROUP_COUNT_SQL = "UPDATE " + tableName + " SET flowgroup_count=flowgroup_count-1 WHERE name = ?";
       DELETE_USER_SQL = "DELETE FROM " + tableName + " WHERE name = ? AND user_count<1 AND flowgroup_count<1";
 
-      String createQuotaTable = "CREATE TABLE IF NOT EXISTS " + tableName + " (name VARCHAR(20) CHARACTER SET latin1 NOT NULL, "
+      //Increase the length of name as we include the executor uri in it
+      String createQuotaTable = "CREATE TABLE IF NOT EXISTS " + tableName + " (name VARCHAR(500) CHARACTER SET latin1 NOT NULL, "
           + "user_count INT NOT NULL DEFAULT 0, requester_count INT NOT NULL DEFAULT 0, flowgroup_count INT NOT NULL DEFAULT 0, "
           + "PRIMARY KEY (name), " + "UNIQUE INDEX ind (name))";
       try (Connection connection = dataSource.getConnection(); PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {

@@ -45,10 +45,10 @@ public class MysqlUserQuotaManagerTest {
     ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
     this.quotaManager = new MysqlUserQuotaManager(config);

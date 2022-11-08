@@ -390,7 +390,8 @@ public class DagManager extends AbstractIdleService {
 
        this.dagManagerMetrics.activate();
 
-        UserQuotaManager quotaManager = new InMemoryUserQuotaManager(config);
+        UserQuotaManager quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+            ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
         quotaManager.init(dagStateStore.getDags());
 
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
