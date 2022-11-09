@@ -53,6 +53,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
+import joptsimple.internal.Strings;
 import lombok.Data;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
@@ -221,7 +222,7 @@ public class IcebergDatasetTest {
     List<String> expectedPaths = Arrays.asList(METADATA_PATH, MANIFEST_LIST_PATH_0,
         MANIFEST_PATH_0, MANIFEST_DATA_PATH_0A, MANIFEST_DATA_PATH_0B);
     MockFileSystemBuilder sourceBuilder = new MockFileSystemBuilder(SRC_FS_URI);
-    sourceBuilder.addPathsAndFileStatuses(expectedPaths, false);
+    sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
@@ -246,7 +247,7 @@ public class IcebergDatasetTest {
         MANIFEST_LIST_PATH_1, MANIFEST_PATH_1, MANIFEST_DATA_PATH_1A, MANIFEST_DATA_PATH_1B);
 
     MockFileSystemBuilder sourceBuilder = new MockFileSystemBuilder(SRC_FS_URI);
-    sourceBuilder.addPathsAndFileStatuses(expectedPaths, false);
+    sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
@@ -265,10 +266,18 @@ public class IcebergDatasetTest {
 
   @Test
   public void testFsOwnershipAndPermissionPreservationWhenDestEmpty() throws IOException {
-    List<String> expectedPaths = Arrays.asList(METADATA_PATH, MANIFEST_LIST_PATH_0,
-        MANIFEST_PATH_0, MANIFEST_DATA_PATH_0A, MANIFEST_DATA_PATH_0B);
+    FileStatus metadataFileStatus = new FileStatus(0, false, 0, 0, 0, 0, new FsPermission(FsAction.WRITE, FsAction.READ, FsAction.NONE), "metadata_owner", "metadata_group", null);
+    FileStatus manifestFileStatus = new FileStatus(0, false, 0, 0, 0, 0, new FsPermission(FsAction.WRITE, FsAction.READ, FsAction.NONE), "manifest_list_owner", "manifest_list_group", null);
+    FileStatus manifestDataFileStatus = new FileStatus(0, false, 0, 0, 0, 0, new FsPermission(FsAction.WRITE_EXECUTE, FsAction.READ_EXECUTE, FsAction.NONE), "manifest_data_owner", "manifest_data_group", null);
+    Map<String, FileStatus> expectedPathsAndFileStatuses = Maps.newHashMap();
+    expectedPathsAndFileStatuses.put(METADATA_PATH, metadataFileStatus);
+    expectedPathsAndFileStatuses.put(MANIFEST_PATH_0, manifestFileStatus);
+    expectedPathsAndFileStatuses.put(MANIFEST_LIST_PATH_0, manifestFileStatus);
+    expectedPathsAndFileStatuses.put(MANIFEST_DATA_PATH_0A, manifestDataFileStatus);
+    expectedPathsAndFileStatuses.put(MANIFEST_DATA_PATH_0B, manifestDataFileStatus);
+
     MockFileSystemBuilder sourceBuilder = new MockFileSystemBuilder(SRC_FS_URI);
-    sourceBuilder.addPathsAndFileStatuses(expectedPaths, true);
+    sourceBuilder.addPathsAndFileStatuses(expectedPathsAndFileStatuses);
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
@@ -284,7 +293,34 @@ public class IcebergDatasetTest {
             .copyContext(new CopyContext()).build();
 
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
-    Map<Path, FileStatus> expectedPathsAndFileStatuses = sourceBuilder.getPathsAndFileStatuses();
+    verifyFsOwnershipAndPermissionPreservation(copyEntities, expectedPathsAndFileStatuses);
+  }
+
+  @Test
+  public void testFsOwnershipAndPermissionWithoutPreservationWhenDestEmpty() throws IOException {
+    List<String> expectedPaths = Arrays.asList(METADATA_PATH, MANIFEST_LIST_PATH_0,
+        MANIFEST_PATH_0, MANIFEST_DATA_PATH_0A, MANIFEST_DATA_PATH_0B);
+    Map<String, FileStatus> expectedPathsAndFileStatuses = Maps.newHashMap();
+    for (String expectedPath : expectedPaths) {
+      expectedPathsAndFileStatuses.putIfAbsent(expectedPath, new FileStatus());
+    }
+    MockFileSystemBuilder sourceBuilder = new MockFileSystemBuilder(SRC_FS_URI);
+    sourceBuilder.addPaths(expectedPaths);
+    FileSystem sourceFs = sourceBuilder.build();
+
+    IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+
+    MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
+    FileSystem destFs = destBuilder.build();
+
+    CopyConfiguration copyConfiguration =
+        CopyConfiguration.builder(destFs, copyConfigProperties)
+            // without preserving attributes for owner, group and permissions
+            .preserve(PreserveAttributes.fromMnemonicString(""))
+            .copyContext(new CopyContext()).build();
+
+    Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
     verifyFsOwnershipAndPermissionPreservation(copyEntities, expectedPathsAndFileStatuses);
   }
 
@@ -307,13 +343,13 @@ public class IcebergDatasetTest {
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(sourceSnapshotPathSets);
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
-    optExistingSourcePaths.ifPresent(sourceFsBuilder :: addPaths);
+    optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
     IcebergDataset icebergDataset =
         new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
-    destFsBuilder.addPathsAndFileStatuses(existingDestPaths, false);
+    destFsBuilder.addPaths(existingDestPaths);
     FileSystem destFs = destFsBuilder.build();
     CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
 
@@ -352,27 +388,26 @@ public class IcebergDatasetTest {
   }
 
   private static void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities,
-      Map<Path, FileStatus> expectedPathsAndFileStatuses) {
+      Map<String, FileStatus> expectedPathsAndFileStatuses) {
 
     for (CopyEntity copyEntity : copyEntities) {
       String copyEntityJson = copyEntity.toString();
 
       JsonArray ancestorOwnerAndPermissions = CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
       String filePath = CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson);
-      CopyEntityDeserializer.DestinationOwnerAndPermissions destinationOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
-
+      CopyEntityDeserializer.FileOwnerAndPermissions fileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
+      FileStatus fileStatus = expectedPathsAndFileStatuses.get(filePath);
+      verifyFileStatus(fileOwnerAndPermissions, fileStatus);
       Assert.assertEquals(ancestorOwnerAndPermissions.size(), new Path(filePath).getParent().depth() - 1);
-      Assert.assertEquals(expectedPathsAndFileStatuses.get(new Path(filePath)).getOwner(),
-          destinationOwnerAndPermissions.owner);
-      Assert.assertEquals(expectedPathsAndFileStatuses.get(new Path(filePath)).getGroup(),
-          destinationOwnerAndPermissions.group);
-      Assert.assertEquals(expectedPathsAndFileStatuses.get(new Path(filePath)).getPermission().getUserAction().toString(),
-          destinationOwnerAndPermissions.userActionPermission);
-      Assert.assertEquals(expectedPathsAndFileStatuses.get(new Path(filePath)).getPermission().getGroupAction().toString(),
-          destinationOwnerAndPermissions.groupActionPermission);
-      Assert.assertEquals(expectedPathsAndFileStatuses.get(new Path(filePath)).getPermission().getOtherAction().toString(),
-          destinationOwnerAndPermissions.otherActionPermission);
     }
+  }
+
+  private static void verifyFileStatus(CopyEntityDeserializer.FileOwnerAndPermissions actual, FileStatus expected) {
+    Assert.assertEquals(actual.owner, expected.getOwner());
+    Assert.assertEquals(actual.group, expected.getGroup());
+    Assert.assertEquals(actual.userActionPermission, expected.getPermission().getUserAction().toString());
+    Assert.assertEquals(actual.groupActionPermission, expected.getPermission().getGroupAction().toString());
+    Assert.assertEquals(actual.otherActionPermission, expected.getPermission().getOtherAction().toString());
   }
 
   /**
@@ -386,8 +421,7 @@ public class IcebergDatasetTest {
     }
 
     @Override // as the `static` is not mock-able
-    protected FileSystem getSourceFileSystemFromFileStatus(FileStatus fileStatus, Configuration hadoopConfig)
-        throws IOException {
+    protected FileSystem getSourceFileSystemFromFileStatus(FileStatus fileStatus, Configuration hadoopConfig) throws IOException {
       return this.sourceFs;
     }
   }
@@ -410,27 +444,34 @@ public class IcebergDatasetTest {
     }
 
     public void addPaths(List<String> pathStrings) {
-      addPathsAndFileStatuses(pathStrings, false);
-    }
-
-    public void addPathsAndFileStatuses(List<String> pathStrings, boolean shouldCreateFileStatusWithPermissions) {
+      Map<String, FileStatus> map = Maps.newHashMap();
       for (String pathString : pathStrings) {
-        addPathAndFileStatus(pathString, shouldCreateFileStatusWithPermissions);
+        map.putIfAbsent(pathString, null);
+      }
+      addPathsAndFileStatuses(map);
+    }
+
+    public void addPathsAndFileStatuses(Map<String, FileStatus> pathAndFileStatuses) {
+      for (Map.Entry<String, FileStatus> entry : pathAndFileStatuses.entrySet()) {
+        String pathString = entry.getKey();
+        FileStatus fileStatus = entry.getValue();
+        addPathsAndFileStatuses(pathString, fileStatus);
       }
     }
 
-    public void addPathAndFileStatus(String pathString, boolean shouldCreateFileStatusWithPermissions) {
-      addPathAndFileStatus(new Path(pathString), shouldCreateFileStatusWithPermissions);
+    public void addPathsAndFileStatuses(String pathString, FileStatus fileStatus) {
+      Path path = new Path(pathString);
+      if(fileStatus != null) { fileStatus.setPath(path);}
+      addPathAndFileStatus(path, fileStatus);
     }
 
-    public void addPathAndFileStatus(Path path, boolean shouldCreateFileStatusWithPermissions) {
+    public void addPathAndFileStatus(Path path, FileStatus fileStatus) {
       if (!this.optPathsWithFileStatuses.isPresent()) {
-        throw new IllegalStateException("unable to add paths when constructed with `shouldRepresentEveryPath == true`");
+        throw new IllegalStateException("unable to add paths and file statuses when constructed");
       }
-      FileStatus fileStatus = shouldCreateFileStatusWithPermissions ? createFileStatus(path, "test_owner", "test_group", new FsPermission(FsAction.WRITE_EXECUTE, FsAction.READ_EXECUTE, FsAction.NONE)) : null;
       optPathsWithFileStatuses.get().putIfAbsent(path, fileStatus);
       if (!path.isRoot()) { // recursively add ancestors of a previously unknown path
-        addPathAndFileStatus(path.getParent(), shouldCreateFileStatusWithPermissions);
+        addPathAndFileStatus(path.getParent(), fileStatus);
       }
     }
 
@@ -455,11 +496,7 @@ public class IcebergDatasetTest {
         for (Map.Entry<Path, FileStatus> entry : this.optPathsWithFileStatuses.get().entrySet()) {
           Path p = entry.getKey();
           FileStatus fileStatus = entry.getValue();
-          if (fileStatus != null) {
-            Mockito.doReturn(fileStatus).when(fs).getFileStatus(p);
-          } else {
-            Mockito.doReturn(createEmptyFileStatus(p.toString())).when(fs).getFileStatus(p);
-          }
+          Mockito.doReturn(fileStatus != null ? fileStatus : createEmptyFileStatus(p.toString())).when(fs).getFileStatus(p);
         }
       }
       return fs;
@@ -525,12 +562,13 @@ public class IcebergDatasetTest {
   private static class CopyEntityDeserializer {
 
     @Data
-    public static class DestinationOwnerAndPermissions {
+    public static class FileOwnerAndPermissions {
       String owner;
       String group;
-      String userActionPermission;
-      String groupActionPermission;
-      String otherActionPermission;
+      // assigning default values
+      String userActionPermission = FsAction.valueOf("READ_WRITE").toString();
+      String groupActionPermission = FsAction.valueOf("READ_WRITE").toString();
+      String otherActionPermission = FsAction.valueOf("READ_WRITE").toString();
     }
 
     public static String getFilePathAsStringFromJson(String json) {
@@ -548,26 +586,27 @@ public class IcebergDatasetTest {
       return ancestorsOwnerAndPermissions;
     }
 
-    public static DestinationOwnerAndPermissions getDestinationOwnerAndPermissions(String json) {
-      DestinationOwnerAndPermissions destinationOwnerAndPermissions = new DestinationOwnerAndPermissions();
+    public static FileOwnerAndPermissions getDestinationOwnerAndPermissions(String json) {
+      FileOwnerAndPermissions fileOwnerAndPermissions = new FileOwnerAndPermissions();
 
       JsonObject destinationOwnerAndPermissionsJsonObject = new Gson().fromJson(json, JsonObject.class)
           .getAsJsonObject("object-data")
           .getAsJsonObject("destinationOwnerAndPermission");
-      destinationOwnerAndPermissions.owner = destinationOwnerAndPermissionsJsonObject.getAsJsonObject("object-data").getAsJsonPrimitive("owner").getAsString();
-      destinationOwnerAndPermissions.group = destinationOwnerAndPermissionsJsonObject.getAsJsonObject("object-data").getAsJsonPrimitive("group").getAsString();
+      JsonObject objData = destinationOwnerAndPermissionsJsonObject.getAsJsonObject("object-data");
+      fileOwnerAndPermissions.owner = objData.has("owner") ? objData.getAsJsonPrimitive("owner").getAsString() : Strings.EMPTY;
+      fileOwnerAndPermissions.group = objData.has("group") ? objData.getAsJsonPrimitive("group").getAsString() : Strings.EMPTY;
 
-      JsonObject fsPermission = destinationOwnerAndPermissionsJsonObject.getAsJsonObject("object-data").getAsJsonObject("fsPermission");
-      JsonObject objectData = fsPermission.getAsJsonObject("object-data");
-
-      destinationOwnerAndPermissions.userActionPermission =
-          objectData.getAsJsonObject("useraction").getAsJsonPrimitive("object-data").getAsString();
-      destinationOwnerAndPermissions.groupActionPermission =
-          objectData.getAsJsonObject("groupaction").getAsJsonPrimitive("object-data").getAsString();
-      destinationOwnerAndPermissions.otherActionPermission =
-          objectData.getAsJsonObject("otheraction").getAsJsonPrimitive("object-data").getAsString();
-
-      return destinationOwnerAndPermissions;
+      JsonObject fsPermission = objData.has("fsPermission") ? objData.getAsJsonObject("fsPermission") : null;
+      if (fsPermission != null) {
+        JsonObject objectData = fsPermission.getAsJsonObject("object-data");
+        fileOwnerAndPermissions.userActionPermission =
+            objectData.getAsJsonObject("useraction").getAsJsonPrimitive("object-data").getAsString();
+        fileOwnerAndPermissions.groupActionPermission =
+            objectData.getAsJsonObject("groupaction").getAsJsonPrimitive("object-data").getAsString();
+        fileOwnerAndPermissions.otherActionPermission =
+            objectData.getAsJsonObject("otheraction").getAsJsonPrimitive("object-data").getAsString();
+      }
+      return fileOwnerAndPermissions;
     }
   }
 }

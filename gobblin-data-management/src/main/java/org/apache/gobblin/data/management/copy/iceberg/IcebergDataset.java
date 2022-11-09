@@ -149,14 +149,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       Path greatestAncestorPath = PathUtils.getRootPathChild(srcPath);
 
       // preserving ancestor permissions till root path's child between src and dest
-      List<OwnerAndPermission> ancestorOwnerAndPermission =
+      List<OwnerAndPermission> ancestorOwnerAndPermissionList =
           CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
               srcPath.getParent(), greatestAncestorPath, copyConfig);
       CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
           actualSourceFs, srcFileStatus, targetFs.makeQualified(srcPath), copyConfig)
           .fileSet(fileSet)
           .datasetOutputPath(targetFs.getUri().getPath())
-          .ancestorsOwnerAndPermission(ancestorOwnerAndPermission)
+          .ancestorsOwnerAndPermission(ancestorOwnerAndPermissionList)
           .build();
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
