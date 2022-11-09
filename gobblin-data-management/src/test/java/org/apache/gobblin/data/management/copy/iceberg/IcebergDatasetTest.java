@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
@@ -377,7 +378,7 @@ public class IcebergDatasetTest {
   }
 
   private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expected) {
-    Set<String> actual = new HashSet<>();
+    List<String> actual = new ArrayList<>();
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
       String filepath = CopyEntityDeserializer.getFilePathAsStringFromJson(json);
