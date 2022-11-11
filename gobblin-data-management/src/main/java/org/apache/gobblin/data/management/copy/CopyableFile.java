@@ -352,7 +352,7 @@ public class CopyableFile extends CopyEntity implements File {
     List<OwnerAndPermission> ownerAndPermissions = Lists.newArrayList();
     Path currentPath = fromPath;
 
-    while (PathUtils.isAncestor(toPath, currentPath.getParent())) {
+    while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
       ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
       currentPath = currentPath.getParent();
     }
