@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -40,7 +38,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.metastore.MysqlStateStore;
-import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -56,8 +53,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   public final static String CONFIG_PREFIX= "MysqlUserQuotaManager";
   public final MysqlQuotaStore quotaStore;
   public final RunningDagIdsStore runningDagIds;
-  private Meter quotaExceedsRequests;
-  private Meter failedQuotaCheck;
 
 
   @Inject
@@ -71,8 +66,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     }
     this.quotaStore = createQuotaStore(quotaStoreConfig);
     this.runningDagIds = createRunningDagStore(quotaStoreConfig);
-    this.failedQuotaCheck = this.metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_UNEXPECTED_ERRORS);
-    this.quotaExceedsRequests = this.metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_QUOTA_REQUESTS_EXCEEDED);
   }
 
   void addDagId(Connection connection, String dagId) throws IOException {
@@ -94,21 +87,18 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
 
   @Override
   public void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
-    try (Connection connection = this.quotaStore.dataSource.getConnection();
-        Timer.Context context = metricContext.timer(RuntimeMetrics.GOBBLIN_MYSQL_QUOTA_MANAGER_TIME_TO_CHECK_QUOTA).time()) {
+    try (Connection connection = this.quotaStore.dataSource.getConnection()) {
       connection.setAutoCommit(false);
 
       for (Dag.DagNode<JobExecutionPlan> dagNode : dagNodes) {
         QuotaCheck quotaCheck = increaseAndCheckQuota(connection, dagNode);
         if ((!quotaCheck.proxyUserCheck || !quotaCheck.requesterCheck || !quotaCheck.flowGroupCheck)) {
           connection.rollback();
-          quotaExceedsRequests.mark();
           throw new QuotaExceededException(quotaCheck.requesterMessage);
         }
       }
       connection.commit();
     } catch (SQLException e) {
-      this.failedQuotaCheck.mark();
       throw new IOException(e);
     }
   }

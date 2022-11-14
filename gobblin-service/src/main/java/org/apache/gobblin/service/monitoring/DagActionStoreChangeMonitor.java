@@ -33,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -51,10 +50,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
-  private ContextAwareMeter killsInvoked;
-  private ContextAwareMeter resumesInvoked;
-  private ContextAwareMeter unexpectedErrors;
-  private ContextAwareMeter messageProcessedMeter;
+  ContextAwareMeter killsInvoked;
+  ContextAwareMeter resumesInvoked;
+  ContextAwareMeter unexpectedErrors;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -94,8 +92,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   partitioned and processed by only one thread (and corresponding queue).
    */
   protected void processMessage(DecodeableKafkaRecord message) {
-    // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
-    messageProcessedMeter.mark();
+    // TODO: Add metric that service is healthy and we're continuously processing messages.
     String key = (String) message.getKey();
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
@@ -174,7 +171,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
-    this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
   }
 
 }

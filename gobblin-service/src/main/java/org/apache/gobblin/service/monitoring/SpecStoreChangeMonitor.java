@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.text.StringEscapeUtils;
 
+import com.codahale.metrics.Meter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -34,7 +35,6 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
-import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -54,11 +54,10 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
 
   // Metrics
-  private ContextAwareMeter successfullyAddedSpecs;
-  private ContextAwareMeter messageProcessedMeter;
-  private ContextAwareMeter failedAddedSpecs;
-  private ContextAwareMeter deletedSpecs;
-  private ContextAwareMeter unexpectedErrors;
+  private Meter successfullyAddedSpecs;
+  private Meter failedAddedSpecs;
+  private Meter deletedSpecs;
+  private Meter unexpectedErrors;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -98,8 +97,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
   protected void processMessage(DecodeableKafkaRecord message) {
-    // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
-    messageProcessedMeter.mark();
+    // TODO: Add metric that service is healthy and we're continuously processing messages.
     String key = (String) message.getKey();
     GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
@@ -170,6 +168,5 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.failedAddedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_FAILED_ADDED_SPECS);
     this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
-    this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
   }
 }
