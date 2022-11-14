@@ -57,6 +57,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**
@@ -188,7 +189,7 @@ public abstract class CompactionJobConfigurator {
    */
   protected abstract void configureReducer(Job job) throws IOException;
 
-  protected FileSystem getFileSystem(State state) throws IOException {
+  public static FileSystem getFileSystem(State state) throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return FileSystem.get(URI.create(uri), conf);
@@ -258,6 +259,7 @@ public abstract class CompactionJobConfigurator {
           ConfigurationKeys.TMP_DIR, rst.getDstSubDir(), rst.getTimeString());
     }
     log.info("Cleaning temporary MR output directory: " + mrOutputPath);
+    this.state.setProp(MRCompactionTask.COMPACTION_OUTPUT_PATH, mrOutputPath);
     this.fs.delete(mrOutputPath, true);
 
     this.mapReduceInputPaths = getGranularInputPaths(dataset.datasetRoot());

@@ -41,7 +41,6 @@ import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.mapreduce.MRTask;
 
 
-
 /**
  * Customized task of type {@link MRTask}, which runs MR job to compact dataset.
  * The job creation is delegated to {@link CompactionSuite#createJob(Dataset)}
@@ -54,6 +53,8 @@ public class MRCompactionTask extends MRTask {
   public static final String RECORD_COUNT = "counter.recordCount";
   public static final String FILE_COUNT = "counter.fileCount";
   public static final String BYTE_COUNT = "counter.byteCount";
+  public static final String COMPACTION_OUTPUT_PATH = MRCompactor.COMPACTION_PREFIX + "output.path";
+
 
   protected final CompactionSuite suite;
   protected final Dataset dataset;
@@ -117,6 +118,11 @@ public class MRCompactionTask extends MRTask {
     } else {
       submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
       super.onMRTaskComplete(false, throwable);
+    }
+    try {
+      this.suite.cleanup();
+    } catch (IOException e) {
+      log.warn("Clean up failed with error", e);
     }
   }
 

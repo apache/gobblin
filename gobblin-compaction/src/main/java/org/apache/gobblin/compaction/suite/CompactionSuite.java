@@ -81,4 +81,10 @@ public interface CompactionSuite<D extends Dataset> {
    */
   List<CompactionCompleteAction<D>> getCompactionCompleteActions() throws IOException;
 
+  /**
+   * Clean up the staging directories created for the job.
+   */
+  default void cleanup() throws IOException {
+    // default behavior is to do nothing for backward compatibility
+  }
 }

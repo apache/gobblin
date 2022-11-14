@@ -28,6 +28,8 @@ import org.apache.gobblin.compaction.action.CompactionCompleteFileOperationActio
 import org.apache.gobblin.compaction.action.CompactionHiveRegistrationAction;
 import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
 import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
@@ -35,7 +37,11 @@ import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.io.GsonInterfaceAdapter;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 
 
@@ -136,5 +142,15 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
       }
     }
     return configurator;
+  }
+
+  @Override
+  public void cleanup() throws IOException {
+    FileSystem fs = CompactionJobConfigurator.getFileSystem(state);
+    String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_JOB_DIR);
+    String mrOutputDir = this.state.getProp(MRCompactionTask.COMPACTION_OUTPUT_PATH);
+
+    log.info(String.format("Cleaning empty directories %s upto %s", mrOutputDir, mrOutputBase));
+    PathUtils.deleteEmptyParentDirectories(fs, new Path(mrOutputBase).getParent(), new Path(mrOutputDir));
   }
 }
