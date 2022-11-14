@@ -51,6 +51,7 @@ import com.google.api.client.util.Maps;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import joptsimple.internal.Strings;
@@ -293,16 +294,16 @@ public class IcebergDatasetTest {
             .copyContext(new CopyContext()).build();
 
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
-    verifyFsOwnershipAndPermissionPreservation(copyEntities, expectedPathsAndFileStatuses);
+    verifyFsOwnershipAndPermissionPreservation(copyEntities, sourceBuilder.getPathsAndFileStatuses());
   }
 
   @Test
   public void testFsOwnershipAndPermissionWithoutPreservationWhenDestEmpty() throws IOException {
     List<String> expectedPaths = Arrays.asList(METADATA_PATH, MANIFEST_LIST_PATH_0,
         MANIFEST_PATH_0, MANIFEST_DATA_PATH_0A, MANIFEST_DATA_PATH_0B);
-    Map<String, FileStatus> expectedPathsAndFileStatuses = Maps.newHashMap();
+    Map<Path, FileStatus> expectedPathsAndFileStatuses = Maps.newHashMap();
     for (String expectedPath : expectedPaths) {
-      expectedPathsAndFileStatuses.putIfAbsent(expectedPath, new FileStatus());
+      expectedPathsAndFileStatuses.putIfAbsent(new Path(expectedPath), new FileStatus());
     }
     MockFileSystemBuilder sourceBuilder = new MockFileSystemBuilder(SRC_FS_URI);
     sourceBuilder.addPaths(expectedPaths);
@@ -387,18 +388,16 @@ public class IcebergDatasetTest {
     Assert.assertEqualsNoOrder(actual.toArray(), expected.toArray());
   }
 
-  private static void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities,
-      Map<String, FileStatus> expectedPathsAndFileStatuses) {
-
+  private static void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities, Map<Path, FileStatus> expectedPathsAndFileStatuses) {
     for (CopyEntity copyEntity : copyEntities) {
       String copyEntityJson = copyEntity.toString();
-
-      JsonArray ancestorOwnerAndPermissions = CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
-      String filePath = CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson);
-      CopyEntityDeserializer.FileOwnerAndPermissions fileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
+      List<CopyEntityDeserializer.FileOwnerAndPermissions> ancestorFileOwnerAndPermissionsList = CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
+      CopyEntityDeserializer.FileOwnerAndPermissions destinationFileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
+      Path filePath = new Path(CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson));
       FileStatus fileStatus = expectedPathsAndFileStatuses.get(filePath);
-      verifyFileStatus(fileOwnerAndPermissions, fileStatus);
-      Assert.assertEquals(ancestorOwnerAndPermissions.size(), new Path(filePath).getParent().depth() - 1);
+      verifyFileStatus(destinationFileOwnerAndPermissions, fileStatus);
+      // providing path's parent to verify ancestor owner and permissions
+      verifyAncestorPermissions(ancestorFileOwnerAndPermissionsList, filePath.getParent(), expectedPathsAndFileStatuses);
     }
   }
 
@@ -408,6 +407,15 @@ public class IcebergDatasetTest {
     Assert.assertEquals(actual.userActionPermission, expected.getPermission().getUserAction().toString());
     Assert.assertEquals(actual.groupActionPermission, expected.getPermission().getGroupAction().toString());
     Assert.assertEquals(actual.otherActionPermission, expected.getPermission().getOtherAction().toString());
+  }
+
+  private static void verifyAncestorPermissions(List<CopyEntityDeserializer.FileOwnerAndPermissions> actualList, Path path, Map<Path, FileStatus> pathFileStatusMap) {
+
+    for (CopyEntityDeserializer.FileOwnerAndPermissions actual : actualList) {
+      FileStatus expected = pathFileStatusMap.getOrDefault(path, new FileStatus());
+      verifyFileStatus(actual, expected);
+      path = path.getParent();
+    }
   }
 
   /**
@@ -508,10 +516,6 @@ public class IcebergDatasetTest {
       fileStatus.setPath(path);
       return fileStatus;
     }
-
-    private static FileStatus createFileStatus(Path path, String owner, String group, FsPermission fsPermission) {
-      return new FileStatus(0, false, 0, 0, 0, 0, fsPermission, owner, group, path);
-    }
   }
 
   private static class MockIcebergTable {
@@ -579,20 +583,28 @@ public class IcebergDatasetTest {
       return filepath;
     }
 
-    public static JsonArray getAncestorOwnerAndPermissions(String json) {
+    public static List<FileOwnerAndPermissions> getAncestorOwnerAndPermissions(String json) {
       JsonArray ancestorsOwnerAndPermissions = new Gson().fromJson(json, JsonObject.class)
               .getAsJsonObject("object-data")
               .getAsJsonArray("ancestorsOwnerAndPermission");
-      return ancestorsOwnerAndPermissions;
+      List<FileOwnerAndPermissions> fileOwnerAndPermissionsList = Lists.newArrayList();
+      for (JsonElement jsonElement : ancestorsOwnerAndPermissions) {
+        fileOwnerAndPermissionsList.add(getFileOwnerAndPermissions(jsonElement.getAsJsonObject()));
+      }
+      return fileOwnerAndPermissionsList;
     }
 
     public static FileOwnerAndPermissions getDestinationOwnerAndPermissions(String json) {
-      FileOwnerAndPermissions fileOwnerAndPermissions = new FileOwnerAndPermissions();
-
       JsonObject destinationOwnerAndPermissionsJsonObject = new Gson().fromJson(json, JsonObject.class)
           .getAsJsonObject("object-data")
           .getAsJsonObject("destinationOwnerAndPermission");
-      JsonObject objData = destinationOwnerAndPermissionsJsonObject.getAsJsonObject("object-data");
+      FileOwnerAndPermissions fileOwnerAndPermissions = getFileOwnerAndPermissions(destinationOwnerAndPermissionsJsonObject);
+      return fileOwnerAndPermissions;
+    }
+
+    private static FileOwnerAndPermissions getFileOwnerAndPermissions(JsonObject jsonObject) {
+      FileOwnerAndPermissions fileOwnerAndPermissions = new FileOwnerAndPermissions();
+      JsonObject objData = jsonObject.getAsJsonObject("object-data");
       fileOwnerAndPermissions.owner = objData.has("owner") ? objData.getAsJsonPrimitive("owner").getAsString() : Strings.EMPTY;
       fileOwnerAndPermissions.group = objData.has("group") ? objData.getAsJsonPrimitive("group").getAsString() : Strings.EMPTY;
 
