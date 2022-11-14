@@ -24,10 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.inject.Inject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,8 +95,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
   private boolean warmStandbyEnabled;
 
-  @Inject
-  UserQuotaManager userQuotaManager;
+  private Optional<UserQuotaManager> userQuotaManager;
 
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
@@ -128,6 +127,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     this.warmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
+    if (this.warmStandbyEnabled) {
+      userQuotaManager = Optional.of(GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+          ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config));
+    } else {
+      userQuotaManager = Optional.absent();
+    }
 
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
@@ -197,10 +202,10 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       response = dag.toString();
     }
 
-    if (FlowCatalog.isCompileSuccessful(response) && this.warmStandbyEnabled && !flowSpec.isExplain() &&
+    if (FlowCatalog.isCompileSuccessful(response) && this.userQuotaManager.isPresent() && !flowSpec.isExplain() &&
         (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
       try {
-        userQuotaManager.checkQuota(dag.getStartNodes());
+        userQuotaManager.get().checkQuota(dag.getStartNodes());
         flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
       } catch (IOException e) {
         throw new RuntimeException(e);

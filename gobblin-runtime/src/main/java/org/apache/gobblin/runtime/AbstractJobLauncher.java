@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.github.rholder.retry.RetryException;
-import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator;
@@ -35,14 +33,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.source.InfiniteSource;
-import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.github.rholder.retry.RetryException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
@@ -54,6 +49,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -92,10 +88,13 @@ import org.apache.gobblin.runtime.locks.JobLock;
 import org.apache.gobblin.runtime.locks.JobLockEventListener;
 import org.apache.gobblin.runtime.locks.JobLockException;
 import org.apache.gobblin.runtime.locks.LegacyJobLockFactoryManager;
+import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -103,6 +102,7 @@ import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.gobblin.util.ClusterNameTags;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -510,8 +510,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
         // Perform work needed before writing is done
         Boolean canCleanUp = this.canCleanStagingData(this.jobContext.getJobState());
-        closer.register(new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter))
-            .executeHandlers(workUnitStream);
+        try (DestinationDatasetHandlerService destinationDatasetHandlerService =
+            new DestinationDatasetHandlerService(jobState, canCleanUp, this.eventSubmitter)) {
+          workUnitStream = destinationDatasetHandlerService.executeHandlers(workUnitStream);
+        }
+
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
         closer.register(ConverterInitializerFactory.newInstance(jobState, workUnitStream)).initialize();

@@ -390,7 +390,8 @@ public class DagManager extends AbstractIdleService {
 
        this.dagManagerMetrics.activate();
 
-        UserQuotaManager quotaManager = new InMemoryUserQuotaManager(config);
+        UserQuotaManager quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+            ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
         quotaManager.init(dagStateStore.getDags());
 
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
@@ -666,8 +667,10 @@ public class DagManager extends AbstractIdleService {
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
       }
-      props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
-          ConfigUtils.getString(dagNodeToCancel.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ""));
+      if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+        props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+            dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+      }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
     }
 

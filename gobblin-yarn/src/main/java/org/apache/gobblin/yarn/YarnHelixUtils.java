@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -240,12 +241,13 @@ public class YarnHelixUtils {
    * @return helix tag that this container should be assigned with, if null means need to use the default
    */
   public static String findHelixTagForContainer(Container container,
-      Map<String, Integer> helixTagAllocatedContainerCount, YarnContainerRequestBundle requestedYarnContainer) {
+      Map<String, AtomicInteger> helixTagAllocatedContainerCount, YarnContainerRequestBundle requestedYarnContainer) {
     String foundTag = null;
     if(requestedYarnContainer != null && requestedYarnContainer.getResourceHelixTagMap().containsKey(container.getResource().toString())) {
       for (String tag : requestedYarnContainer.getResourceHelixTagMap().get(container.getResource().toString())) {
         int desiredCount = requestedYarnContainer.getHelixTagContainerCountMap().get(tag);
-        int allocatedCount = helixTagAllocatedContainerCount.getOrDefault(tag, 0);
+        helixTagAllocatedContainerCount.putIfAbsent(tag, new AtomicInteger(0));
+        int allocatedCount = helixTagAllocatedContainerCount.get(tag).get();
         foundTag = tag;
         if(allocatedCount < desiredCount) {
           return foundTag;

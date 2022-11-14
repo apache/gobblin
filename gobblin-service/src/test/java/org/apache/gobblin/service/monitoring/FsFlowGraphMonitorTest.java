@@ -23,6 +23,8 @@ import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -68,6 +70,7 @@ public class FsFlowGraphMonitorTest {
   private final File node2File = new File(node2Dir, NODE_2_FILE);
   private final File edge1Dir = new File(node1Dir, "node2");
   private final File edge1File = new File(edge1Dir, "edge1.properties");
+  private final File sharedNodeFolder = new File(TEST_DIR, "nodes");
 
   private RefSpec masterRefSpec = new RefSpec("master");
   private Optional<FSFlowTemplateCatalog> flowCatalog;
@@ -79,14 +82,14 @@ public class FsFlowGraphMonitorTest {
   @BeforeClass
   public void setUp() throws Exception {
     cleanUpDir(TEST_DIR.toString());
-
+    TEST_DIR.mkdirs();
 
     URI topologyCatalogUri = this.getClass().getClassLoader().getResource("topologyspec_catalog").toURI();
     this.topologySpecMap = MultiHopFlowCompilerTest.buildTopologySpecMap(topologyCatalogUri);
 
     this.config = ConfigBuilder.create()
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "."
-            + ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR, this.flowGraphDir.getAbsolutePath())
+            + ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR, TEST_DIR.getAbsolutePath())
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_BASE_DIR, "gobblin-flowgraph")
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, 1)
         .build();
@@ -173,6 +176,7 @@ public class FsFlowGraphMonitorTest {
   @Test (dependsOnMethods = "testUpdateNode")
   public void testSetUpExistingGraph() throws Exception {
     // Create a FlowGraph instance with defaults
+    this.flowGraphMonitor.shutDown();
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
     MultiHopFlowCompiler mhfc = new MultiHopFlowCompiler(config, this.flowGraph);
 
@@ -186,10 +190,43 @@ public class FsFlowGraphMonitorTest {
     Assert.assertNotNull(this.flowGraph.get().getNode("node1"));
     Assert.assertNotNull(this.flowGraph.get().getNode("node2"));
     Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 1);
-
   }
 
   @Test (dependsOnMethods = "testSetUpExistingGraph")
+  public void testSharedFlowgraphHelper() throws Exception {
+    this.flowGraphMonitor.shutDown();
+    Config sharedFlowgraphConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY, ConfigValueFactory.fromAnyRef("org.apache.gobblin.service.modules.flowgraph.SharedFlowGraphHelper"))
+        .withFallback(this.config);
+
+
+    this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
+    MultiHopFlowCompiler mhfc = new MultiHopFlowCompiler(config, this.flowGraph);
+    // Set up node 3
+    File node3Folder = new File(this.flowGraphDir, "node3");
+    node3Folder.mkdirs();
+    File node3File = new File(this.sharedNodeFolder, "node3.conf");
+    String file3Contents = FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam3=value3\n";
+
+    // Have different default values for node 1
+    File node1File = new File(this.sharedNodeFolder, "node1.properties");
+    String file1Contents = FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam2=value10\n";
+
+    createNewFile(this.sharedNodeFolder, node3File, file3Contents);
+    createNewFile(this.sharedNodeFolder, node1File, file1Contents);
+
+    this.flowGraphMonitor = new FsFlowGraphMonitor(sharedFlowgraphConfig, this.flowCatalog, mhfc, this.topologySpecMap, new CountDownLatch(1), true);
+    this.flowGraphMonitor.startUp();
+    this.flowGraphMonitor.setActive(true);
+    // Let the monitor repopulate the flowgraph
+    Thread.sleep(3000);
+    Assert.assertNotNull(this.flowGraph.get().getNode("node3"));
+    DataNode node1 = this.flowGraph.get().getNode("node1");
+    Assert.assertTrue(node1.isActive());
+    Assert.assertEquals(node1.getRawConfig().getString("param2"), "value10");
+  }
+
+  @Test (dependsOnMethods = "testSharedFlowgraphHelper")
   public void testRemoveEdge() throws Exception {
     //Node1 has 1 edge before delete
     Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges("node1");
@@ -219,7 +256,6 @@ public class FsFlowGraphMonitorTest {
     //delete node files
     FileUtils.deleteDirectory(node1FlowGraphFile);
     FileUtils.deleteDirectory(node2FlowGraphFile);
-
     // Let the monitor pick up the edges that were recently deleted
     Thread.sleep(3000);
 
@@ -297,13 +333,13 @@ public class FsFlowGraphMonitorTest {
   }
 
   private void cleanUpDir(String dir) {
-    File specStoreDir = new File(dir);
+    File dirToDelete = new File(dir);
 
     // cleanup is flaky on Travis, so retry a few times and then suppress the error if unsuccessful
     for (int i = 0; i < 5; i++) {
       try {
-        if (specStoreDir.exists()) {
-          FileUtils.deleteDirectory(specStoreDir);
+        if (dirToDelete.exists()) {
+          FileUtils.deleteDirectory(dirToDelete);
         }
         // if delete succeeded then break out of loop
         break;
