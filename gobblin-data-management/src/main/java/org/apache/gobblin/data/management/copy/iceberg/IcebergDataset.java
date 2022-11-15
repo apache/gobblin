@@ -51,10 +51,12 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 /**
@@ -144,13 +146,17 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       FileStatus srcFileStatus = entry.getValue();
       // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
+      Path greatestAncestorPath = PathUtils.getRootPathChild(srcPath);
 
-      // TODO: Add preservation of ancestor ownership and permissions!
-
+      // preserving ancestor permissions till root path's child between src and dest
+      List<OwnerAndPermission> ancestorOwnerAndPermissionList =
+          CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(actualSourceFs,
+              srcPath.getParent(), greatestAncestorPath, copyConfig);
       CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
           actualSourceFs, srcFileStatus, targetFs.makeQualified(srcPath), copyConfig)
           .fileSet(fileSet)
           .datasetOutputPath(targetFs.getUri().getPath())
+          .ancestorsOwnerAndPermission(ancestorOwnerAndPermissionList)
           .build();
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));

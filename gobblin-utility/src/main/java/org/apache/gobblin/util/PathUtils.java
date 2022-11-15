@@ -81,6 +81,22 @@ public class PathUtils {
   }
 
   /**
+   * Returns the root path child for the specified path.
+   * Example: input: /a/b/c then it will return /a
+   *
+   */
+  public static Path getRootPathChild(Path path) {
+    if (path.getParent() == null) {
+      return null;
+    }
+
+    if (path.getParent().isRoot()) {
+      return path;
+    }
+    return getRootPathChild(path.getParent());
+  }
+
+  /**
    * Removes the leading slash if present.
    *
    */
