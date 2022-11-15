@@ -24,18 +24,22 @@ import lombok.EqualsAndHashCode;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog;
 import org.apache.gobblin.service.modules.dataset.IcebergDatasetDescriptor;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.hive.HiveDataNode;
+import org.apache.gobblin.service.modules.flowgraph.datanodes.hive.HiveMetastoreUriDataNode;
 
+/**
+ * An {@link IcebergOnHiveDataNode} implementation. In addition to the required properties of a {@link HiveMetastoreUriDataNode}, an {@link IcebergOnHiveDataNode}
+ * must have a metastore URI specified. Specifies iceberg platform and uniquely identifies a hive catalog.
+ * See {@link IcebergHiveCatalog} for more information
+ */
 @Alpha
 @EqualsAndHashCode(callSuper = true)
-public class IcebergDataNode extends HiveDataNode {
+public class IcebergOnHiveDataNode extends HiveMetastoreUriDataNode {
   public static final String PLATFORM = "iceberg";
   /**
-   * Constructor. A IcebergDataNode must have hive.metastore.uri property specified to get {@link IcebergHiveCatalog} information
+   * Constructor. An IcebergOnHiveDataNode must have hive.metastore.uri property specified to get {@link IcebergHiveCatalog} information
    * @param nodeProps
    */
-  public IcebergDataNode(Config nodeProps)
-      throws DataNodeCreationException {
+  public IcebergOnHiveDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
   }
   @Override

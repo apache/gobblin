@@ -20,22 +20,49 @@ package org.apache.gobblin.service.modules.dataset;
 import java.io.IOException;
 import java.util.List;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
+/**
+ * As of now, {@link IcebergDatasetDescriptor} has same implementation as that of {@link BaseDatasetDescriptor}.
+ * Fields {@link IcebergDatasetDescriptor#databaseName} and {@link IcebergDatasetDescriptor#tableName} are used to
+ * identify an iceberg. If defined incorrectly, it is set as empty field and throws {@link IOException}
+ */
 @EqualsAndHashCode(callSuper = true)
-public class IcebergDatasetDescriptor extends SqlDatasetDescriptor {
-  public IcebergDatasetDescriptor(Config config)
-      throws IOException {
+public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
+  protected static final String SEPARATION_CHAR = ";";
+  protected final String databaseName;
+  protected final String tableName;
+  @Getter
+  private final String path;
+
+  public IcebergDatasetDescriptor(Config config) throws IOException {
     super(config);
+    if (!isPlatformValid()) {
+      throw new IOException("Invalid platform specified for SqlDatasetDescriptor: " + getPlatform());
+    }
+    // setting defaults to empty; later used to throw as IO Exception
+    this.databaseName = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DATABASE_KEY, "");
+    this.tableName = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.TABLE_KEY, "");
+    if (this.databaseName.isEmpty() || this.tableName.isEmpty()) {
+      throw new IOException("Invalid iceberg database or table name: " + this.databaseName + ":" + this.tableName);
+    }
+    this.path = fullyQualifiedTableName(this.databaseName, this.tableName);
   }
 
-  @Override
   protected boolean isPlatformValid() {
     return "iceberg".equalsIgnoreCase(getPlatform());
+  }
+
+  private String fullyQualifiedTableName(String databaseName, String tableName) {
+    return Joiner.on(SEPARATION_CHAR).join(databaseName, tableName);
   }
 
   @Override
