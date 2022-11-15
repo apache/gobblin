@@ -30,12 +30,12 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 
 
 public class IcebergDatasetDescriptorTest {
-  Config baseConfig = configureIcebergDatasetDescriptor("iceberg","testDb_Db1", "testTable_Table1");
+  Config baseConfig = createDatasetDescriptorConfig("iceberg","testDb_Db1", "testTable_Table1");
 
   @Test
   public void testIsPathContaining() throws IOException {
-    Config config1 = configureIcebergDatasetDescriptor("iceberg","testDb_Db1", "testTable_Table1");
-    Config config2 = configureIcebergDatasetDescriptor("iceberg","testDb_Db1", "testTable_Table2");
+    Config config1 = createDatasetDescriptorConfig("iceberg","testDb_Db1", "testTable_Table1");
+    Config config2 = createDatasetDescriptorConfig("iceberg","testDb_Db1", "testTable_Table2");
 
     IcebergDatasetDescriptor current = new IcebergDatasetDescriptor(baseConfig);
     IcebergDatasetDescriptor other = new IcebergDatasetDescriptor(config1);
@@ -45,7 +45,7 @@ public class IcebergDatasetDescriptorTest {
     Assert.assertFalse(current.isPathContaining(yetAnother));
 
   }
-  private Config configureIcebergDatasetDescriptor(String platform, String dbName, String tableName) {
+  private Config createDatasetDescriptorConfig(String platform, String dbName, String tableName) {
     return ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef(platform))
         .withValue(DatasetDescriptorConfigKeys.DATABASE_KEY, ConfigValueFactory.fromAnyRef(dbName))
         .withValue(DatasetDescriptorConfigKeys.TABLE_KEY, ConfigValueFactory.fromAnyRef(tableName));

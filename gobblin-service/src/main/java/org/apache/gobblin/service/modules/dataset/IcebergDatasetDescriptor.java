@@ -31,9 +31,9 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 /**
- * As of now, {@link IcebergDatasetDescriptor} has same implementation as that of {@link BaseDatasetDescriptor}.
+ * {@link IcebergDatasetDescriptor} is a dataset descriptor for an Iceberg-based table, independent of the type of Iceberg catalog
  * Fields {@link IcebergDatasetDescriptor#databaseName} and {@link IcebergDatasetDescriptor#tableName} are used to
- * identify an iceberg. If defined incorrectly, it is set as empty field and throws {@link IOException}
+ * identify an iceberg.
  */
 @EqualsAndHashCode(callSuper = true)
 public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
@@ -43,10 +43,15 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   @Getter
   private final String path;
 
+  /**
+   * Constructor for {@link IcebergDatasetDescriptor}
+   * @param config
+   * @throws IOException
+   */
   public IcebergDatasetDescriptor(Config config) throws IOException {
     super(config);
     if (!isPlatformValid()) {
-      throw new IOException("Invalid platform specified for SqlDatasetDescriptor: " + getPlatform());
+      throw new IOException("Invalid platform specified for IcebergDatasetDescriptor: " + getPlatform());
     }
     // setting defaults to empty; later used to throw as IO Exception
     this.databaseName = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DATABASE_KEY, "");

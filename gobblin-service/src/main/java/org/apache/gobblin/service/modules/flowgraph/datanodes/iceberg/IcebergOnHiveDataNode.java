@@ -27,7 +27,7 @@ import org.apache.gobblin.service.modules.dataset.IcebergDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.datanodes.hive.HiveMetastoreUriDataNode;
 
 /**
- * An {@link IcebergOnHiveDataNode} implementation. In addition to the required properties of a {@link HiveMetastoreUriDataNode}, an {@link IcebergOnHiveDataNode}
+ * In addition to the required properties of a {@link HiveMetastoreUriDataNode}, an {@link IcebergOnHiveDataNode}
  * must have a metastore URI specified. Specifies iceberg platform and uniquely identifies a hive catalog.
  * See {@link IcebergHiveCatalog} for more information
  */
