@@ -552,9 +552,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
               receiverManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags();
           // Remove tag assignments for the current Helix instance from a previous run
           for (String tag : existedTags) {
-            if (!desiredTags.contains(tag))
+            if (!desiredTags.contains(tag)) {
               receiverManager.getClusterManagmentTool().removeInstanceTag(this.clusterName, this.helixInstanceName, tag);
-            logger.info("Removed unrelated helix tag {} for instance {}", tag, this.helixInstanceName);
+            }
+              logger.info("Removed unrelated helix tag {} for instance {}", tag, this.helixInstanceName);
           }
           desiredTags.forEach(desiredTag -> receiverManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, desiredTag));
           logger.info("Actual tags binding " + receiverManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
