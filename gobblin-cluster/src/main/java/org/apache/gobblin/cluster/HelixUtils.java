@@ -28,10 +28,13 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
+import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.helix.HelixAdmin;
@@ -54,13 +57,7 @@ import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.listeners.JobListener;
-
-import static org.apache.helix.task.TaskState.STOPPED;
+import static org.apache.helix.task.TaskState.*;
 
 
 /**
@@ -395,11 +392,22 @@ public class HelixUtils {
    * @return a map from jobNames to their Helix Workflow Ids.
    */
   public static Map<String, String> getWorkflowIdsFromJobNames(HelixManager helixManager, Collection<String> jobNames) {
-    Map<String, String> jobNameToWorkflowId = new HashMap<>();
     TaskDriver taskDriver = new TaskDriver(helixManager);
+    return getWorkflowIdsFromJobNames(taskDriver, jobNames);
+  }
+
+  public static Map<String, String> getWorkflowIdsFromJobNames(TaskDriver taskDriver, Collection<String> jobNames) {
+    Map<String, String> jobNameToWorkflowId = new HashMap<>();
     Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
-    for (String workflow : workflowConfigMap.keySet()) {
-      WorkflowConfig workflowConfig = taskDriver.getWorkflowConfig(workflow);
+    for (Map.Entry<String, WorkflowConfig> entry : workflowConfigMap.entrySet()) {
+      String workflow = entry.getKey();
+      WorkflowConfig workflowConfig = entry.getValue();
+      if (workflowConfig == null) {
+        // As of Helix 1.0.2 implementation, this in theory won't happen. But this null check is here in case implementation changes
+        // because the API doesn't technically prohibit null configs, maps allowing null values is implementation based, and we want to fail gracefully
+        log.error("Workflow config is null. Skipping the following workflow while searching for workflow ID. workflow={}, jobNames={}", workflow, jobNames);
+        continue;
+      }
       //Filter out any stale Helix workflows which are not running.
       if (workflowConfig.getTargetState() != TargetState.START) {
         continue;
