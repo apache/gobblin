@@ -560,7 +560,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
           logger.info("Actual tags binding " + receiverManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
         }
       } catch (HelixException e) {
-        logger.warn("some error with helix get instance config that we're ignoring and moving on: {}", e);
+        logger.warn("Error with Helix getting instance config tags used in YARN cluster configuration. Ensure YARN is being used. Will ignore and attempt to move on {}", e);
       }
     }
   }
