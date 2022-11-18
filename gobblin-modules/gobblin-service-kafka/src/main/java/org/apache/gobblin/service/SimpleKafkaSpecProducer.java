@@ -119,15 +119,16 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
   }
 
   private URI getURIWithExecutionId(URI originalURI, Properties props) {
-    if (props.contains(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+    URI result = originalURI;
+    if (props.containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       try {
-        originalURI = new URI(Joiner.on("/").
+        result = new URI(Joiner.on("/").
             join(originalURI.toString(), props.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
       } catch (URISyntaxException e) {
         log.error("Cannot create job uri to cancel job", e);
       }
     }
-    return originalURI;
+    return result;
   }
 
   @Override
@@ -154,13 +155,13 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    deletedSpecURI = getURIWithExecutionId(deletedSpecURI, headers);
+    URI finalDeletedSpecURI = getURIWithExecutionId(deletedSpecURI, headers);
 
-    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(finalDeletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.DELETE.name()))
         .setProperties(Maps.fromProperties(headers)).build();
 
-    log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+    log.info("Deleting Spec: " + finalDeletedSpecURI + " using Kafka.");
     this.deleteSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
@@ -168,12 +169,12 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> cancelJob(URI deletedSpecURI, Properties properties) {
-    deletedSpecURI = getURIWithExecutionId(deletedSpecURI, properties);
-    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
+    URI finalDeletedSpecURI = getURIWithExecutionId(deletedSpecURI, properties);
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(finalDeletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.CANCEL.name()))
         .setProperties(Maps.fromProperties(properties)).build();
 
-    log.info("Cancelling job: " + deletedSpecURI + " using Kafka.");
+    log.info("Cancelling job: " + finalDeletedSpecURI + " using Kafka.");
     this.cancelSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
