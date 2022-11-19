@@ -545,11 +545,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     HelixManager receiverManager = getReceiverManager();
     if (receiverManager.isConnected()) {
       try {
-        Set<String> desiredTags = new HashSet<>(ConfigUtils.getStringList(this.clusterConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY));
+        Set<String> desiredTags = new HashSet<>(
+            ConfigUtils.getStringList(this.clusterConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY));
         if (!desiredTags.isEmpty()) {
           // The helix instance associated with this container should be consistent on helix tag
-          List<String> existedTags =
-              receiverManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags();
+          List<String> existedTags = receiverManager.getClusterManagmentTool()
+              .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags();
           // Remove tag assignments for the current Helix instance from a previous run
           for (String tag : existedTags) {
             if (!desiredTags.contains(tag)) {
@@ -558,7 +559,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
             }
           }
           desiredTags.forEach(desiredTag -> receiverManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, desiredTag));
-          logger.info("Actual tags binding " + receiverManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
+          logger.info("Actual tags binding " + receiverManager.getClusterManagmentTool()
+              .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
         }
       } catch (HelixException e) {
         logger.warn("Error with Helix getting instance config tags used in YARN cluster configuration. Ensure YARN is being used. Will ignore and attempt to move on {}", e);
