@@ -53,6 +53,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   @Getter
   private final boolean isCompacted;
   @Getter
+  private final String fsUri;
+  @Getter
   private final boolean isCompactedAndDeduped;
   @Getter
   private final FSDatasetPartitionConfig partitionConfig;
@@ -70,6 +72,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     this.path = PathUtils
         .getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
             DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
+    this.fsUri = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FS_URI_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
     this.subPaths = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.SUBPATHS_KEY, null);
     this.isCompacted = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, false);
     this.isCompactedAndDeduped = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false);
@@ -142,6 +145,10 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     }
 
     FSDatasetDescriptor other = (FSDatasetDescriptor) o;
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getFsUri()) && !this.getFsUri().equals(other.getFsUri())) {
+      return false;
+    }
 
     if ((this.isCompacted() != other.isCompacted()) ||
         (this.isCompactedAndDeduped() != other.isCompactedAndDeduped())) {
