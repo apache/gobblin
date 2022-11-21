@@ -90,8 +90,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     if (gobblinYarnLogSource.isLogSourcePresent()) {
       Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
       logCopier = gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir);
-      this.applicationLauncher
-          .addService(logCopier);
+      this.applicationLauncher.addService(logCopier);
     }
     YarnHelixUtils.setYarnClassPath(config, yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, yarnConfiguration);

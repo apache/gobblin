@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -33,6 +35,7 @@ import org.apache.gobblin.source.workunit.WorkUnitStream;
  * Reads {@link ConfigurationKeys#DESTINATION_DATASET_HANDLER_CLASS} as a list
  * of classes, separated by comma to initialize the handlers
  */
+@Slf4j
 public class DestinationDatasetHandlerService implements Closeable {
   List<DestinationDatasetHandler> handlers;
 
@@ -65,6 +68,7 @@ public class DestinationDatasetHandlerService implements Closeable {
 
   public void close() throws IOException {
     for (DestinationDatasetHandler handler: this.handlers) {
+      log.info("Closing handler " + handler.getClass().getSimpleName());
       handler.close();
     }
   }

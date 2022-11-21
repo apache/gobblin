@@ -184,6 +184,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   private final AutomaticTroubleshooter troubleshooter;
 
   protected final GobblinJobMetricReporter gobblinJobMetricsReporter;
+  private boolean jobStoppedGracefully = false;
 
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
       throws Exception {
@@ -425,6 +426,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  private void addShutdownHook(Closer closer) {
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      LOG.info("Running the shutdown hook of AbstractJobLauncher");
+      try {
+        if (!jobStoppedGracefully) {
+          closer.close();
+        }
+      } catch (Throwable t) {
+        LOG.warn("Error while running the shutdown hook ", t);
+      }
+    }));
+  }
+
   @Override
   public void launchJob(JobListener jobListener)
       throws JobException {
@@ -439,6 +453,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       TimingEvent launchJobTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.FULL_JOB_EXECUTION);
 
       try (Closer closer = Closer.create()) {
+        addShutdownHook(closer);
         closer.register(this.jobContext);
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE, new JobListenerAction() {
           @Override
@@ -679,6 +694,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             }
           }
         }
+        jobStoppedGracefully = true;
       }
     } finally {
       // Stop metrics reporting
