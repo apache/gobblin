@@ -51,7 +51,6 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.FileSystemDataNode;
 import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
@@ -171,10 +170,6 @@ public abstract class AbstractPathFinder implements PathFinder {
 
     if (dataNode.getDefaultDatasetDescriptorPlatform() != null) {
       defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef(dataNode.getDefaultDatasetDescriptorPlatform()));
-    }
-
-    if (dataNode instanceof FileSystemDataNode) {
-      defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef(((FileSystemDataNode) dataNode).getFsUri()));
     }
 
     return defaultConfig;

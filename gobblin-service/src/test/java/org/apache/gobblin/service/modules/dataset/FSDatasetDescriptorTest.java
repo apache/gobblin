@@ -92,10 +92,11 @@ public class FSDatasetDescriptorTest {
         .withValue(DatasetDescriptorConfigKeys.FORMAT_KEY, ConfigValueFactory.fromAnyRef("avro"))
         .withValue(DatasetDescriptorConfigKeys.CODEC_KEY, ConfigValueFactory.fromAnyRef("gzip"))
         .withValue(DatasetDescriptorConfigKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("hdfs://test-cluster_1:9000"));
-    FSDatasetDescriptor descriptor7 = new FSDatasetDescriptor(config7);
-    FSDatasetDescriptor descriptor8 = new FSDatasetDescriptor(config8);
-    Assert.assertTrue(descriptor1.contains(descriptor7));
-    Assert.assertFalse(descriptor7.contains(descriptor1));
+    FSVolumeDatasetDescriptor descriptor7 = new FSVolumeDatasetDescriptor(config7);
+    FSVolumeDatasetDescriptor volumeDescriptor = new FSVolumeDatasetDescriptor(config1);
+    FSVolumeDatasetDescriptor descriptor8 = new FSVolumeDatasetDescriptor(config8);
+    Assert.assertTrue(volumeDescriptor.contains(descriptor7));
+    Assert.assertFalse(descriptor7.contains(volumeDescriptor));
     Assert.assertFalse(descriptor8.contains(descriptor7));
   }
 
