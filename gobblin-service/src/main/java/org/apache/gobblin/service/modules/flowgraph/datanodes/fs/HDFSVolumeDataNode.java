@@ -21,6 +21,10 @@ import com.typesafe.config.Config;
 import org.apache.gobblin.service.modules.dataset.FSVolumeDatasetDescriptor;
 
 
+/**
+ * An implementation of {@link HdfsDataNode}. With default dataset descriptor class to be {@link FSVolumeDatasetDescriptor} which expect
+ * fs.uri to be set in dataset as well
+ */
 public class HDFSVolumeDataNode extends HdfsDataNode{
   public HDFSVolumeDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
