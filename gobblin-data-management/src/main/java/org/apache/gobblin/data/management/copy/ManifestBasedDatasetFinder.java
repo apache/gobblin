@@ -37,7 +37,7 @@ public class ManifestBasedDatasetFinder implements IterableDatasetFinder<Manifes
   private final List<Path> manifestLocations;
   private final  Properties properties;
   public ManifestBasedDatasetFinder(final FileSystem fs, Properties properties) {
-    Preconditions.checkArgument(properties.containsKey(MANIFEST_LOCATION), "Please config " + MANIFEST_LOCATION);
+    Preconditions.checkArgument(properties.containsKey(MANIFEST_LOCATION), "Manifest location key required in config. Please set " + MANIFEST_LOCATION);
     this.fs = fs;
     manifestLocations = new ArrayList<>();
     this.properties = properties;
