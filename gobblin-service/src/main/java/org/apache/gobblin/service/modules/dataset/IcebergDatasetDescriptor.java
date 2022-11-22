@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.base.Joiner;
@@ -71,21 +72,31 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   }
 
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      return false;
+      errors.add("Input path is null");
+      return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      return false;
+      errors.add("Incomplete splitting for dbName and tableName");
+      return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    return this.databaseName.equals(otherDbName) && this.tableName.equals(otherTableName);
+    if (!this.databaseName.equals(otherDbName)) {
+      errors.add("Database name is incorrect. Expected: " + this.databaseName);
+    }
+
+    if (!this.tableName.equals(otherTableName)) {
+      errors.add("Table name is incorrect. Expected: " + this.tableName);
+    }
+    return errors;
   }
 }

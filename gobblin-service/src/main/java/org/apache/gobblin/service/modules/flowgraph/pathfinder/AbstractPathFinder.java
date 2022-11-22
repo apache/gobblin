@@ -220,12 +220,12 @@ public abstract class AbstractPathFinder implements PathFinder {
               continue;
             }
 
-            if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
+            if (inputDatasetDescriptor.contains(currentDatasetDescriptor).size() == 0) {
               DatasetDescriptor edgeOutputDescriptor = makeOutputDescriptorSpecific(currentDatasetDescriptor, outputDatasetDescriptor);
               FlowEdgeContext flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, edgeOutputDescriptor, mergedConfig,
                   specExecutor);
 
-              if (destDatasetDescriptor.getFormatConfig().contains(outputDatasetDescriptor.getFormatConfig())) {
+              if (destDatasetDescriptor.getFormatConfig().contains(outputDatasetDescriptor.getFormatConfig()).size() == 0) {
                 /*
                 Add to the front of the edge list if platform-independent properties of the output descriptor is compatible
                 with those of destination dataset descriptor.

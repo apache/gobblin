@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -69,22 +70,34 @@ public class FormatConfig {
         withFallback(DEFAULT_FALLBACK);
   }
 
-  public boolean contains(FormatConfig other) {
-    return containsFormat(other.getFormat()) && containsCodec(other.getCodecType())
-        && containsEncryptionConfig(other.getEncryptionConfig());
+  public ArrayList<String> contains(FormatConfig other) {
+    ArrayList<String> errors = new ArrayList<>();
+
+    errors.addAll(containsFormat(other.getFormat()));
+    errors.addAll(containsCodec(other.getCodecType()));
+    errors.addAll(containsEncryptionConfig(other.getEncryptionConfig()));
+    return errors;
   }
 
-  private boolean containsFormat(String otherFormat) {
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
-        || (this.getFormat().equalsIgnoreCase(otherFormat));
+  private ArrayList<String> containsFormat(String otherFormat) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
+        && (!this.getFormat().equalsIgnoreCase(otherFormat))) {
+      errors.add("Mismatched format. Expected: " + this.getFormat() + " or any");
+    }
+    return errors;
   }
 
-  private boolean containsCodec(String otherCodecType) {
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
-        || (this.getCodecType().equalsIgnoreCase(otherCodecType));
+  private ArrayList<String> containsCodec(String otherCodecType) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
+        && (!this.getCodecType().equalsIgnoreCase(otherCodecType))) {
+      errors.add("Mismatched codec type. Expected: " + this.getCodecType() + " or any");
+    }
+    return errors;
   }
 
-  private boolean containsEncryptionConfig(EncryptionConfig otherEncryptionConfig) {
+  private ArrayList<String> containsEncryptionConfig(EncryptionConfig otherEncryptionConfig) {
     return this.getEncryptionConfig().contains(otherEncryptionConfig);
   }
 }

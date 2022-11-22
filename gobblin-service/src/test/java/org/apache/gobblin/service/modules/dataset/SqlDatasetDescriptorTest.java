@@ -43,19 +43,19 @@ public class SqlDatasetDescriptorTest {
 
     Config config2 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("sqlserver"));
     SqlDatasetDescriptor descriptor2 = new SqlDatasetDescriptor(config2);
-    Assert.assertTrue(descriptor2.contains(descriptor1));
+    Assert.assertEquals(descriptor2.contains(descriptor1).size(), 0);
 
     Config config3 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("sqlserver"))
         .withValue(DatasetDescriptorConfigKeys.DATABASE_KEY, ConfigValueFactory.fromAnyRef("testDb_.*"))
         .withValue(DatasetDescriptorConfigKeys.TABLE_KEY, ConfigValueFactory.fromAnyRef("testTable_.*"));
 
     SqlDatasetDescriptor descriptor3 = new SqlDatasetDescriptor(config3);
-    Assert.assertTrue(descriptor3.contains(descriptor1));
+    Assert.assertEquals(descriptor3.contains(descriptor1).size(), 0);
 
     Config config4 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("sqlserver"))
         .withValue(DatasetDescriptorConfigKeys.DATABASE_KEY, ConfigValueFactory.fromAnyRef("Db_.*"))
         .withValue(DatasetDescriptorConfigKeys.TABLE_KEY, ConfigValueFactory.fromAnyRef("Table_.*"));
     SqlDatasetDescriptor descriptor4 = new SqlDatasetDescriptor(config4);
-    Assert.assertFalse(descriptor4.contains(descriptor1));
+    Assert.assertNotEquals(descriptor4.contains(descriptor1).size(), 0);
   }
 }

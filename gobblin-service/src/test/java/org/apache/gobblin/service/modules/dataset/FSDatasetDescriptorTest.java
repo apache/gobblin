@@ -42,7 +42,7 @@ public class FSDatasetDescriptorTest {
         .withValue(DatasetDescriptorConfigKeys.CODEC_KEY, ConfigValueFactory.fromAnyRef("gzip"));
 
     FSDatasetDescriptor descriptor2 = new FSDatasetDescriptor(config2);
-    Assert.assertTrue(descriptor1.contains(descriptor2));
+    Assert.assertEquals(descriptor1.contains(descriptor2).size(), 0);
 
     //Add encryption config
     Config encConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, ConfigValueFactory.fromAnyRef("file"))
@@ -50,8 +50,8 @@ public class FSDatasetDescriptorTest {
         .atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX);
     Config config3 = config2.withFallback(encConfig);
     FSDatasetDescriptor descriptor3 = new FSDatasetDescriptor(config3);
-    Assert.assertTrue(descriptor2.contains(descriptor3));
-    Assert.assertTrue(descriptor1.contains(descriptor3));
+    Assert.assertEquals(descriptor2.contains(descriptor3).size(), 0);
+    Assert.assertEquals(descriptor1.contains(descriptor3).size(), 0);
 
     //Add partition config
     Config partitionConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, ConfigValueFactory.fromAnyRef("datetime"))
@@ -59,19 +59,19 @@ public class FSDatasetDescriptorTest {
         .atPath(DatasetDescriptorConfigKeys.PARTITION_PREFIX);
     Config config4 = config3.withFallback(partitionConfig);
     FSDatasetDescriptor descriptor4 = new FSDatasetDescriptor(config4);
-    Assert.assertTrue(descriptor3.contains(descriptor4));
-    Assert.assertTrue(descriptor2.contains(descriptor4));
-    Assert.assertTrue(descriptor1.contains(descriptor4));
+    Assert.assertEquals(descriptor3.contains(descriptor4).size(), 0);
+    Assert.assertEquals(descriptor2.contains(descriptor4).size(), 0);
+    Assert.assertEquals(descriptor1.contains(descriptor4).size(), 0);
 
     //Add compaction/retention config
     Config miscConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, ConfigValueFactory.fromAnyRef("true"))
         .withValue(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, ConfigValueFactory.fromAnyRef("true"));
     Config config5 = config4.withFallback(miscConfig);
     FSDatasetDescriptor descriptor5 = new FSDatasetDescriptor(config5);
-    Assert.assertFalse(descriptor4.contains(descriptor5));
-    Assert.assertFalse(descriptor3.contains(descriptor5));
-    Assert.assertFalse(descriptor2.contains(descriptor5));
-    Assert.assertFalse(descriptor1.contains(descriptor5));
+    Assert.assertNotEquals(descriptor4.contains(descriptor5).size(), 0);
+    Assert.assertNotEquals(descriptor3.contains(descriptor5).size(), 0);
+    Assert.assertNotEquals(descriptor2.contains(descriptor5).size(), 0);
+    Assert.assertNotEquals(descriptor1.contains(descriptor5).size(), 0);
 
     // Test subpaths
     Config subPathConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c"))
@@ -98,6 +98,8 @@ public class FSDatasetDescriptorTest {
     Assert.assertTrue(volumeDescriptor.contains(descriptor7));
     Assert.assertFalse(descriptor7.contains(volumeDescriptor));
     Assert.assertFalse(descriptor8.contains(descriptor7));
+    Assert.assertEquals(descriptor1.contains(descriptor6).size(), 0);
+    Assert.assertNotEquals(descriptor2.contains(descriptor6).size(), 0);
   }
 
   @Test
@@ -111,7 +113,7 @@ public class FSDatasetDescriptorTest {
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"));
 
     FSDatasetDescriptor descriptor2 = new FSDatasetDescriptor(config2);
-    Assert.assertTrue(descriptor1.contains(descriptor2));
+    Assert.assertEquals(descriptor1.contains(descriptor2).size(), 0);
   }
 
   @Test

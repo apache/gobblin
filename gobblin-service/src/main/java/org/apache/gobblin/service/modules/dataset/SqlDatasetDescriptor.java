@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -104,25 +105,37 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    * @param other whose path should be in the format of dbName.tableName
    */
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      return false;
+      errors.add("Path is null.");
+      return errors;
     }
 
     if (PathUtils.GLOB_TOKENS.matcher(otherPath).find()) {
-      return false;
+      errors.add("Glob token mismatch");
+      return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      return false;
+      errors.add("Incomplete splitting for dbName and tableName");
+      return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    return Pattern.compile(this.databaseName).matcher(otherDbName).matches() && Pattern.compile(this.tableName).matcher(otherTableName).matches();
+    if (!Pattern.compile(this.databaseName).matcher(otherDbName).matches()) {
+      errors.add("Database name does not match. Expected: " + this.databaseName);
+    }
+
+    if (!Pattern.compile(this.tableName).matcher(otherTableName).matches()) {
+      errors.add("Table name does not match. Expected: " + this.tableName);
+    }
+
+    return errors;
   }
 }

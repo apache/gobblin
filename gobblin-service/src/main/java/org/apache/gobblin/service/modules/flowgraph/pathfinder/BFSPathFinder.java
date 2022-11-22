@@ -86,7 +86,7 @@ public class BFSPathFinder extends AbstractPathFinder {
     }
 
     //Base condition 2: Check if we are already at the target. If so, return an empty path.
-    if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
+    if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor).size() == 0) {
       return new ArrayList<>(0);
     }
 

@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
@@ -86,23 +87,25 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * the other's path matches this path.
    */
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     String otherSubPaths = ((FSDatasetDescriptor) other).getSubPaths();
 
     // This allows the special case where "other" is a glob, but is also an exact match with "this" path.
     if (getPath().equals(otherPath)) {
-      return true;
+      return errors;
     }
 
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
-        if (!isPathContaining(new Path(otherPath, subPath).toString())) {
-          return false;
+        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString());
+        if (pathErrors.size() != 0) {
+          return pathErrors;
         }
       }
-      return true;
+      return errors;
     } else {
       return isPathContaining(otherPath);
     }
@@ -116,38 +119,53 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * @param otherPath a glob pattern that describes a set of paths.
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
-  private boolean isPathContaining(String otherPath) {
+  private ArrayList<String> isPathContaining(String otherPath) {
+    ArrayList<String> errors = new ArrayList<>();
     if (otherPath == null) {
-      return false;
+      errors.add("Input path is null");
+      return errors;
     }
     if (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getPath())) {
-      return true;
+      return errors;
     }
 
     if (PathUtils.isGlob(new Path(otherPath))) {
-      return false;
+      errors.add("Input path is not a glob.");
+      return errors;
     }
 
     GlobPattern globPattern = new GlobPattern(this.getPath());
-    return globPattern.matches(otherPath);
+
+    if (!globPattern.matches(otherPath)) {
+      errors.add("Glob pattern does not match what is expected");
+    }
+    return errors;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public boolean contains(DatasetDescriptor o) {
-    if (!super.contains(o)) {
-      return false;
+  public ArrayList<String> contains(DatasetDescriptor userFlowConfigDatasetDescriptor) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (super.contains(userFlowConfigDatasetDescriptor).size() != 0) {
+      return super.contains(userFlowConfigDatasetDescriptor);
     }
 
-    FSDatasetDescriptor other = (FSDatasetDescriptor) o;
+    FSDatasetDescriptor userFlowConfig = (FSDatasetDescriptor) userFlowConfigDatasetDescriptor;
 
-    if ((this.isCompacted() != other.isCompacted()) ||
-        (this.isCompactedAndDeduped() != other.isCompactedAndDeduped())) {
-      return false;
+    if ((this.isCompacted() != userFlowConfig.isCompacted()) ||
+        (this.isCompactedAndDeduped() != userFlowConfig.isCompactedAndDeduped())) {
+      if (this.isCompacted() != userFlowConfig.isCompacted()) {
+        errors.add("Mismatched isCompacted. Expected is: " + this.isCompacted());
+      }
+      else {
+        errors.add("Mismatched isCompactedAndDeduped. Expected is: " + this.isCompactedAndDeduped());
+      }
+      return errors;
     }
 
-    return this.getPartitionConfig().contains(other.getPartitionConfig());
+    errors.addAll(this.getPartitionConfig().contains(userFlowConfig.getPartitionConfig()));
+    return errors;
   }
 }

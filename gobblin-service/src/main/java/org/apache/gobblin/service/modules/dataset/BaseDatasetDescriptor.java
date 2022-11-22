@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -62,32 +63,47 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   /**
    * {@inheritDoc}
    */
-  protected abstract boolean isPathContaining(DatasetDescriptor other);
+  protected abstract ArrayList<String> isPathContaining(DatasetDescriptor other);
 
   /**
    * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
    * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other
    * {@link DatasetDescriptor}. This operation is non-commutative.
-   * @param other
+   * @param userFlowConfig
    */
   @Override
-  public boolean contains(DatasetDescriptor other) {
-    if (this == other) {
-      return true;
+  public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (this == userFlowConfig) {
+      return errors;
     }
 
-    if (other == null || !getClass().equals(other.getClass())) {
-      return false;
-    }
+    if (userFlowConfig == null) {
+      errors.add("Empty input datasetDescriptor");
+      return errors;
+    } else {
+        if (!getClass().equals(userFlowConfig.getClass())) {
+          errors.add("Incorrect class. Expected class is of format: " + this.getClass());
+          return errors;
+        }
 
-    if (this.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
-      return false;
-    }
+        if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
+          if (userFlowConfig.getPlatform() == null) {
+            errors.add("Missing platform. Expected platform is of format: " + this.getPlatform());
+          } else {
+            errors.add("Incorrect platform. Expected platform is of format: " + this.getPlatform());
+          }
+          return errors;
+        }
 
-    if ((this.isRetentionApplied() != other.isRetentionApplied())) {
-      return false;
-    }
+        if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
+          errors.add("Expected boolean for isRetentionApplied is: " + this.isRetentionApplied());
+          return errors;
+        }
+      }
 
-    return isPathContaining(other) && getFormatConfig().contains(other.getFormatConfig());
+    errors.addAll(isPathContaining(userFlowConfig));
+    errors.addAll(getFormatConfig().contains(userFlowConfig.getFormatConfig()));
+    return errors;
   }
 }

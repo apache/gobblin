@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -86,9 +87,13 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
    * @param other whose path should be in the format of a HTTP path
    */
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
     // Might be null
+    ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
-    return this.path.equals(otherPath);
+    if (!this.path.equals(otherPath)) {
+      errors.add("HTTP path does not match. Expected HTTP path is of format: " + this.path);
+    }
+    return errors;
   }
 }

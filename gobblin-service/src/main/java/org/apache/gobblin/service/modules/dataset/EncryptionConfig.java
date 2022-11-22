@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -124,26 +125,44 @@ public class EncryptionConfig {
     return;
   }
 
-  public boolean contains(EncryptionConfig other) {
-    if (other == null) {
-      return false;
+  public ArrayList<String> contains(EncryptionConfig userFlowConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (userFlowConfig == null) {
+      errors.add("Empty EncryptionConfig");
+      return errors;
     }
 
-    String otherEncryptionAlgorithm = other.getEncryptionAlgorithm();
-    String otherKeystoreType = other.getKeystoreType();
-    String otherKeystoreEncoding = other.getKeystoreEncoding();
-    String otherEncryptionLevel = other.getEncryptionLevel();
-    String otherEncryptedFields = other.getEncryptedFields();
+    String userFlowConfigEncryptionAlgorithm = userFlowConfig.getEncryptionAlgorithm();
+    String userFlowotherKeystoreType = userFlowConfig.getKeystoreType();
+    String userFlowotherKeystoreEncoding = userFlowConfig.getKeystoreEncoding();
+    String userFlowotherEncryptionLevel = userFlowConfig.getEncryptionLevel();
+    String userFlowotherEncryptedFields = userFlowConfig.getEncryptedFields();
 
-    return (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionAlgorithm())
-        || this.encryptionAlgorithm.equalsIgnoreCase(otherEncryptionAlgorithm))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreType())
-        || this.keystoreType.equalsIgnoreCase(otherKeystoreType))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreEncoding())
-        || this.keystoreEncoding.equalsIgnoreCase(otherKeystoreEncoding))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionLevel())
-        || this.encryptionLevel.equalsIgnoreCase(otherEncryptionLevel))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
-        || this.encryptedFields.equalsIgnoreCase(otherEncryptedFields));
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionAlgorithm())
+        && !this.encryptionAlgorithm.equalsIgnoreCase(userFlowConfigEncryptionAlgorithm)) {
+      errors.add("Mismatched encryption algorithm. Expected: " + this.getEncryptionAlgorithm() + " or any");
+    }
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreType())
+        && !this.keystoreType.equalsIgnoreCase(userFlowotherKeystoreType)) {
+      errors.add("Mismatched keystore type. Expected: " + this.getKeystoreType() + " or any");
+    }
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreEncoding())
+        && !this.keystoreEncoding.equalsIgnoreCase(userFlowotherKeystoreEncoding)) {
+      errors.add("Mismatched keystore encoding. Expected: " + this.getKeystoreEncoding() + " or any");
+    }
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionLevel())
+        && !this.encryptionLevel.equalsIgnoreCase(userFlowotherEncryptionLevel)) {
+      errors.add("Mismatched encryption level. Expected: " + this.getEncryptionLevel() + " or any");
+    }
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
+        && !this.encryptedFields.equalsIgnoreCase(userFlowotherEncryptedFields)) {
+      errors.add("Mismatched encrypted fields. Expected: " + this.getEncryptedFields() + " or any");
+    }
+
+    return errors;
   }
 }

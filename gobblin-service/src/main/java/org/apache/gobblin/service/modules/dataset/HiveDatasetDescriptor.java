@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.fs.GlobPattern;
@@ -99,35 +100,41 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   }
 
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      return false;
+      errors.add("Input path is null.");
+      return errors;
     }
 
     if (this.isPartitioned != ((HiveDatasetDescriptor) other).isPartitioned) {
-      return false;
+      errors.add("Partition does not match. Expected: " + this.isPartitioned);
+      return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      return false;
+      errors.add("Incomplete splitting for dbName and tableName");
+      return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableNames = parts.get(1);
 
     if (!this.whitelistBlacklist.acceptDb(otherDbName)) {
-      return false;
+      errors.add("Database in blacklist.");
+      return errors;
     }
 
     List<String> otherTables = Splitter.on(",").splitToList(otherTableNames);
     for (String otherTable : otherTables) {
       if (!this.whitelistBlacklist.acceptTable(otherDbName, otherTable)) {
-        return false;
+        errors.add("Table in blacklist");
+        return errors;
       }
     }
-    return true;
+    return errors;
   }
 }

@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -128,13 +129,23 @@ public class FSDatasetPartitionConfig {
     }
   }
 
-  public boolean contains(FSDatasetPartitionConfig other) {
-    if (other == null) {
-      return false;
+  public ArrayList<String> contains(FSDatasetPartitionConfig userFlowConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (userFlowConfig == null) {
+      errors.add("Missing Dataset Partition Config");
+      return errors;
     }
-    return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
-        || this.getPartitionType().equalsIgnoreCase(other.getPartitionType())))
-        && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
-        || this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern())));
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
+        && !this.getPartitionType().equalsIgnoreCase(userFlowConfig.getPartitionType())) {
+      errors.add("Mismatched partition type. Expected: " + this.getPartitionType() + " or any");
+    }
+
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
+        && !this.getPartitionPattern().equalsIgnoreCase(userFlowConfig.getPartitionPattern())) {
+      errors.add("Mismatched partition pattern. Expected: " + this.getPartitionPattern() + " or any");
+    }
+
+    return errors;
   }
 }
