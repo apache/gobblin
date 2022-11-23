@@ -72,6 +72,7 @@ public class JobExecutionPlanDagFactory {
       if (jobName == null) {
         continue;
       }
+      log.info("jobName {} included in jobExecutionPlans {}", jobName, jobExecutionPlans);
       Dag.DagNode<JobExecutionPlan> node = jobExecutionPlanMap.get(jobName);
       Collection<String> dependencies = getDependencies(jobExecutionPlan.getJobSpec().getConfig());
       for (String dependency : dependencies) {

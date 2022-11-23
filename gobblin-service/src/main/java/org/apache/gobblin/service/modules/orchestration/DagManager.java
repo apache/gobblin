@@ -950,6 +950,7 @@ public class DagManager extends AbstractIdleService {
     synchronized Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+      log.info("Submitting next nodes for dagId {}, where next nodes are {}", dagId, nextNodes);
 
       //Submit jobs from the dag ready for execution.
       for (DagNode<JobExecutionPlan> dagNode : nextNodes) {
@@ -1167,6 +1168,7 @@ public class DagManager extends AbstractIdleService {
      * @param dagId
      */
     private synchronized void cleanUpDag(String dagId) {
+      log.info("Cleaning up dagId {}", dagId);
       // clears flow event after cancelled job to allow resume event status to be set
       this.dags.get(dagId).setFlowEvent(null);
        try {
