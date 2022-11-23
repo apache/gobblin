@@ -143,7 +143,6 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
 
     FSDatasetDescriptor other = (FSDatasetDescriptor) o;
 
-
     if ((this.isCompacted() != other.isCompacted()) ||
         (this.isCompactedAndDeduped() != other.isCompactedAndDeduped())) {
       return false;
