@@ -1,0 +1,110 @@
+{
+  "type": "record",
+  "name": "GaaSObservabilityEvent",
+  "namespace" : "org.apache.gobblin.metrics",
+  "fields": [
+    {
+      "name": "timestamp",
+      "type": "long",
+      "default": 0,
+      "doc": "Time at which event was created in millis"
+    },
+    {
+      "name" : "flowGroup",
+      "type" : "string",
+      "doc" : "Flow group for the GaaS flow",
+      "compliance" : "NONE"
+    }, {
+      "name" : "flowName",
+      "type" : "string",
+      "doc" : "Flow name for the GaaS flow",
+      "compliance" : "NONE"
+    }, {
+      "name" : "flowExecutionId",
+      "type" : "string",
+      "doc" : "Flow execution id for the GaaS flow",
+      "compliance" : "NONE"
+    }, {
+      "name": "flowCompiled",
+      "type": "boolean",
+      "default": false,
+      "doc": "Whether or not this flow was compiled successfully."
+    }, {
+      "name": "lastFlowModifiedTimestamp",
+      "type": "long",
+      "doc": "Timestamp in millis when the flow config was last modified"
+    }, {
+      "name" : "edgeId",
+      "type" : "string",
+      "doc" : "Flow edge id, in format <src_node>_<dest_node>_<edge_id>",
+      "compliance" : "NONE"
+    }, {
+      "name": "jobName",
+      "type": "string",
+      "doc": "The name of the Gobblin job, found in the job template. One edge can contain multiple jobs",
+      "compliance" : "NONE"
+    }, {
+      "name": "jobType",
+      "type": {
+        "type": "enum",
+        "name": "JobType",
+        "symbols": [
+          "COPY",
+          "RETENTION",
+          "GOBBLIN"
+        ],
+        "symbolDocs": {
+          "COPY": "Gobblin distcp job",
+          "RETENTION": "Gobblin retention job",
+          "GOBBLIN": "Any Gobblin job"
+        },
+        "default": "GOBBLIN"
+      },
+      "doc": "Gobblin job type running on GaaS, determined by the compiled job template.",
+      "compliance": "NONE"
+    }, {
+      "name": "jobStatus",
+      "type": {
+        "type": "enum",
+        "name": "JobStatus",
+        "symbols": [
+          "SUCCEEDED",
+          "FAILED",
+          "CANCELLED"
+        ],
+        "doc": "Final job status for this job in the GaaS flow"
+      }
+    }, {
+      "name": "jobStartTime",
+      "type": "long",
+      "doc": "Start time of the job in millis"
+    }, {
+      "name": "jobEndTime",
+      "type": "long",
+      "doc": "Finish time of the job in millis"
+    }, {
+      "name": "jobRunTime",
+      "type": "long",
+      "doc": "Time taken for the job pipeline to run in millis",
+      "default": 0
+    }, {
+      "name": "proxyUser",
+      "type": "string",
+      "doc": "Proxy user (if applicable) that ran the Gobblin job",
+      "default": "NA"
+    }, {
+      "name": "executorLink",
+      "type": "string",
+      "doc": "Link to where the job is running, currently limited to Azkaban"
+    }, {
+      "name": "executorId",
+      "type": "string",
+      "doc": "The ID of the spec executor that ran the job"
+    }, {
+      "name": "copyMetadata",
+      "type": ["null","org.apache.gobblin.metadata.GobblinDistcpJobEvent"],
+      "doc": "Metadata for a distcp job associated with this flow, if applicable",
+      "default": null
+    }
+  ]
+}

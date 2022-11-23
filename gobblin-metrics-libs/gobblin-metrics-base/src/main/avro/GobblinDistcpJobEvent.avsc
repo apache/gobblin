@@ -1,0 +1,27 @@
+{
+  "type": "record",
+  "name": "GobblinDistcpJobEvent",
+  "namespace" : "org.apache.gobblin.metadata",
+  "fields": [
+    {
+      "name": "filesToCopy",
+      "type": "long",
+      "default": 0,
+      "doc": "The number of files selected by the distcp job to be copied. 0 implies that there is no delta detected between the input and output."
+    }, {
+      "name": "bytesToCopy",
+      "type": "long",
+      "default": 0,
+      "doc": "The number of bytes selected by the distcp job to be copied. 0 implies that there is no delta detected between the input and output."
+    }, {
+      "name": "planningTime",
+      "type": "long",
+      "doc": "Time spent in millis for calculating deltas and workunits needed to create the distcp job."
+    }, {
+      "name": "mapReduceRunTime",
+      "type": ["null", "long"],
+      "default": null,
+      "doc": "Time spent in millis running the MapReduce job that performs the copy (if applicable)"
+    }
+  ]
+}
