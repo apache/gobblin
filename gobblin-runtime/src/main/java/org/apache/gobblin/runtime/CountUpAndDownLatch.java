@@ -21,6 +21,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+import org.jetbrains.annotations.NotNull;
 
 
 /**
@@ -29,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 class CountUpAndDownLatch extends CountDownLatch {
 
   private final Phaser phaser;
+  AtomicLong totalParties = new AtomicLong();
 
   public CountUpAndDownLatch(int count) {
     super(0);
@@ -48,7 +51,7 @@ class CountUpAndDownLatch extends CountDownLatch {
   }
 
   @Override
-  public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+  public boolean await(long timeout, @NotNull TimeUnit unit) throws InterruptedException {
     try {
       int phase = getPhase();
       this.phaser.awaitAdvanceInterruptibly(phase, timeout, unit);
@@ -71,6 +74,7 @@ class CountUpAndDownLatch extends CountDownLatch {
 
   public void countUp() {
     this.phaser.register();
+    totalParties.addAndGet(1);
   }
 
   @Override
@@ -78,12 +82,17 @@ class CountUpAndDownLatch extends CountDownLatch {
     return this.phaser.getUnarrivedParties();
   }
 
+  /**
+   * Because {@link #countDown()} de-registers a party. This method gives the same result as {@link #getCount()}.
+   * @return currently registered parties
+   */
+  @Deprecated
   public long getRegisteredParties() {
     return this.phaser.getRegisteredParties();
   }
 
   @Override
   public String toString() {
-    return "Unarrived parties: " + this.phaser.getUnarrivedParties();
+    return "Unarrived parties: " + this.phaser.getUnarrivedParties() + "/" + totalParties;
   }
 }

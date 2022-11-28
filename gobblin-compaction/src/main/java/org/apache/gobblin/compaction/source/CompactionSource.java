@@ -165,7 +165,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
                   Iterators.transform (datasets.iterator(), new Function<Dataset, Callable<VerifiedDataset>>() {
                     @Override
                     public Callable<VerifiedDataset> apply(Dataset dataset) {
-                      return new DatasetVerifier (dataset, workUnitIterator, suite.getDatasetsFinderVerifiers());
+                      return new DatasetVerifier (dataset, workUnitIterator, suite.getDatasetsFinderVerifiers(), state);
                     }
                   });
 
@@ -312,6 +312,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     private Dataset dataset;
     private CompactionWorkUnitIterator workUnitIterator;
     private List<CompactionVerifier> verifiers;
+    private State state;
 
     /**
      * {@link VerifiedDataset} wraps original {@link Dataset} because if verification failed, we are able get original
@@ -321,7 +322,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       try {
         VerifiedResult result = this.verify(dataset);
         if (result.allVerificationPassed) {
-          this.workUnitIterator.addWorkUnit(createWorkUnit(dataset));
+          this.workUnitIterator.addWorkUnit(createWorkUnit(dataset, state));
         }
         return new VerifiedDataset(dataset, result);
       } catch (Exception e) {
@@ -423,11 +424,17 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  protected WorkUnit createWorkUnit(Dataset dataset) throws IOException {
-    WorkUnit workUnit = new WorkUnit();
+  protected WorkUnit createWorkUnit(Dataset dataset, State state) throws IOException {
+    WorkUnit workUnit = WorkUnit.createEmpty();
     TaskUtils.setTaskFactoryClass(workUnit, MRCompactionTaskFactory.class);
     suite.save(dataset, workUnit);
     workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
+    if (state.contains(ConfigurationKeys.JOB_NAME_KEY)) {
+      workUnit.setProp(ConfigurationKeys.JOB_NAME_KEY, state.getProp(ConfigurationKeys.JOB_NAME_KEY));
+    }
+    if (state.contains(ConfigurationKeys.JOB_ID_KEY)) {
+      workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, state.getProp(ConfigurationKeys.JOB_ID_KEY));
+    }
     return workUnit;
   }
 

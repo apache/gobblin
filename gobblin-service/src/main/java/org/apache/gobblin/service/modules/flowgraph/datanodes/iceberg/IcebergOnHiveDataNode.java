@@ -15,40 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.flowgraph.datanodes.hive;
+package org.apache.gobblin.service.modules.flowgraph.datanodes.iceberg;
 
 import com.typesafe.config.Config;
 
 import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.HiveDatasetDescriptor;
-import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
-
+import org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog;
+import org.apache.gobblin.service.modules.dataset.IcebergDatasetDescriptor;
+import org.apache.gobblin.service.modules.flowgraph.datanodes.hive.HiveMetastoreUriDataNode;
 
 /**
- * An {@link HiveDataNode} implementation. In addition to the required properties of a {@link BaseDataNode}, an {@link HiveDataNode}
- * specifies platform as hive.
+ * In addition to the required properties of a {@link HiveMetastoreUriDataNode}, an {@link IcebergOnHiveDataNode}
+ * must have a metastore URI specified. Specifies iceberg platform and uniquely identifies a hive catalog.
+ * See {@link IcebergHiveCatalog} for more information
  */
 @Alpha
-@EqualsAndHashCode (callSuper = true)
-public class HiveDataNode extends HiveMetastoreUriDataNode {
-  public static final String PLATFORM = "hive";
-
+@EqualsAndHashCode(callSuper = true)
+public class IcebergOnHiveDataNode extends HiveMetastoreUriDataNode {
+  public static final String PLATFORM = "iceberg";
   /**
-   * Constructor. A HiveDataNode must have hive.metastore.uri property specified in addition to a node Id and fs.uri.
+   * Constructor. An IcebergOnHiveDataNode must have hive.metastore.uri property specified to get {@link IcebergHiveCatalog} information
+   * @param nodeProps
    */
-  public HiveDataNode(Config nodeProps) throws DataNodeCreationException {
+  public IcebergOnHiveDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
   }
-
   @Override
   public String getDefaultDatasetDescriptorClass() {
-    return HiveDatasetDescriptor.class.getCanonicalName();
+    return IcebergDatasetDescriptor.class.getCanonicalName();
   }
 
   @Override
   public String getDefaultDatasetDescriptorPlatform() {
     return PLATFORM;
   }
+
 }
