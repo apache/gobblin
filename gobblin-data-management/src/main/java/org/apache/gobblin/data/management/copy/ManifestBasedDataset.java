@@ -75,7 +75,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
     if (!fs.exists(manifestPath)) {
-      throw new IOException(String.format("Manifest path %s does not exist on filesystem %s, will not copy data in this manifest"
+      throw new IOException(String.format("Manifest path %s does not exist on filesystem %s, skipping this manifest"
           + ", probably due to wrong configuration of %s", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     } else if (fs.getFileStatus(manifestPath).isDirectory()) {
       throw new IOException(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
