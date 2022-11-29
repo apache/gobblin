@@ -32,7 +32,8 @@ import org.apache.hadoop.fs.Path;
 
 public class ManifestBasedDatasetFinder implements IterableDatasetFinder<ManifestBasedDataset> {
 
-  public static final String MANIFEST_LOCATION = ManifestBasedDataset.CONFIG_PREFIX + ".manifest.location";
+  public static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".manifestBased";
+  public static final String MANIFEST_LOCATION = CONFIG_PREFIX + ".manifest.location";
   private final FileSystem fs;
   private final List<Path> manifestLocations;
   private final  Properties properties;

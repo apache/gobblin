@@ -196,6 +196,8 @@ public class PathUtils {
         log.info("Deleted empty directory " + startPath);
       }
       deleteEmptyParentDirectories(fs, limitPath, startPath.getParent());
+    } else {
+      log.info(String.format("%s is not ancestor of %s, will not delete %s in this case", limitPath, startPath, startPath));
     }
   }
 

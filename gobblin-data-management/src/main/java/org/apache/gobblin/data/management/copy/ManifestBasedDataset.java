@@ -18,7 +18,6 @@
 package org.apache.gobblin.data.management.copy;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
@@ -45,27 +44,31 @@ import org.apache.hadoop.fs.Path;
 /**
  * A dataset that based on Manifest. We expect the Manifest contains the list of all the files for this dataset.
  * At first phase, we only support copy across different clusters to the same location. (We can add more feature to support rename in the future)
+ * We will delete the file on target if it's listed in the manifest and not exist on source
  */
 @Slf4j
 public class ManifestBasedDataset implements IterableCopyableDataset {
 
-  public static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".manifestBased";
-  private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = CONFIG_PREFIX + ".deleteFileNotExistOnSource";
-  /** If true, will delete newly empty directories up to the config set in DELETE_EMPTY_DIRECTORIES_UPTO. */
-  public static final String DELETE_EMPTY_DIRECTORIES_KEY = CONFIG_PREFIX + ".deleteEmptyDirectories";
-  public static final String DELETE_EMPTY_DIRECTORIES_UPTO = CONFIG_PREFIX + ".deleteEmptyDirectoriesUpTo";
+  private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
+  /** If true, after delete the file that not exist on source, will delete newly empty directories up to the config set in DELETE_EMPTY_DIRECTORIES_UPTO. */
+  public static final String DELETE_EMPTY_DIRECTORIES_KEY = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteEmptyDirectories";
+  public static final String DELETE_EMPTY_DIRECTORIES_UPTO = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteEmptyDirectoriesUpTo";
   private final FileSystem fs;
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteEmptyDirectories;
+  private final boolean deleteFileThatNotExistOnSource;
+  private final String deleteEmptyDirectoriesUpto;
   private Gson GSON = new Gson();
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
     this.manifestPath = manifestPath;
     this.properties = properties;
+    this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
+    this.deleteEmptyDirectoriesUpto = properties.getProperty(DELETE_EMPTY_DIRECTORIES_UPTO, "");
     this.deleteEmptyDirectories = Boolean.parseBoolean(properties.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, "false"))
-        && properties.containsKey(DELETE_EMPTY_DIRECTORIES_UPTO);
+        && !deleteEmptyDirectoriesUpto.isEmpty();
   }
 
   @Override
@@ -77,13 +80,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
     if (!fs.exists(manifestPath)) {
-      log.warn(String.format("Manifest path %s does not exist on filesystem %s, will not copy data in this manifest"
+      throw new IOException(String.format("Manifest path %s does not exist on filesystem %s, will not copy data in this manifest"
           + ", probably due to wrong configuration of %s", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
-      return Iterators.emptyIterator();
     } else if (fs.getFileStatus(manifestPath).isDirectory()) {
-      log.warn(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
+      throw new IOException(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
-      return Iterators.emptyIterator();
     }
     JsonReader reader = null;
     List<CopyEntity> copyEntities = Lists.newArrayList();
@@ -98,7 +99,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         JsonObject file = GSON.fromJson(reader, JsonObject.class);
         Path fileToCopy = new Path(file.get("fileName").getAsString());
         if (this.fs.exists(fileToCopy)) {
-          if (!targetFs.exists(fileToCopy) || needCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy))) {
+          if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy))) {
             CopyableFile copyableFile =
                 CopyableFile.fromOriginAndDestination(this.fs, this.fs.getFileStatus(fileToCopy), fileToCopy, configuration)
                     .fileSet(datasetURN())
@@ -110,13 +111,13 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             copyableFile.setFsDatasets(this.fs, targetFs);
             copyEntities.add(copyableFile);
           }
-        } else if (targetFs.exists(fileToCopy)){
+        } else if (this.deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
-      if (Boolean.parseBoolean(this.properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"))) {
+      if (this.deleteFileThatNotExistOnSource) {
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties,
-            this.deleteEmptyDirectories ? Optional.of(new Path(this.properties.getProperty(DELETE_EMPTY_DIRECTORIES_UPTO))) : Optional.<Path>absent());
+            this.deleteEmptyDirectories ? Optional.of(new Path(this.deleteEmptyDirectoriesUpto)) : Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
     } catch (JsonIOException| JsonSyntaxException e) {
@@ -124,10 +125,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
           + " {type:array, items:{type: object, properties:{id:{type:String}, fileName:{type:String}, fileGroup:{type:String}, fileSizeInBytes: {type:Long}}}}",
           manifestPath.toString(), fs.getUri().toString()), e);
-      throw e;
+      throw new IOException(e);
     } catch (Exception e ) {
       log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(), fs.getUri().toString()), e);
-      throw e;
+      throw new IOException(e);
     }finally {
       if(reader != null) {
         reader.endArray();
@@ -137,7 +138,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean needCopy(FileStatus fileInSource, FileStatus fileInTarget) {
+  private static boolean shouldCopy(FileStatus fileInSource, FileStatus fileInTarget) {
     //todo: make the rule configurable
     return fileInSource.getModificationTime() > fileInTarget
         .getModificationTime();
