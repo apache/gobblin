@@ -56,9 +56,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final FileSystem fs;
   private final Path manifestPath;
   private final Properties properties;
-  private final boolean deleteEmptyDirectories;
   private final boolean deleteFileThatNotExistOnSource;
-  private final String deleteEmptyDirectoriesUpto;
   private Gson GSON = new Gson();
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
@@ -66,9 +64,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.manifestPath = manifestPath;
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
-    this.deleteEmptyDirectoriesUpto = properties.getProperty(DELETE_EMPTY_DIRECTORIES_UPTO, "");
-    this.deleteEmptyDirectories = Boolean.parseBoolean(properties.getProperty(DELETE_EMPTY_DIRECTORIES_KEY, "false"))
-        && !deleteEmptyDirectoriesUpto.isEmpty();
   }
 
   @Override
@@ -116,8 +111,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         }
       }
       if (this.deleteFileThatNotExistOnSource) {
-        CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties,
-            this.deleteEmptyDirectories ? Optional.of(new Path(this.deleteEmptyDirectoriesUpto)) : Optional.<Path>absent());
+        //todo: add support sync for empty dir
+        CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
     } catch (JsonIOException| JsonSyntaxException e) {
