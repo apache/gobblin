@@ -25,6 +25,8 @@ import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
@@ -248,8 +250,10 @@ public class CopyableFile extends CopyEntity implements File {
         }
 
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
+        Boolean stickyBit = this.preserve.preserve(Option.STICKY_BIT) ? getStickyBit(this.originFs, this.origin.getPath()) : null;
+        List<AclEntry> aclEntries = this.preserve.preserve(Option.ACL) ? getAclEntries(this.originFs, this.origin.getPath()) : Lists.newArrayList();
 
-        this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission);
+        this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission, stickyBit, aclEntries);
       }
       if (this.ancestorsOwnerAndPermission == null) {
         this.ancestorsOwnerAndPermission = replicateAncestorsOwnerAndPermission(this.originFs, this.origin.getPath(),
@@ -322,7 +326,7 @@ public class CopyableFile extends CopyEntity implements File {
       throw new IOException(String.format("Origin path %s does not exist.", path));
     }
 
-    return resolveReplicatedOwnerAndPermission(originFileStatus.get(), copyConfiguration);
+    return resolveReplicatedOwnerAndPermission(fs, originFileStatus.get(), copyConfiguration);
   }
 
   /**
@@ -330,8 +334,9 @@ public class CopyableFile extends CopyEntity implements File {
    * the {@link PreserveAttributes} rules in copyConfiguration.
    * @throws IOException
    */
-  public static OwnerAndPermission resolveReplicatedOwnerAndPermission(FileStatus originFileStatus,
-      CopyConfiguration copyConfiguration) {
+  public static OwnerAndPermission resolveReplicatedOwnerAndPermission(FileSystem fs, FileStatus originFileStatus,
+      CopyConfiguration copyConfiguration)
+      throws IOException {
 
     PreserveAttributes preserve = copyConfiguration.getPreserve();
     String group = null;
@@ -342,7 +347,8 @@ public class CopyableFile extends CopyEntity implements File {
     }
 
     return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.getOwner() : null, group,
-        preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null);
+        preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null, preserve.preserve(Option.STICKY_BIT) ? getStickyBit(fs, originFileStatus.getPath()) : null,
+        preserve.preserve(Option.ACL) ? getAclEntries(fs, originFileStatus.getPath()) : Lists.newArrayList());
   }
 
   /**
@@ -398,6 +404,16 @@ public class CopyableFile extends CopyEntity implements File {
     }
 
     return ownerAndPermissions;
+  }
+
+  private static List<AclEntry> getAclEntries(FileSystem srcFs, Path path) throws IOException {
+    AclStatus aclStatus = srcFs.getAclStatus(path);
+    return aclStatus.getEntries();
+  }
+
+  private static boolean getStickyBit (FileSystem srcFs, Path path) throws IOException {
+    AclStatus aclStatus = srcFs.getAclStatus(path);
+    return aclStatus.isStickyBit();
   }
 
   @Override

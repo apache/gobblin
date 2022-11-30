@@ -25,8 +25,9 @@ import lombok.NoArgsConstructor;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-
+import java.util.List;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -43,6 +44,14 @@ public class OwnerAndPermission implements Writable {
   private String owner;
   private String group;
   private FsPermission fsPermission;
+  private Boolean stickyBit;
+  private List<AclEntry> aclEntries;
+
+  public OwnerAndPermission (String owner, String group, FsPermission fsPermission) {
+    this.owner = owner;
+    this.group = group;
+    this.fsPermission = fsPermission;
+  }
 
   @Override
   public void write(DataOutput dataOutput) throws IOException {

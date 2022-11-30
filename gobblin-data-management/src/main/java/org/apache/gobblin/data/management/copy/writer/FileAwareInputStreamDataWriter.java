@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -361,6 +362,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       if (targetOwnerAndPermission.getFsPermission() != null) {
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
+      if (!ownerAndPermission.getAclEntries().isEmpty()) {
+        fs.setAcl(path, ownerAndPermission.getAclEntries());
+      }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
     }
@@ -506,9 +510,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
+      List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
       if (group != null || owner != null) {
         log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
         fs.setOwner(path, owner, group);
+      }
+      if (!aclEntries.isEmpty()) {
+        fs.setAcl(path, aclEntries);
       }
     } else {
       fs.mkdirs(path);
