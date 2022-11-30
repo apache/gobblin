@@ -86,8 +86,13 @@ public class JobExecutionPlanDagFactoryTest {
     //Create a list of JobExecutionPlans
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
     for (JobTemplate jobTemplate: this.jobTemplates) {
+      Config config = jobTemplate.getRawTemplateConfig()
+          .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef("testFlowName"))
+          .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("testFlowGroup"))
+          .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
+
       String jobSpecUri = Files.getNameWithoutExtension(new Path(jobTemplate.getUri()).getName());
-      jobExecutionPlans.add(new JobExecutionPlan(JobSpec.builder(jobSpecUri).withConfig(jobTemplate.getRawTemplateConfig()).
+      jobExecutionPlans.add(new JobExecutionPlan(JobSpec.builder(jobSpecUri).withConfig(config).
           withVersion("1").withTemplate(jobTemplate.getUri()).build(), specExecutor));
     }
 

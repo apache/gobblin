@@ -83,7 +83,11 @@ public class JobExecutionPlanDagFactory {
       }
     }
     Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
-    log.info("Dag plan created with id {} and jobs: {}", DagManagerUtils.generateDagId(dag), jobNames);
+    if (!dagNodeList.isEmpty()) {
+      log.info("Dag plan created with id {} and jobs: {}", DagManagerUtils.generateDagId(dag), jobNames);
+    } else {
+      log.info("Empty dag plan created for execution plans {}", jobExecutionPlans);
+    }
     return dag;
   }
 
