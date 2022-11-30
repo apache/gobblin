@@ -1,0 +1,14 @@
+[
+  {
+    "id":"1",
+    "fileName":"/tmp/dataset/test1.txt",
+    "fileGroup":"/tmp/dataset",
+    "fileSizeInBytes":"1024"
+  },
+  {
+    "id":"2",
+    "fileName":"/tmp/dataset/test2.txt",
+    "fileGroup":"/tmp/dataset1",
+    "fileSizeInBytes":"1028"
+  }
+]
