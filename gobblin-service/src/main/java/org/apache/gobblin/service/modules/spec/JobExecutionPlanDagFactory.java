@@ -32,6 +32,7 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 
 
 /**
@@ -67,12 +68,13 @@ public class JobExecutionPlanDagFactory {
      *
      * TODO: we likely do not need 2 for loops and we can do this in 1 pass.
      */
+    List<String> jobNames = new ArrayList<>();
     for (JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
       String jobName = getJobName(jobExecutionPlan);
       if (jobName == null) {
         continue;
       }
-      log.info("jobName {} included in jobExecutionPlans {}", jobName, jobExecutionPlans);
+      jobNames.add(jobName);
       Dag.DagNode<JobExecutionPlan> node = jobExecutionPlanMap.get(jobName);
       Collection<String> dependencies = getDependencies(jobExecutionPlan.getJobSpec().getConfig());
       for (String dependency : dependencies) {
@@ -81,6 +83,7 @@ public class JobExecutionPlanDagFactory {
       }
     }
     Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
+    log.info("Dag plan created with id {} and jobs: {}", DagManagerUtils.generateDagId(dag), jobNames);
     return dag;
   }
 

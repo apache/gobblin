@@ -950,12 +950,14 @@ public class DagManager extends AbstractIdleService {
     synchronized Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-      log.info("Submitting next nodes for dagId {}, where next nodes are {}", dagId, nextNodes);
+      List<String> nextJobNames = new ArrayList<>();
 
       //Submit jobs from the dag ready for execution.
       for (DagNode<JobExecutionPlan> dagNode : nextNodes) {
         submitJob(dagNode);
+        nextJobNames.add(DagManagerUtils.getJobName(dagNode));
       }
+      log.info("Submitting next nodes for dagId {}, where next jobs to be submitted are {}", dagId, nextJobNames);
       //Checkpoint the dag state
       this.dagStateStore.writeCheckpoint(dag);
 
