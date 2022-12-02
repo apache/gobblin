@@ -42,7 +42,7 @@ import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.flowgraph.FSPathAlterationFlowGraphListener;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphMonitor;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+import org.apache.gobblin.service.modules.template_catalog.UpdatableFSFlowTemplateCatalog;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
@@ -52,6 +52,8 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 @Slf4j
 public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraphMonitor {
   public static final String FS_FLOWGRAPH_MONITOR_PREFIX = "gobblin.service.fsFlowGraphMonitor";
+  public static final String MONITOR_TEMPLATE_CATALOG_CHANGES =  "monitorTemplateChanges";
+
   private static final long DEFAULT_FLOWGRAPH_POLLING_INTERVAL = 60;
   private static final String DEFAULT_FS_FLOWGRAPH_MONITOR_ABSOLUTE_DIR = "/tmp/fsFlowgraph";
   private static final String DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
@@ -61,7 +63,8 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
   private final PathAlterationObserverScheduler pathAlterationDetector;
   private final FSPathAlterationFlowGraphListener listener;
   private final PathAlterationObserver observer;
-  private final Path flowGraphPath;
+  private Path flowGraphPath;
+  private Path observedPath;
   private final MultiHopFlowCompiler compiler;
   private final CountDownLatch initComplete;
   private static final Config DEFAULT_FALLBACK = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -69,16 +72,20 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
       .put(ConfigurationKeys.FLOWGRAPH_BASE_DIR, DEFAULT_FS_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
       .put(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, DEFAULT_FLOWGRAPH_POLLING_INTERVAL)
       .put(ConfigurationKeys.FLOWGRAPH_JAVA_PROPS_EXTENSIONS, ConfigurationKeys.DEFAULT_PROPERTIES_EXTENSIONS)
+      .put(MONITOR_TEMPLATE_CATALOG_CHANGES, false)
       .put(ConfigurationKeys.FLOWGRAPH_HOCON_FILE_EXTENSIONS, ConfigurationKeys.DEFAULT_CONF_EXTENSIONS).build());
 
-  public FsFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
+  public FsFlowGraphMonitor(Config config, Optional<UpdatableFSFlowTemplateCatalog> flowTemplateCatalog,
       MultiHopFlowCompiler compiler, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete, boolean instrumentationEnabled)
       throws IOException {
     Config configWithFallbacks = config.getConfig(FS_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK);
     this.pollingInterval =
         TimeUnit.SECONDS.toMillis(configWithFallbacks.getLong(ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL));
     this.flowGraphPath = new Path(configWithFallbacks.getString(ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR));
-    this.observer = new PathAlterationObserver(flowGraphPath);
+    // If the FSFlowGraphMonitor is also monitoring the templates, assume that they are colocated under the same parent folder
+    boolean shouldMonitorTemplateCatalog = configWithFallbacks.getBoolean(MONITOR_TEMPLATE_CATALOG_CHANGES);
+    this.observedPath = shouldMonitorTemplateCatalog ? this.flowGraphPath.getParent() : this.flowGraphPath;
+    this.observer = new PathAlterationObserver(observedPath);
     try {
       String helperClassName = ConfigUtils.getString(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY,
           BaseFlowGraphHelper.class.getCanonicalName());
@@ -88,7 +95,7 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-    this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, compiler, flowGraphPath.toString(), this.flowGraphHelper);
+    this.listener = new FSPathAlterationFlowGraphListener(flowTemplateCatalog, compiler, flowGraphPath.toString(), this.flowGraphHelper, shouldMonitorTemplateCatalog);
     this.compiler = compiler;
     this.initComplete = initComplete;
 
@@ -98,7 +105,7 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
       this.pathAlterationDetector = new PathAlterationObserverScheduler(pollingInterval);
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
       this.pathAlterationDetector.addPathAlterationObserver(this.listener, observerOptional,
-          this.flowGraphPath);
+          this.observedPath);
     }
   }
 
@@ -116,7 +123,7 @@ public class FsFlowGraphMonitor extends AbstractIdleService implements FlowGraph
     } else if (isActive) {
       if (this.pathAlterationDetector != null) {
         log.info("Starting the " + getClass().getSimpleName());
-        log.info("Polling flowgraph folder with interval {} ", this.pollingInterval);
+        log.info("Polling folder {} with interval {} ", this.observedPath, this.pollingInterval);
         try {
           this.pathAlterationDetector.start();
           // Manually instantiate flowgraph when the monitor becomes active

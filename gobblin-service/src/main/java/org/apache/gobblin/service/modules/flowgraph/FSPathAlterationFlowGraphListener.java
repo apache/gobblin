@@ -26,7 +26,7 @@ import com.google.common.base.Optional;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+import org.apache.gobblin.service.modules.template_catalog.UpdatableFSFlowTemplateCatalog;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
@@ -41,10 +41,14 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 public class FSPathAlterationFlowGraphListener implements PathAlterationListener {
   private final MultiHopFlowCompiler compiler;
   private final BaseFlowGraphHelper flowGraphHelper;
+  private Optional<UpdatableFSFlowTemplateCatalog> flowTemplateCatalog;
+  private final boolean shouldMonitorTemplateCatalog;
 
-  public FSPathAlterationFlowGraphListener(Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      MultiHopFlowCompiler compiler, String baseDirectory, BaseFlowGraphHelper flowGraphHelper) {
+  public FSPathAlterationFlowGraphListener(Optional<UpdatableFSFlowTemplateCatalog> flowTemplateCatalog,
+      MultiHopFlowCompiler compiler, String baseDirectory, BaseFlowGraphHelper flowGraphHelper, boolean shouldMonitorTemplateCatalog) {
     this.flowGraphHelper = flowGraphHelper;
+    this.flowTemplateCatalog = flowTemplateCatalog;
+    this.shouldMonitorTemplateCatalog = shouldMonitorTemplateCatalog;
     File graphDir = new File(baseDirectory);
     // Populate the flowgraph with any existing files
     if (!graphDir.exists()) {
@@ -88,6 +92,10 @@ public class FSPathAlterationFlowGraphListener implements PathAlterationListener
   @Override
   public void onCheckDetectedChange() {
     log.info("Detecting change in flowgraph files, reloading flowgraph");
+    if (this.shouldMonitorTemplateCatalog) {
+      // Clear template cache as templates are colocated with the flowgraph, and thus could have been updated too
+      this.flowTemplateCatalog.get().clearTemplates();
+    }
     FlowGraph newGraph = this.flowGraphHelper.generateFlowGraph();
     if (newGraph != null) {
       this.compiler.setFlowGraph(newGraph);

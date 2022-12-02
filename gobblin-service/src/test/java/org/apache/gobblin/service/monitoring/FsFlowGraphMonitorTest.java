@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.config.ConfigBuilder;
@@ -47,7 +48,7 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+import org.apache.gobblin.service.modules.template_catalog.UpdatableFSFlowTemplateCatalog;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jgit.transport.RefSpec;
 import org.slf4j.Logger;
@@ -60,8 +61,9 @@ import org.testng.annotations.Test;
 
 public class FsFlowGraphMonitorTest {
   private static final Logger logger = LoggerFactory.getLogger(FsFlowGraphMonitorTest.class);
-  private final File TEST_DIR = new File(FileUtils.getTempDirectory(), "fsFlowGraphTestDir");
-  private final File flowGraphDir = new File(TEST_DIR, "/gobblin-flowgraph");
+  private final File TEST_DIR = new File(FileUtils.getTempDirectory(), "flowGraphTemplates");
+  private final File flowGraphTestDir = new File(TEST_DIR, "fsFlowGraphTestDir");
+  private final File flowGraphDir = new File(flowGraphTestDir, "gobblin-flowgraph");
   private static final String NODE_1_FILE = "node1.properties";
   private final File node1Dir = new File(FileUtils.getTempDirectory(), "node1");
   private final File node1File = new File(node1Dir, NODE_1_FILE);
@@ -70,14 +72,15 @@ public class FsFlowGraphMonitorTest {
   private final File node2File = new File(node2Dir, NODE_2_FILE);
   private final File edge1Dir = new File(node1Dir, "node2");
   private final File edge1File = new File(edge1Dir, "edge1.properties");
-  private final File sharedNodeFolder = new File(TEST_DIR, "nodes");
+  private final File sharedNodeFolder = new File(flowGraphTestDir, "nodes");
 
   private RefSpec masterRefSpec = new RefSpec("master");
-  private Optional<FSFlowTemplateCatalog> flowCatalog;
+  private Optional<UpdatableFSFlowTemplateCatalog> flowCatalog;
   private Config config;
   private AtomicReference<FlowGraph> flowGraph;
   private FsFlowGraphMonitor flowGraphMonitor;
   private Map<URI, TopologySpec> topologySpecMap;
+  private File flowTemplateCatalogFolder;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -89,21 +92,25 @@ public class FsFlowGraphMonitorTest {
 
     this.config = ConfigBuilder.create()
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "."
-            + ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR, TEST_DIR.getAbsolutePath())
+            + ConfigurationKeys.FLOWGRAPH_ABSOLUTE_DIR, flowGraphTestDir.getAbsolutePath())
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_BASE_DIR, "gobblin-flowgraph")
         .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.FLOWGRAPH_POLLING_INTERVAL, 1)
+        .addPrimitive(FsFlowGraphMonitor.FS_FLOWGRAPH_MONITOR_PREFIX + "." + FsFlowGraphMonitor.MONITOR_TEMPLATE_CATALOG_CHANGES, true)
         .build();
 
     // Create a FSFlowTemplateCatalog instance
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
+    this.flowTemplateCatalogFolder = new File(TEST_DIR, "template_catalog");
+    this.flowTemplateCatalogFolder.mkdirs();
+    FileUtils.copyDirectory(new File(flowTemplateCatalogUri.getPath()), this.flowTemplateCatalogFolder);
     Properties properties = new Properties();
     this.flowGraphDir.mkdirs();
-    properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString());
+    properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, this.flowTemplateCatalogFolder.getAbsolutePath());
     Config config = ConfigFactory.parseProperties(properties);
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    this.flowCatalog = Optional.of(new FSFlowTemplateCatalog(templateCatalogCfg));
+    this.flowCatalog = Optional.of(new UpdatableFSFlowTemplateCatalog(templateCatalogCfg,  new ReentrantReadWriteLock(true)));
 
     //Create a FlowGraph instance with defaults
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph());
@@ -227,6 +234,22 @@ public class FsFlowGraphMonitorTest {
   }
 
   @Test (dependsOnMethods = "testSharedFlowgraphHelper")
+  public void testUpdateOnlyTemplates() throws Exception {
+    Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 1);
+
+    //If deleting all the templates, no edges should be able to be added
+    cleanUpDir(this.flowTemplateCatalogFolder.getAbsolutePath());
+    Thread.sleep(3000);
+    Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 0);
+
+    URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
+    FileUtils.copyDirectory(new File(flowTemplateCatalogUri.getPath()), this.flowTemplateCatalogFolder);
+
+    Thread.sleep(3000);
+    Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 1);
+  }
+
+  @Test (dependsOnMethods = "testUpdateOnlyTemplates")
   public void testRemoveEdge() throws Exception {
     //Node1 has 1 edge before delete
     Collection<FlowEdge> edgeSet = this.flowGraph.get().getEdges("node1");

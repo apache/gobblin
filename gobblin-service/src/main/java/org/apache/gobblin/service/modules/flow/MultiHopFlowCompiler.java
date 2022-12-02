@@ -61,6 +61,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.template_catalog.UpdatableFSFlowTemplateCatalog;
 import org.apache.gobblin.service.monitoring.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -130,12 +131,16 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     // Use atomic reference to avoid partial flowgraph upgrades during path compilation.
     this.flowGraph = new AtomicReference<>(new BaseFlowGraph(dataNodeAliasMap));
 
-    Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
+    Optional<? extends UpdatableFSFlowTemplateCatalog> flowTemplateCatalog;
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
+
       try {
-        flowTemplateCatalog = Optional.of(new ObservingFSFlowEdgeTemplateCatalog(config, rwLock));
-      } catch (IOException e) {
+        String flowTemplateCatalogClassName = ConfigUtils.getString(this.config, ServiceConfigKeys.TEMPLATE_CATALOGS_CLASS_KEY, ObservingFSFlowEdgeTemplateCatalog.class.getCanonicalName());
+        flowTemplateCatalog = Optional.of(
+            (UpdatableFSFlowTemplateCatalog) ConstructorUtils.invokeConstructor(Class.forName(new ClassAliasResolver<>(UpdatableFSFlowTemplateCatalog.class)
+                .resolve(flowTemplateCatalogClassName)), config, rwLock));
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
         throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
       }
     } else {
@@ -163,7 +168,9 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-    this.serviceManager = new ServiceManager(Lists.newArrayList(this.flowGraphMonitor, flowTemplateCatalog.get()));
+    this.serviceManager = (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get() instanceof ObservingFSFlowEdgeTemplateCatalog) ?
+       new ServiceManager(Lists.newArrayList(this.flowGraphMonitor, flowTemplateCatalog.get())) : new ServiceManager(Lists.newArrayList(this.flowGraphMonitor));
+
     addShutdownHook();
     //Start the git flow graph monitor
     try {
