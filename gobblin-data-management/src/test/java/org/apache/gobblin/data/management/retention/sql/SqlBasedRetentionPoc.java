@@ -22,7 +22,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import org.apache.commons.dbcp.BasicDataSource;
+import com.zaxxer.hikari.HikariDataSource;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
@@ -42,7 +43,7 @@ public class SqlBasedRetentionPoc {
   private static final int TWO_YEARS_IN_DAYS = 365 * 2;
   private static final String DAILY_PARTITION_PATTERN = "yyyy/MM/dd";
 
-  private BasicDataSource basicDataSource;
+  private HikariDataSource dataSource;
   private Connection connection;
 
   /**
@@ -55,11 +56,11 @@ public class SqlBasedRetentionPoc {
    */
   @BeforeClass
   public void setup() throws SQLException {
-    basicDataSource = new BasicDataSource();
-    basicDataSource.setDriverClassName("org.apache.derby.jdbc.EmbeddedDriver");
-    basicDataSource.setUrl("jdbc:derby:memory:derbypoc;create=true");
+    dataSource = new HikariDataSource();
+    dataSource.setDriverClassName("org.apache.derby.jdbc.EmbeddedDriver");
+    dataSource.setJdbcUrl("jdbc:derby:memory:derbypoc;create=true");
 
-    Connection connection = basicDataSource.getConnection();
+    Connection connection = dataSource.getConnection();
     connection.setAutoCommit(false);
     this.connection = connection;
 
@@ -72,7 +73,7 @@ public class SqlBasedRetentionPoc {
 
   @AfterClass
   public void cleanUp() throws Exception {
-    basicDataSource.close();
+    dataSource.close();
   }
 
   /**

@@ -28,13 +28,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.dbcp.BasicDataSource;
+import javax.sql.DataSource;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.typesafe.config.Config;
+import com.zaxxer.hikari.HikariDataSource;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -132,7 +132,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
 
-  protected final BasicDataSource dataSource;
+  protected final DataSource dataSource;
   protected final String tableName;
   private final URI specStoreURI;
   protected final SpecSerDe specSerDe;
@@ -331,7 +331,11 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       }
       return result;
     } catch (SQLException e) {
-      log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} Exception is {}", ((BasicDataSource) this.dataSource).getValidationQuery(), e);
+      // TODO: revisit use of connection test query following verification of successful connection pool migration:
+      //   If your driver supports JDBC4 we strongly recommend not setting this property. This is for "legacy" drivers
+      //   that do not support the JDBC4 Connection.isValid() API; see:
+      //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
+      log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} Exception is {}", ((HikariDataSource) this.dataSource).getConnectionTestQuery(), e);
       throw new IOException(e);
     }
   }

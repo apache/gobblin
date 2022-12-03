@@ -106,7 +106,7 @@ public class JdbcPublisher extends DataPublisher {
         .driver(this.state.getProp(JDBC_PUBLISHER_DRIVER)).userName(this.state.getProp(JDBC_PUBLISHER_USERNAME))
         .passWord(this.state.getProp(JDBC_PUBLISHER_PASSWORD))
         .cryptoKeyLocation(this.state.getProp(JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
-        .maxIdleConnections(1).state(this.state).build();
+        .state(this.state).build();
     try {
       return dataSource.getConnection();
     } catch (SQLException e) {

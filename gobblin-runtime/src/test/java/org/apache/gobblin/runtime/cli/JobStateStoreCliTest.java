@@ -20,7 +20,9 @@ package org.apache.gobblin.runtime.cli;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
-import org.apache.commons.dbcp.BasicDataSource;
+
+import com.zaxxer.hikari.HikariDataSource;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -64,15 +66,15 @@ public class JobStateStoreCliTest {
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    BasicDataSource mySqlDs = new BasicDataSource();
+    HikariDataSource dataSource = new HikariDataSource();
 
-    mySqlDs.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
-    mySqlDs.setDefaultAutoCommit(false);
-    mySqlDs.setUrl(jdbcUrl);
-    mySqlDs.setUsername(TEST_USER);
-    mySqlDs.setPassword(TEST_PASSWORD);
+    dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
+    dataSource.setAutoCommit(false);
+    dataSource.setJdbcUrl(jdbcUrl);
+    dataSource.setUsername(TEST_USER);
+    dataSource.setPassword(TEST_PASSWORD);
 
-    dbJobStateStore = new MysqlStateStore<>(mySqlDs, TEST_STATE_STORE, false, JobState.class);
+    dbJobStateStore = new MysqlStateStore<>(dataSource, TEST_STATE_STORE, false, JobState.class);
 
     configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, jdbcUrl);
     configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);

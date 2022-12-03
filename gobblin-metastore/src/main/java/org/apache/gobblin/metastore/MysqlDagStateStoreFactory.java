@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.metastore;
 
-import org.apache.commons.dbcp.BasicDataSource;
+import javax.sql.DataSource;
 
 import com.typesafe.config.Config;
 
@@ -37,10 +37,10 @@ public class MysqlDagStateStoreFactory extends MysqlStateStoreFactory {
         ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES);
 
     try {
-      BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
+      DataSource dataSource = MysqlDataSourceFactory.get(config,
           SharedResourcesBrokerFactory.getImplicitBroker());
 
-      return new MysqlDagStore<>(basicDataSource, stateStoreTableName, compressedValues, stateClass);
+      return new MysqlDagStore<>(dataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlDagStore with factory", e);
     }

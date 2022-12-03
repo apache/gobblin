@@ -23,12 +23,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.dbcp.BasicDataSource;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
+import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -166,15 +166,15 @@ public class MysqlDagStateStoreTest {
         // Setting up mock DB
         ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
         String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
-        BasicDataSource mySqlDs = new BasicDataSource();
+        HikariDataSource dataSource = new HikariDataSource();
 
-        mySqlDs.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
-        mySqlDs.setDefaultAutoCommit(false);
-        mySqlDs.setUrl(jdbcUrl);
-        mySqlDs.setUsername(TEST_USER);
-        mySqlDs.setPassword(TEST_PASSWORD);
+        dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
+        dataSource.setAutoCommit(false);
+        dataSource.setJdbcUrl(jdbcUrl);
+        dataSource.setUsername(TEST_USER);
+        dataSource.setPassword(TEST_PASSWORD);
 
-        return new MysqlStateStore<>(mySqlDs, TEST_DAG_STATE_STORE, false, State.class);
+        return new MysqlStateStore<>(dataSource, TEST_DAG_STATE_STORE, false, State.class);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

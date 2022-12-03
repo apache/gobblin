@@ -23,9 +23,8 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.commons.dbcp2.BasicDataSource;
-
 import com.typesafe.config.Config;
+import com.zaxxer.hikari.HikariDataSource;
 
 import javax.inject.Inject;
 import javax.sql.DataSource;
@@ -44,7 +43,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceDatabaseProviderImpl.class);
 
   private final Configuration configuration;
-  private BasicDataSource dataSource;
+  private HikariDataSource dataSource;
 
   @Inject
   public ServiceDatabaseProviderImpl(Configuration configuration) {
@@ -61,25 +60,28 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
       return;
     }
 
-    dataSource = new BasicDataSource();
+    dataSource = new HikariDataSource();
 
-    dataSource.setUrl(configuration.getUrl());
+    dataSource.setJdbcUrl(configuration.getUrl());
     dataSource.setUsername(configuration.getUserName());
     dataSource.setPassword(configuration.getPassword());
 
     // MySQL server can timeout a connection so need to validate connections before use
     final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
     LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
-    dataSource.setValidationQuery(validationQuery);
-    dataSource.setValidationQueryTimeout(5);
+    // TODO: revisit following verification of successful connection pool migration:
+    //   If your driver supports JDBC4 we strongly recommend not setting this property. This is for "legacy" drivers
+    //   that do not support the JDBC4 Connection.isValid() API; see:
+    //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
+    dataSource.setConnectionTestQuery(validationQuery);
+    dataSource.setValidationTimeout(5000);
 
-    // To improve performance, we only check connections on creation, and set a maximum connection lifetime
+    // To improve performance, we set a maximum connection lifetime
     // If database goes to read-only mode, then connection would not work correctly for up to configured lifetime
-    dataSource.setTestOnCreate(true);
-    dataSource.setMaxConnLifetimeMillis(configuration.getMaxConnectionLifetime().toMillis());
-    dataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(10).toMillis());
-    dataSource.setMinIdle(2);
-    dataSource.setMaxTotal(configuration.getMaxConnections());
+    dataSource.setMaxLifetime(configuration.getMaxConnectionLifetime().toMillis());
+    dataSource.setIdleTimeout(Duration.ofSeconds(10).toMillis());
+    dataSource.setMinimumIdle(2);
+    dataSource.setMaximumPoolSize(configuration.getMaxConnections());
   }
 
   @Builder

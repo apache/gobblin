@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.retention;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
@@ -29,6 +28,7 @@ import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -78,15 +78,15 @@ public class CleanableMysqlDatasetStoreDatasetTest {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     String jdbcUrl = this.testMetastoreDatabase.getJdbcUrl();
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    BasicDataSource mySqlDs = new BasicDataSource();
+    HikariDataSource dataSource = new HikariDataSource();
 
-    mySqlDs.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
-    mySqlDs.setDefaultAutoCommit(false);
-    mySqlDs.setUrl(jdbcUrl);
-    mySqlDs.setUsername(TEST_USER);
-    mySqlDs.setPassword(TEST_PASSWORD);
+    dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
+    dataSource.setAutoCommit(false);
+    dataSource.setJdbcUrl(jdbcUrl);
+    dataSource.setUsername(TEST_USER);
+    dataSource.setPassword(TEST_PASSWORD);
 
-    this.dbJobStateStore = new MysqlStateStore<>(mySqlDs, TEST_STATE_STORE, false, JobState.class);
+    this.dbJobStateStore = new MysqlStateStore<>(dataSource, TEST_STATE_STORE, false, JobState.class);
 
     configBuilder.addPrimitive("selection.timeBased.lookbackTime", "10m");
     configBuilder.addPrimitive(ConfigurationKeys.STATE_STORE_TYPE_KEY, "mysql");
