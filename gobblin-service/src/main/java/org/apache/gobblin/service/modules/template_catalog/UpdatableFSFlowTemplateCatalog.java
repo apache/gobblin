@@ -32,10 +32,15 @@ import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
 
+/**
+ * {@link FSFlowTemplateCatalog} that keeps a cache of flow and job templates. It provides a public method clearTemplates()
+ * for other classes to invoke, so that other classes can reload the job templates before they make a change. E.g. The
+ * {@link org.apache.gobblin.service.monitoring.FsFlowGraphMonitor} has a configuration to clear the template cache before updating the flowgraph.
+ */
 public class UpdatableFSFlowTemplateCatalog extends FSFlowTemplateCatalog {
-  private Map<URI, FlowTemplate> flowTemplateMap = new ConcurrentHashMap<>();
-  private Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
-  private ReadWriteLock rwLock;
+  private final Map<URI, FlowTemplate> flowTemplateMap = new ConcurrentHashMap<>();
+  private final Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
+  private final ReadWriteLock rwLock;
 
   public UpdatableFSFlowTemplateCatalog(Config sysConfig, ReadWriteLock rwLock) throws IOException {
     super(sysConfig);
