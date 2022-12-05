@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flow;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
