@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "GaaSObservabilityEvent",
+  "name": "GaaSObservabilityEventV0",
   "namespace" : "org.apache.gobblin.metrics",
   "fields": [
     {
@@ -25,10 +25,10 @@
       "doc" : "Flow execution id for the GaaS flow",
       "compliance" : "NONE"
     }, {
-      "name": "flowCompiled",
+      "name": "jobSentToExecutor",
       "type": "boolean",
       "default": false,
-      "doc": "Whether or not this flow was compiled successfully."
+      "doc": "Whether or not this job was able to be sent to a job executor."
     }, {
       "name": "lastFlowModifiedTimestamp",
       "type": "long",
@@ -83,11 +83,6 @@
       "type": "long",
       "doc": "Finish time of the job in millis"
     }, {
-      "name": "jobRunTime",
-      "type": "long",
-      "doc": "Time taken for the job pipeline to run in millis",
-      "default": 0
-    }, {
       "name": "proxyUser",
       "type": "string",
       "doc": "Proxy user (if applicable) that ran the Gobblin job",
@@ -101,10 +96,9 @@
       "type": "string",
       "doc": "The ID of the spec executor that ran the job"
     }, {
-      "name": "copyMetadata",
-      "type": ["null","org.apache.gobblin.metadata.GobblinDistcpJobEvent"],
-      "doc": "Metadata for a distcp job associated with this flow, if applicable",
-      "default": null
+
+    }
+
     }
   ]
 }
