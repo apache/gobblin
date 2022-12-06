@@ -237,12 +237,13 @@ public class FsFlowGraphMonitorTest {
   public void testUpdateOnlyTemplates() throws Exception {
     Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 1);
 
-    //If deleting all the templates, no edges should be able to be added
+    //If deleting all the templates, the cache of flow templates will be cleared and the flowgraph will be unable to add edges on reload.
     cleanUpDir(this.flowTemplateCatalogFolder.getAbsolutePath());
     Thread.sleep(3000);
     Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 0);
 
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
+    // Adding the flowtemplates back will make the edges eligible to be added again on reload.
     FileUtils.copyDirectory(new File(flowTemplateCatalogUri.getPath()), this.flowTemplateCatalogFolder);
 
     Thread.sleep(3000);

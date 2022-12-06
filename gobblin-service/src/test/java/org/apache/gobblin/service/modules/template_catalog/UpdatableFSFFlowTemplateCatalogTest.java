@@ -18,9 +18,7 @@
 package org.apache.gobblin.service.modules.template_catalog;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Properties;
@@ -31,20 +29,15 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Function;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
-import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 @Slf4j
@@ -86,24 +79,7 @@ public class UpdatableFSFFlowTemplateCatalogTest {
     }
     java.nio.file.Files.write(flowConfPath, lines);
     catalog.clearTemplates();
-    Function testFunction = new GetFlowTemplateConfigFunction(new URI(FSFlowTemplateCatalogTest.TEST_TEMPLATE_DIR_URI), catalog,
-        "gobblin.flow.edge.input.dataset.descriptor.0.format");
-    AssertWithBackoff.create().timeoutMs(10000).assertEquals(testFunction, "any", "flow template updated");
-  }
-
-  @AllArgsConstructor
-  private class GetFlowTemplateConfigFunction implements Function<Void, String> {
-    private URI flowTemplateCatalogUri;
-    private FSFlowTemplateCatalog flowTemplateCatalog;
-    private String configKey;
-
-    @Override
-    public String apply(Void input) {
-      try {
-        return this.flowTemplateCatalog.getFlowTemplate(this.flowTemplateCatalogUri).getRawTemplateConfig().getString(this.configKey);
-      } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
-        throw new RuntimeException(e);
-      }
-    }
+    Assert.assertEquals(catalog.getFlowTemplate(new URI(FSFlowTemplateCatalogTest.TEST_TEMPLATE_DIR_URI)).
+            getRawTemplateConfig().getString("gobblin.flow.edge.input.dataset.descriptor.0.format"), "any");
   }
 }

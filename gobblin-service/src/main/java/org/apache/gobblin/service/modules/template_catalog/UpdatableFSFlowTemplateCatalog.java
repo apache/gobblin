@@ -67,6 +67,7 @@ public class UpdatableFSFlowTemplateCatalog extends FSFlowTemplateCatalog {
 
     if (jobTemplates == null) {
       jobTemplates = super.getJobTemplatesForFlow(flowTemplateDirURI);
+      log.info("Loading flow template directly from {} and caching it.", flowTemplateDirURI);
       jobTemplateMap.put(flowTemplateDirURI, jobTemplates);
     }
 
@@ -78,7 +79,7 @@ public class UpdatableFSFlowTemplateCatalog extends FSFlowTemplateCatalog {
    */
   public void clearTemplates() {
     this.rwLock.writeLock().lock();
-    log.info("Change detected, reloading flow templates.");
+    log.info("Change detected, clearing flow template cache.");
     flowTemplateMap.clear();
     jobTemplateMap.clear();
     this.rwLock.writeLock().unlock();
