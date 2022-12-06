@@ -74,7 +74,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
     //   that do not support the JDBC4 Connection.isValid() API; see:
     //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
     dataSource.setConnectionTestQuery(validationQuery);
-    dataSource.setValidationTimeout(5000);
+    dataSource.setValidationTimeout(Duration.ofSeconds(5).toMillis());
 
     // To improve performance, we set a maximum connection lifetime
     // If database goes to read-only mode, then connection would not work correctly for up to configured lifetime
