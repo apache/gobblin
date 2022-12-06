@@ -27,11 +27,11 @@ import java.sql.SQLException;
 import java.util.Collection;
 
 import java.util.List;
-import org.apache.commons.dbcp.BasicDataSource;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
+import com.zaxxer.hikari.HikariDataSource;
 
 import javax.inject.Singleton;
 import javax.sql.DataSource;
@@ -265,22 +265,22 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_STORE_DB_TABLE_KEY,
         ServiceConfigKeys.DEFAULT_QUOTA_STORE_DB_TABLE);
 
-    BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
+    DataSource dataSource = MysqlStateStore.newDataSource(config);
 
-    return new MysqlQuotaStore(basicDataSource, quotaStoreTableName);
+    return new MysqlQuotaStore(dataSource, quotaStoreTableName);
   }
 
   protected RunningDagIdsStore createRunningDagStore(Config config) throws IOException {
     String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.RUNNING_DAG_IDS_DB_TABLE_KEY,
         ServiceConfigKeys.DEFAULT_RUNNING_DAG_IDS_DB_TABLE);
 
-    BasicDataSource basicDataSource = MysqlStateStore.newDataSource(config);
+    DataSource dataSource = MysqlStateStore.newDataSource(config);
 
-    return new RunningDagIdsStore(basicDataSource, quotaStoreTableName);
+    return new RunningDagIdsStore(dataSource, quotaStoreTableName);
   }
 
   static class MysqlQuotaStore {
-    protected final BasicDataSource dataSource;
+    protected final DataSource dataSource;
     final String tableName;
     private final String GET_USER_COUNT;
     private final String GET_REQUESTER_COUNT;
@@ -293,7 +293,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     private final String DECREASE_FLOWGROUP_COUNT_SQL;
     private final String DELETE_USER_SQL;
 
-    public MysqlQuotaStore(BasicDataSource dataSource, String tableName)
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING")
+    public MysqlQuotaStore(DataSource dataSource, String tableName)
         throws IOException {
       this.dataSource = dataSource;
       this.tableName = tableName;
@@ -319,8 +320,12 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       try (Connection connection = dataSource.getConnection(); PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {
         createStatement.executeUpdate();
       } catch (SQLException e) {
+        // TODO: revisit use of connection test query following verification of successful connection pool migration:
+        //   If your driver supports JDBC4 we strongly recommend not setting this property. This is for "legacy" drivers
+        //   that do not support the JDBC4 Connection.isValid() API; see:
+        //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
         log.warn("Failure in creating table {}. Validation query is set to {} Exception is {}",
-            tableName, this.dataSource.getValidationQuery(), e);
+            tableName, ((HikariDataSource) this.dataSource).getConnectionTestQuery(), e);
         throw new IOException(e);
       }
     }
@@ -437,7 +442,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     private final String ADD_DAG_ID;
     private final String REMOVE_DAG_ID;
 
-    public RunningDagIdsStore(BasicDataSource dataSource, String tableName)
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING")
+    public RunningDagIdsStore(DataSource dataSource, String tableName)
         throws IOException {
       this.dataSource = dataSource;
       this.tableName = tableName;

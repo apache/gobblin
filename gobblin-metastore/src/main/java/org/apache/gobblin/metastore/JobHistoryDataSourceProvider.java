@@ -39,7 +39,7 @@ public class JobHistoryDataSourceProvider extends org.apache.gobblin.util.jdbc.D
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
-    this.basicDataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
+    this.dataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
 
     // Set validation query to verify connection
@@ -47,16 +47,24 @@ public class JobHistoryDataSourceProvider extends org.apache.gobblin.util.jdbc.D
       // MySQL server can timeout a connection so need to validate connections before use
       final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
       LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
-      this.basicDataSource.setValidationQuery(validationQuery);
-      this.basicDataSource.setTestOnBorrow(true);
-      this.basicDataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(60).toMillis());
+      // TODO: revisit following verification of successful connection pool migration:
+      //   If your driver supports JDBC4 we strongly recommend not setting this property. This is for "legacy" drivers
+      //   that do not support the JDBC4 Connection.isValid() API; see:
+      //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
+      this.dataSource.setConnectionTestQuery(validationQuery);
+      this.dataSource.setIdleTimeout(Duration.ofSeconds(60).toMillis());
     }
 
-    this.basicDataSource.setUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
+    this.dataSource.setJdbcUrl(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY));
+    // TODO: revisit following verification of successful connection pool migration:
+    //   whereas `o.a.commons.dbcp.BasicDataSource` defaults min idle conns to 0, hikari defaults to 10.
+    //   perhaps non-zero would have desirable runtime perf, but anything >0 currently fails unit tests (even 1!);
+    //   (so experimenting with a higher number would first require adjusting tests)
+    this.dataSource.setMinimumIdle(0);
     if (properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY)
         && properties.containsKey(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)) {
-      this.basicDataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
-      this.basicDataSource.setPassword(PasswordManager.getInstance(properties)
+      this.dataSource.setUsername(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_USER_KEY));
+      this.dataSource.setPassword(PasswordManager.getInstance(properties)
           .readPassword(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_PASSWORD_KEY)));
     }
   }

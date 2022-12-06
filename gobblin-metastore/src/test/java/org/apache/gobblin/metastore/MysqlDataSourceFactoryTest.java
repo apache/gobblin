@@ -17,8 +17,8 @@
 package org.apache.gobblin.metastore;
 
 import java.io.IOException;
+import javax.sql.DataSource;
 
-import org.apache.commons.dbcp.BasicDataSource;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -42,13 +42,13 @@ public class MysqlDataSourceFactoryTest {
         ConfigurationKeys.STATE_STORE_DB_USER_KEY, "user",
         ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "dummypwd"));
 
-    BasicDataSource basicDataSource1 = MysqlDataSourceFactory.get(config,
+    DataSource dataSource1 = MysqlDataSourceFactory.get(config,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    BasicDataSource basicDataSource2 = MysqlDataSourceFactory.get(config,
+    DataSource dataSource2 = MysqlDataSourceFactory.get(config,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    Assert.assertEquals(basicDataSource1, basicDataSource2);
+    Assert.assertEquals(dataSource1, dataSource2);
   }
 
   @Test
@@ -62,13 +62,13 @@ public class MysqlDataSourceFactoryTest {
         ConfigurationKeys.STATE_STORE_DB_USER_KEY, "user",
         ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "dummypwd"));
 
-    BasicDataSource basicDataSource1 = MysqlDataSourceFactory.get(config1,
+    DataSource dataSource1 = MysqlDataSourceFactory.get(config1,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    BasicDataSource basicDataSource2 = MysqlDataSourceFactory.get(config2,
+    DataSource dataSource2 = MysqlDataSourceFactory.get(config2,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    Assert.assertNotEquals(basicDataSource1, basicDataSource2);
+    Assert.assertNotEquals(dataSource1, dataSource2);
   }
 
   @Test
@@ -82,12 +82,12 @@ public class MysqlDataSourceFactoryTest {
         ConfigurationKeys.STATE_STORE_DB_USER_KEY, "user2",
         ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "dummypwd"));
 
-    BasicDataSource basicDataSource1 = MysqlDataSourceFactory.get(config1,
+    DataSource dataSource1 = MysqlDataSourceFactory.get(config1,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    BasicDataSource basicDataSource2 = MysqlDataSourceFactory.get(config2,
+    DataSource dataSource2 = MysqlDataSourceFactory.get(config2,
         SharedResourcesBrokerFactory.getImplicitBroker());
 
-    Assert.assertNotEquals(basicDataSource1, basicDataSource2);
+    Assert.assertNotEquals(dataSource1, dataSource2);
   }
 }

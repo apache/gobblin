@@ -38,11 +38,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+import javax.sql.DataSource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -50,8 +50,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-
-import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -194,33 +193,38 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   }
 
   /**
-   * creates a new {@link BasicDataSource}
+   * creates a new {@link DataSource}
    * @param config the properties used for datasource instantiation
    * @return
    */
-  public static BasicDataSource newDataSource(Config config) {
-    BasicDataSource basicDataSource = new BasicDataSource();
+  public static DataSource newDataSource(Config config) {
+    HikariDataSource dataSource = new HikariDataSource();
     PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
 
-    basicDataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
+    dataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
     final String validationQuery = MysqlDataSourceUtils.QUERY_CONNECTION_IS_VALID_AND_NOT_READONLY;
     LOG.info("setting `DataSource` validation query: '" + validationQuery + "'");
-    basicDataSource.setValidationQuery(validationQuery);
-    basicDataSource.setTestOnBorrow(true);
-    basicDataSource.setDefaultAutoCommit(false);
-    basicDataSource.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(60).toMillis());
-    basicDataSource.setUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
-    basicDataSource.setUsername(passwordManager.readPassword(
+    // TODO: revisit following verification of successful connection pool migration:
+    //   If your driver supports JDBC4 we strongly recommend not setting this property. This is for "legacy" drivers
+    //   that do not support the JDBC4 Connection.isValid() API; see:
+    //   https://github.com/brettwooldridge/HikariCP#gear-configuration-knobs-baby
+    dataSource.setConnectionTestQuery(validationQuery);
+    dataSource.setAutoCommit(false);
+    dataSource.setIdleTimeout(Duration.ofSeconds(60).toMillis());
+    dataSource.setJdbcUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    // TODO: revisit following verification of successful connection pool migration:
+    //   whereas `o.a.commons.dbcp.BasicDataSource` defaults min idle conns to 0, hikari defaults to 10.
+    //   perhaps non-zero would have desirable runtime perf, but anything >0 currently fails unit tests (even 1!);
+    //   (so experimenting with a higher number would first require adjusting tests)
+    dataSource.setMinimumIdle(0);
+    dataSource.setUsername(passwordManager.readPassword(
         config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
-    basicDataSource.setPassword(passwordManager.readPassword(
+    dataSource.setPassword(passwordManager.readPassword(
         config.getString(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
-    basicDataSource.setMinEvictableIdleTimeMillis(
-        ConfigUtils.getLong(config, ConfigurationKeys.STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY,
-            ConfigurationKeys.DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME));
 
-    return basicDataSource;
+    return dataSource;
   }
 
   /**

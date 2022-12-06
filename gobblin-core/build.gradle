@@ -32,7 +32,6 @@ dependencies {
 
   compile externalDependency.avroMapredH2
   compile externalDependency.commonsCodec
-  compile externalDependency.commonsDbcp
   compile externalDependency.commonsMath
   compile externalDependency.commonsHttpClient
   compile externalDependency.avro
@@ -46,6 +45,7 @@ dependencies {
   compile externalDependency.jsch
   compile externalDependency.commonsLang3
   compile externalDependency.commonsIo
+  compile externalDependency.hikariCP
   compile externalDependency.hiveExec
   compile externalDependency.hiveSerDe
   compile externalDependency.httpclient

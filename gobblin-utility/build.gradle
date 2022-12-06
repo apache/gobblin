@@ -23,7 +23,6 @@ dependencies {
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsCompress
-  compile externalDependency.commonsDbcp
   compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
@@ -33,6 +32,7 @@ dependencies {
   compile externalDependency.avroCompiler
   compile externalDependency.avroCompatHelper
   compile externalDependency.orcCore
+  compile externalDependency.hikariCP
   compile externalDependency.hiveMetastore
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore

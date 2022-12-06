@@ -116,7 +116,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
         .userName(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_USERNAME))
         .passWord(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_PASSWORD))
         .cryptoKeyLocation(this.state.getProp(JdbcPublisher.JDBC_PUBLISHER_ENCRYPTION_KEY_LOC)).maxActiveConnections(1)
-        .maxIdleConnections(1).state(this.state).build();
+        .state(this.state).build();
 
     return dataSource.getConnection();
   }
