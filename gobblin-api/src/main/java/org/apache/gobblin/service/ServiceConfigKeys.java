@@ -103,6 +103,7 @@ public class ServiceConfigKeys {
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
+  public static final String TEMPLATE_CATALOGS_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.class";
 
   // Keys related to user-specified policy on route selection.
   // Undesired connection to form an executable JobSpec.
