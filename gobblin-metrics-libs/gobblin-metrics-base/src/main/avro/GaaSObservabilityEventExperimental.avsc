@@ -2,7 +2,7 @@
   "type": "record",
   "name": "GaaSObservabilityEventExperimental",
   "namespace" : "org.apache.gobblin.metrics",
-  "doc": "An experimental feature for GaaS to emit events during and after a job is executed.",
+  "doc": "An experimental format for GaaS to emit events during and after a job is executed.",
   "fields": [
     {
       "name": "timestamp",
@@ -25,12 +25,12 @@
       "compliance" : "NONE"
     }, {
       "name": "jobOrchestratedTime",
-      "type": "long",
-      "doc": "Timestamp when the job was successfully sent to the job executor, -1 if it was unable to be sent."
+      "type": ["null","long"],
+      "doc": "Timestamp when the job was successfully sent to the job executor, null if it was unable to be sent."
     }, {
       "name": "lastFlowModificationTime",
       "type": "long",
-      "doc": "Timestamp in millis when the flow config was last modified"
+      "doc": "Timestamp in millis since Epoch when the flow config was last modified"
     }, {
       "name" : "flowGraphEdgeId",
       "type" : "string",
@@ -48,7 +48,9 @@
         "name": "JobStatus",
         "symbols": [
           "SUCCEEDED",
-          "FAILED",
+          "COMPILATION_FAILURE",
+          "SUBMISSION_FAILURE",
+          "EXEUCTION_FAILURE",
           "CANCELLED"
         ],
         "doc": "Final job status for this job in the GaaS flow",
@@ -57,16 +59,16 @@
     }, {
       "name": "jobStartTime",
       "type": "long",
-      "doc": "Start time of the job in millis",
+      "doc": "Start time of the job in millis since Epoch",
       "compliance": "NONE"
     }, {
       "name": "jobEndTime",
       "type": "long",
-      "doc": "Finish time of the job in millis",
+      "doc": "Finish time of the job in millis since Epoch",
       "compliance": "NONE"
     }, {
       "name": "proxyUser",
-      "type": "string",
+      "type": ["null","string"],
       "doc": "Proxy user (if applicable) that ran the Gobblin job",
       "compliance": "NONE"
     }, {
@@ -83,7 +85,7 @@
     {
       "name": "issues",
       "type": {
-        "type": "array",
+        "type": ["null","array"]
         "items": {
           "type": "record",
           "name": "Issue",
