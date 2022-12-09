@@ -390,23 +390,27 @@ public class HelixUtils {
    *
    * @param jobNames a list of Gobblin job names.
    * @return a map from jobNames to their Helix Workflow Ids.
+   * @throws GobblinHelixUnexpectedStateException when there is inconsistent helix state. This implies that we should retry the call
+   * to avoid acting on stale data
    */
-  public static Map<String, String> getWorkflowIdsFromJobNames(HelixManager helixManager, Collection<String> jobNames) {
+  public static Map<String, String> getWorkflowIdsFromJobNames(HelixManager helixManager, Collection<String> jobNames)
+    throws GobblinHelixUnexpectedStateException {
     TaskDriver taskDriver = new TaskDriver(helixManager);
     return getWorkflowIdsFromJobNames(taskDriver, jobNames);
   }
 
-  public static Map<String, String> getWorkflowIdsFromJobNames(TaskDriver taskDriver, Collection<String> jobNames) {
+  public static Map<String, String> getWorkflowIdsFromJobNames(TaskDriver taskDriver, Collection<String> jobNames)
+      throws GobblinHelixUnexpectedStateException {
     Map<String, String> jobNameToWorkflowId = new HashMap<>();
     Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
     for (Map.Entry<String, WorkflowConfig> entry : workflowConfigMap.entrySet()) {
       String workflow = entry.getKey();
       WorkflowConfig workflowConfig = entry.getValue();
       if (workflowConfig == null) {
-        // As of Helix 1.0.2 implementation, this in theory won't happen. But this null check is here in case implementation changes
-        // because the API doesn't technically prohibit null configs, maps allowing null values is implementation based, and we want to fail gracefully
-        log.error("Workflow config is null. Skipping the following workflow while searching for workflow ID. workflow={}, jobNames={}", workflow, jobNames);
-        continue;
+        // As of Helix 1.0.2 implementation, this in theory shouldn't happen. But this null check is here in case implementation changes
+        // because the API doesn't technically prohibit null configs, maps allowing null values is implementation based, and we want to fail loudly with a clear root cause.
+        // the caller of this API should retry this API call
+        throw new GobblinHelixUnexpectedStateException("Received null workflow config from Helix. We should not see any null configs when reading all workflows. workflowId=%s", workflow);
       }
       //Filter out any stale Helix workflows which are not running.
       if (workflowConfig.getTargetState() != TargetState.START) {

@@ -20,7 +20,9 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -93,7 +95,7 @@ public class HelixUtilsTest {
   }
 
   @Test
-  public void testGetWorkunitIdForJobNames(){
+  public void testGetWorkunitIdForJobNames() throws GobblinHelixUnexpectedStateException {
     final String HELIX_JOB = "job";
     final String GOBBLIN_JOB_NAME = "gobblin-job-name";
 
@@ -131,6 +133,24 @@ public class HelixUtilsTest {
     assertEquals(
         HelixUtils.getWorkflowIdsFromJobNames(driver, Arrays.asList(GOBBLIN_JOB_NAME)),
         ImmutableMap.of(GOBBLIN_JOB_NAME, "workflow-1"));
+  }
+
+  @Test(expectedExceptions = GobblinHelixUnexpectedStateException.class)
+  public void testGetWorkunitIdForJobNamesWithInvalidHelixState() throws GobblinHelixUnexpectedStateException {
+    final String GOBBLIN_JOB_NAME = "gobblin-job-name";
+
+    TaskDriver driver = Mockito.mock(TaskDriver.class);
+
+    Map<String, WorkflowConfig> workflowConfigMap = new HashMap<>();
+    workflowConfigMap.put("null-workflow-to-throw-exception", null);
+    Mockito.when(driver.getWorkflows()).thenReturn(workflowConfigMap);
+
+    try {
+      HelixUtils.getWorkflowIdsFromJobNames(driver, Arrays.asList(GOBBLIN_JOB_NAME));
+    } catch (GobblinHelixUnexpectedStateException e) {
+      e.printStackTrace();
+      throw e;
+    }
   }
 
   @AfterClass
