@@ -19,13 +19,18 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.tools.ant.taskdefs.Exec;
+import org.testng.collections.Sets;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -37,6 +42,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -45,13 +51,17 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -110,6 +120,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final Retryer<Void> persistJobStatusRetryer;
 
+  private final com.google.common.base.Optional<EventSubmitter> eventSubmitter;
+
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
@@ -136,6 +148,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
+    MetricContext metricContext = null;
+
+    if (instrumentationEnabled) {
+      metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+      this.eventSubmitter = com.google.common.base.Optional.of(new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build());
+    } else {
+      this.eventSubmitter = com.google.common.base.Optional.absent();
+    }
+
   }
 
   @Override
@@ -266,6 +287,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
+
+      if (isStateTransitionToFinal(jobStatus, states.get(states.size() -1))) {
+
+        // Try to emit the event
+
+      }
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -286,6 +313,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       state.removeProp(TimingEvent.JOB_END_TIME);
     }
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
+  }
+
+  private static boolean isStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, org.apache.gobblin.configuration.State lastState) {
+    Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(),ExecutionStatus.FAILED.name());
+    return finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)) && !finalStates.contains(lastState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**
