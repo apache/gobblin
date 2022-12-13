@@ -73,4 +73,9 @@ public interface DatasetDescriptor {
    * @return the raw config.
    */
   public Config getRawConfig();
+
+  /**
+   * @return true if is input dataset.
+   */
+  public Boolean getIsInputDataset();
 }

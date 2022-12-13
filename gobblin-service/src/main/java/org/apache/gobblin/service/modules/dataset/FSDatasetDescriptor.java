@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
@@ -44,8 +45,9 @@ import org.apache.gobblin.util.PathUtils;
  * An implementation of {@link DatasetDescriptor} with FS-based storage.
  */
 @Alpha
-@ToString (callSuper = true, exclude = {"rawConfig"})
-@EqualsAndHashCode (callSuper = true, exclude = {"rawConfig"})
+@Slf4j
+@ToString (callSuper = true, exclude = {"rawConfig","isInputDataset"})
+@EqualsAndHashCode (callSuper = true, exclude = {"rawConfig","isInputDataset"})
 public class FSDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final String path;
@@ -59,6 +61,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   private final FSDatasetPartitionConfig partitionConfig;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -68,6 +72,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
 
   public FSDatasetDescriptor(Config config) throws IOException {
     super(config);
+//    log.info(String.valueOf(config));
     this.path = PathUtils
         .getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
             DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
@@ -76,6 +81,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     this.isCompactedAndDeduped = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false);
     this.partitionConfig = new FSDatasetPartitionConfig(ConfigUtils.getConfigOrEmpty(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX));
     this.rawConfig = config.withFallback(getPartitionConfig().getRawConfig()).withFallback(DEFAULT_FALLBACK).withFallback(super.getRawConfig());
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   /**
@@ -120,9 +126,10 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
   private ArrayList<String> isPathContaining(String otherPath) {
+    String datasetDescriptorPrefix = getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (otherPath == null) {
-      errors.add("Input path is null");
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());
       return errors;
     }
     if (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getPath())) {
@@ -130,14 +137,16 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     }
 
     if (PathUtils.isGlob(new Path(otherPath))) {
-      errors.add("Input path is not a glob.");
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is not a glob. User input: '" + otherPath
+          + "'. Expected value: " + this.getClass() + ".");
       return errors;
     }
 
     GlobPattern globPattern = new GlobPattern(this.getPath());
 
     if (!globPattern.matches(otherPath)) {
-      errors.add("Glob pattern does not match what is expected");
+      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + globPattern
+          + "'. Expected value: '" + otherPath + "'.");
     }
     return errors;
   }
@@ -147,6 +156,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    */
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfigDatasetDescriptor) {
+    String datasetDescriptorPrefix = getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (super.contains(userFlowConfigDatasetDescriptor).size() != 0) {
       return super.contains(userFlowConfigDatasetDescriptor);
@@ -157,12 +167,13 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     if ((this.isCompacted() != userFlowConfig.isCompacted()) ||
         (this.isCompactedAndDeduped() != userFlowConfig.isCompactedAndDeduped())) {
       if (this.isCompacted() != userFlowConfig.isCompacted()) {
-        errors.add("Mismatched isCompacted. Expected is: " + this.isCompacted());
+        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_COMPACTED_KEY + " is mismatched. User input: '" + userFlowConfig.isCompacted()
+            + "'. Expected value: '" + this.isCompacted() + "'.");
       }
       else {
-        errors.add("Mismatched isCompactedAndDeduped. Expected is: " + this.isCompactedAndDeduped());
+        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY + " is mismatched. User input: '" + userFlowConfig.isCompactedAndDeduped()
+            + "'. Expected value: '" + this.isCompactedAndDeduped() + "'.");
       }
-      return errors;
     }
 
     errors.addAll(this.getPartitionConfig().contains(userFlowConfig.getPartitionConfig()));

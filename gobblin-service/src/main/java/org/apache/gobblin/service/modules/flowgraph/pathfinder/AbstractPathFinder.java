@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
@@ -25,6 +27,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -55,6 +58,7 @@ import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.hadoop.util.hash.Hash;
 
 
 @Alpha
@@ -125,8 +129,10 @@ public abstract class AbstractPathFinder implements PathFinder {
     //Get src/dest dataset descriptors from the flow config
     Config srcDatasetDescriptorConfig =
         flowConfig.getConfig(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX);
+    srcDatasetDescriptorConfig = srcDatasetDescriptorConfig.withValue(DatasetDescriptorConfigKeys.IS_INPUT_DATASET, ConfigValueFactory.fromAnyRef(true));
     Config destDatasetDescriptorConfig =
         flowConfig.getConfig(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
+    destDatasetDescriptorConfig = destDatasetDescriptorConfig.withValue(DatasetDescriptorConfigKeys.IS_INPUT_DATASET, ConfigValueFactory.fromAnyRef(false));;
 
     //Add retention config for source and destination dataset descriptors.
     if (shouldApplyRetentionOnInput) {
@@ -157,8 +163,14 @@ public abstract class AbstractPathFinder implements PathFinder {
       destDatasetDescriptorConfig = destDatasetDescriptorConfig.withFallback(getDefaultConfig(this.destNodes.get(0)));
     }
 
+//    log.info(String.valueOf(srcDatasetDescriptorConfig));
+//    log.info(String.valueOf(destDatasetDescriptorConfig));
+
+//    log.info("PRINT DATASET DESCRIPTOR");
     this.srcDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(srcDatasetDescriptorConfig);
+//    log.info(String.valueOf(this.srcDatasetDescriptor));
     this.destDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(destDatasetDescriptorConfig);
+//    log.info(String.valueOf(this.destDatasetDescriptor));
   }
 
   public static Config getDefaultConfig(DataNode dataNode) {
@@ -213,14 +225,24 @@ public abstract class AbstractPathFinder implements PathFinder {
             DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
             DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
 
-            try {
-              flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
-            } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
-              flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), "Error compiling edge " + flowEdge.toString() + ": " + e.toString());
+            HashMap<String, ArrayList<String>> errors = flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
+            HashMap<String, HashMap<String, ArrayList<String>>> edgeErrors = new HashMap<>();
+            HashMap<String, HashMap<String, ArrayList<String>>> templateErrors = new HashMap<>();
+            ObjectMapper mapper = new ObjectMapper();
+            edgeErrors.put(flowEdge.getId(), errors);
+
+            if (errors.size() != 0) {
+              try {
+                flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), mapper.writeValueAsString(edgeErrors));
+              }
+              catch (JsonProcessingException e) {
+                e.printStackTrace();
+              }
               continue;
             }
-
-            if (inputDatasetDescriptor.contains(currentDatasetDescriptor).size() == 0) {
+            ArrayList<String> datasetDescriptorErrors = inputDatasetDescriptor.contains(currentDatasetDescriptor);
+            log.info(flowEdge.getId());
+            if (datasetDescriptorErrors.size() == 0) {
               DatasetDescriptor edgeOutputDescriptor = makeOutputDescriptorSpecific(currentDatasetDescriptor, outputDatasetDescriptor);
               FlowEdgeContext flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, edgeOutputDescriptor, mergedConfig,
                   specExecutor);
@@ -236,6 +258,17 @@ public abstract class AbstractPathFinder implements PathFinder {
                 prioritizedEdgeList.add(flowEdgeContext);
               }
               foundExecutor = true;
+            }
+            else {
+              HashMap<String, ArrayList<String>> templateError = new HashMap<>();
+              templateError.put("flowTemplateErrors", datasetDescriptorErrors);
+              templateErrors.put(flowEdge.getId(), templateError);
+              try {
+                flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), mapper.writeValueAsString(templateErrors));
+              }
+              catch (JsonProcessingException e) {
+                e.printStackTrace();
+              }
             }
           }
           // Found a SpecExecutor. Proceed to the next FlowEdge.

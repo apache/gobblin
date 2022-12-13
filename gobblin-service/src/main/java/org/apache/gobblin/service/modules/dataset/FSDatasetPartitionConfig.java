@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.codehaus.jackson.map.Serializers;
 
 
 /**
@@ -43,8 +44,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * the regex pattern) is validated.
  */
 @Slf4j
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString (exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class FSDatasetPartitionConfig {
   @Getter
   private final String partitionType;
@@ -52,6 +53,8 @@ public class FSDatasetPartitionConfig {
   private final String partitionPattern;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   public enum PartitionType {
     DATETIME("datetime"),
@@ -89,6 +92,7 @@ public class FSDatasetPartitionConfig {
     this.partitionType = partitionType;
     this.partitionPattern = partitionPattern;
     this.rawConfig = config.withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private void validatePartitionConfig(String partitionType, String partitionPattern)
@@ -130,22 +134,28 @@ public class FSDatasetPartitionConfig {
   }
 
   public ArrayList<String> contains(FSDatasetPartitionConfig userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (userFlowConfig == null) {
       errors.add("Missing Dataset Partition Config");
       return errors;
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
+    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getPartitionType())
         && !this.getPartitionType().equalsIgnoreCase(userFlowConfig.getPartitionType())) {
-      errors.add("Mismatched partition type. Expected: " + this.getPartitionType() + " or any");
+//      log.info(userFlowConfig.getIsInputDataset().toString());
+//      log.info(datasetDescriptorPrefix);
+//      log.info(userFlowConfig.getPartitionType());
+//      log.info(this.getPartitionType());
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY + " is mismatched. User input: '" + userFlowConfig.getPartitionType()
+          + "'. Expected value: '" + this.getPartitionType() + "'.");
     }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
         && !this.getPartitionPattern().equalsIgnoreCase(userFlowConfig.getPartitionPattern())) {
-      errors.add("Mismatched partition pattern. Expected: " + this.getPartitionPattern() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY + " is mismatched. User input: '" + userFlowConfig.getPartitionPattern()
+          + "'. Expected value: '" + this.getPartitionPattern() + "'.");
     }
-
     return errors;
   }
 }

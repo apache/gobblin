@@ -43,8 +43,8 @@ import org.apache.gobblin.util.ConfigUtils;
  *  </ul>
  */
 @Alpha
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString (exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class FormatConfig {
   @Getter
   private final String format;
@@ -54,6 +54,8 @@ public class FormatConfig {
   private final EncryptionConfig encryptionConfig;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -68,31 +70,35 @@ public class FormatConfig {
         .empty()));
     this.rawConfig = config.withFallback(this.encryptionConfig.getRawConfig().atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX)).
         withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   public ArrayList<String> contains(FormatConfig other) {
     ArrayList<String> errors = new ArrayList<>();
-
-    errors.addAll(containsFormat(other.getFormat()));
-    errors.addAll(containsCodec(other.getCodecType()));
+    errors.addAll(containsFormat(other.getFormat(), other.getIsInputDataset()));
+    errors.addAll(containsCodec(other.getCodecType(), other.getIsInputDataset()));
     errors.addAll(containsEncryptionConfig(other.getEncryptionConfig()));
     return errors;
   }
 
-  private ArrayList<String> containsFormat(String otherFormat) {
+  private ArrayList<String> containsFormat(String otherFormat, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
         && (!this.getFormat().equalsIgnoreCase(otherFormat))) {
-      errors.add("Mismatched format. Expected: " + this.getFormat() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FORMAT_KEY + " is mismatched. User input: '" + otherFormat
+          + "'. Expected value: '" + this.getFormat() + "'.");
     }
     return errors;
   }
 
-  private ArrayList<String> containsCodec(String otherCodecType) {
+  private ArrayList<String> containsCodec(String otherCodecType, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
         && (!this.getCodecType().equalsIgnoreCase(otherCodecType))) {
-      errors.add("Mismatched codec type. Expected: " + this.getCodecType() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CODEC_KEY + " is mismatched. User input: '" + otherCodecType
+          + "'. Expected value: '" + this.getCodecType() + "'.");
     }
     return errors;
   }

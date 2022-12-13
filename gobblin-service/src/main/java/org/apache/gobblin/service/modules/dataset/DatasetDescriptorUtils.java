@@ -19,10 +19,11 @@ package org.apache.gobblin.service.modules.dataset;
 
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-
+@Slf4j
 public class DatasetDescriptorUtils {
   /**
    * Given dataset descriptor config, construct a {@link DatasetDescriptor} object

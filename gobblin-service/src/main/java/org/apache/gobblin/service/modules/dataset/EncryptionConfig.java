@@ -34,8 +34,8 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
-@ToString(exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString(exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class EncryptionConfig {
   @Getter
   private final String encryptionAlgorithm;
@@ -49,6 +49,8 @@ public class EncryptionConfig {
   private final String keystoreEncoding;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   public enum  EncryptionLevel {
     FILE("file"),
@@ -99,6 +101,7 @@ public class EncryptionConfig {
       validate(this.encryptionLevel, this.encryptedFields);
     }
     this.rawConfig = encryptionConfig.withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(encryptionConfig, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private void validate(String encryptionLevel, String encryptedFields) throws IOException {
@@ -126,9 +129,10 @@ public class EncryptionConfig {
   }
 
   public ArrayList<String> contains(EncryptionConfig userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (userFlowConfig == null) {
-      errors.add("Empty EncryptionConfig");
+      errors.add("User input has empty EncryptionConfig.");
       return errors;
     }
 
@@ -140,27 +144,32 @@ public class EncryptionConfig {
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionAlgorithm())
         && !this.encryptionAlgorithm.equalsIgnoreCase(userFlowConfigEncryptionAlgorithm)) {
-      errors.add("Mismatched encryption algorithm. Expected: " + this.getEncryptionAlgorithm() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY + " is mismatched. User input: '" + userFlowConfig.getEncryptionAlgorithm()
+          + "'. Expected value: '" + this.getEncryptionAlgorithm() + "'.");
     }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreType())
         && !this.keystoreType.equalsIgnoreCase(userFlowotherKeystoreType)) {
-      errors.add("Mismatched keystore type. Expected: " + this.getKeystoreType() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY + " is mismatched. User input: '" + userFlowConfig.getKeystoreType()
+          + "'. Expected value: '" + this.getKeystoreType() + "'.");
     }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreEncoding())
         && !this.keystoreEncoding.equalsIgnoreCase(userFlowotherKeystoreEncoding)) {
-      errors.add("Mismatched keystore encoding. Expected: " + this.getKeystoreEncoding() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY + " is mismatched. User input: '" + userFlowConfig.getKeystoreEncoding()
+          + "'. Expected value: " + this.getKeystoreEncoding() + "'.");
     }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionLevel())
         && !this.encryptionLevel.equalsIgnoreCase(userFlowotherEncryptionLevel)) {
-      errors.add("Mismatched encryption level. Expected: " + this.getEncryptionLevel() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY + " is mismatched. User input: '" + userFlowConfig.getEncryptionLevel()
+          + "'. Expected value: '" + this.getEncryptionLevel()  + "'.");
     }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
         && !this.encryptedFields.equalsIgnoreCase(userFlowotherEncryptedFields)) {
-      errors.add("Mismatched encrypted fields. Expected: " + this.getEncryptedFields() + " or any");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS + " is mismatched. User input: '" + userFlowConfig.getEncryptedFields()
+          + "'. Expected value: '" + this.getEncryptedFields() + ".");
     }
 
     return errors;

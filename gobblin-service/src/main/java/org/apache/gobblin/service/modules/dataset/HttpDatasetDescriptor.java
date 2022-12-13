@@ -39,14 +39,16 @@ import org.apache.gobblin.util.ConfigUtils;
  * query string is not supported
  */
 @Slf4j
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
+@ToString (exclude = {"rawConfig","isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig","isInputDataset"}, callSuper = true)
 public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
 
   @Getter
   private final String path;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   public enum Platform {
     HTTP("http"),
@@ -72,6 +74,7 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
     // refers to the full HTTP url
     this.path = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY, "");
     this.rawConfig = config.withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef(this.path)).withFallback(super.getRawConfig());
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   /**
@@ -89,10 +92,12 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
     // Might be null
+    String datasetDescriptorPrefix = this.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (!this.path.equals(otherPath)) {
-      errors.add("HTTP path does not match. Expected HTTP path is of format: " + this.path);
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath
+          + "'. Expected value: '" + this.path + "'.");
     }
     return errors;
   }

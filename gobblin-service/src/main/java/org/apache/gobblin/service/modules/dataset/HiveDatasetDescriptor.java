@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.hadoop.fs.GlobPattern;
 
 import com.google.common.base.Splitter;
@@ -43,7 +44,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
  * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
  */
-@EqualsAndHashCode (exclude = {"whitelistBlacklist"}, callSuper = true)
+@EqualsAndHashCode (exclude = {"whitelistBlacklist","isInputDataset"}, callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   static final String IS_PARTITIONED_KEY = "isPartitioned";
   static final String PARTITION_COLUMN = "partition.column";
@@ -53,6 +54,7 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   private final String partitionColumn;
   private final String partitionFormat;
   private final String conflictPolicy;
+  protected Boolean isInputDataset;
   WhitelistBlacklist whitelistBlacklist;
 
   public HiveDatasetDescriptor(Config config) throws IOException {
@@ -78,6 +80,7 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
         .withValue(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST,
             ConfigValueFactory.fromAnyRef(createHiveDatasetWhitelist())
         ));
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   // Using Hadoop's GlobPattern instead of java.util.regex, because could not find any API in java.util.regex
@@ -101,22 +104,25 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
 
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      errors.add("Input path is null.");
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
+          + ". Expected value: '" + this.getPath() +  ".");
       return errors;
     }
 
     if (this.isPartitioned != ((HiveDatasetDescriptor) other).isPartitioned) {
-      errors.add("Partition does not match. Expected: " + this.isPartitioned);
-      return errors;
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY + " is mismatched. User input: '" + ((HiveDatasetDescriptor) other).isPartitioned
+          + "'. Expected value: '" + this.isPartitioned + ".");
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      errors.add("Incomplete splitting for dbName and tableName");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath + "' is not splittable"
+          + ". Expected separation character: '" + SEPARATION_CHAR +  "'.");
       return errors;
     }
 
@@ -124,15 +130,15 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
     String otherTableNames = parts.get(1);
 
     if (!this.whitelistBlacklist.acceptDb(otherDbName)) {
-      errors.add("Database in blacklist.");
-      return errors;
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.DATABASE_KEY + " is mismatched. User input: '" + otherDbName + "' is in the blacklist"
+          + ".");
     }
 
     List<String> otherTables = Splitter.on(",").splitToList(otherTableNames);
     for (String otherTable : otherTables) {
       if (!this.whitelistBlacklist.acceptTable(otherDbName, otherTable)) {
-        errors.add("Table in blacklist");
-        return errors;
+        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.TABLE_KEY + " is mismatched. User input: '" + otherTable + "' is in the blacklist"
+            + ".");
       }
     }
     return errors;

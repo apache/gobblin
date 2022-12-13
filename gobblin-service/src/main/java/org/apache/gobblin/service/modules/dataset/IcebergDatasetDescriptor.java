@@ -36,13 +36,15 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link IcebergDatasetDescriptor#databaseName} and {@link IcebergDatasetDescriptor#tableName} are used to
  * identify an iceberg.
  */
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode (callSuper = true)
 public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
   protected final String databaseName;
   protected final String tableName;
   @Getter
   private final String path;
+  @Getter
+  protected Boolean isInputDataset;
 
   /**
    * Constructor for {@link IcebergDatasetDescriptor}
@@ -61,6 +63,7 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
       throw new IOException("Invalid iceberg database or table name: " + this.databaseName + ":" + this.tableName);
     }
     this.path = fullyQualifiedTableName(this.databaseName, this.tableName);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   protected boolean isPlatformValid() {
@@ -73,17 +76,20 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
 
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      errors.add("Input path is null");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
+          + ". Expected value: '" + this.getPath() +  "'.");
       return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      errors.add("Incomplete splitting for dbName and tableName");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath + "' is not splittable"
+          + ". Expected separation character: '" + SEPARATION_CHAR +  "'.");
       return errors;
     }
 
@@ -91,11 +97,13 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
     String otherTableName = parts.get(1);
 
     if (!this.databaseName.equals(otherDbName)) {
-      errors.add("Database name is incorrect. Expected: " + this.databaseName);
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.DATABASE_KEY + " is mismatched. User input: '" + otherDbName + "' is in the blacklist"
+          + ".");
     }
 
     if (!this.tableName.equals(otherTableName)) {
-      errors.add("Table name is incorrect. Expected: " + this.tableName);
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.TABLE_KEY + " is mismatched. User input: '" + otherTableName + "' is in the blacklist"
+          + ".");
     }
     return errors;
   }

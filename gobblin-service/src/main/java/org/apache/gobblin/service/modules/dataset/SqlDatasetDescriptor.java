@@ -40,13 +40,15 @@ import org.apache.gobblin.util.PathUtils;
 
 
 @Slf4j
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
+@ToString (exclude = {"rawConfig","isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig","isInputDataset"}, callSuper = true)
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
 
   protected final String databaseName;
   protected final String tableName;
+  @Getter
+  protected Boolean isInputDataset;
 
   @Getter
   private final String path;
@@ -82,6 +84,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     this.tableName = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.TABLE_KEY, ".*");
     this.path = fullyQualifiedTableName(this.databaseName, this.tableName);
     this.rawConfig = config.withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef(this.path)).withFallback(super.getRawConfig());
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private String fullyQualifiedTableName(String databaseName, String tableName) {
@@ -106,22 +109,24 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    */
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (otherPath == null) {
-      errors.add("Path is null.");
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
+          + ". Expected value: " + this.getPath() +  ".");
       return errors;
     }
 
     if (PathUtils.GLOB_TOKENS.matcher(otherPath).find()) {
-      errors.add("Glob token mismatch");
       return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      errors.add("Incomplete splitting for dbName and tableName");
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath + "' is not splittable"
+          + ". Expected separation character: '" + SEPARATION_CHAR +  "'.");
       return errors;
     }
 
@@ -129,11 +134,13 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     String otherTableName = parts.get(1);
 
     if (!Pattern.compile(this.databaseName).matcher(otherDbName).matches()) {
-      errors.add("Database name does not match. Expected: " + this.databaseName);
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.DATABASE_KEY + " is mismatched. User input: '" + otherDbName + "' is in the blacklist"
+          + ".");
     }
 
     if (!Pattern.compile(this.tableName).matcher(otherTableName).matches()) {
-      errors.add("Table name does not match. Expected: " + this.tableName);
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.TABLE_KEY + " is mismatched. User input: '" + otherTableName + "' is in the blacklist"
+          + ".");
     }
 
     return errors;

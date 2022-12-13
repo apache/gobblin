@@ -28,9 +28,11 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
+@Slf4j
 @EqualsAndHashCode (exclude = {"description", "rawConfig"})
 @ToString (exclude = {"description", "rawConfig"})
 public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
@@ -44,6 +46,8 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   private final String description;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -53,11 +57,14 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
 
   public BaseDatasetDescriptor(Config config) throws IOException {
     Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
+    log.info("BASE DATASET DESCRIPTOR");
+    log.info(String.valueOf(config));
     this.platform = config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY).toLowerCase();
     this.formatConfig = new FormatConfig(config);
     this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
     this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   /**
@@ -74,31 +81,33 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
     ArrayList<String> errors = new ArrayList<>();
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (this == userFlowConfig) {
       return errors;
     }
 
     if (userFlowConfig == null) {
-      errors.add("Empty input datasetDescriptor");
+      errors.add("Empty input datasetDescriptor.");
       return errors;
     } else {
         if (!getClass().equals(userFlowConfig.getClass())) {
-          errors.add("Incorrect class. Expected class is of format: " + this.getClass());
-          return errors;
+          errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CLASS_KEY + " is mismatched. User input: '" + userFlowConfig.getClass()
+              + "'. Expected value: '" + this.getClass() + "'.");
         }
 
         if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
           if (userFlowConfig.getPlatform() == null) {
-            errors.add("Missing platform. Expected platform is of format: " + this.getPlatform());
+            errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is missing"
+                + ". Expected value: '" + this.getPlatform() + "'.");
           } else {
-            errors.add("Incorrect platform. Expected platform is of format: " + this.getPlatform());
+            errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is mismatched. User input: '" + userFlowConfig.getPlatform()
+                + "'. Expected value: '" + this.getPlatform() + "'.");
           }
-          return errors;
         }
 
         if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
-          errors.add("Expected boolean for isRetentionApplied is: " + this.isRetentionApplied());
-          return errors;
+          errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY + " is mismatched. User input: '" + userFlowConfig.isRetentionApplied()
+              + "'. Expected value: '" + this.isRetentionApplied() + "'.");
         }
       }
 
