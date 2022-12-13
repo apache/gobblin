@@ -81,8 +81,9 @@ public class FSDatasetPartitionConfig {
           .build());
 
   public FSDatasetPartitionConfig(Config config) throws IOException {
-    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
-    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
+    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+
     if (partitionType.equalsIgnoreCase(PartitionType.NONE.name())) {
       partitionPattern = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
     } else if(partitionType.equalsIgnoreCase(PartitionType.ANY.name())) {
@@ -91,7 +92,7 @@ public class FSDatasetPartitionConfig {
     validatePartitionConfig(partitionType, partitionPattern);
     this.partitionType = partitionType;
     this.partitionPattern = partitionPattern;
-    this.rawConfig = config.withFallback(DEFAULT_FALLBACK);
+    this.rawConfig = (config.getConfig(DatasetDescriptorConfigKeys.PARTITION_PREFIX)).withFallback(DEFAULT_FALLBACK);
     this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
@@ -143,10 +144,6 @@ public class FSDatasetPartitionConfig {
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getPartitionType())
         && !this.getPartitionType().equalsIgnoreCase(userFlowConfig.getPartitionType())) {
-//      log.info(userFlowConfig.getIsInputDataset().toString());
-//      log.info(datasetDescriptorPrefix);
-//      log.info(userFlowConfig.getPartitionType());
-//      log.info(this.getPartitionType());
       errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY + " is mismatched. User input: '" + userFlowConfig.getPartitionType()
           + "'. Expected value: '" + this.getPartitionType() + "'.");
     }

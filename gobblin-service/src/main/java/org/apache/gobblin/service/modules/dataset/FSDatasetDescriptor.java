@@ -72,14 +72,13 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
 
   public FSDatasetDescriptor(Config config) throws IOException {
     super(config);
-//    log.info(String.valueOf(config));
     this.path = PathUtils
         .getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
             DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
     this.subPaths = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.SUBPATHS_KEY, null);
     this.isCompacted = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, false);
     this.isCompactedAndDeduped = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false);
-    this.partitionConfig = new FSDatasetPartitionConfig(ConfigUtils.getConfigOrEmpty(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX));
+    this.partitionConfig = new FSDatasetPartitionConfig(config); //ConfigUtils.getConfigOrEmpty(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX));
     this.rawConfig = config.withFallback(getPartitionConfig().getRawConfig()).withFallback(DEFAULT_FALLBACK).withFallback(super.getRawConfig());
     this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
@@ -106,14 +105,14 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
-        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString());
+        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString(), other.getIsInputDataset());
         if (pathErrors.size() != 0) {
           return pathErrors;
         }
       }
       return errors;
     } else {
-      return isPathContaining(otherPath);
+      return isPathContaining(otherPath, other.getIsInputDataset());
     }
   }
 
@@ -125,8 +124,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * @param otherPath a glob pattern that describes a set of paths.
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
-  private ArrayList<String> isPathContaining(String otherPath) {
-    String datasetDescriptorPrefix = getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+  private ArrayList<String> isPathContaining(String otherPath, Boolean inputDataset) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());
@@ -145,8 +144,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     GlobPattern globPattern = new GlobPattern(this.getPath());
 
     if (!globPattern.matches(otherPath)) {
-      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + globPattern
-          + "'. Expected value: '" + otherPath + "'.");
+      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + otherPath
+          + "'. Expected value path of: " + this.getPath() + " and globPattern of '" + globPattern + "'.");
     }
     return errors;
   }
@@ -156,7 +155,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    */
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfigDatasetDescriptor) {
-    String datasetDescriptorPrefix = getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    String datasetDescriptorPrefix = userFlowConfigDatasetDescriptor.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (super.contains(userFlowConfigDatasetDescriptor).size() != 0) {
       return super.contains(userFlowConfigDatasetDescriptor);

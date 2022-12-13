@@ -92,7 +92,7 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
     // Might be null
-    String datasetDescriptorPrefix = this.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = other.getPath();
     if (!this.path.equals(otherPath)) {

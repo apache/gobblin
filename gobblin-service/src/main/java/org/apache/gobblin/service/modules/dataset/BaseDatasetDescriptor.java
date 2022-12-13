@@ -57,8 +57,6 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
 
   public BaseDatasetDescriptor(Config config) throws IOException {
     Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
-    log.info("BASE DATASET DESCRIPTOR");
-    log.info(String.valueOf(config));
     this.platform = config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY).toLowerCase();
     this.formatConfig = new FormatConfig(config);
     this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
