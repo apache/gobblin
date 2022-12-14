@@ -81,12 +81,12 @@
       "compliance": "NONE"
     },
     {
-      "name": "proxyUser",
+      "name": "userIdentity",
       "type": [
         "null",
         "string"
       ],
-      "doc": "Proxy user (if applicable) that ran the Gobblin job",
+      "doc": "User identification (if applicable) that runs the underlying Gobblin job",
       "compliance": "NONE"
     },
     {
