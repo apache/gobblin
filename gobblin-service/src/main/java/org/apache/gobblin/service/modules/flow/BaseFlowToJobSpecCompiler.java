@@ -206,7 +206,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
         (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
       try {
         userQuotaManager.get().checkQuota(dag.getStartNodes());
-        flowSpec.getConfigAsProperties().setProperty(ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "true");
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
