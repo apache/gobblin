@@ -29,7 +29,6 @@ import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlStateStore;
