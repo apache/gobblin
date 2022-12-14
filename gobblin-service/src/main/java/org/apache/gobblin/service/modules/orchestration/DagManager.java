@@ -981,10 +981,7 @@ public class DagManager extends AbstractIdleService {
       // Run this spec on selected executor
       SpecProducer<Spec> producer;
       try {
-        if (!Boolean.parseBoolean(dagNode.getValue().getJobSpec().getConfigAsProperties().getProperty(
-            ServiceConfigKeys.GOBBLIN_SERVICE_ADHOC_FLOW, "false"))) {
-          quotaManager.checkQuota(Collections.singleton(dagNode));
-        }
+        quotaManager.checkQuota(Collections.singleton(dagNode));
 
         producer = DagManagerUtils.getSpecProducer(dagNode);
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
