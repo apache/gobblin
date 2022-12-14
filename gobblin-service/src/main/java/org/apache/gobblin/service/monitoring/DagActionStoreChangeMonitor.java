@@ -65,19 +65,20 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected LoadingCache<String, String>
       dagActionsSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
-  @Inject
   protected DagActionStore dagActionStore;
 
-  @Inject
   protected DagManager dagManager;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagActionStoreChangeMonitor(String topic, Config config, int numThreads) {
+  public DagActionStoreChangeMonitor(String topic, Config config, DagActionStore dagActionStore, DagManager dagManager,
+      int numThreads) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
+    this.dagActionStore = dagActionStore;
+    this.dagManager = dagManager;
   }
 
   @Override
@@ -136,9 +137,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     try {
       if (operation.equals("INSERT")) {
         if (dagAction.equals(DagActionStore.DagActionValue.RESUME)) {
+          log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
         } else if (dagAction.equals(DagActionStore.DagActionValue.KILL)) {
+          log.info("Received insert dag action and about to send kill flow request");
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
         } else {

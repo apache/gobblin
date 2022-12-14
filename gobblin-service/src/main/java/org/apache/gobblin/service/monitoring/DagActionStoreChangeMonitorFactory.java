@@ -25,8 +25,9 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -34,22 +35,28 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class DagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
-  static final String DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_NAME = "org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor";
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
+  private DagActionStore dagActionStore;
+  private DagManager dagManager;
 
   @Inject
-  public DagActionStoreChangeMonitorFactory(Config config) { this.config = Objects.requireNonNull(config); }
+  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager) {
+    this.config = Objects.requireNonNull(config);
+    this.dagActionStore = dagActionStore;
+    this.dagManager = dagManager;
+  }
 
   private DagActionStoreChangeMonitor createDagActionStoreMonitor()
     throws ReflectiveOperationException {
-    Config dagActionStoreChangeConfig = config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
+    Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
+    log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
+
     String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return (DagActionStoreChangeMonitor) GobblinConstructorUtils.invokeConstructor(
-        Class.forName(DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_NAME), topic, dagActionStoreChangeConfig, numThreads);
+    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagActionStore, this.dagManager, numThreads);
   }
 
   @Override
