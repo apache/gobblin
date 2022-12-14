@@ -385,8 +385,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * Sets the {@link FsPermission}, owner, group for the path passed. And recursively to all directories and files under
    * it.
    */
-  private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission)
-      throws IOException {
+  private void setRecursivePermission(Path path, OwnerAndPermission ownerAndPermission) throws IOException {
     List<FileStatus> files = FileListUtils.listPathsRecursively(this.fs, path, FileListUtils.NO_OP_PATH_FILTER);
 
     // Set permissions bottom up. Permissions are set to files first and then directories
@@ -395,6 +394,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     for (FileStatus file : files) {
       safeSetPathPermission(this.fs, file, ownerAndPermission);
     }
+  }
+
+  private FsPermission getFsPermissionWithStickyBit(OwnerAndPermission ownerAndPermission) {
+    FsPermission fsPermission = ownerAndPermission.getFsPermission();
+    FsPermission fsPermissionWithStickyBit = new FsPermission(fsPermission.getUserAction(), fsPermission.getGroupAction(), fsPermission.getOtherAction(),
+        ownerAndPermission.getStickyBit());
+    ownerAndPermission.setFsPermission(fsPermissionWithStickyBit);
+    return fsPermissionWithStickyBit;
   }
 
   /**
@@ -505,6 +512,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       if (ownerAndPermission.getFsPermission() != null) {
         log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
+        if (ownerAndPermission.getStickyBit() != null) {
+          FsPermission fsPermissionWithStickyBit = getFsPermissionWithStickyBit(ownerAndPermission);
+          ownerAndPermission.setFsPermission(fsPermissionWithStickyBit);
+        }
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
       }
 
