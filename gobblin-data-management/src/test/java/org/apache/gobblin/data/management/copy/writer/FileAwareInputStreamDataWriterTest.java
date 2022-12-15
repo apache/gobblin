@@ -313,7 +313,7 @@ public class FileAwareInputStreamDataWriterTest {
 
   }
 
-  @Test (enabled = false)
+  @Test
   public void testCommit() throws IOException {
 
     String destinationExistingToken = "destination";
@@ -355,7 +355,7 @@ public class FileAwareInputStreamDataWriterTest {
     List<AclEntry> aclEntryList = Lists.newArrayList();
     aclEntryList.add(aclEntry);
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, false, aclEntryList);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, null, Lists.newArrayList());
     List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
