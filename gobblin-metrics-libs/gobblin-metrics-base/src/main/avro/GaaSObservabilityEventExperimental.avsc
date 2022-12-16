@@ -81,7 +81,7 @@
       "compliance": "NONE"
     },
     {
-      "name": "userIdentity",
+      "name": "executionUserUrn",
       "type": [
         "null",
         "string"
