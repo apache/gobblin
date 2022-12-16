@@ -28,14 +28,6 @@
       "compliance": "NONE"
     },
     {
-      "name": "jobOrchestratedTime",
-      "type": [
-        "null",
-        "long"
-      ],
-      "doc": "Timestamp when the job was successfully sent to the job executor, null if it was unable to be sent."
-    },
-    {
       "name": "lastFlowModificationTime",
       "type": "long",
       "doc": "Timestamp in millis since Epoch when the flow config was last modified"
@@ -69,6 +61,14 @@
       }
     },
     {
+      "name": "jobOrchestratedTime",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Timestamp when the job was successfully sent to the job executor, null if it was unable to be sent."
+    },
+    {
       "name": "jobStartTime",
       "type": "long",
       "doc": "Start time of the job in millis since Epoch",
@@ -86,7 +86,7 @@
         "null",
         "string"
       ],
-      "doc": "User identification (if applicable) that runs the underlying Gobblin job",
+      "doc": "User URN (if applicable) that runs the underlying Gobblin job",
       "compliance": "NONE"
     },
     {
