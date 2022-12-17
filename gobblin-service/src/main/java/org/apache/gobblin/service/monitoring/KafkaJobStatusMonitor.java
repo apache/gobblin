@@ -289,7 +289,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       stateStore.put(storeName, tableName, jobStatus);
 
       if (isStateTransitionToFinal(jobStatus, states.get(states.size() -1))) {
-
         // Try to emit the event
 
       }
