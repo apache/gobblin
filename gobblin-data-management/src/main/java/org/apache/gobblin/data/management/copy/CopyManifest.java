@@ -99,11 +99,16 @@ public class CopyManifest {
    * @throws IOException
    */
   public void write(FileSystem fs, Path path) throws IOException {
-    String outputJson = GSON.toJson(this._copyableUnits, CopyableUnitListType);
-    FSDataOutputStream out =  fs.create(path, true);
-    out.write(outputJson.getBytes(StandardCharsets.UTF_8));
-    out.flush();
-    out.close();
+    FSDataOutputStream out = null;
+    try {
+      String outputJson = GSON.toJson(this._copyableUnits, CopyableUnitListType);
+      out = fs.create(path, true);
+      out.write(outputJson.getBytes(StandardCharsets.UTF_8));
+    } finally {
+      if (out != null) {
+        out.close();
+      }
+    }
   }
 
   public static CopyableUnitIterator getReadIterator(FileSystem fs, Path path) throws IOException {
