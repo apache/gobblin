@@ -81,4 +81,17 @@ public class TestCopyManifest {
     Assert.assertEquals(count, manifest._copyableUnits.size());
     manifestIterator.close();
   }
+
+  @Test(expectedExceptions = IllegalArgumentException.class)
+  public void invalidCopyableUnit() {
+    new CopyManifest.CopyableUnit(null, null, null, null);
+  }
+
+  @Test(expectedExceptions = IllegalArgumentException.class)
+  public void invalidReadIteratorCopyManifest() throws IOException {
+    String manifestPath =
+        getClass().getClassLoader().getResource("manifestBasedDistcpTest/missingFileNameManifest.json").getPath();
+    CopyManifest.CopyableUnitIterator manifestIterator = CopyManifest.getReadIterator(localFs, new Path(manifestPath));
+    manifestIterator.next();
+  }
 }

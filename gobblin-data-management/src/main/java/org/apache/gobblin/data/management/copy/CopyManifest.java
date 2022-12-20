@@ -33,10 +33,11 @@ import org.apache.hadoop.fs.Path;
 
 
 /**
- * Manifest schema and serDe
+ * Copy Manifest schema and serDe for manifest based copy
  * https://iwww.corp.linkedin.com/wiki/cf/display/ENGS/Manifest+based+distcp+runbook
  */
 public class CopyManifest {
+  private static final String MISSING_FN_MESSAGE = "fileName cannot be null";
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
   private static final Type CopyableUnitListType = new TypeToken<ArrayList<CopyableUnit>>(){}.getType();
 
@@ -50,10 +51,18 @@ public class CopyManifest {
     _copyableUnits = copyableUnits;
   }
 
+  /**
+   * Add a new copyable unit to a copy manifest. Used for building a manifest
+   * @param copyableUnit
+   */
   public void add(CopyManifest.CopyableUnit copyableUnit) {
     _copyableUnits.add(copyableUnit);
   }
 
+  /**
+   * One item in a copy manifest
+   * Only filename is required
+   */
   public static class CopyableUnit {
     public final String fileName;
     public final String fileGroup;
@@ -65,14 +74,17 @@ public class CopyManifest {
       this.fileGroup = fileGroup;
       this.fileSizeInBytes = fileSizeInBytes;
       this.fileModificationTime = fileModificationTime;
+      if (this.fileName == null) {
+        throw new IllegalArgumentException(MISSING_FN_MESSAGE);
+      }
     }
   }
 
   /**
-   *
-   * @param fs
+   * Note: naive read does not do validation of schema. For schema validation use CopyableUnitIterator
+   * @param fs filsystem object used for accessing the filesystem
    * @param path path manifest file location
-   * @return
+   * @return a copy manifest object from the json representation at path
    * @throws IOException
    */
   public static CopyManifest read(FileSystem fs, Path path) throws IOException {
@@ -82,7 +94,7 @@ public class CopyManifest {
 
   /**
    *
-   * @param fs
+   * @param fs filsystem object used for accessing the filesystem
    * @param path path manifest file location
    * @throws IOException
    */
@@ -98,6 +110,9 @@ public class CopyManifest {
     return new CopyableUnitIterator(fs, path);
   }
 
+  /**
+   * An iterator for CopyManifest for more efficient reading
+   */
   public static class CopyableUnitIterator implements Iterator {
     JsonReader reader;
 
@@ -118,7 +133,11 @@ public class CopyManifest {
 
     @Override
     public CopyManifest.CopyableUnit next() {
-      return GSON.fromJson(reader, CopyManifest.CopyableUnit.class);
+      CopyManifest.CopyableUnit copyableUnit = GSON.fromJson(reader, CopyManifest.CopyableUnit.class);
+      if (copyableUnit.fileName == null) {
+        throw new IllegalArgumentException(MISSING_FN_MESSAGE);
+      }
+      return copyableUnit;
     }
 
     public void close() throws IOException {
