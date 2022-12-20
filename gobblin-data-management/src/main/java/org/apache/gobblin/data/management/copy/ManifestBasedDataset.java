@@ -78,18 +78,17 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       throw new IOException(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
-    JsonReader reader = null;
+    Manifest.ManifestIterator manifests = null;
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<FileStatus> toDelete = Lists.newArrayList();
     //todo: put permission preserve logic here?
     try {
-      reader = new JsonReader(new InputStreamReader(fs.open(manifestPath), "UTF-8"));
-      reader.beginArray();
-      while (reader.hasNext()) {
+      manifests = Manifest.getReadIterator(this.fs, this.manifestPath);
+      while (manifests.hasNext()) {
         //todo: We can use fileSet to partition the data in case of some softbound issue
         //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-        JsonObject file = GSON.fromJson(reader, JsonObject.class);
-        Path fileToCopy = new Path(file.get("fileName").getAsString());
+        Manifest.CopyableUnit file = manifests.next();
+        Path fileToCopy = new Path(file.fileName);
         if (this.fs.exists(fileToCopy)) {
           if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy))) {
             CopyableFile copyableFile =
@@ -121,10 +120,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     } catch (Exception e ) {
       log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(), fs.getUri().toString()), e);
       throw new IOException(e);
-    }finally {
-      if(reader != null) {
-        reader.endArray();
-        reader.close();
+    } finally {
+      if (manifests != null) {
+        manifests.close();
       }
     }
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
