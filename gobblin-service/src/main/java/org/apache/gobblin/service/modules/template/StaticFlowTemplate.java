@@ -134,12 +134,6 @@ public class StaticFlowTemplate implements FlowTemplate {
           if (errors.size() == 0) {
             result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
           }
-//          try {
-//            tryResolving(userConfig, inputDescriptor, outputDescriptor);
-//            result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
-//          } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
-//            // Dataset descriptor cannot be resolved so don't add it to result
-//          }
         } else {
           result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
         }
@@ -205,7 +199,6 @@ public class StaticFlowTemplate implements FlowTemplate {
         resolutionErrors.put(jobName, errors);
       }
     }
-//    System.out.println(resolutionErrors);
     return resolutionErrors;
   }
 
