@@ -19,34 +19,31 @@ import org.apache.hadoop.fs.Path;
  * Manifest schema and serDe
  * https://iwww.corp.linkedin.com/wiki/cf/display/ENGS/Manifest+based+distcp+runbook
  */
-public class Manifest {
+public class CopyManifest {
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
   private static final Type CopyableUnitListType = new TypeToken<ArrayList<CopyableUnit>>(){}.getType();
 
-
   public final ArrayList<CopyableUnit> _copyableUnits;
 
-  public Manifest() {
+  public CopyManifest() {
     _copyableUnits = new ArrayList<>();
   }
 
-  public Manifest(ArrayList<CopyableUnit> copyableUnits) {
+  public CopyManifest(ArrayList<CopyableUnit> copyableUnits) {
     _copyableUnits = copyableUnits;
   }
 
-  public void add(Manifest.CopyableUnit copyableUnit) {
+  public void add(CopyManifest.CopyableUnit copyableUnit) {
     _copyableUnits.add(copyableUnit);
   }
 
   public static class CopyableUnit {
-    public final Integer id;
     public final String fileName;
     public final String fileGroup;
-    public final Integer fileSizeInBytes;
-    public final Integer fileModificationTime;
+    public final Long fileSizeInBytes;
+    public final Long fileModificationTime;
 
-    public CopyableUnit(Integer id, String fileName, String fileGroup, Integer fileSizeInBytes, Integer fileModificationTime) {
-      this.id = id;
+    public CopyableUnit(String fileName, String fileGroup, Long fileSizeInBytes, Long fileModificationTime) {
       this.fileName = fileName;
       this.fileGroup = fileGroup;
       this.fileSizeInBytes = fileSizeInBytes;
@@ -61,9 +58,9 @@ public class Manifest {
    * @return
    * @throws IOException
    */
-  public static Manifest read(FileSystem fs, Path path) throws IOException {
+  public static CopyManifest read(FileSystem fs, Path path) throws IOException {
     JsonReader jsonReader = new JsonReader(new InputStreamReader(fs.open(path), "UTF-8"));
-    return new Manifest(GSON.fromJson(jsonReader, CopyableUnitListType));
+    return new CopyManifest(GSON.fromJson(jsonReader, CopyableUnitListType));
   }
 
   /**
@@ -80,14 +77,14 @@ public class Manifest {
     out.close();
   }
 
-  public static ManifestIterator getReadIterator(FileSystem fs, Path path) throws IOException {
-    return new ManifestIterator(fs, path);
+  public static CopyableUnitIterator getReadIterator(FileSystem fs, Path path) throws IOException {
+    return new CopyableUnitIterator(fs, path);
   }
 
-  public static class ManifestIterator implements Iterator {
+  public static class CopyableUnitIterator implements Iterator {
     JsonReader reader;
 
-    public ManifestIterator(FileSystem fs, Path path) throws IOException {
+    public CopyableUnitIterator(FileSystem fs, Path path) throws IOException {
       reader = new JsonReader(new InputStreamReader(fs.open(path), "UTF-8"));
       reader.beginArray();
     }
@@ -103,8 +100,8 @@ public class Manifest {
     }
 
     @Override
-    public Manifest.CopyableUnit next() {
-      return GSON.fromJson(reader, Manifest.CopyableUnit.class);
+    public CopyManifest.CopyableUnit next() {
+      return GSON.fromJson(reader, CopyManifest.CopyableUnit.class);
     }
 
     public void close() throws IOException {

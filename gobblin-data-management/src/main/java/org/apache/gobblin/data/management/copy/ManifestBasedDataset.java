@@ -22,11 +22,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.stream.JsonReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -78,16 +75,16 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       throw new IOException(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
-    Manifest.ManifestIterator manifests = null;
+    CopyManifest.CopyableUnitIterator manifests = null;
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<FileStatus> toDelete = Lists.newArrayList();
     //todo: put permission preserve logic here?
     try {
-      manifests = Manifest.getReadIterator(this.fs, this.manifestPath);
+      manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
       while (manifests.hasNext()) {
         //todo: We can use fileSet to partition the data in case of some softbound issue
         //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-        Manifest.CopyableUnit file = manifests.next();
+        CopyManifest.CopyableUnit file = manifests.next();
         Path fileToCopy = new Path(file.fileName);
         if (this.fs.exists(fileToCopy)) {
           if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy))) {
