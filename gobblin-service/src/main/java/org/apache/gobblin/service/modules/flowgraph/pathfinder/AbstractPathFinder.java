@@ -241,9 +241,6 @@ public abstract class AbstractPathFinder implements PathFinder {
               continue;
             }
 
-            log.info(flowEdge.getId());
-            log.info(inputDatasetDescriptor.toString());
-            log.info(currentDatasetDescriptor.toString());
             ArrayList<String> datasetDescriptorErrors = inputDatasetDescriptor.contains(currentDatasetDescriptor);
             if (datasetDescriptorErrors.size() == 0) {
               DatasetDescriptor edgeOutputDescriptor = makeOutputDescriptorSpecific(currentDatasetDescriptor, outputDatasetDescriptor);

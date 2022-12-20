@@ -28,6 +28,7 @@ import com.typesafe.config.Config;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import lombok.ToString;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -36,7 +37,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link IcebergDatasetDescriptor#databaseName} and {@link IcebergDatasetDescriptor#tableName} are used to
  * identify an iceberg.
  */
-@EqualsAndHashCode (callSuper = true)
+@ToString(exclude = {"isInputDataset"})
+@EqualsAndHashCode (exclude = {"isInputDataset"}, callSuper = true)
 public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
   protected final String databaseName;

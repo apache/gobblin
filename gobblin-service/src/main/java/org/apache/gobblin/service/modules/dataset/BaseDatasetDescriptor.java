@@ -33,8 +33,8 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
-@EqualsAndHashCode (exclude = {"description", "rawConfig"})
-@ToString (exclude = {"description", "rawConfig"})
+@EqualsAndHashCode (exclude = {"description", "rawConfig", "isInputDataset"})
+@ToString (exclude = {"description", "rawConfig", "isInputDataset"})
 public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final String platform;
@@ -92,7 +92,6 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
           errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CLASS_KEY + " is mismatched. User input: '" + userFlowConfig.getClass()
               + "'. Expected value: '" + this.getClass() + "'.");
         }
-
         if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
           if (userFlowConfig.getPlatform() == null) {
             errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is missing"
@@ -102,7 +101,6 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
                 + "'. Expected value: '" + this.getPlatform() + "'.");
           }
         }
-
         if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
           errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY + " is mismatched. User input: '" + userFlowConfig.isRetentionApplied()
               + "'. Expected value: '" + this.isRetentionApplied() + "'.");

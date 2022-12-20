@@ -92,7 +92,7 @@ public class FSDatasetPartitionConfig {
     validatePartitionConfig(partitionType, partitionPattern);
     this.partitionType = partitionType;
     this.partitionPattern = partitionPattern;
-    this.rawConfig = (config.getConfig(DatasetDescriptorConfigKeys.PARTITION_PREFIX)).withFallback(DEFAULT_FALLBACK);
+    this.rawConfig = ConfigUtils.getConfig(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DEFAULT_FALLBACK);
     this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
