@@ -126,9 +126,9 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    */
   private ArrayList<String> isPathContaining(String otherPath, Boolean inputDataset) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    log.info(datasetDescriptorPrefix);
-    log.info(String.valueOf(this));
-    log.info(otherPath);
+//    log.info(datasetDescriptorPrefix);
+//    log.info(String.valueOf(this));
+//    log.info(otherPath);
     ArrayList<String> errors = new ArrayList<>();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());
@@ -139,8 +139,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     }
 
     if (PathUtils.isGlob(new Path(otherPath))) {
-      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is not a glob. User input: '" + otherPath
-          + "'. Expected value: " + this.getClass() + ".");
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is a glob pattern. User input: '" + otherPath
+          + "'. Expected input is not of a glob pattern.");
       return errors;
     }
 

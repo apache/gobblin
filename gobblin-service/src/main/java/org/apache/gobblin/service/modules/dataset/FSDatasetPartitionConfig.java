@@ -35,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
-import org.codehaus.jackson.map.Serializers;
 
 
 /**

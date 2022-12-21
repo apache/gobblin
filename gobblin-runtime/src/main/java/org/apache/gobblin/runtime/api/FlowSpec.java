@@ -125,6 +125,10 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
+  public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {
+    this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage, numberOfHops));
+  }
+
   public void addCompilationError(String src, String dst, String errorMessage) {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
   }
@@ -133,6 +137,13 @@ public class FlowSpec implements Configurable, Spec {
   public static class CompilationError {
     public int errorPriority;
     public String errorMessage;
+
+    public CompilationError(Config config, String src, String dst, String errorMessage, int numberOfHops) {
+      this(config, src, dst, errorMessage);
+      if (numberOfHops > 1) {
+        errorPriority++;
+      }
+    }
 
     public CompilationError(Config config, String src, String dst, String errorMessage) {
       errorPriority = 0;

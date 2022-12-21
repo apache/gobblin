@@ -195,7 +195,7 @@ public abstract class AbstractPathFinder implements PathFinder {
    * @return prioritized list of {@link FlowEdge}s to be added to the edge queue for expansion.
    */
   List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
-      DatasetDescriptor destDatasetDescriptor) {
+      DatasetDescriptor destDatasetDescriptor, int numberOfHops) {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
     List<String> edgeIds = ConfigUtils.getStringList(this.flowConfig, ConfigurationKeys.WHITELISTED_EDGE_IDS);
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
@@ -258,7 +258,7 @@ public abstract class AbstractPathFinder implements PathFinder {
               templateError.put("flowTemplateErrors", datasetDescriptorErrors);
               templateErrors.put(flowEdge.getId(), templateError);
               try {
-                flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), mapper.writeValueAsString(templateErrors));
+                flowSpec.addCompilationError(flowEdge.getSrc(), flowEdge.getDest(), mapper.writeValueAsString(templateErrors), numberOfHops);
               }
               catch (JsonProcessingException e) {
                 e.printStackTrace();
