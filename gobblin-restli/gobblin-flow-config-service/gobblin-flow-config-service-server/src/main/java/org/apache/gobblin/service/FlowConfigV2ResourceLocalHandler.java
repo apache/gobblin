@@ -66,8 +66,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     if (flowConfig.hasExplain()) {
       createLog += " explain " + flowConfig.isExplain();
     }
-    System.out.println("THERE");
-    System.out.println(flowConfig.hasExplain());
 
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
@@ -142,7 +140,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
         }
       }
 
-      log.error(String.valueOf(singleHopErrors));
       allErrors.put("singleHopErrors", singleHopErrors);
       allErrors.put("multiHopErrors", multiHopErrors);
     }
@@ -152,12 +149,16 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     ObjectMapper mapper = new ObjectMapper();
 
     try {
-      return mapper.writeValueAsString(allErrors);
+      String json = mapper.writeValueAsString(allErrors);
+      log.info(json);
+      return json;
     }
     catch (JsonProcessingException e) {
+      log.error("Flow Spec with Error on Json Processing");
+      log.error(flowSpec.toString());
       e.printStackTrace();
     }
-    return "Could not form JSON";
+    return "Could not form JSON in FlowConfigV2ResourceLocalHandler";
   }
   /**
    * Note: this method is only implemented for testing, normally partial update would be called in
