@@ -126,9 +126,6 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    */
   private ArrayList<String> isPathContaining(String otherPath, Boolean inputDataset) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-//    log.info(datasetDescriptorPrefix);
-//    log.info(String.valueOf(this));
-//    log.info(otherPath);
     ArrayList<String> errors = new ArrayList<>();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());

@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.dataset;
 
 import com.typesafe.config.Config;
 import java.io.IOException;
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -30,27 +31,36 @@ import org.apache.gobblin.util.ConfigUtils;
  * An implementation of {@link FSVolumeDatasetDescriptor} with fs.uri specified.
  */
 @Alpha
-@ToString(callSuper = true, exclude = {"rawConfig"})
-@EqualsAndHashCode(callSuper = true, exclude = {"rawConfig"})
+@ToString(callSuper = true, exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode(callSuper = true, exclude = {"rawConfig", "isInputDataset"})
 public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
   @Getter
   private final String fsUri;
+  @Getter
+  protected Boolean isInputDataset;
 
   public FSVolumeDatasetDescriptor(Config config) throws IOException {
     super(config);
     this.fsUri = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FS_URI_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   @Override
-  public boolean contains(DatasetDescriptor o) {
-    if (!super.contains(o)) {
-      return false;
+  public ArrayList<String> contains(DatasetDescriptor o) {
+    String datasetDescriptorPrefix = o.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    ArrayList<String> errors = new ArrayList<>();
+    if (super.contains(o).size() != 0) {
+      return super.contains(o);
     }
 
     FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) o;
 
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getFsUri()) || this.getFsUri()
-        .equals(other.getFsUri());
+    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getFsUri()) || this.getFsUri()
+        .equals(other.getFsUri()))) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FS_URI_KEY + " is mismatched. User input: '" + ((FSVolumeDatasetDescriptor) o).getFsUri()
+          + "'. Expected value: '" + this.getFsUri() + "'.");
+    }
+    return errors;
   }
 
 }
