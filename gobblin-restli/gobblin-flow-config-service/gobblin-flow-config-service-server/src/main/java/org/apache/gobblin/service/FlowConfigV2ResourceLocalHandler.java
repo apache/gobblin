@@ -112,13 +112,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
-      RestLiServiceException newException = new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
-      log.error("GET ERROR");
-      log.error(getErrorMessage(flowSpec));
-      log.error("NEW EXCEPTION");
-      log.error(String.valueOf(newException));
-      log.error("END OF EXCEPTION");
-
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }
 
@@ -159,11 +152,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     ObjectMapper mapper = new ObjectMapper();
 
     try {
-      String json = mapper.writeValueAsString(allErrors);
-      return json;
+      return mapper.writeValueAsString(allErrors);
     }
     catch (JsonProcessingException e) {
-      log.error("Flow Spec with Error on Json Processing");
+      log.error("Flow Spec Errored on Json Processing");
       log.error(flowSpec.toString());
       e.printStackTrace();
     }

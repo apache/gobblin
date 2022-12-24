@@ -138,6 +138,8 @@ public class FlowSpec implements Configurable, Spec {
     public int errorPriority;
     public String errorMessage;
 
+    // Increment the error priority by 1 to eliminate flows with a self edge from having the same priority as a single hop flow edge.
+    // E.g. Holdem -> Azure is the desired edge. Holdem -> Azure would have error priority of 0, Holdem -> Holdem -> Azure would have error priority of 1
     public CompilationError(Config config, String src, String dst, String errorMessage, int numberOfHops) {
       this(config, src, dst, errorMessage);
       if (numberOfHops > 1) {
