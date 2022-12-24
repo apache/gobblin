@@ -131,10 +131,6 @@ public class EncryptionConfig {
   public ArrayList<String> contains(EncryptionConfig userFlowConfig) {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    if (userFlowConfig == null) {
-      errors.add("User input has empty EncryptionConfig.");
-      return errors;
-    }
 
     String userFlowConfigEncryptionAlgorithm = userFlowConfig.getEncryptionAlgorithm();
     String userFlowotherKeystoreType = userFlowConfig.getKeystoreType();

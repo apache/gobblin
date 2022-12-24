@@ -16,7 +16,9 @@
  */
 package org.apache.gobblin.service;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +27,7 @@ import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Map;
 
+import org.apache.avro.data.Json;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
@@ -109,6 +112,13 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
+      RestLiServiceException newException = new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
+      log.error("GET ERROR");
+      log.error(getErrorMessage(flowSpec));
+      log.error("NEW EXCEPTION");
+      log.error(String.valueOf(newException));
+      log.error("END OF EXCEPTION");
+
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
     }
 
@@ -131,11 +141,11 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
 
       for (FlowSpec.CompilationError error: errors) {
         if (error.errorPriority == 0) {
-          singleHopErrors.add(String.format("ERROR[%s] of single hop: ", errorIdSingleHop) + error.errorMessage);
+          singleHopErrors.add(String.format("ERROR[%s] of single hop: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdSingleHop++;
         }
         else {
-          multiHopErrors.add(String.format("ERROR[%s] of multi hop: ", errorIdMultiHop) + error.errorMessage);
+          multiHopErrors.add(String.format("ERROR[%s] of multi hop: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdMultiHop++;
         }
       }
@@ -150,7 +160,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
 
     try {
       String json = mapper.writeValueAsString(allErrors);
-      log.info(json);
       return json;
     }
     catch (JsonProcessingException e) {

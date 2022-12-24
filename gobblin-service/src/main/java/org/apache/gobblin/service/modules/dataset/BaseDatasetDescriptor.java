@@ -84,28 +84,23 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
       return errors;
     }
 
-    if (userFlowConfig == null) {
-      errors.add("Empty input datasetDescriptor.");
-      return errors;
-    } else {
-        if (!getClass().equals(userFlowConfig.getClass())) {
-          errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CLASS_KEY + " is mismatched. User input: '" + userFlowConfig.getClass()
-              + "'. Expected value: '" + this.getClass() + "'.");
-        }
-        if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
-          if (userFlowConfig.getPlatform() == null) {
-            errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is missing"
-                + ". Expected value: '" + this.getPlatform() + "'.");
-          } else {
-            errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is mismatched. User input: '" + userFlowConfig.getPlatform()
-                + "'. Expected value: '" + this.getPlatform() + "'.");
-          }
-        }
-        if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
-          errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY + " is mismatched. User input: '" + userFlowConfig.isRetentionApplied()
-              + "'. Expected value: '" + this.isRetentionApplied() + "'.");
-        }
+    if (!getClass().equals(userFlowConfig.getClass())) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CLASS_KEY + " is mismatched. User input: '" + userFlowConfig.getClass()
+          + "'. Expected value: '" + this.getClass() + "'.");
+    }
+    if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
+      if (userFlowConfig.getPlatform() == null) {
+        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is missing"
+            + ". Expected value: '" + this.getPlatform() + "'.");
+      } else {
+        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is mismatched. User input: '" + userFlowConfig.getPlatform()
+            + "'. Expected value: '" + this.getPlatform() + "'.");
       }
+    }
+    if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY + " is mismatched. User input: '" + userFlowConfig.isRetentionApplied()
+          + "'. Expected value: '" + this.isRetentionApplied() + "'.");
+    }
 
     errors.addAll(isPathContaining(userFlowConfig));
     errors.addAll(getFormatConfig().contains(userFlowConfig.getFormatConfig()));

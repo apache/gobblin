@@ -136,10 +136,6 @@ public class FSDatasetPartitionConfig {
   public ArrayList<String> contains(FSDatasetPartitionConfig userFlowConfig) {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    if (userFlowConfig == null) {
-      errors.add("Missing Dataset Partition Config");
-      return errors;
-    }
 
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getPartitionType())
         && !this.getPartitionType().equalsIgnoreCase(userFlowConfig.getPartitionType())) {
