@@ -85,15 +85,15 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * If other descriptor has subpaths, this method checks that each concatenation of path + subpath is matched by this
    * path. Otherwise, it just checks the path.
    *
-   * @param other descriptor whose path/subpaths to check
+   * @param userFlowConfigDatasetDescriptor descriptor whose path/subpaths to check
    * @return true if all subpaths are matched by this {@link DatasetDescriptor}'s path, or if subpaths is null and
    * the other's path matches this path.
    */
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfigDatasetDescriptor) {
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = other.getPath();
-    String otherSubPaths = ((FSDatasetDescriptor) other).getSubPaths();
+    String otherPath = userFlowConfigDatasetDescriptor.getPath();
+    String otherSubPaths = ((FSDatasetDescriptor) userFlowConfigDatasetDescriptor).getSubPaths();
 
     // This allows the special case where "other" is a glob, but is also an exact match with "this" path.
     if (getPath().equals(otherPath)) {
@@ -103,14 +103,14 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
-        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString(), other.getIsInputDataset());
+        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString(), userFlowConfigDatasetDescriptor.getIsInputDataset());
         if (pathErrors.size() != 0) {
           return pathErrors;
         }
       }
       return errors;
     } else {
-      return isPathContaining(otherPath, other.getIsInputDataset());
+      return isPathContaining(otherPath, userFlowConfigDatasetDescriptor.getIsInputDataset());
     }
   }
 
@@ -119,13 +119,13 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * accepted by the other {@link DatasetDescriptor}. If the path description of the other {@link DatasetDescriptor}
    * is a glob pattern, we return false.
    *
-   * @param otherPath a glob pattern that describes a set of paths.
+   * @param userFlowConfigPath a glob pattern that describes a set of paths.
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
-  private ArrayList<String> isPathContaining(String otherPath, Boolean inputDataset) {
+  private ArrayList<String> isPathContaining(String userFlowConfigPath, Boolean inputDataset) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    if (otherPath == null) {
+    if (userFlowConfigPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());
       return errors;
     }
@@ -133,16 +133,16 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
       return errors;
     }
 
-    if (PathUtils.isGlob(new Path(otherPath))) {
-      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is a glob pattern. User input: '" + otherPath
+    if (PathUtils.isGlob(new Path(userFlowConfigPath))) {
+      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is a glob pattern. User input: '" + userFlowConfigPath
           + "'. Expected input is not of a glob pattern.");
       return errors;
     }
 
     GlobPattern globPattern = new GlobPattern(this.getPath());
 
-    if (!globPattern.matches(otherPath)) {
-      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + otherPath
+    if (!globPattern.matches(userFlowConfigPath)) {
+      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + userFlowConfigPath
           + "'. Expected value path of: " + this.getPath() + " and globPattern of '" + globPattern + "'.");
     }
     return errors;

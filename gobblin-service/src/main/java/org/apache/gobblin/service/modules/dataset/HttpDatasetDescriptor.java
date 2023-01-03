@@ -85,14 +85,14 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
   /**
    * Check if this HTTP path equals the other HTTP path
    *
-   * @param other whose path should be in the format of a HTTP path
+   * @param userFlowConfig whose path should be in the format of a HTTP path
    */
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
     // Might be null
-    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = other.getPath();
+    String otherPath = userFlowConfig.getPath();
     if (!this.path.equals(otherPath)) {
       errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath
           + "'. Expected value: '" + this.path + "'.");

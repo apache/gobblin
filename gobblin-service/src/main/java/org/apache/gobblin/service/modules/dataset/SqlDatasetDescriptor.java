@@ -103,13 +103,13 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    * NOTE: otherPath cannot be a globPattern. So:
    * isPathContaining("test_db.*;test_table_*") = false
    *
-   * @param other whose path should be in the format of dbName.tableName
+   * @param userFlowConfig whose path should be in the format of dbName.tableName
    */
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
-    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = other.getPath();
+    String otherPath = userFlowConfig.getPath();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
           + ". Expected value: " + this.getPath() +  ".");

@@ -44,18 +44,18 @@ public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
   }
 
   @Override
-  public ArrayList<String> contains(DatasetDescriptor o) {
-    String datasetDescriptorPrefix = o.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+  public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    if (super.contains(o).size() != 0) {
-      return super.contains(o);
+    if (super.contains(userFlowConfig).size() != 0) {
+      return super.contains(userFlowConfig);
     }
 
-    FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) o;
+    FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) userFlowConfig;
 
     if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getFsUri()) || this.getFsUri()
         .equals(other.getFsUri()))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FS_URI_KEY + " is mismatched. User input: '" + ((FSVolumeDatasetDescriptor) o).getFsUri()
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FS_URI_KEY + " is mismatched. User input: '" + ((FSVolumeDatasetDescriptor) userFlowConfig).getFsUri()
           + "'. Expected value: '" + this.getFsUri() + "'.");
     }
     return errors;

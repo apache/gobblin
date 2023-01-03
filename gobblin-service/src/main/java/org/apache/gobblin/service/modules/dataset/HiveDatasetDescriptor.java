@@ -102,18 +102,18 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   }
 
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
-    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = other.getPath();
+    String otherPath = userFlowConfig.getPath();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
           + ". Expected value: '" + this.getPath() +  ".");
       return errors;
     }
 
-    if (this.isPartitioned != ((HiveDatasetDescriptor) other).isPartitioned) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY + " is mismatched. User input: '" + ((HiveDatasetDescriptor) other).isPartitioned
+    if (this.isPartitioned != ((HiveDatasetDescriptor) userFlowConfig).isPartitioned) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY + " is mismatched. User input: '" + ((HiveDatasetDescriptor) userFlowConfig).isPartitioned
           + "'. Expected value: '" + this.isPartitioned + ".");
     }
 

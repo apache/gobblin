@@ -73,10 +73,10 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   }
 
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor other) {
-    String datasetDescriptorPrefix = other.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = other.getPath();
+    String otherPath = userFlowConfig.getPath();
     if (otherPath == null) {
       errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
           + ". Expected value: '" + this.getPath() +  "'.");

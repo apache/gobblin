@@ -73,37 +73,37 @@ public class FormatConfig {
     this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
-  public ArrayList<String> contains(FormatConfig other) {
+  public ArrayList<String> contains(FormatConfig userFlowConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    errors.addAll(containsFormat(other.getFormat(), other.getIsInputDataset()));
-    errors.addAll(containsCodec(other.getCodecType(), other.getIsInputDataset()));
-    errors.addAll(containsEncryptionConfig(other.getEncryptionConfig()));
+    errors.addAll(containsFormat(userFlowConfig.getFormat(), userFlowConfig.getIsInputDataset()));
+    errors.addAll(containsCodec(userFlowConfig.getCodecType(), userFlowConfig.getIsInputDataset()));
+    errors.addAll(containsEncryptionConfig(userFlowConfig.getEncryptionConfig()));
     return errors;
   }
 
-  private ArrayList<String> containsFormat(String otherFormat, Boolean inputDataset) {
+  private ArrayList<String> containsFormat(String userFlowConfigFormat, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
-        && (!this.getFormat().equalsIgnoreCase(otherFormat))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FORMAT_KEY + " is mismatched. User input: '" + otherFormat
+        && (!this.getFormat().equalsIgnoreCase(userFlowConfigFormat))) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FORMAT_KEY + " is mismatched. User input: '" + userFlowConfigFormat
           + "'. Expected value: '" + this.getFormat() + "'.");
     }
     return errors;
   }
 
-  private ArrayList<String> containsCodec(String otherCodecType, Boolean inputDataset) {
+  private ArrayList<String> containsCodec(String userFlowConfigCodecType, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
-        && (!this.getCodecType().equalsIgnoreCase(otherCodecType))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CODEC_KEY + " is mismatched. User input: '" + otherCodecType
+        && (!this.getCodecType().equalsIgnoreCase(userFlowConfigCodecType))) {
+      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CODEC_KEY + " is mismatched. User input: '" + userFlowConfigCodecType
           + "'. Expected value: '" + this.getCodecType() + "'.");
     }
     return errors;
   }
 
-  private ArrayList<String> containsEncryptionConfig(EncryptionConfig otherEncryptionConfig) {
-    return this.getEncryptionConfig().contains(otherEncryptionConfig);
+  private ArrayList<String> containsEncryptionConfig(EncryptionConfig userFlowConfigEncryptionConfig) {
+    return this.getEncryptionConfig().contains(userFlowConfigEncryptionConfig);
   }
 }
