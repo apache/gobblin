@@ -31,13 +31,11 @@ import org.apache.gobblin.util.ConfigUtils;
  * An implementation of {@link FSVolumeDatasetDescriptor} with fs.uri specified.
  */
 @Alpha
-@ToString(callSuper = true, exclude = {"rawConfig", "isInputDataset"})
-@EqualsAndHashCode(callSuper = true, exclude = {"rawConfig", "isInputDataset"})
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = true)
 public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
   @Getter
   private final String fsUri;
-  @Getter
-  protected Boolean isInputDataset;
 
   public FSVolumeDatasetDescriptor(Config config) throws IOException {
     super(config);

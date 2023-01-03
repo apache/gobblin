@@ -39,16 +39,14 @@ import org.apache.gobblin.util.ConfigUtils;
  * query string is not supported
  */
 @Slf4j
-@ToString (exclude = {"rawConfig","isInputDataset"})
-@EqualsAndHashCode (exclude = {"rawConfig","isInputDataset"}, callSuper = true)
+@ToString (exclude = {"rawConfig"})
+@EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
 
   @Getter
   private final String path;
   @Getter
   private final Config rawConfig;
-  @Getter
-  protected Boolean isInputDataset;
 
   public enum Platform {
     HTTP("http"),

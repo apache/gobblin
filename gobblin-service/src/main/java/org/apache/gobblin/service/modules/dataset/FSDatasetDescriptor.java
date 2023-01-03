@@ -46,8 +46,8 @@ import org.apache.gobblin.util.PathUtils;
  */
 @Alpha
 @Slf4j
-@ToString (callSuper = true, exclude = {"rawConfig","isInputDataset"})
-@EqualsAndHashCode (callSuper = true, exclude = {"rawConfig","isInputDataset"})
+@ToString (callSuper = true, exclude = {"rawConfig"})
+@EqualsAndHashCode (callSuper = true, exclude = {"rawConfig"})
 public class FSDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final String path;
@@ -61,8 +61,6 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   private final FSDatasetPartitionConfig partitionConfig;
   @Getter
   private final Config rawConfig;
-  @Getter
-  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()

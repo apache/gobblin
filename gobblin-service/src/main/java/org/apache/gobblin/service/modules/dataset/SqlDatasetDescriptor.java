@@ -40,15 +40,13 @@ import org.apache.gobblin.util.PathUtils;
 
 
 @Slf4j
-@ToString (exclude = {"rawConfig","isInputDataset"})
-@EqualsAndHashCode (exclude = {"rawConfig","isInputDataset"}, callSuper = true)
+@ToString (exclude = {"rawConfig"})
+@EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
 
   protected final String databaseName;
   protected final String tableName;
-  @Getter
-  protected Boolean isInputDataset;
 
   @Getter
   private final String path;

@@ -44,7 +44,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
  * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
  */
-@EqualsAndHashCode (exclude = {"whitelistBlacklist","isInputDataset"}, callSuper = true)
+@EqualsAndHashCode (exclude = {"whitelistBlacklist"}, callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   static final String IS_PARTITIONED_KEY = "isPartitioned";
   static final String PARTITION_COLUMN = "partition.column";
@@ -54,7 +54,6 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   private final String partitionColumn;
   private final String partitionFormat;
   private final String conflictPolicy;
-  protected Boolean isInputDataset;
   WhitelistBlacklist whitelistBlacklist;
 
   public HiveDatasetDescriptor(Config config) throws IOException {

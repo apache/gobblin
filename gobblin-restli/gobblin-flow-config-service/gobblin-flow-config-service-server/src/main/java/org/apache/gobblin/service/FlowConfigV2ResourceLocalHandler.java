@@ -16,9 +16,7 @@
  */
 package org.apache.gobblin.service;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.json.JsonWriteFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +25,6 @@ import java.util.Comparator;
 import java.util.Hashtable;
 import java.util.Map;
 
-import org.apache.avro.data.Json;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
@@ -126,19 +123,19 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       message.append(" Compilation errors encountered (Sorted by relevance): ");
       FlowSpec.CompilationError[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
       Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
-      int errorIdSingleHop = 0;
-      int errorIdMultiHop = 0;
+      int errorIdSingleHop = 1;
+      int errorIdMultiHop = 1;
 
       ArrayList<String> singleHopErrors = new ArrayList<>();
       ArrayList<String> multiHopErrors = new ArrayList<>();
 
       for (FlowSpec.CompilationError error: errors) {
         if (error.errorPriority == 0) {
-          singleHopErrors.add(String.format("ERROR[%s] of single hop: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          singleHopErrors.add(String.format("ERROR %s of single hop: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdSingleHop++;
         }
         else {
-          multiHopErrors.add(String.format("ERROR[%s] of multi hop: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          multiHopErrors.add(String.format("ERROR %s of multi hop: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdMultiHop++;
         }
       }

@@ -641,6 +641,7 @@ public class MultiHopFlowCompilerTest {
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
     Assert.assertNull(dag);
+    log.info(spec.getCompilationErrors().stream().map(c -> c.errorMessage).collect(Collectors.toSet()).toString());
     Assert.assertEquals(spec.getCompilationErrors().stream().map(c -> c.errorMessage).collect(Collectors.toSet()).size(), 1);
     spec.getCompilationErrors().stream().anyMatch(s -> s.errorMessage.contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
