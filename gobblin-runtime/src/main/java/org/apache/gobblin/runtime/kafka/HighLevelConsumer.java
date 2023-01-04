@@ -139,6 +139,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
 
   protected GobblinKafkaConsumerClient createConsumerClient(Config config) {
     String kafkaConsumerClientClass = config.getString(CONSUMER_CLIENT_FACTORY_CLASS_KEY);
+    log.info("Creating consumer client of class {}", kafkaConsumerClientClass, config);
 
     try {
       Class clientFactoryClass = Class.forName(kafkaConsumerClientClass);
@@ -245,6 +246,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
         queues[idx].put(record);
       }
     } catch (InterruptedException e) {
+      log.warn("Exception encountered while consuming records and adding to queue {}", e);
       Thread.currentThread().interrupt();
     }
   }

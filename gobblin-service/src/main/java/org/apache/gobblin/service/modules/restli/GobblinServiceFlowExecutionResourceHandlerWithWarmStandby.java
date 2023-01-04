@@ -30,6 +30,7 @@ import java.sql.SQLException;
 import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.FlowExecutionResourceLocalHandler;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
@@ -53,8 +54,16 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
     String flowName = key.getKey().getFlowName();
     Long flowExecutionId = key.getKey().getFlowExecutionId();
     try {
+      // If an existing resume or kill request is still pending then do not accept this request
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString())) {
+        DagActionStore.DagActionValue action = this.dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId.toString()).getDagActionValue();
+        this.handleException(flowGroup, flowName, flowExecutionId.toString(),
+            new RuntimeException("There is already a pending action " + action + " for this flow. Please wait to resubmit and wait for"
+                + " action to be completed."));
+        return;
+      }
       this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME);
-    } catch (IOException e) {
+    } catch (IOException | SQLException | SpecNotFoundException e) {
       log.warn(
           String.format("Failed to add execution resume action for flow %s %s %s to dag action store due to", flowGroup,
               flowName, flowExecutionId), e);
@@ -82,13 +91,21 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
     String flowName = key.getKey().getFlowName();
     Long flowExecutionId = key.getKey().getFlowExecutionId();
     try {
+      // If an existing resume or kill request is still pending then do not accept this request
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString())) {
+        DagActionStore.DagActionValue action = this.dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId.toString()).getDagActionValue();
+        this.handleException(flowGroup, flowName, flowExecutionId.toString(),
+            new RuntimeException("There is already a pending " + action + " action for this flow. Please wait to resubmit and wait for"
+                + " action to be completed."));
+        return new UpdateResponse(HttpStatus.S_400_BAD_REQUEST);
+      }
       this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL);
       return new UpdateResponse(HttpStatus.S_200_OK);
-    } catch (IOException e) {
+    } catch (IOException | SQLException | SpecNotFoundException e) {
       log.warn(
           String.format("Failed to add execution delete action for flow %s %s %s to dag action store due to", flowGroup,
               flowName, flowExecutionId), e);
-      handleException(flowGroup, flowName, flowExecutionId.toString(), e);
+      this.handleException(flowGroup, flowName, flowExecutionId.toString(), e);
       return new UpdateResponse(HttpStatus.S_500_INTERNAL_SERVER_ERROR);
     }
   }

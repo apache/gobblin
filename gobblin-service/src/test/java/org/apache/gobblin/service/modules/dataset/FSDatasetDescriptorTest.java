@@ -80,6 +80,24 @@ public class FSDatasetDescriptorTest {
     FSDatasetDescriptor descriptor6 = new FSDatasetDescriptor(subPathConfig);
     Assert.assertTrue(descriptor1.contains(descriptor6));
     Assert.assertFalse(descriptor2.contains(descriptor6));
+
+    //Test fs.uri
+    Config config7 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/d"))
+        .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"))
+        .withValue(DatasetDescriptorConfigKeys.FORMAT_KEY, ConfigValueFactory.fromAnyRef("avro"))
+        .withValue(DatasetDescriptorConfigKeys.CODEC_KEY, ConfigValueFactory.fromAnyRef("gzip"))
+        .withValue(DatasetDescriptorConfigKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("hdfs://test-cluster:9000"));
+    Config config8 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/d"))
+        .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"))
+        .withValue(DatasetDescriptorConfigKeys.FORMAT_KEY, ConfigValueFactory.fromAnyRef("avro"))
+        .withValue(DatasetDescriptorConfigKeys.CODEC_KEY, ConfigValueFactory.fromAnyRef("gzip"))
+        .withValue(DatasetDescriptorConfigKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("hdfs://test-cluster_1:9000"));
+    FSVolumeDatasetDescriptor descriptor7 = new FSVolumeDatasetDescriptor(config7);
+    FSVolumeDatasetDescriptor volumeDescriptor = new FSVolumeDatasetDescriptor(config1);
+    FSVolumeDatasetDescriptor descriptor8 = new FSVolumeDatasetDescriptor(config8);
+    Assert.assertTrue(volumeDescriptor.contains(descriptor7));
+    Assert.assertFalse(descriptor7.contains(volumeDescriptor));
+    Assert.assertFalse(descriptor8.contains(descriptor7));
   }
 
   @Test

@@ -16,7 +16,7 @@
  */
 package org.apache.gobblin.metastore;
 
-import org.apache.commons.dbcp.BasicDataSource;
+import javax.sql.DataSource;
 
 import com.typesafe.config.Config;
 
@@ -36,10 +36,10 @@ public class MysqlStateStoreFactory implements StateStore.Factory {
             ConfigurationKeys.DEFAULT_STATE_STORE_COMPRESSED_VALUES);
 
     try {
-      BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
+      DataSource dataSource = MysqlDataSourceFactory.get(config,
           SharedResourcesBrokerFactory.getImplicitBroker());
 
-      return new MysqlStateStore<>(basicDataSource, stateStoreTableName, compressedValues, stateClass);
+      return new MysqlStateStore<>(dataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlStateStore with factory", e);
     }

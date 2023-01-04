@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.runtime.dag_action_store;
 
-import com.google.inject.Inject;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,7 +24,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
+
+import com.google.inject.Inject;
+import com.typesafe.config.Config;
+
 import javax.sql.DataSource;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlStateStore;
 import org.apache.gobblin.runtime.api.DagActionStore;
@@ -165,6 +168,9 @@ public class MysqlDagActionStore implements DagActionStore {
       while (rs.next()) {
         result.add(
             new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), DagActionValue.valueOf(rs.getString(4))));
+      }
+      if (rs != null) {
+        rs.close();
       }
       return result;
     } catch (SQLException e) {

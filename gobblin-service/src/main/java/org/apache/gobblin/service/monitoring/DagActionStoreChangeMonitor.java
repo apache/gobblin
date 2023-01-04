@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -50,9 +49,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
-  ContextAwareMeter killsInvoked;
-  ContextAwareMeter resumesInvoked;
-  ContextAwareMeter unexpectedErrors;
+  private ContextAwareMeter killsInvoked;
+  private ContextAwareMeter resumesInvoked;
+  private ContextAwareMeter unexpectedErrors;
+  private ContextAwareMeter messageProcessedMeter;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -64,19 +64,20 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected LoadingCache<String, String>
       dagActionsSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
-  @Inject
   protected DagActionStore dagActionStore;
 
-  @Inject
   protected DagManager dagManager;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagActionStoreChangeMonitor(String topic, Config config, int numThreads) {
+  public DagActionStoreChangeMonitor(String topic, Config config, DagActionStore dagActionStore, DagManager dagManager,
+      int numThreads) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
+    this.dagActionStore = dagActionStore;
+    this.dagManager = dagManager;
   }
 
   @Override
@@ -92,7 +93,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   partitioned and processed by only one thread (and corresponding queue).
    */
   protected void processMessage(DecodeableKafkaRecord message) {
-    // TODO: Add metric that service is healthy and we're continuously processing messages.
+    // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
+    messageProcessedMeter.mark();
     String key = (String) message.getKey();
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
@@ -134,9 +136,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     try {
       if (operation.equals("INSERT")) {
         if (dagAction.equals(DagActionStore.DagActionValue.RESUME)) {
+          log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
         } else if (dagAction.equals(DagActionStore.DagActionValue.KILL)) {
+          log.info("Received insert dag action and about to send kill flow request");
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
         } else {
@@ -171,6 +175,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
+    this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
   }
 
 }

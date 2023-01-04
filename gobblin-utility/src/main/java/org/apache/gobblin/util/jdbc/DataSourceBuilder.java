@@ -41,7 +41,6 @@ public class DataSourceBuilder {
   private String driver;
   private String userName;
   private String passWord;
-  private Integer maxIdleConnections;
   private Integer maxActiveConnections;
   private String cryptoKeyLocation;
   private Boolean useStrongEncryption;
@@ -68,11 +67,6 @@ public class DataSourceBuilder {
 
   public DataSourceBuilder passWord(String passWord) {
     this.passWord = passWord;
-    return this;
-  }
-
-  public DataSourceBuilder maxIdleConnections(int maxIdleConnections) {
-    this.maxIdleConnections = maxIdleConnections;
     return this;
   }
 
@@ -110,10 +104,6 @@ public class DataSourceBuilder {
       properties.setProperty(ConfigurationKeys.ENCRYPT_KEY_LOC, this.cryptoKeyLocation);
     }
 
-    if (this.maxIdleConnections != null) {
-      properties.setProperty(DataSourceProvider.MAX_IDLE_CONNS, this.maxIdleConnections.toString());
-    }
-
     if (this.maxActiveConnections != null) {
       properties.setProperty(DataSourceProvider.MAX_ACTIVE_CONNS, this.maxActiveConnections.toString());
     }
@@ -133,8 +123,6 @@ public class DataSourceBuilder {
     validateNotEmpty(this.url, "url");
     validateNotEmpty(this.driver, "driver");
     validateNotEmpty(this.passWord, "passWord");
-    Preconditions.checkArgument(this.maxIdleConnections == null || this.maxIdleConnections > 0,
-        "maxIdleConnections should be a positive integer.");
     Preconditions.checkArgument(this.maxActiveConnections == null || this.maxActiveConnections > 0,
         "maxActiveConnections should be a positive integer.");
   }

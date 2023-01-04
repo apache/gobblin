@@ -583,6 +583,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD));
       workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, TimeUnit.MILLISECONDS.name()));
     }
+    if (state.contains(ConfigurationKeys.JOB_NAME_KEY)) {
+      workUnit.setProp(ConfigurationKeys.JOB_NAME_KEY, state.getProp(ConfigurationKeys.JOB_NAME_KEY));
+    }
+    if (state.contains(ConfigurationKeys.JOB_ID_KEY)) {
+      workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, state.getProp(ConfigurationKeys.JOB_ID_KEY));
+    }
   }
 
   private long getPreviousStartFetchEpochTimeForPartition(KafkaPartition partition, SourceState state) {

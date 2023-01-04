@@ -25,12 +25,12 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.slf4j
     compile externalDependency.pegasus.data
-    compile externalDependency.commonsDbcp
     compile externalDependency.commonsLang
     compile externalDependency.commonsLang3
     compile externalDependency.guice
     compile externalDependency.javaxInject
     compile externalDependency.jodaTime
+    compile externalDependency.hikariCP
     compile externalDependency.httpclient
     compile externalDependency.flyway
     compile externalDependency.commonsConfiguration

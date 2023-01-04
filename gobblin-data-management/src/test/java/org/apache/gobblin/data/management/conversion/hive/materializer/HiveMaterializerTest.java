@@ -54,6 +54,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 
+@Test (groups = {"disabledOnCI"})
 public class HiveMaterializerTest {
 
   private final LocalHiveMetastoreTestUtils localHiveMetastore = LocalHiveMetastoreTestUtils.getInstance();

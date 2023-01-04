@@ -75,10 +75,6 @@ public class ConfigurationKeys {
   // DB state store configuration
   public static final String STATE_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
   public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.jdbc.Driver";
-  // min idle time for eviction
-  public static final String STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME_KEY =
-      "state.store.db.conn.min.evictable.idle.time";
-  public static final long DEFAULT_STATE_STORE_DB_CONN_MIN_EVICTABLE_IDLE_TIME = 5 * 60 * 1000;
   public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
   public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";

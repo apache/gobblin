@@ -81,6 +81,22 @@ public class PathUtils {
   }
 
   /**
+   * Returns the root path child for the specified path.
+   * Example: input: /a/b/c then it will return /a
+   *
+   */
+  public static Path getRootPathChild(Path path) {
+    if (path.getParent() == null) {
+      return null;
+    }
+
+    if (path.getParent().isRoot()) {
+      return path;
+    }
+    return getRootPathChild(path.getParent());
+  }
+
+  /**
    * Removes the leading slash if present.
    *
    */
@@ -196,6 +212,8 @@ public class PathUtils {
         log.info("Deleted empty directory " + startPath);
       }
       deleteEmptyParentDirectories(fs, limitPath, startPath.getParent());
+    } else {
+      log.info(String.format("%s is not ancestor of %s, will not delete %s in this case", limitPath, startPath, startPath));
     }
   }
 

@@ -25,8 +25,9 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -34,24 +35,28 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class SpecStoreChangeMonitorFactory implements Provider<SpecStoreChangeMonitor> {
-  static final String SPEC_STORE_CHANGE_MONITOR_CLASS_NAME = "org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor";
   static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
+  private FlowCatalog flowCatalog;
+  private GobblinServiceJobScheduler scheduler;
 
   @Inject
-  public SpecStoreChangeMonitorFactory(Config config) {
+  public SpecStoreChangeMonitorFactory(Config config,FlowCatalog flowCatalog, GobblinServiceJobScheduler scheduler) {
     this.config = Objects.requireNonNull(config);
+    this.flowCatalog = flowCatalog;
+    this.scheduler = scheduler;
   }
 
   private SpecStoreChangeMonitor createSpecStoreChangeMonitor()
       throws ReflectiveOperationException {
-    Config specStoreChangeConfig = config.getConfig(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_PREFIX);
+    Config specStoreChangeConfig = this.config.getConfig(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_PREFIX);
+    log.info("SpecStoreChangeMonitor will be initialized with config {}", specStoreChangeConfig);
+
     String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(specStoreChangeConfig, SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return (SpecStoreChangeMonitor) GobblinConstructorUtils.invokeConstructor(
-        Class.forName(SPEC_STORE_CHANGE_MONITOR_CLASS_NAME), topic, specStoreChangeConfig, numThreads);
+    return new SpecStoreChangeMonitor(topic, specStoreChangeConfig, this.flowCatalog, this.scheduler, numThreads);
   }
 
   @Override
