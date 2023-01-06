@@ -35,6 +35,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
@@ -111,8 +112,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = userFlowConfig.getPath();
     if (otherPath == null) {
-      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is missing"
-          + ". Expected value: " + this.getPath() +  ".");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
       return errors;
     }
 
@@ -123,8 +123,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath + "' is not splittable"
-          + ". Expected separation character: '" + SEPARATION_CHAR +  "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, otherPath, SEPARATION_CHAR, 2));
       return errors;
     }
 
@@ -132,13 +131,11 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     String otherTableName = parts.get(1);
 
     if (!Pattern.compile(this.databaseName).matcher(otherDbName).matches()) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.DATABASE_KEY + " is mismatched. User input: '" + otherDbName + "' is in the blacklist"
-          + ".");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "database", DatasetDescriptorConfigKeys.DATABASE_KEY, otherDbName));
     }
 
     if (!Pattern.compile(this.tableName).matcher(otherTableName).matches()) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.TABLE_KEY + " is mismatched. User input: '" + otherTableName + "' is in the blacklist"
-          + ".");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "table", DatasetDescriptorConfigKeys.TABLE_KEY, otherTableName));
     }
 
     return errors;

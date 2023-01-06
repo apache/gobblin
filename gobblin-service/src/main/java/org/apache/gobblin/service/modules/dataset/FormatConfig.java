@@ -30,6 +30,7 @@ import lombok.ToString;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -86,8 +87,7 @@ public class FormatConfig {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
         && (!this.getFormat().equalsIgnoreCase(userFlowConfigFormat))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FORMAT_KEY + " is mismatched. User input: '" + userFlowConfigFormat
-          + "'. Expected value: '" + this.getFormat() + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FORMAT_KEY, userFlowConfigFormat, this.getFormat()));
     }
     return errors;
   }
@@ -97,8 +97,7 @@ public class FormatConfig {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
         && (!this.getCodecType().equalsIgnoreCase(userFlowConfigCodecType))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CODEC_KEY + " is mismatched. User input: '" + userFlowConfigCodecType
-          + "'. Expected value: '" + this.getCodecType() + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CODEC_KEY, userFlowConfigCodecType, this.getCodecType()));
     }
     return errors;
   }

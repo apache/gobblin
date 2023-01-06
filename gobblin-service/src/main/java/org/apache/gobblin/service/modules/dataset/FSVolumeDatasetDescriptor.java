@@ -25,6 +25,7 @@ import lombok.Getter;
 import lombok.ToString;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 
 /**
@@ -55,8 +56,7 @@ public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
 
     if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getFsUri()) || this.getFsUri()
         .equals(other.getFsUri()))) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.FS_URI_KEY + " is mismatched. User input: '" + ((FSVolumeDatasetDescriptor) userFlowConfig).getFsUri()
-          + "'. Expected value: '" + this.getFsUri() + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FS_URI_KEY, ((FSVolumeDatasetDescriptor) userFlowConfig).getFsUri(), this.getFsUri()));
     }
     return errors;
   }

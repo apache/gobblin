@@ -29,6 +29,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -94,8 +95,7 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = userFlowConfig.getPath();
     if (!this.path.equals(otherPath)) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PATH_KEY + " is mismatched. User input: '" + otherPath
-          + "'. Expected value: '" + this.path + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, otherPath, this.getPath()));
     }
     return errors;
   }

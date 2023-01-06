@@ -30,6 +30,7 @@ import lombok.ToString;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
@@ -85,21 +86,17 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
     }
 
     if (!getClass().equals(userFlowConfig.getClass())) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.CLASS_KEY + " is mismatched. User input: '" + userFlowConfig.getClass()
-          + "'. Expected value: '" + this.getClass() + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CLASS_KEY, userFlowConfig.getClass(), this.getClass()));
     }
     if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
       if (userFlowConfig.getPlatform() == null) {
-        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is missing"
-            + ". Expected value: '" + this.getPlatform() + "'.");
+        errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PLATFORM_KEY, this.getPlatform()));
       } else {
-        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.PLATFORM_KEY + " is mismatched. User input: '" + userFlowConfig.getPlatform()
-            + "'. Expected value: '" + this.getPlatform() + "'.");
+        errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PLATFORM_KEY, userFlowConfig.getPlatform(), this.getPlatform()));
       }
     }
     if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
-      errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY + " is mismatched. User input: '" + userFlowConfig.isRetentionApplied()
-          + "'. Expected value: '" + this.isRetentionApplied() + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, userFlowConfig.isRetentionApplied(), this.isRetentionApplied()));
     }
 
     errors.addAll(isPathContaining(userFlowConfig));

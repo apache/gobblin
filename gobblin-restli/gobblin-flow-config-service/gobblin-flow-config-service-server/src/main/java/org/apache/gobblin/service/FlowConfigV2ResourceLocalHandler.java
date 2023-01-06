@@ -152,8 +152,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       return mapper.writeValueAsString(allErrors);
     }
     catch (JsonProcessingException e) {
-      log.error("Flow Spec Errored on Json Processing");
-      log.error(flowSpec.toString());
+      log.error("Flow Spec {} errored on Json processing", flowSpec.toString(), e);
       e.printStackTrace();
     }
     return "Could not form JSON in FlowConfigV2ResourceLocalHandler";

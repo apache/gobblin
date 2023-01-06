@@ -37,6 +37,7 @@ import lombok.ToString;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
@@ -126,7 +127,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (userFlowConfigPath == null) {
-      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is empty. Expected value: " + this.getPath());
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
       return errors;
     }
     if (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getPath())) {
@@ -134,16 +135,14 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     }
 
     if (PathUtils.isGlob(new Path(userFlowConfigPath))) {
-      errors.add(datasetDescriptorPrefix + DatasetDescriptorConfigKeys.PATH_KEY + " is a glob pattern. User input: '" + userFlowConfigPath
-          + "'. Expected input is not of a glob pattern.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_IS_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath));
       return errors;
     }
 
     GlobPattern globPattern = new GlobPattern(this.getPath());
 
     if (!globPattern.matches(userFlowConfigPath)) {
-      errors.add(datasetDescriptorPrefix + ".globPattern is mismatched. User input: '" + userFlowConfigPath
-          + "'. Expected value path of: " + this.getPath() + " and globPattern of '" + globPattern + "'.");
+      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath, this.getPath()));
     }
     return errors;
   }
@@ -164,12 +163,10 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     if ((this.isCompacted() != userFlowConfig.isCompacted()) ||
         (this.isCompactedAndDeduped() != userFlowConfig.isCompactedAndDeduped())) {
       if (this.isCompacted() != userFlowConfig.isCompacted()) {
-        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_COMPACTED_KEY + " is mismatched. User input: '" + userFlowConfig.isCompacted()
-            + "'. Expected value: '" + this.isCompacted() + "'.");
+        errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, userFlowConfig.isCompacted(), this.isCompacted()));
       }
       else {
-        errors.add(datasetDescriptorPrefix + "." + DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY + " is mismatched. User input: '" + userFlowConfig.isCompactedAndDeduped()
-            + "'. Expected value: '" + this.isCompactedAndDeduped() + "'.");
+        errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, userFlowConfig.isCompactedAndDeduped(), this.isCompactedAndDeduped()));
       }
     }
 
