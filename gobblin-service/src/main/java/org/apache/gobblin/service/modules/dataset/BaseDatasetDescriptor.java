@@ -75,7 +75,7 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
    * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
    * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other
    * {@link DatasetDescriptor}. This operation is non-commutative.
-   * @param userFlowConfig
+   * @param userFlowConfig This is the flow configuration that is sent in from user side and is compared against the flowgraph edges.
    */
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
