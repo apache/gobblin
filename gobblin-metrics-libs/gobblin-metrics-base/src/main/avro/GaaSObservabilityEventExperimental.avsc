@@ -53,7 +53,7 @@
           "SUCCEEDED",
           "COMPILATION_FAILURE",
           "SUBMISSION_FAILURE",
-          "EXEUCTION_FAILURE",
+          "EXECUTION_FAILURE",
           "CANCELLED"
         ],
         "doc": "Final job status for this job in the GaaS flow",

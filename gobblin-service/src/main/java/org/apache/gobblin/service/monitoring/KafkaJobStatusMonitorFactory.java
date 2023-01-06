@@ -45,11 +45,13 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
 
   private final Config config;
   private final JobIssueEventHandler jobIssueEventHandler;
+  private final boolean instrumentationEnabled;
 
   @Inject
-  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler) {
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, boolean instrumentationEnabled) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
+    this.instrumentationEnabled = instrumentationEnabled;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -77,7 +79,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
-        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler);
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, this.instrumentationEnabled);
   }
 
   @Override

@@ -19,7 +19,6 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -28,9 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.tools.ant.taskdefs.Exec;
-import org.testng.collections.Sets;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -51,7 +47,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
@@ -61,7 +56,6 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -120,9 +114,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final Retryer<Void> persistJobStatusRetryer;
 
-  private final com.google.common.base.Optional<EventSubmitter> eventSubmitter;
 
-  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
+  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler, boolean instrumentationEnabled)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -152,11 +145,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     if (instrumentationEnabled) {
       metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
-      this.eventSubmitter = com.google.common.base.Optional.of(new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build());
     } else {
-      this.eventSubmitter = com.google.common.base.Optional.absent();
     }
-
   }
 
   @Override
@@ -289,8 +279,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       stateStore.put(storeName, tableName, jobStatus);
 
       if (isStateTransitionToFinal(jobStatus, states.get(states.size() -1))) {
-        // Try to emit the event
-
       }
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
