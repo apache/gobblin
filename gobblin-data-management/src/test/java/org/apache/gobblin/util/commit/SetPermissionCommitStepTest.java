@@ -32,6 +32,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.api.client.util.Lists;
+
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 
 
@@ -55,7 +57,8 @@ public class SetPermissionCommitStepTest {
     dir1 = new Path(ROOT_DIR, "dir1");
     this.fs.mkdirs(dir1);
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission("owner", "group", permission);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission("owner", "group", permission, null,
+        Lists.newArrayList());
     Map<String, OwnerAndPermission> pathAndPermissions = new HashMap<>();
     pathAndPermissions.put(dir1.toString(), ownerAndPermission);
 

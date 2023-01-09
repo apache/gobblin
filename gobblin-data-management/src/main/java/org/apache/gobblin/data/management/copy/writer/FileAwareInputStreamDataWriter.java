@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
@@ -363,7 +364,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
       if (!ownerAndPermission.getAclEntries().isEmpty()) {
-        fs.setAcl(path, ownerAndPermission.getAclEntries());
+        setAclOnPath(fs, path, ownerAndPermission.getAclEntries());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
@@ -420,7 +421,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
 
     return new OwnerAndPermission(ownerAndPermission.getOwner(), ownerAndPermission.getGroup(),
-        addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
+        addExecutePermissionToOwner(ownerAndPermission.getFsPermission()), ownerAndPermission.getStickyBit(), ownerAndPermission.getAclEntries());
   }
 
   static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
@@ -527,11 +528,16 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setOwner(path, owner, group);
       }
       if (!aclEntries.isEmpty()) {
-        fs.setAcl(path, aclEntries);
+        //fs.setAcl(path, aclEntries);
+        setAclOnPath(fs, path, aclEntries);
       }
     } else {
       fs.mkdirs(path);
     }
+  }
+
+  protected static void setAclOnPath(FileSystem theFs, Path path, List<AclEntry> aclEntries) throws IOException {
+    theFs.setAcl(path, aclEntries);
   }
 
   @Override

@@ -18,12 +18,13 @@ package gobblin.data.management.copy;
 
 import org.apache.hadoop.fs.permission.FsPermission;
 
+import com.google.api.client.util.Lists;
 
 /***
  * Shim layer for org.apache.gobblin.data.management.copy.OwnerAndPermission
  */
 public class OwnerAndPermission extends org.apache.gobblin.data.management.copy.OwnerAndPermission {
   public OwnerAndPermission(String owner, String group, FsPermission fsPermission) {
-    super(owner, group, fsPermission);
+    super(owner, group, fsPermission, null, Lists.newArrayList());
   }
 }

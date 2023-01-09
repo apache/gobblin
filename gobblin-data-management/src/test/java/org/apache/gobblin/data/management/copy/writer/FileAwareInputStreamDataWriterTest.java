@@ -33,6 +33,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryScope;
@@ -49,6 +50,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
 import org.apache.gobblin.crypto.GPGFileDecryptor;
@@ -81,7 +83,9 @@ public class FileAwareInputStreamDataWriterTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    fs = FileSystem.getLocal(new Configuration());
+    //fs = FileSystem.getLocal(new Configuration());
+    fs = new TestFileSystem();
+    fs.initialize(URI.create("file:///"), new Configuration());
     testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "InputStreamDataWriterTest");
     fs.mkdirs(testTempPath);
   }
@@ -355,7 +359,7 @@ public class FileAwareInputStreamDataWriterTest {
     List<AclEntry> aclEntryList = Lists.newArrayList();
     aclEntryList.add(aclEntry);
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, null, Lists.newArrayList());
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, true, aclEntryList);
     List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
@@ -382,7 +386,7 @@ public class FileAwareInputStreamDataWriterTest {
     CopySource.serializeCopyableDataset(state, metadata);
 
     // create writer
-    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, 1, 0);
+    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, fs,1, 0, null);
 
     // create output of writer.write
     Path writtenFile = writer.getStagingFilePath(cf);
@@ -395,6 +399,7 @@ public class FileAwareInputStreamDataWriterTest {
     this.fs.mkdirs(existingOutputPath);
     FileStatus fileStatus = this.fs.getFileStatus(existingOutputPath);
     FsPermission existingPathPermission = fileStatus.getPermission();
+
 
     // check initial state of the relevant directories
     Assert.assertTrue(this.fs.exists(existingOutputPath));
@@ -496,4 +501,19 @@ public class FileAwareInputStreamDataWriterTest {
     }
   }
 
+//  protected static class TestFileAwareInputStreamDataWriter extends FileAwareInputStreamDataWriter {
+//
+//    public TestFileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
+//        throws IOException {
+//      super(state, numBranches, branchId, null);
+//    }
+//  }
+  protected static class TestFileSystem extends LocalFileSystem {
+
+    @Override
+    public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
+      System.out.println("testing");
+    }
+
+  }
 }

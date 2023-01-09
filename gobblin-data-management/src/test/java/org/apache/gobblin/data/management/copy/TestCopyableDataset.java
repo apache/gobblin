@@ -43,7 +43,7 @@ public class TestCopyableDataset implements CopyableDataset, FileSystemDataset {
   public static final String DESTINATION_PREFIX = "/destination";
   public static final String RELATIVE_PREFIX = "/relative";
   public static final OwnerAndPermission OWNER_AND_PERMISSION = new OwnerAndPermission("owner", "group",
-      FsPermission.getDefault());
+      FsPermission.getDefault(), null, Lists.newArrayList());
 
   private final Path datasetRoot;
 

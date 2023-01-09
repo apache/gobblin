@@ -32,8 +32,11 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.api.client.util.Lists;
+
 
 /**
+ * TODO update java doc
  * Wrapper for owner, group, and permission of a path.
  */
 @Data
@@ -48,9 +51,7 @@ public class OwnerAndPermission implements Writable {
   private List<AclEntry> aclEntries;
 
   public OwnerAndPermission (String owner, String group, FsPermission fsPermission) {
-    this.owner = owner;
-    this.group = group;
-    this.fsPermission = fsPermission;
+    this(owner, group, fsPermission, null, Lists.newArrayList());
   }
 
   @Override
