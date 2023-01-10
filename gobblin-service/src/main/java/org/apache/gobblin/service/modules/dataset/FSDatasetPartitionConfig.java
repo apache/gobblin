@@ -34,7 +34,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -138,14 +138,12 @@ public class FSDatasetPartitionConfig {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getPartitionType())
-        && !this.getPartitionType().equalsIgnoreCase(userFlowConfig.getPartitionType())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY , userFlowConfig.getPartitionType(), this.getPartitionType()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getPartitionType(), userFlowConfig.getPartitionType())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY , userFlowConfig.getPartitionType(), this.getPartitionType()));
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
-        && !this.getPartitionPattern().equalsIgnoreCase(userFlowConfig.getPartitionPattern())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY , userFlowConfig.getPartitionPattern(), this.getPartitionPattern()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getPartitionPattern(), userFlowConfig.getPartitionPattern())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY , userFlowConfig.getPartitionPattern(), this.getPartitionPattern()));
     }
     return errors;
   }

@@ -31,7 +31,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
@@ -133,29 +133,24 @@ public class EncryptionConfig {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionAlgorithm())
-        && !this.encryptionAlgorithm.equalsIgnoreCase(userFlowConfig.getEncryptionAlgorithm())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, userFlowConfig.getEncryptionAlgorithm(), this.getEncryptionAlgorithm()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, userFlowConfig.getEncryptionAlgorithm(), this.getEncryptionAlgorithm()));
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreType())
-        && !this.keystoreType.equalsIgnoreCase(userFlowConfig.getKeystoreType())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, userFlowConfig.getKeystoreType(), this.getKeystoreType()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getKeystoreType(), userFlowConfig.getKeystoreType())) {
+        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, userFlowConfig.getKeystoreType(), this.getKeystoreType()));
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreEncoding())
-        && !this.keystoreEncoding.equalsIgnoreCase(userFlowConfig.getKeystoreEncoding())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, userFlowConfig.getKeystoreEncoding(), this.getKeystoreEncoding()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, userFlowConfig.getKeystoreEncoding(), this.getKeystoreEncoding()));
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionLevel())
-        && !this.encryptionLevel.equalsIgnoreCase(userFlowConfig.getEncryptionLevel())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, userFlowConfig.getEncryptionLevel(), this.getEncryptionLevel()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, userFlowConfig.getEncryptionLevel(), this.getEncryptionLevel()));
     }
 
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
-        && !this.encryptedFields.equalsIgnoreCase(userFlowConfig.getEncryptedFields())) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, userFlowConfig.getEncryptedFields(), this.getEncryptedFields()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptedFields(), userFlowConfig.getEncryptedFields())) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, userFlowConfig.getEncryptedFields(), this.getEncryptedFields()));
     }
 
     return errors;

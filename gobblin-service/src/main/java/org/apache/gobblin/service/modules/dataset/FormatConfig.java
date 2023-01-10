@@ -30,7 +30,7 @@ import lombok.ToString;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorStrings;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -85,9 +85,8 @@ public class FormatConfig {
   private ArrayList<String> containsFormat(String userFlowConfigFormat, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
-        && (!this.getFormat().equalsIgnoreCase(userFlowConfigFormat))) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FORMAT_KEY, userFlowConfigFormat, this.getFormat()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getFormat(), userFlowConfigFormat)) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FORMAT_KEY, userFlowConfigFormat, this.getFormat()));
     }
     return errors;
   }
@@ -95,9 +94,8 @@ public class FormatConfig {
   private ArrayList<String> containsCodec(String userFlowConfigCodecType, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    if (!DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
-        && (!this.getCodecType().equalsIgnoreCase(userFlowConfigCodecType))) {
-      errors.add(String.format(DatasetDescriptorErrorStrings.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CODEC_KEY, userFlowConfigCodecType, this.getCodecType()));
+    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getCodecType(), userFlowConfigCodecType)) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CODEC_KEY, userFlowConfigCodecType, this.getCodecType()));
     }
     return errors;
   }

@@ -20,7 +20,7 @@ package org.apache.gobblin.service.modules.flowgraph;
 /**
  * Config keys related to {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}.
  */
-public class DatasetDescriptorErrorStrings {
+public class DatasetDescriptorErrorUtils {
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE = "%s.%s is mismatched. User input: %s. Expected value '%s'.";
   public static final String DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE = "%s.%s is missing. Expected value '%s'.";
 
@@ -33,4 +33,10 @@ public class DatasetDescriptorErrorStrings {
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_GLOB_PATTERN = "%s.%s is mismatched. User input: %s is not contained within the glob of %s.";
 
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist";
+
+
+  public static boolean checkDatasetDescriptorConfigKey(String flowConf, String userFlowConfig) {
+    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConf)
+        || flowConf.equalsIgnoreCase(userFlowConfig);
+  }
 }

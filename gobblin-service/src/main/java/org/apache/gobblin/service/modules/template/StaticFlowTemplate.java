@@ -41,6 +41,7 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
@@ -187,11 +188,9 @@ public class StaticFlowTemplate implements FlowTemplate {
       catch (ConfigException e) {
         errors.add(e.toString().split(variableSubstitutionErrorPattern)[1]);
       }
-      catch (JobTemplate.TemplateException e) {
-        System.out.println("TEMPLATE " + e.toString());
-      }
-      catch (SpecNotFoundException e) {
-        System.out.println("SPEC NOT FOUND");
+      catch (Exception e) {
+        log.error("Encountered exception: " + e.getMessage());
+        e.printStackTrace();
       }
       // Only insert into dictionary if errors exist
       if (errors.size() != 0) {
