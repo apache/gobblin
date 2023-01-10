@@ -53,10 +53,7 @@ public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
     }
 
     FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) userFlowConfig;
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getFsUri(), other.getFsUri())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FS_URI_KEY, other.getFsUri(), this.getFsUri()));
-    }
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FS_URI_KEY, this.getFsUri(), other.getFsUri());
     return errors;
   }
 

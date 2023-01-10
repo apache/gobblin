@@ -133,25 +133,11 @@ public class EncryptionConfig {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
 
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, userFlowConfig.getEncryptionAlgorithm(), this.getEncryptionAlgorithm()));
-    }
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getKeystoreType(), userFlowConfig.getKeystoreType())) {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, userFlowConfig.getKeystoreType(), this.getKeystoreType()));
-    }
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, userFlowConfig.getKeystoreEncoding(), this.getKeystoreEncoding()));
-    }
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, userFlowConfig.getEncryptionLevel(), this.getEncryptionLevel()));
-    }
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getEncryptedFields(), userFlowConfig.getEncryptedFields())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, userFlowConfig.getEncryptedFields(), this.getEncryptedFields()));
-    }
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm());
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), userFlowConfig.getKeystoreType());
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding());
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel());
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), userFlowConfig.getEncryptedFields());
 
     return errors;
   }

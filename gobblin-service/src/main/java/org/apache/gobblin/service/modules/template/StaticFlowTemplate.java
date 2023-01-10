@@ -57,6 +57,8 @@ import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTempla
 @Slf4j
 public class StaticFlowTemplate implements FlowTemplate {
   private static final long serialVersionUID = 84641624233978L;
+  private static final String variableSubstitutionErrorPattern = ":[\\s]*Reader:[a-zA-Z\\d\\s]*:[\\s]";
+  private static final String jobTemplatePattern = "/jobs/";
 
   @Getter
   private URI uri;
@@ -170,8 +172,6 @@ public class StaticFlowTemplate implements FlowTemplate {
   public HashMap<String, ArrayList<String>> tryResolving(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
     Config inputDescriptorConfig = inputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
     Config outputDescriptorConfig = outputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
-    String variableSubstitutionErrorPattern = ":[\\s]*Reader:[a-zA-Z\\d\\s]*:[\\s]";
-    String jobTemplatePattern = "/jobs/";
 
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
 

@@ -137,14 +137,8 @@ public class FSDatasetPartitionConfig {
   public ArrayList<String> contains(FSDatasetPartitionConfig userFlowConfig) {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getPartitionType(), userFlowConfig.getPartitionType())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY , userFlowConfig.getPartitionType(), this.getPartitionType()));
-    }
-
-    if (!DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(this.getPartitionPattern(), userFlowConfig.getPartitionPattern())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY , userFlowConfig.getPartitionPattern(), this.getPartitionPattern()));
-    }
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKeyPartition(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, this.getPartitionType(), userFlowConfig.getPartitionType());
+    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKeyPartition(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, this.getPartitionPattern(), userFlowConfig.getPartitionPattern());
     return errors;
   }
 }

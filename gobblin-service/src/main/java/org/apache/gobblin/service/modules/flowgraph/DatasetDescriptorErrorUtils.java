@@ -17,6 +17,11 @@
 
 
 package org.apache.gobblin.service.modules.flowgraph;
+
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+
+
 /**
  * Config keys related to {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}.
  */
@@ -34,9 +39,26 @@ public class DatasetDescriptorErrorUtils {
 
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist";
 
+  /**
+   * The checkDatasetDescriptorConfigKey function will compare the submitted variable
+   * @param errors list of errors
+   * @param datasetDescriptorPrefix prefix of the dataset descriptor, whether it's the input or output
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the fucntion
+   * @param flowConfig the property from the flow.conf
+   * @param userFlowConfig the property from the submitted flow configuration
+   */
+  public static void checkDatasetDescriptorConfigKey(ArrayList<String> errors, String datasetDescriptorPrefix,
+      String configKey, String flowConfig, String userFlowConfig) {
+    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConfig)
+      || flowConfig.equalsIgnoreCase(userFlowConfig))) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, configKey, userFlowConfig, flowConfig));
+    }
+  }
 
-  public static boolean checkDatasetDescriptorConfigKey(String flowConf, String userFlowConfig) {
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConf)
-        || flowConf.equalsIgnoreCase(userFlowConfig);
+  public static void checkDatasetDescriptorConfigKeyPartition(ArrayList<String> errors, String datasetDescriptorPrefix, String configKey, String partitionConfigKey, String flowConfig, String userFlowConfig) {
+    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConfig)
+        || flowConfig.equalsIgnoreCase(userFlowConfig))) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, userFlowConfig, flowConfig));
+    }
   }
 }
