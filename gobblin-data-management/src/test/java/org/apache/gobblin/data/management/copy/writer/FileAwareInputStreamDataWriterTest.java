@@ -359,7 +359,7 @@ public class FileAwareInputStreamDataWriterTest {
     List<AclEntry> aclEntryList = Lists.newArrayList();
     aclEntryList.add(aclEntry);
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, true, aclEntryList);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, false, aclEntryList);
     List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
@@ -509,7 +509,6 @@ public class FileAwareInputStreamDataWriterTest {
 //    }
 //  }
   protected static class TestFileSystem extends LocalFileSystem {
-
     @Override
     public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
       System.out.println("testing");

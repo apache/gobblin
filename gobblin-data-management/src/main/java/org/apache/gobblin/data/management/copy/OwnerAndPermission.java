@@ -36,8 +36,7 @@ import com.google.api.client.util.Lists;
 
 
 /**
- * TODO update java doc
- * Wrapper for owner, group, and permission of a path.
+ * Wrapper for owner, group, permission including sticky bit and ACL entry of a path.
  */
 @Data
 @AllArgsConstructor
