@@ -107,14 +107,13 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
     String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = userFlowConfig.getPath();
-    if (otherPath == null) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
+
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    if (errors.size() != 0){
       return errors;
     }
 
-    if (this.isPartitioned != ((HiveDatasetDescriptor) userFlowConfig).isPartitioned) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY , ((HiveDatasetDescriptor) userFlowConfig).isPartitioned, this.isPartitioned));
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, String.valueOf(this.isPartitioned), String.valueOf(((HiveDatasetDescriptor) userFlowConfig).isPartitioned), false);
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
@@ -126,15 +125,11 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
     String otherDbName = parts.get(0);
     String otherTableNames = parts.get(1);
 
-    if (!this.whitelistBlacklist.acceptDb(otherDbName)) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "database", DatasetDescriptorConfigKeys.DATABASE_KEY, otherDbName));
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, whitelistBlacklist, otherDbName, null);
 
     List<String> otherTables = Splitter.on(",").splitToList(otherTableNames);
     for (String otherTable : otherTables) {
-      if (!this.whitelistBlacklist.acceptTable(otherDbName, otherTable)) {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "table", DatasetDescriptorConfigKeys.TABLE_KEY, otherTable));
-      }
+      DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, whitelistBlacklist, otherDbName, otherTable);
     }
     return errors;
   }

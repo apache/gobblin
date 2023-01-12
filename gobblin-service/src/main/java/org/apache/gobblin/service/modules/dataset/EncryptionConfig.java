@@ -130,14 +130,13 @@ public class EncryptionConfig {
   }
 
   public ArrayList<String> contains(EncryptionConfig userFlowConfig) {
-    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
 
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm());
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), userFlowConfig.getKeystoreType());
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding());
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel());
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), userFlowConfig.getEncryptedFields());
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), userFlowConfig.getKeystoreType(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), userFlowConfig.getEncryptedFields(), false);
 
     return errors;
   }

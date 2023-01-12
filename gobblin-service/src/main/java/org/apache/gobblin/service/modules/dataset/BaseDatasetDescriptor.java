@@ -80,24 +80,13 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (this == userFlowConfig) {
       return errors;
     }
 
-    if (!getClass().equals(userFlowConfig.getClass())) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CLASS_KEY, userFlowConfig.getClass(), this.getClass()));
-    }
-    if (userFlowConfig.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(userFlowConfig.getPlatform())) {
-      if (userFlowConfig.getPlatform() == null) {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PLATFORM_KEY, this.getPlatform()));
-      } else {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PLATFORM_KEY, userFlowConfig.getPlatform(), this.getPlatform()));
-      }
-    }
-    if (this.isRetentionApplied() != userFlowConfig.isRetentionApplied()) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, userFlowConfig.isRetentionApplied(), this.isRetentionApplied()));
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.CLASS_KEY, this.getClass().toString(), userFlowConfig.getClass().toString(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PLATFORM_KEY, this.getPlatform(), userFlowConfig.getPlatform(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, String.valueOf(this.isRetentionApplied()), String.valueOf(userFlowConfig.isRetentionApplied()), false);
 
     errors.addAll(isPathContaining(userFlowConfig));
     errors.addAll(getFormatConfig().contains(userFlowConfig.getFormatConfig()));

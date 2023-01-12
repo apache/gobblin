@@ -75,31 +75,27 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
 
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
-    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = userFlowConfig.getPath();
-    if (otherPath == null) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
+
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    if (errors.size() != 0) {
       return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
     if (parts.size() != 2) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, otherPath, SEPARATION_CHAR, 2));
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, otherPath, SEPARATION_CHAR, 2));
       return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    if (!this.databaseName.equals(otherDbName)) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "database", DatasetDescriptorConfigKeys.DATABASE_KEY, otherDbName));
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "iceberg");
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "iceberg");
 
-    if (!this.tableName.equals(otherTableName)) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "table", DatasetDescriptorConfigKeys.TABLE_KEY, otherTableName));
-    }
     return errors;
   }
 }

@@ -19,6 +19,9 @@
 package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 
 
 /**
@@ -39,25 +42,77 @@ public class DatasetDescriptorErrorUtils {
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist";
 
   /**
-   * The checkDatasetDescriptorConfigKey function will compare the submitted variable
+   * The populateErrorForDatasetDescriptorKey function will compare the submitted variables and add associated errors to the error array called from .contains
    * @param errors list of errors
-   * @param datasetDescriptorPrefix prefix of the dataset descriptor, whether it's the input or output
+   * @param inputDataset whether it's the input or output
    * @param configKey DatasetDescriptorConfigKeys key of the field fed into the fucntion
-   * @param flowConfig the property from the flow.conf
-   * @param userFlowConfig the property from the submitted flow configuration
+   * @param inputDatasetDescriptorValue the property from the flow.conf
+   * @param providedDatasetDescriptorValue the property from the submitted flow configuration
    */
-  public static void checkDatasetDescriptorConfigKey(ArrayList<String> errors, String datasetDescriptorPrefix,
-      String configKey, String flowConfig, String userFlowConfig) {
-    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConfig)
-      || flowConfig.equalsIgnoreCase(userFlowConfig))) {
-      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, configKey, userFlowConfig, flowConfig));
+  public static void populateErrorForDatasetDescriptorKey(ArrayList<String> errors, Boolean inputDataset,
+      String configKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue, Boolean testNullOnly) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    if (providedDatasetDescriptorValue == null) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, configKey, inputDatasetDescriptorValue));
+    }
+
+    if (!testNullOnly && !(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(inputDatasetDescriptorValue)
+        || inputDatasetDescriptorValue.equalsIgnoreCase(providedDatasetDescriptorValue))) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, configKey, providedDatasetDescriptorValue, inputDatasetDescriptorValue));
     }
   }
 
-  public static void checkDatasetDescriptorConfigKeyPartition(ArrayList<String> errors, String datasetDescriptorPrefix, String configKey, String partitionConfigKey, String flowConfig, String userFlowConfig) {
-    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(flowConfig)
-        || flowConfig.equalsIgnoreCase(userFlowConfig))) {
-      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, userFlowConfig, flowConfig));
+  public static void populateErrorForDatasetDescriptorKeyPartition(ArrayList<String> errors, Boolean inputDataset,
+      String configKey, String partitionConfigKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue, Boolean testNullOnly) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    if (providedDatasetDescriptorValue == null) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, inputDatasetDescriptorValue));
+      return;
+    }
+    if (!(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(inputDatasetDescriptorValue)
+        || inputDatasetDescriptorValue.equalsIgnoreCase(providedDatasetDescriptorValue))) {
+      errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, providedDatasetDescriptorValue, inputDatasetDescriptorValue));
+    }
+  }
+
+  public static void populateErrorForDatasetDescriptorKeyBlacklist(ArrayList<String> errors, Boolean inputDataset,
+      String type, String configKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue, String platform) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    if (!platform.equals("sql")) {
+      if (!inputDatasetDescriptorValue.equals(providedDatasetDescriptorValue)) {
+        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+            datasetDescriptorPrefix, type, configKey, providedDatasetDescriptorValue));
+      }
+    }
+    else {
+      if (!Pattern.compile(inputDatasetDescriptorValue).matcher(providedDatasetDescriptorValue).matches()) {
+        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+            datasetDescriptorPrefix, type, configKey, providedDatasetDescriptorValue));
+      }
+    }
+  }
+
+  public static void populateErrorForDatasetDescriptorKeyBlacklist(ArrayList<String> errors, Boolean inputDataset,
+      String type, String configKey, WhitelistBlacklist whitelistBlacklist, String otherDbName, String otherTableName) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    if (type.equals("database")) {
+      if (!whitelistBlacklist.acceptDb(otherDbName)) {
+        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+            datasetDescriptorPrefix, "database", configKey, otherDbName));
+      }
+    } else if (type.equals("table")) {
+      if (!whitelistBlacklist.acceptTable(otherDbName, otherTableName)) {
+        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+            datasetDescriptorPrefix, "table", configKey, String.join(".", otherDbName, otherTableName)));
+      }
+    }
+  }
+
+  public static void populateErrorForDatasetDescriptorKeySize(ArrayList<String> errors, Boolean inputDataset,
+      List<String> parts, String otherPath, String sepChar, int size) {
+    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
+    if (parts.size() != size) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, otherPath, sepChar, size));
     }
   }
 }

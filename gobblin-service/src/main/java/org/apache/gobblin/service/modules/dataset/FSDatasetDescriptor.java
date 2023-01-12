@@ -126,23 +126,24 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   private ArrayList<String> isPathContaining(String userFlowConfigPath, Boolean inputDataset) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
-    if (userFlowConfigPath == null) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), userFlowConfigPath, true);
+    if (errors.size() != 0) {
       return errors;
     }
+
     if (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getPath())) {
       return errors;
     }
 
     if (PathUtils.isGlob(new Path(userFlowConfigPath))) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_IS_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath));
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_IS_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath, false));
       return errors;
     }
 
     GlobPattern globPattern = new GlobPattern(this.getPath());
 
     if (!globPattern.matches(userFlowConfigPath)) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath, this.getPath()));
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_GLOB_PATTERN, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, userFlowConfigPath, this.getPath(), false));
     }
     return errors;
   }
@@ -152,7 +153,6 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    */
   @Override
   public ArrayList<String> contains(DatasetDescriptor userFlowConfigDatasetDescriptor) {
-    String datasetDescriptorPrefix = userFlowConfigDatasetDescriptor.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     if (super.contains(userFlowConfigDatasetDescriptor).size() != 0) {
       return super.contains(userFlowConfigDatasetDescriptor);
@@ -160,13 +160,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
 
     FSDatasetDescriptor userFlowConfig = (FSDatasetDescriptor) userFlowConfigDatasetDescriptor;
 
-    if (this.isCompacted() != userFlowConfig.isCompacted()) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, userFlowConfig.isCompacted(), this.isCompacted()));
-    }
-    if (this.isCompactedAndDeduped() != userFlowConfig.isCompactedAndDeduped()) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, userFlowConfig.isCompactedAndDeduped(), this.isCompactedAndDeduped()));
-    }
-
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfigDatasetDescriptor.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, String.valueOf(this.isCompacted()), String.valueOf(userFlowConfig.isCompacted()), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfigDatasetDescriptor.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, String.valueOf(this.isCompactedAndDeduped()), String.valueOf(userFlowConfig.isCompactedAndDeduped()), false);
     errors.addAll(this.getPartitionConfig().contains(userFlowConfig.getPartitionConfig()));
     return errors;
   }

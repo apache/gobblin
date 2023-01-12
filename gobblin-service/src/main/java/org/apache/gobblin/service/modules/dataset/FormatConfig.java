@@ -84,15 +84,13 @@ public class FormatConfig {
 
   private ArrayList<String> containsFormat(String userFlowConfigFormat, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
-    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.FORMAT_KEY, this.getFormat(), userFlowConfigFormat);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.FORMAT_KEY, this.getFormat(), userFlowConfigFormat, false);
     return errors;
   }
 
   private ArrayList<String> containsCodec(String userFlowConfigCodecType, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
-    String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    DatasetDescriptorErrorUtils.checkDatasetDescriptorConfigKey(errors, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.CODEC_KEY, this.getCodecType(), userFlowConfigCodecType);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.CODEC_KEY, this.getCodecType(), userFlowConfigCodecType, false);
     return errors;
   }
 

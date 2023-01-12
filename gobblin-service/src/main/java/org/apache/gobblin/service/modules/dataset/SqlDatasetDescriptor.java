@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.dataset;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Joiner;
@@ -108,11 +107,10 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    */
   @Override
   protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
-    String datasetDescriptorPrefix = userFlowConfig.getIsInputDataset() ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = userFlowConfig.getPath();
-    if (otherPath == null) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, this.getPath()));
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    if (errors.size() != 0) {
       return errors;
     }
 
@@ -122,21 +120,16 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    if (parts.size() != 2) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, DatasetDescriptorConfigKeys.PATH_KEY, otherPath, SEPARATION_CHAR, 2));
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), parts, otherPath, SEPARATION_CHAR, 2);
+    if (errors.size() != 0) {
       return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    if (!Pattern.compile(this.databaseName).matcher(otherDbName).matches()) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "database", DatasetDescriptorConfigKeys.DATABASE_KEY, otherDbName));
-    }
-
-    if (!Pattern.compile(this.tableName).matcher(otherTableName).matches()) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST, datasetDescriptorPrefix, "table", DatasetDescriptorConfigKeys.TABLE_KEY, otherTableName));
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "sql");
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "sql");
 
     return errors;
   }
