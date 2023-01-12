@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
@@ -50,6 +51,7 @@ public class JobIssueEventHandler {
   private static final Logger issueLogger =
       LoggerFactory.getLogger("org.apache.gobblin.runtime.troubleshooter.JobIssueLogger");
 
+  @Getter
   private final MultiContextIssueRepository issueRepository;
   private final boolean logReceivedEvents;
 

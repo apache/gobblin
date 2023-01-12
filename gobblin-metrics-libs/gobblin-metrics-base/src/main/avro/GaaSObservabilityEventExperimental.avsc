@@ -70,14 +70,20 @@
     },
     {
       "name": "jobStartTime",
-      "type": "long",
-      "doc": "Start time of the job in millis since Epoch",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Start time of the job in millis since Epoch, null if the job was never ran",
       "compliance": "NONE"
     },
     {
       "name": "jobEndTime",
-      "type": "long",
-      "doc": "Finish time of the job in millis since Epoch",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Finish time of the job in millis since Epoch, null if the job was never ran",
       "compliance": "NONE"
     },
     {

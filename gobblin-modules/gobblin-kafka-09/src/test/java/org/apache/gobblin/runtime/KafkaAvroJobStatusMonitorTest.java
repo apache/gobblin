@@ -591,7 +591,7 @@ public class KafkaAvroJobStatusMonitorTest {
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class));
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), false);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 

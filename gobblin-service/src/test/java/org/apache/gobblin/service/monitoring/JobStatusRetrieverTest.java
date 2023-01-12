@@ -20,6 +20,7 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.testng.Assert;
@@ -97,7 +98,7 @@ public abstract class JobStatusRetrieverTest {
     }
     State jobStatus = new State(properties);
 
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), Optional.empty());
   }
 
   static Properties createAttemptsProperties(int currGen, int currAttempts, boolean shouldRetry) {

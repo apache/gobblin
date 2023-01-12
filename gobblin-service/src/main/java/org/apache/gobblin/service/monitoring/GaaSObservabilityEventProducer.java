@@ -19,46 +19,30 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.iceberg.Metrics;
+import com.codahale.metrics.MetricRegistry;
+import com.typesafe.config.Config;
 
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
-import azkaban.jobExecutor.AbstractJob;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.hive.HiveSerDeManager;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
-import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
-import org.apache.gobblin.iceberg.Utils.IcebergUtils;
-import org.apache.gobblin.iceberg.publisher.GobblinMCEPublisher;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metadata.DataFile;
-import org.apache.gobblin.metadata.DataMetrics;
-import org.apache.gobblin.metadata.DataOrigin;
-import org.apache.gobblin.metadata.DatasetIdentifier;
-import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
-import org.apache.gobblin.metadata.IntegerBytesPair;
-import org.apache.gobblin.metadata.IntegerLongPair;
-import org.apache.gobblin.metadata.OperationType;
-import org.apache.gobblin.metadata.SchemaSource;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.Issue;
+import org.apache.gobblin.metrics.IssueSeverity;
+import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.util.ClustersNames;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.gobblin.writer.PartitionedDataWriter;
 
-import static org.apache.gobblin.iceberg.writer.GobblinMCEWriter.HIVE_PARTITION_NAME;
 
 
 /**
@@ -70,58 +54,66 @@ import static org.apache.gobblin.iceberg.writer.GobblinMCEWriter.HIVE_PARTITION_
  */
 @Slf4j
 public abstract class GaaSObservabilityEventProducer implements Closeable {
+  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSObservabilityEventProducer.";
+  public static final String GAAS_OBSERVABILITY_EVENT_ENABLED = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "enabled";
+  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
+  public static final String ISSUE_READ_ERROR_COUNT =  "GaaSObservability.producer.getIssuesFailedCount";
 
-  public static final String GMCE_PRODUCER_CLASS = "GobblinMCEProducer.class.name";
-  public static final String GMCE_CLUSTER_NAME = "GobblinMCE.cluster.name";
-  public static final String OLD_FILES_HIVE_REGISTRATION_KEY = "old.files.hive.registration.policy";
-  private static final String HDFS_PLATFORM_URN = "urn:li:dataPlatform:hdfs";
-  private static final String DATASET_ORIGIN_KEY = "dataset.origin";
-  private static final String DEFAULT_DATASET_ORIGIN = "PROD";
-
-  @Setter
-  protected State state;
   protected MetricContext metricContext;
+  protected State state;
+  protected MultiContextIssueRepository issueRepository;
+  ContextAwareMeter getIssuesFailedMeter;
 
-  public GaaSObservabilityEventProducer(State state) {
+  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
+    this.metricContext = Instrumented.getMetricContext(state, getClass());
+    getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+        ISSUE_READ_ERROR_COUNT));
     this.state = state;
-    this.metricContext = Instrumented.getMetricContext(state, this.getClass());
+    this.issueRepository = issueRepository;
   }
 
-  /**
-   * This method will use the files to compute the table name and dataset name, for each table it will generate one GMCE and send that to kafka so
-   * the metadata ingestion pipeline can use the information to register metadata
-   * @param newFiles The map of new files' path and metrics
-   * @param oldFiles the list of old file to be dropped
-   * @param offsetRange offset range of the new data, can be null
-   * @param operationType The opcode of gmce emitted by this method.
-   * @param serializedAuditCountMap Audit count map to be used by {@link org.apache.gobblin.iceberg.writer.IcebergMetadataWriter} to track iceberg
-   *                                registration counts
-   * @throws IOException
-   */
-  public void emitEvent(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
-      Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource, String serializedAuditCountMap) throws IOException {
-    GobblinMetadataChangeEvent gmce =
-        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource, serializedAuditCountMap);
-    underlyingSendGMCE(gmce);
+  public void emitObservabilityEvent(State jobStatus) {
+    GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobStatus);
+    sendUnderlyingEvent(event);
   }
 
-  /**
-   * Use the producer to send GMCE, the implementation need to make sure the emitting is at-least once in-order delivery
-   * (i.e. use kafka producer to send event and config it to be at-least once delivery)
-   * @param gmce GMCE that contains information of the metadata change
-   */
-  public abstract void underlyingSendGMCE(GobblinMetadataChangeEvent gmce);
+  abstract protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event);
 
-
-  public GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State state) {
+  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobStatus) {
+    Long jobStartTime = jobStatus.contains(TimingEvent.JOB_START_TIME) ? jobStatus.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
+    Long jobEndTime = jobStatus.contains(TimingEvent.JOB_END_TIME) ? jobStatus.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
-
+    List<Issue> issueList = null;
+    try {
+      issueList = issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties())).stream().map(
+              issue -> new org.apache.gobblin.metrics.Issue(issue.getTime().toEpochSecond(),
+                  IssueSeverity.valueOf(issue.getSeverity().toString()), issue.getCode(), issue.getSummary(), issue.getDetails(), issue.getProperties())).collect(Collectors.toList());
+    } catch (TroubleshooterException e) {
+      log.error("Could not fetch issues while creating GaaSObservabilityEvent due to ", e);
+      getIssuesFailedMeter.mark();
+    }
+      builder.setTimestamp(System.currentTimeMillis())
+          .setFlowName(jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
+          .setFlowGroup(jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
+          .setFlowExecutionId(jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
+          .setJobName(jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
+          .setExecutorUrl(jobStatus.getProp(TimingEvent.METADATA_MESSAGE))
+          .setJobStartTime(jobStartTime)
+          .setJobEndTime(jobEndTime)
+          .setJobStatus(JobStatus.valueOf(jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD)))
+          .setIssues(issueList)
+          // TODO: Populate the below fields in a separate PR
+          .setExecutionUserUrn(null)
+          .setExecutorId(null)
+          .setLastFlowModificationTime(0)
+          .setFlowGraphEdgeId(null)
+          .setJobOrchestratedTime(null);
     return builder.build();
   }
 
-  public static GaaSObservabilityEventProducer getGobblinMCEProducer(State state) {
-      return GobblinConstructorUtils.invokeConstructor(GaaSObservabilityEventProducer.class,
-          state.getProp(GMCE_PRODUCER_CLASS), state);
+  public static GaaSObservabilityEventProducer getEventProducer(Config config, MultiContextIssueRepository issueRepository) {
+    return GobblinConstructorUtils.invokeConstructor(GaaSObservabilityEventProducer.class,
+        config.getString(GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS), ConfigUtils.configToState(config), issueRepository);
   }
 
   @Override
