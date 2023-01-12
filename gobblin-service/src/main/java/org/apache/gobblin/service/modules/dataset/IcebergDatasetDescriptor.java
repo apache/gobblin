@@ -85,8 +85,8 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    if (parts.size() != 2) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, otherPath, SEPARATION_CHAR, 2));
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
+    if (errors.size() != 0) {
       return errors;
     }
 

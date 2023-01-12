@@ -120,7 +120,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), parts, otherPath, SEPARATION_CHAR, 2);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
     if (errors.size() != 0) {
       return errors;
     }
