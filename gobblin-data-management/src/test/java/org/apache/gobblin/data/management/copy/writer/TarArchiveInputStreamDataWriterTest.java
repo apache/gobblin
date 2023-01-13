@@ -33,7 +33,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.api.client.util.Lists;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Files;
 
@@ -117,7 +116,7 @@ public class TarArchiveInputStreamDataWriterTest {
 
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL,
-            FsAction.ALL), null, Lists.newArrayList());
+            FsAction.ALL));
     CopyableFile cf =
         CopyableFileUtils.getTestCopyableFile(filePath, new Path(testTempPath, newFileName).toString(), newFileName, 0L,
             ownerAndPermission);

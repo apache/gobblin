@@ -46,11 +46,10 @@ public class OwnerAndPermission implements Writable {
   private String owner;
   private String group;
   private FsPermission fsPermission;
-  private Boolean stickyBit;
   private List<AclEntry> aclEntries;
 
   public OwnerAndPermission (String owner, String group, FsPermission fsPermission) {
-    this(owner, group, fsPermission, null, Lists.newArrayList());
+    this(owner, group, fsPermission, Lists.newArrayList());
   }
 
   @Override

@@ -250,10 +250,9 @@ public class CopyableFile extends CopyEntity implements File {
         }
 
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
-        Boolean stickyBit = this.preserve.preserve(Option.STICKY_BIT) ? getStickyBit(this.originFs, this.origin.getPath()) : null;
         List<AclEntry> aclEntries = this.preserve.preserve(Option.ACL) ? getAclEntries(this.originFs, this.origin.getPath()) : Lists.newArrayList();
 
-        this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission, stickyBit, aclEntries);
+        this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission, aclEntries);
       }
       if (this.ancestorsOwnerAndPermission == null) {
         this.ancestorsOwnerAndPermission = replicateAncestorsOwnerAndPermission(this.originFs, this.origin.getPath(),
@@ -346,8 +345,9 @@ public class CopyableFile extends CopyEntity implements File {
       group = originFileStatus.getGroup();
     }
 
+
     return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.getOwner() : null, group,
-        preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null, preserve.preserve(Option.STICKY_BIT) ? getStickyBit(fs, originFileStatus.getPath()) : null,
+        preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null,
         preserve.preserve(Option.ACL) ? getAclEntries(fs, originFileStatus.getPath()) : Lists.newArrayList());
   }
 
@@ -409,11 +409,6 @@ public class CopyableFile extends CopyEntity implements File {
   private static List<AclEntry> getAclEntries(FileSystem srcFs, Path path) throws IOException {
     AclStatus aclStatus = srcFs.getAclStatus(path);
     return aclStatus.getEntries();
-  }
-
-  private static boolean getStickyBit (FileSystem srcFs, Path path) throws IOException {
-    AclStatus aclStatus = srcFs.getAclStatus(path);
-    return aclStatus.isStickyBit();
   }
 
   @Override

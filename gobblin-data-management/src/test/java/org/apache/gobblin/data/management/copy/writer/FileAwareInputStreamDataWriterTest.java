@@ -80,6 +80,7 @@ public class FileAwareInputStreamDataWriterTest {
 
   FileSystem fs;
   Path testTempPath;
+  public boolean isAclSet = false;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -97,7 +98,7 @@ public class FileAwareInputStreamDataWriterTest {
     String userDefStagingDir = System.getProperty("user.dir") + "/user_staging_dir";
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
-        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString1.length(), ownerAndPermission);
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     WorkUnitState state = TestUtils.createTestWorkUnitState();
@@ -143,7 +144,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
-        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
@@ -186,7 +187,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
-        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
@@ -220,7 +221,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
-        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
@@ -266,7 +267,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
-        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString.length, ownerAndPermission);
 
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
@@ -359,7 +360,7 @@ public class FileAwareInputStreamDataWriterTest {
     List<AclEntry> aclEntryList = Lists.newArrayList();
     aclEntryList.add(aclEntry);
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, false, aclEntryList);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite, aclEntryList);
     List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
@@ -422,8 +423,8 @@ public class FileAwareInputStreamDataWriterTest {
     // previously existing paths should not have permissions changed
     fileStatus = this.fs.getFileStatus(existingOutputPath);
     Assert.assertEquals(fileStatus.getPermission(), existingPathPermission);
-
     Assert.assertFalse(this.fs.exists(writer.stagingDir));
+
   }
 
   @Test
@@ -451,7 +452,7 @@ public class FileAwareInputStreamDataWriterTest {
     String streamString1 = "testContents1";
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(),
-        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), null, Lists.newArrayList());
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL), Lists.newArrayList());
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile((long) streamString1.length(), ownerAndPermission);
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
     WorkUnitState state = TestUtils.createTestWorkUnitState();

@@ -398,15 +398,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
   }
 
-  private FsPermission getFsPermissionWithStickyBit(OwnerAndPermission ownerAndPermission) {
-    FsPermission fsPermission = ownerAndPermission.getFsPermission();
-    // updating permissions with sticky bit and preserving permission attributes of user, group and other actions
-    FsPermission fsPermissionWithStickyBit = new FsPermission(fsPermission.getUserAction(), fsPermission.getGroupAction(), fsPermission.getOtherAction(),
-        ownerAndPermission.getStickyBit());
-    ownerAndPermission.setFsPermission(fsPermissionWithStickyBit);
-    return fsPermissionWithStickyBit;
-  }
-
   /**
    * The method makes sure it always grants execute permissions for an owner if the <code>file</code> passed is a
    * directory. The publisher needs it to publish it to the final directory and list files under this directory.
@@ -423,7 +414,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
 
     return new OwnerAndPermission(ownerAndPermission.getOwner(), ownerAndPermission.getGroup(),
-        addExecutePermissionToOwner(ownerAndPermission.getFsPermission()), ownerAndPermission.getStickyBit(), ownerAndPermission.getAclEntries());
+        addExecutePermissionToOwner(ownerAndPermission.getFsPermission()), ownerAndPermission.getAclEntries());
   }
 
   static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
@@ -515,10 +506,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       if (ownerAndPermission.getFsPermission() != null) {
         log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
-        if (ownerAndPermission.getStickyBit() != null) {
-          FsPermission fsPermissionWithStickyBit = getFsPermissionWithStickyBit(ownerAndPermission);
-          ownerAndPermission.setFsPermission(fsPermissionWithStickyBit);
-        }
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
       }
 
@@ -537,6 +524,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
   }
 
+
+  /*
+   * Creating an abstraction layer to support unit testing on raw local file system for validating if ACLs are set on a file path
+   */
   protected static void setAclOnPath(FileSystem theFs, Path path, List<AclEntry> aclEntries) throws IOException {
     theFs.setAcl(path, aclEntries);
   }
