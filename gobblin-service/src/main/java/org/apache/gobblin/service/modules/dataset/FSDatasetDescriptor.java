@@ -86,15 +86,15 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * If other descriptor has subpaths, this method checks that each concatenation of path + subpath is matched by this
    * path. Otherwise, it just checks the path.
    *
-   * @param userFlowConfigDatasetDescriptor descriptor whose path/subpaths to check
+   * @param inputDatasetDescriptorConfig descriptor whose path/subpaths to check
    * @return true if all subpaths are matched by this {@link DatasetDescriptor}'s path, or if subpaths is null and
    * the other's path matches this path.
    */
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfigDatasetDescriptor) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = userFlowConfigDatasetDescriptor.getPath();
-    String otherSubPaths = ((FSDatasetDescriptor) userFlowConfigDatasetDescriptor).getSubPaths();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
+    String otherSubPaths = ((FSDatasetDescriptor) inputDatasetDescriptorConfig).getSubPaths();
 
     // This allows the special case where "other" is a glob, but is also an exact match with "this" path.
     if (getPath().equals(otherPath)) {
@@ -104,14 +104,14 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     if (otherSubPaths != null) {
       List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
       for (String subPath : subPaths) {
-        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString(), userFlowConfigDatasetDescriptor.getIsInputDataset());
+        ArrayList<String> pathErrors = isPathContaining(new Path(otherPath, subPath).toString(), inputDatasetDescriptorConfig.getIsInputDataset());
         if (pathErrors.size() != 0) {
           return pathErrors;
         }
       }
       return errors;
     } else {
-      return isPathContaining(otherPath, userFlowConfigDatasetDescriptor.getIsInputDataset());
+      return isPathContaining(otherPath, inputDatasetDescriptorConfig.getIsInputDataset());
     }
   }
 
@@ -158,11 +158,11 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
       return super.contains(inputDatasetDescriptorConfig);
     }
 
-    FSDatasetDescriptor userFlowConfig = (FSDatasetDescriptor) inputDatasetDescriptorConfig;
+    FSDatasetDescriptor inputFSDatasetDescriptor = (FSDatasetDescriptor) inputDatasetDescriptorConfig;
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, String.valueOf(this.isCompacted()), String.valueOf(userFlowConfig.isCompacted()), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, String.valueOf(this.isCompactedAndDeduped()), String.valueOf(userFlowConfig.isCompactedAndDeduped()), false);
-    errors.addAll(this.getPartitionConfig().contains(userFlowConfig.getPartitionConfig()));
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, String.valueOf(this.isCompacted()), String.valueOf(inputFSDatasetDescriptor.isCompacted()), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, String.valueOf(this.isCompactedAndDeduped()), String.valueOf(inputFSDatasetDescriptor.isCompactedAndDeduped()), false);
+    errors.addAll(this.getPartitionConfig().contains(inputFSDatasetDescriptor.getPartitionConfig()));
     return errors;
   }
 }
