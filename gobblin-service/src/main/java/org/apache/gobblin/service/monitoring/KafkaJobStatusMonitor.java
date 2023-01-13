@@ -279,7 +279,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       stateStore.put(storeName, tableName, jobStatus);
 
       if (isStateTransitionToFinal(jobStatus, states) && eventProducer.isPresent()) {
-        log.info("I am here");
         eventProducer.get().emitObservabilityEvent(jobStatus);
       }
     } catch (Exception e) {

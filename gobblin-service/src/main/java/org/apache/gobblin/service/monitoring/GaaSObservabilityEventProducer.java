@@ -46,10 +46,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * A class running along with data ingestion pipeline for emitting GobblinMCE (Gobblin Metadata Change Event
- * that includes the information of the file metadata change, i.e., add or delete file, and the column min/max value of the added file.
- * GMCE will be consumed by another metadata ingestion pipeline to register/de-register hive/iceberg metadata)
- *
+ * A class embedded within GaaS running in the JobStatusMonitor which emits GaaSObservabilityEvents after each job in a flow
  * This is an abstract class, we need a sub system like Kakfa, which support at least once delivery, to emit the event
  */
 @Slf4j
@@ -77,8 +74,17 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     sendUnderlyingEvent(event);
   }
 
+  /**
+   * Emits the GaaSObservabilityEvent with the mechanism that the child class is built upon e.g. Kafka
+   * @param event
+   */
   abstract protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event);
 
+  /**
+   * Creates a GaaSObservabilityEvent which is derived from a final GaaS job pipeline state, which is combination of GTE job states in an ordered fashion
+   * @param jobState
+   * @return GaaSObservabilityEvent
+   */
   private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
