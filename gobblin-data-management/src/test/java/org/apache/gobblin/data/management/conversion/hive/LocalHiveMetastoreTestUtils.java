@@ -150,7 +150,7 @@ public class LocalHiveMetastoreTestUtils {
   }
 
   public void createTestDb(String dbName) throws Exception {
-    Database db = new Database(dbName, "Some description", Files.createTempDir() + "/" + dbName, new HashMap<String, String>());
+    Database db = new Database(dbName, "Some description", "/tmp/" + dbName, new HashMap<String, String>());
     try {
       this.localMetastoreClient.createDatabase(db);
     } catch (AlreadyExistsException e) {
