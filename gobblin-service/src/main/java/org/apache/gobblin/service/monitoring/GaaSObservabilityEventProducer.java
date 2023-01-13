@@ -81,7 +81,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
 
   private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
-    Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
+    Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {

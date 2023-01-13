@@ -21,8 +21,10 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -51,6 +54,7 @@ import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -58,7 +62,9 @@ import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
@@ -66,7 +72,9 @@ import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.monitoring.GaaSObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
@@ -89,6 +97,7 @@ public class KafkaAvroJobStatusMonitorTest {
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
+  private static Queue<GaaSObservabilityEventExperimental> queue = new LinkedList<>();
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -447,6 +456,45 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
+  @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
+  public void testJobMonitorCreatesGaaSObservabilityEvent() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createFlowSucceededEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+    Config config = ConfigFactory.empty()
+        .withValue(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_ENABLED, ConfigValueFactory.fromAnyRef(true))
+        .withValue(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS, ConfigValueFactory.fromAnyRef(MockGaaSObservabilityEventProducer.class.getName()));
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), config);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+    // Only the COMPLETE event should create a GaaSObservabilityEvent
+    Assert.assertEquals(queue.size(), 1);
+    GaaSObservabilityEventExperimental event = queue.poll();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
+
+    jobStatusMonitor.shutDown();
+  }
+
   private State getNextJobStatusState(MockKafkaAvroJobStatusMonitor jobStatusMonitor, Iterator<DecodeableKafkaRecord> recordIterator,
       String jobGroup, String jobName) throws IOException {
     jobStatusMonitor.processMessage(recordIterator.next());
@@ -492,6 +540,10 @@ public class KafkaAvroJobStatusMonitorTest {
 
   private GobblinTrackingEvent createJobSucceededEvent() {
     return createGTE(TimingEvent.LauncherTimings.JOB_SUCCEEDED, Maps.newHashMap());
+  }
+
+  private GobblinTrackingEvent createFlowSucceededEvent() {
+    return createGTE(TimingEvent.FlowTimings.FLOW_SUCCEEDED, Maps.newHashMap());
   }
 
   private GobblinTrackingEvent createJobFailedEvent() {
@@ -591,7 +643,7 @@ public class KafkaAvroJobStatusMonitorTest {
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), false);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), true);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 
@@ -618,8 +670,20 @@ public class KafkaAvroJobStatusMonitorTest {
         int n = ++numFakeExceptionsFromParseJobStatus;
         throw new RuntimeException(String.format("BOOM! Failure [%d] w/ event at %d", n, event.getTimestamp()));
       } else {
+
         return super.parseJobStatus(event);
       }
+    }
+  }
+
+  public static class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+    public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
+      super(state, issueRepository);
+    }
+
+    @Override
+    protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
+       queue.add(event);
     }
   }
 }
