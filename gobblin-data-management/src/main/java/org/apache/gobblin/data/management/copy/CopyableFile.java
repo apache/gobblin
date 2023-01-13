@@ -316,23 +316,36 @@ public class CopyableFile extends CopyEntity implements File {
    */
   public static OwnerAndPermission resolveReplicatedOwnerAndPermission(FileSystem fs, Path path,
       CopyConfiguration copyConfiguration) throws IOException {
-
-    PreserveAttributes preserve = copyConfiguration.getPreserve();
     Optional<FileStatus> originFileStatus = copyConfiguration.getCopyContext().getFileStatus(fs, path);
 
     if (!originFileStatus.isPresent()) {
       throw new IOException(String.format("Origin path %s does not exist.", path));
     }
 
+    return resolveReplicatedOwnerAndPermission(originFileStatus.get(), copyConfiguration);
+
+  }
+
+  /**
+   * Computes the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
+   * the {@link PreserveAttributes} rules in copyConfiguration.
+   * @throws IOException
+   */
+  public static OwnerAndPermission resolveReplicatedOwnerAndPermission(FileStatus originFileStatus,
+      CopyConfiguration copyConfiguration) {
+
+    PreserveAttributes preserve = copyConfiguration.getPreserve();
+
+
     String group = null;
     if (copyConfiguration.getTargetGroup().isPresent()) {
       group = copyConfiguration.getTargetGroup().get();
     } else if (preserve.preserve(Option.GROUP)) {
-      group = originFileStatus.get().getGroup();
+      group = originFileStatus.getGroup();
     }
 
-    return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.get().getOwner() : null, group,
-        preserve.preserve(Option.PERMISSION) ? originFileStatus.get().getPermission() : null);
+    return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.getOwner() : null, group,
+        preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null);
   }
 
   /**

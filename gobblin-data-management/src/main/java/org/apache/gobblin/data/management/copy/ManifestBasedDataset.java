@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.copy;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
@@ -51,7 +50,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
-  private Gson GSON = new Gson();
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
@@ -87,7 +85,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CopyManifest.CopyableUnit file = manifests.next();
         Path fileToCopy = new Path(file.fileName);
         if (this.fs.exists(fileToCopy)) {
-          if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy))) {
+          if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy), configuration)) {
             CopyableFile copyableFile =
                 CopyableFile.fromOriginAndDestination(this.fs, this.fs.getFileStatus(fileToCopy), fileToCopy, configuration)
                     .fileSet(datasetURN())
@@ -125,9 +123,31 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean shouldCopy(FileStatus fileInSource, FileStatus fileInTarget) {
-    //todo: make the rule configurable
-    return fileInSource.getModificationTime() > fileInTarget
-        .getModificationTime();
+  private static boolean shouldCopy(FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration) {
+    if (fileInSource.isDirectory()) {
+      // If dir is specified in the manifest, we blindly syn them on the metadata without concerning the mod time
+      return true;
+    }
+    if (fileInSource.getModificationTime() > fileInTarget.getModificationTime()) {
+      // We always copy file if source has a newer version
+      return true;
+    }
+    if (fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
+      // if source and dst has same version, we compare the permission to determine whether it needs another sync
+      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fileInSource, copyConfiguration);
+      boolean needCopy = false;
+      if (replicatedPermission.getGroup() != null ) {
+        needCopy = !fileInTarget.getGroup().equals(replicatedPermission.getGroup());
+      }
+      if(replicatedPermission.getOwner() != null) {
+        needCopy = needCopy || !replicatedPermission.getOwner().equals(fileInTarget.getOwner());
+      }
+      if(replicatedPermission.getFsPermission() != null) {
+        needCopy = needCopy || !replicatedPermission.getFsPermission().equals(fileInTarget.getPermission());
+      }
+      return needCopy;
+    }
+    // We will never copy file if dst has a newer version
+    return false;
   }
 }

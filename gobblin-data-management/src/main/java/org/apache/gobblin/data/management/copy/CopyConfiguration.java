@@ -50,6 +50,7 @@ public class CopyConfiguration {
 
   public static final String COPY_PREFIX = "gobblin.copy";
   public static final String PRESERVE_ATTRIBUTES_KEY = COPY_PREFIX + ".preserved.attributes";
+  public static final String PRESERVE_MODTIME_FOR_DIR = COPY_PREFIX + ".preserve.mod.time.for.dir";
   public static final String DESTINATION_GROUP_KEY = COPY_PREFIX + ".dataset.destination.group";
   public static final String PRIORITIZATION_PREFIX = COPY_PREFIX + ".prioritization";
 

@@ -27,9 +27,13 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -90,6 +94,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final Optional<LineageInfo> lineageInfo;
   protected final DataFileVersionStrategy srcDataFileVersionStrategy;
   protected final DataFileVersionStrategy dstDataFileVersionStrategy;
+  protected final boolean preserveDirModTime;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -127,6 +132,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     this.srcFs = HadoopUtils.getSourceFileSystem(state);
     this.srcDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, config);
     this.dstDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, config);
+    this.preserveDirModTime = state.getPropAsBoolean(CopyConfiguration.PRESERVE_MODTIME_FOR_DIR, true);
   }
 
   @Override
@@ -185,27 +191,35 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
    */
   private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
-    // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
-    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
-      fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);
+    FileStatus dstFile = this.fs.getFileStatus(copyableFile.getDestination());
+    if (dstFile.isDirectory() && state.getProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, "").equals(
+        ManifestBasedDatasetFinder.class.getCanonicalName())){
+      // User specifically try to copy dir metadata (which should be only doable in manifest copy), so we change the group and permissions on destination even the dir already existed
+      FileAwareInputStreamDataWriter.safeSetPathPermission(this.fs, dstFile.getPath(),
+          FileAwareInputStreamDataWriter.addExecutePermissionsIfRequired(dstFile, copyableFile.getDestinationOwnerAndPermission()));
     }
+    if ((dstFile.isDirectory() && preserveDirModTime) || dstFile.isFile()) {
+      // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
+      if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
+        fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);
+      }
 
-    // Preserving File Version.
-    DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
-    DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
+      // Preserving File Version.
+      DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
+      DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
 
-    // Prefer to use copyableFile's specific version strategy
-    if (copyableFile.getDataFileVersionStrategy() != null) {
-      Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
-          DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
-      srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
-      dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
-    }
+      // Prefer to use copyableFile's specific version strategy
+      if (copyableFile.getDataFileVersionStrategy() != null) {
+        Config versionStrategyConfig = ConfigFactory.parseMap(
+            ImmutableMap.of(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
+        srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
+        dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
+      }
 
-    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
-        && dstVS.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
-      dstVS.setVersion(copyableFile.getDestination(),
-          srcVS.getVersion(copyableFile.getOrigin().getPath()));
+      if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION) && dstVS.hasCharacteristic(
+          DataFileVersionStrategy.Characteristic.SETTABLE)) {
+        dstVS.setVersion(copyableFile.getDestination(), srcVS.getVersion(copyableFile.getOrigin().getPath()));
+      }
     }
   }
 
