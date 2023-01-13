@@ -306,7 +306,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private static boolean isStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
     Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(), ExecutionStatus.FAILED.name());
     if (prevStates.size() == 0) {
-      return finalStates.contains(currentState);
+      return finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
     }
     return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
         && !finalStates.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
