@@ -128,8 +128,8 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "sql");
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "sql");
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyRegex(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyRegex(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName);
 
     return errors;
   }

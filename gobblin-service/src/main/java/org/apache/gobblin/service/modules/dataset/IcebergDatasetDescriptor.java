@@ -93,9 +93,8 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "iceberg");
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "iceberg");
-
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, false);
     return errors;
   }
 }
