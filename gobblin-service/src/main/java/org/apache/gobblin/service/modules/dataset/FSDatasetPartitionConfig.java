@@ -134,10 +134,10 @@ public class FSDatasetPartitionConfig {
     }
   }
 
-  public ArrayList<String> contains(FSDatasetPartitionConfig userFlowConfig) {
+  public ArrayList<String> contains(FSDatasetPartitionConfig inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, this.getPartitionType(), userFlowConfig.getPartitionType(), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, this.getPartitionPattern(), userFlowConfig.getPartitionPattern(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, this.getPartitionType(), inputDatasetDescriptorConfig.getPartitionType(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, this.getPartitionPattern(), inputDatasetDescriptorConfig.getPartitionPattern(), false);
     return errors;
   }
 }

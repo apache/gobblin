@@ -129,14 +129,14 @@ public class EncryptionConfig {
     return;
   }
 
-  public ArrayList<String> contains(EncryptionConfig userFlowConfig) {
+  public ArrayList<String> contains(EncryptionConfig inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), userFlowConfig.getEncryptionAlgorithm(), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), userFlowConfig.getKeystoreType(), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), userFlowConfig.getKeystoreEncoding(), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), userFlowConfig.getEncryptionLevel(), false);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), userFlowConfig.getEncryptedFields(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), inputDatasetDescriptorConfig.getEncryptionAlgorithm(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), inputDatasetDescriptorConfig.getKeystoreType(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), inputDatasetDescriptorConfig.getKeystoreEncoding(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), inputDatasetDescriptorConfig.getEncryptionLevel(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), inputDatasetDescriptorConfig.getEncryptedFields(), false);
 
     return errors;
   }

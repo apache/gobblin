@@ -45,14 +45,14 @@ public class FSVolumeDatasetDescriptor extends FSDatasetDescriptor{
   }
 
   @Override
-  public ArrayList<String> contains(DatasetDescriptor userFlowConfig) {
+  public ArrayList<String> contains(DatasetDescriptor inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    if (super.contains(userFlowConfig).size() != 0) {
-      return super.contains(userFlowConfig);
+    if (super.contains(inputDatasetDescriptorConfig).size() != 0) {
+      return super.contains(inputDatasetDescriptorConfig);
     }
 
-    FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) userFlowConfig;
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.FS_URI_KEY, this.getFsUri(), other.getFsUri(), false);
+    FSVolumeDatasetDescriptor other = (FSVolumeDatasetDescriptor) inputDatasetDescriptorConfig;
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.FS_URI_KEY, this.getFsUri(), other.getFsUri(), false);
     return errors;
   }
 

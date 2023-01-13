@@ -103,20 +103,20 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   }
 
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = userFlowConfig.getPath();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
     if (errors.size() != 0){
       return errors;
     }
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, String.valueOf(this.isPartitioned), String.valueOf(((HiveDatasetDescriptor) userFlowConfig).isPartitioned), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, String.valueOf(this.isPartitioned), String.valueOf(((HiveDatasetDescriptor) inputDatasetDescriptorConfig).isPartitioned), false);
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
     if (errors.size() != 0) {
       return errors;
     }
@@ -124,11 +124,11 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
     String otherDbName = parts.get(0);
     String otherTableNames = parts.get(1);
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, whitelistBlacklist, otherDbName, null);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, whitelistBlacklist, otherDbName, null);
 
     List<String> otherTables = Splitter.on(",").splitToList(otherTableNames);
     for (String otherTable : otherTables) {
-      DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, whitelistBlacklist, otherDbName, otherTable);
+      DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, whitelistBlacklist, otherDbName, otherTable);
     }
     return errors;
   }

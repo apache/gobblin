@@ -74,18 +74,18 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   }
 
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = userFlowConfig.getPath();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
     if (errors.size() != 0) {
       return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
     if (errors.size() != 0) {
       return errors;
     }
@@ -93,8 +93,8 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "iceberg");
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, userFlowConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "iceberg");
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "database", DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, "iceberg");
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyBlacklist(errors, inputDatasetDescriptorConfig.getIsInputDataset(), "table", DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, "iceberg");
 
     return errors;
   }

@@ -74,27 +74,27 @@ public class FormatConfig {
     this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
-  public ArrayList<String> contains(FormatConfig userFlowConfig) {
+  public ArrayList<String> contains(FormatConfig inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
-    errors.addAll(containsFormat(userFlowConfig.getFormat(), userFlowConfig.getIsInputDataset()));
-    errors.addAll(containsCodec(userFlowConfig.getCodecType(), userFlowConfig.getIsInputDataset()));
-    errors.addAll(containsEncryptionConfig(userFlowConfig.getEncryptionConfig()));
+    errors.addAll(containsFormat(inputDatasetDescriptorConfig.getFormat(), inputDatasetDescriptorConfig.getIsInputDataset()));
+    errors.addAll(containsCodec(inputDatasetDescriptorConfig.getCodecType(), inputDatasetDescriptorConfig.getIsInputDataset()));
+    errors.addAll(containsEncryptionConfig(inputDatasetDescriptorConfig.getEncryptionConfig()));
     return errors;
   }
 
-  private ArrayList<String> containsFormat(String userFlowConfigFormat, Boolean inputDataset) {
+  private ArrayList<String> containsFormat(String inputDatasetDescriptorConfigFormat, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.FORMAT_KEY, this.getFormat(), userFlowConfigFormat, false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.FORMAT_KEY, this.getFormat(), inputDatasetDescriptorConfigFormat, false);
     return errors;
   }
 
-  private ArrayList<String> containsCodec(String userFlowConfigCodecType, Boolean inputDataset) {
+  private ArrayList<String> containsCodec(String inputDatasetDescriptorConfigCodecType, Boolean inputDataset) {
     ArrayList<String> errors = new ArrayList<>();
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.CODEC_KEY, this.getCodecType(), userFlowConfigCodecType, false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.CODEC_KEY, this.getCodecType(), inputDatasetDescriptorConfigCodecType, false);
     return errors;
   }
 
-  private ArrayList<String> containsEncryptionConfig(EncryptionConfig userFlowConfigEncryptionConfig) {
-    return this.getEncryptionConfig().contains(userFlowConfigEncryptionConfig);
+  private ArrayList<String> containsEncryptionConfig(EncryptionConfig inputDatasetDescriptorConfigEncryptionConfig) {
+    return this.getEncryptionConfig().contains(inputDatasetDescriptorConfigEncryptionConfig);
   }
 }

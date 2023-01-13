@@ -86,14 +86,14 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
   /**
    * Check if this HTTP path equals the other HTTP path
    *
-   * @param userFlowConfig whose path should be in the format of a HTTP path
+   * @param inputDatasetDescriptorConfig whose path should be in the format of a HTTP path
    */
   @Override
-  protected ArrayList<String> isPathContaining(DatasetDescriptor userFlowConfig) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     // Might be null
     ArrayList<String> errors = new ArrayList<>();
-    String otherPath = userFlowConfig.getPath();
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, userFlowConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, false);
+    String otherPath = inputDatasetDescriptorConfig.getPath();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, false);
     return errors;
   }
 }

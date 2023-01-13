@@ -188,8 +188,7 @@ public class StaticFlowTemplate implements FlowTemplate {
         errors.add(e.toString().split(variableSubstitutionErrorPattern)[1]);
       }
       catch (Exception e) {
-        log.error("Encountered exception: " + e.getMessage());
-        e.printStackTrace();
+        log.error("Encountered exception during resolving job templates", e);
       }
       // Only insert into dictionary if errors exist
       if (errors.size() != 0) {

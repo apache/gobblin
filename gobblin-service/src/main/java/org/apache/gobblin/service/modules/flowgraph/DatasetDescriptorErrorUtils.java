@@ -39,7 +39,7 @@ public class DatasetDescriptorErrorUtils {
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_IS_GLOB_PATTERN = "%s.%s is mismatched. User input: %s is of a glob pattern. Expected input is not of a glob pattern.";
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_GLOB_PATTERN = "%s.%s is mismatched. User input: %s is not contained within the glob of %s.";
 
-  public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist";
+  public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist. Please check the provided blacklist configuration.";
 
   /**
    * The populateErrorForDatasetDescriptorKey function will compare the submitted variables and add associated errors to the error array called from .contains
@@ -95,16 +95,12 @@ public class DatasetDescriptorErrorUtils {
   public static void populateErrorForDatasetDescriptorKeyBlacklist(ArrayList<String> errors, Boolean inputDataset,
       String type, String configKey, WhitelistBlacklist whitelistBlacklist, String otherDbName, String otherTableName) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    if (type.equals("database")) {
-      if (!whitelistBlacklist.acceptDb(otherDbName)) {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
-            datasetDescriptorPrefix, "database", configKey, otherDbName));
-      }
-    } else if (type.equals("table")) {
-      if (!whitelistBlacklist.acceptTable(otherDbName, otherTableName)) {
-        errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
-            datasetDescriptorPrefix, "table", configKey, String.join(".", otherDbName, otherTableName)));
-      }
+    if (type.equals("database") && !whitelistBlacklist.acceptDb(otherDbName)) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+          datasetDescriptorPrefix, "database", configKey, otherDbName));
+    } else if (type.equals("table") && !whitelistBlacklist.acceptTable(otherDbName, otherTableName)) {
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
+          datasetDescriptorPrefix, "table", configKey, String.join(".", otherDbName, otherTableName)));
     }
   }
 
