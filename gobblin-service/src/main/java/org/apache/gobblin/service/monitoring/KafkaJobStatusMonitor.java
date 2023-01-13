@@ -48,13 +48,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.TaskContext;
@@ -206,7 +204,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       });
     } catch (ExecutionException ee) {
       String msg = String.format("Failed to add job status to state store for kafka offset %d", message.getOffset());
-      log.warn(msg, ee.getCause());
+      log.warn(msg, ee);
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
       throw new RuntimeException(msg, ee.getCause());
     } catch (RetryException re) {
@@ -280,7 +278,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
 
-      if (isStateTransitionToFinal(jobStatus, states.get(states.size() -1)) && eventProducer.isPresent()) {
+      if (isStateTransitionToFinal(jobStatus, states) && eventProducer.isPresent()) {
         eventProducer.get().emitObservabilityEvent(jobStatus);
       }
     } catch (Exception e) {
@@ -305,9 +303,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
-  private static boolean isStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, org.apache.gobblin.configuration.State lastState) {
-    Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(),ExecutionStatus.FAILED.name());
-    return finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)) && !finalStates.contains(lastState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+  private static boolean isStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+    Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(), ExecutionStatus.FAILED.name());
+    if (prevStates.size() == 0) {
+      return finalStates.contains(currentState);
+    }
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        && !finalStates.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**

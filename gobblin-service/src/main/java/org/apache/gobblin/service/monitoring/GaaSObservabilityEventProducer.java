@@ -38,8 +38,8 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
-import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -72,43 +72,62 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     this.issueRepository = issueRepository;
   }
 
-  public void emitObservabilityEvent(State jobStatus) {
-    GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobStatus);
+  public void emitObservabilityEvent(State jobState) {
+    GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
   }
 
   abstract protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event);
 
-  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobStatus) {
-    Long jobStartTime = jobStatus.contains(TimingEvent.JOB_START_TIME) ? jobStatus.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
-    Long jobEndTime = jobStatus.contains(TimingEvent.JOB_END_TIME) ? jobStatus.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
+  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobState) {
+    Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
+    Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {
-      issueList = issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties())).stream().map(
+      issueList = issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobState.getProperties())).stream().map(
               issue -> new org.apache.gobblin.metrics.Issue(issue.getTime().toEpochSecond(),
                   IssueSeverity.valueOf(issue.getSeverity().toString()), issue.getCode(), issue.getSummary(), issue.getDetails(), issue.getProperties())).collect(Collectors.toList());
-    } catch (TroubleshooterException e) {
+    } catch (Exception e) {
+      // If issues cannot be fetched, increment metric but continue to try to emit the event
       log.error("Could not fetch issues while creating GaaSObservabilityEvent due to ", e);
       getIssuesFailedMeter.mark();
     }
-      builder.setTimestamp(System.currentTimeMillis())
-          .setFlowName(jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
-          .setFlowGroup(jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
-          .setFlowExecutionId(jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
-          .setJobName(jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
-          .setExecutorUrl(jobStatus.getProp(TimingEvent.METADATA_MESSAGE))
-          .setJobStartTime(jobStartTime)
-          .setJobEndTime(jobEndTime)
-          .setJobStatus(JobStatus.valueOf(jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD)))
-          .setIssues(issueList)
-          // TODO: Populate the below fields in a separate PR
-          .setExecutionUserUrn(null)
-          .setExecutorId(null)
-          .setLastFlowModificationTime(0)
-          .setFlowGraphEdgeId(null)
-          .setJobOrchestratedTime(null);
+    JobStatus status = convertExecutionStatusTojobState(jobState, ExecutionStatus.valueOf(jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
+    builder.setTimestamp(System.currentTimeMillis())
+        .setFlowName(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
+        .setFlowGroup(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
+        .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
+        .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
+        .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
+        .setJobStartTime(jobStartTime)
+        .setJobEndTime(jobEndTime)
+        .setIssues(issueList)
+        .setJobStatus(status)
+        // TODO: Populate the below fields in a separate PR
+        .setExecutionUserUrn(null)
+        .setExecutorId("")
+        .setLastFlowModificationTime(0)
+        .setFlowGraphEdgeId("")
+        .setJobOrchestratedTime(null); // TODO: Investigate why TimingEvent.JOB_ORCHESTRATED_TIME is never propagated to the JobStatus
     return builder.build();
+  }
+
+  private static JobStatus convertExecutionStatusTojobState(State state, ExecutionStatus executionStatus) {
+    switch (executionStatus) {
+      case FAILED:
+        // TODO: Separate failure cases to SUBMISSION FAILURE and COMPILATION FAILURE, investigate events to populate these fields
+        if (state.contains(TimingEvent.JOB_END_TIME)) {
+          return JobStatus.EXECUTION_FAILURE;
+        }
+      case COMPLETE:
+        return JobStatus.SUCCEEDED;
+      case CANCELLED:
+        // TODO: If cancelled due to start SLA exceeded, consider grouping this as a submission failure?
+        return JobStatus.CANCELLED;
+      default:
+        return null;
+    }
   }
 
   public static GaaSObservabilityEventProducer getEventProducer(Config config, MultiContextIssueRepository issueRepository) {
