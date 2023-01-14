@@ -323,7 +323,6 @@ public class CopyableFile extends CopyEntity implements File {
     }
 
     return resolveReplicatedOwnerAndPermission(originFileStatus.get(), copyConfiguration);
-
   }
 
   /**
@@ -335,8 +334,6 @@ public class CopyableFile extends CopyEntity implements File {
       CopyConfiguration copyConfiguration) {
 
     PreserveAttributes preserve = copyConfiguration.getPreserve();
-
-
     String group = null;
     if (copyConfiguration.getTargetGroup().isPresent()) {
       group = copyConfiguration.getTargetGroup().get();
