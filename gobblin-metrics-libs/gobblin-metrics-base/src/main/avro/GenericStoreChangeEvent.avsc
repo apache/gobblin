@@ -9,9 +9,14 @@
     "doc" : "Primary key for the store",
     "compliance" : "NONE"
   }, {
-    "name" : "timestamp",
+    "name" : "txId",
+    "type" : "string",
+    "doc" : "ID to uniquely identify the transaction",
+    "compliance" : "NONE"
+  }, {
+    "name" : "produceTimestamp",
     "type" : "long",
-    "doc" : "Time the change occurred",
+    "doc" : "Time the change produced to topic",
     "compliance" : "NONE"
   }, {
     "name": "operationType",

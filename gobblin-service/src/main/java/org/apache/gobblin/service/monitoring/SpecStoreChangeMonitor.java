@@ -33,6 +33,7 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -58,6 +59,9 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter failedAddedSpecs;
   private ContextAwareMeter deletedSpecs;
   private ContextAwareMeter unexpectedErrors;
+  private ContextAwareGauge produceToConsumeLag;
+
+  private Long produceToConsumeLagValue = -1L;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -102,14 +106,17 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     String key = (String) message.getKey();
     GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
-    Long timestamp = value.getTimestamp();
+    String tid = value.getTxId();
+    Long produceTimestamp = value.getProduceTimestamp();
     String operation = value.getOperationType().name();
 
-    log.debug("Processing message where specUri is {} timestamp: {} operation: {}", key, timestamp, operation);
+    produceToConsumeLagValue = System.currentTimeMillis() - produceTimestamp;
+    log.debug("Processing message where specUri is {} tid: {} operation: {} lag: {}", key, tid, operation,
+        produceToConsumeLagValue);
 
-    String changeIdentifier = timestamp + key;
+    String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, specChangesSeenCache, operation,
-        timestamp.toString())) {
+        produceTimestamp.toString())) {
       return;
     }
 
@@ -171,5 +178,6 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
+    this.produceToConsumeLag = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_LAG, () -> produceToConsumeLagValue);
   }
 }
