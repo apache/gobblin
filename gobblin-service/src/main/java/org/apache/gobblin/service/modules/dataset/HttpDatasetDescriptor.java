@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
@@ -39,7 +38,6 @@ import org.apache.gobblin.util.ConfigUtils;
  * e.g, https://some-api:443/user/123/names, where /user/123/names is the path
  * query string is not supported
  */
-@Slf4j
 @ToString (exclude = {"rawConfig"})
 @EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {

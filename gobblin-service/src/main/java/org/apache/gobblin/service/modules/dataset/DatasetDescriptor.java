@@ -63,8 +63,8 @@ public interface DatasetDescriptor {
   public String getDescription();
 
   /**
-   * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
-   * datasets described by the other {@link DatasetDescriptor} is a subset of this {@link DatasetDescriptor}.
+   * @return an arraylist of errors when comparing whether the provided {@link DatasetDescriptor} contains the input {@link DatasetDescriptor}
+   * i.e. the datasets described by the other {@link DatasetDescriptor} is a subset of this {@link DatasetDescriptor}.
    * This operation is non-commutative.
    */
   public ArrayList<String> contains(DatasetDescriptor other);

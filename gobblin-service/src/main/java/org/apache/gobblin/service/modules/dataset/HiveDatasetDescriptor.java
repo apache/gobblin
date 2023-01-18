@@ -30,7 +30,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.EqualsAndHashCode;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
@@ -44,7 +43,6 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
  * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
  */
-@Slf4j
 @EqualsAndHashCode (exclude = {"whitelistBlacklist"}, callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   static final String IS_PARTITIONED_KEY = "isPartitioned";

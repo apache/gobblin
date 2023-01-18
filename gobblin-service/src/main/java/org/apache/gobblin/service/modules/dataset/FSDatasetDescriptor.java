@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +45,6 @@ import org.apache.gobblin.util.PathUtils;
  * An implementation of {@link DatasetDescriptor} with FS-based storage.
  */
 @Alpha
-@Slf4j
 @ToString (callSuper = true, exclude = {"rawConfig"})
 @EqualsAndHashCode (callSuper = true, exclude = {"rawConfig"})
 public class FSDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {

@@ -31,7 +31,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
@@ -39,7 +38,6 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 
-@Slf4j
 @ToString (exclude = {"rawConfig"})
 @EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {

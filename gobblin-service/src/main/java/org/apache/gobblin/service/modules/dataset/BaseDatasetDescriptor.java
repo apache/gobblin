@@ -28,12 +28,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
-@Slf4j
 @EqualsAndHashCode (exclude = {"description", "rawConfig", "isInputDataset"})
 @ToString (exclude = {"description", "rawConfig", "isInputDataset"})
 public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
