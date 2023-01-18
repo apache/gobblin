@@ -43,7 +43,6 @@ dependencies {
   compile externalDependency.curatorFramework
   compile externalDependency.curatorClient
   compile externalDependency.curatorRecipes
-  compile externalDependency.commonsDbcp2
   compile externalDependency.findBugsAnnotations
   compile externalDependency.flyway
   compile externalDependency.gson
@@ -56,6 +55,7 @@ dependencies {
   compile (externalDependency.helix) {
     exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
   }
+  compile externalDependency.hikariCP
   compile externalDependency.hiveCommon
   compile externalDependency.httpclient
   compile externalDependency.httpcore

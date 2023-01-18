@@ -19,22 +19,13 @@ package org.apache.gobblin.service.modules.template_catalog;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
-
-import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 
@@ -45,42 +36,12 @@ import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
  * is detected so that the next call to {@link #getFlowTemplate(URI)} will use the updated files.
  */
 @Slf4j
-public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
-  private Map<URI, FlowTemplate> flowTemplateMap = new ConcurrentHashMap<>();
-  private Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
-  private ReadWriteLock rwLock;
+public class ObservingFSFlowEdgeTemplateCatalog extends UpdatableFSFlowTemplateCatalog {
 
   private AtomicBoolean shouldRefreshFlowGraph = new AtomicBoolean(false);
 
   public ObservingFSFlowEdgeTemplateCatalog(Config sysConfig, ReadWriteLock rwLock) throws IOException {
-    super(sysConfig);
-    this.rwLock = rwLock;
-  }
-
-  @Override
-  public FlowTemplate getFlowTemplate(URI flowTemplateDirURI)
-      throws SpecNotFoundException, JobTemplate.TemplateException, IOException, URISyntaxException {
-    FlowTemplate flowTemplate = flowTemplateMap.getOrDefault(flowTemplateDirURI, null);
-
-    if (flowTemplate == null) {
-      flowTemplate = super.getFlowTemplate(flowTemplateDirURI);
-      flowTemplateMap.put(flowTemplateDirURI, flowTemplate);
-    }
-
-    return flowTemplate;
-  }
-
-  @Override
-  public List<JobTemplate> getJobTemplatesForFlow(URI flowTemplateDirURI)
-      throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
-    List<JobTemplate> jobTemplates = jobTemplateMap.getOrDefault(flowTemplateDirURI, null);
-
-    if (jobTemplates == null) {
-      jobTemplates = super.getJobTemplatesForFlow(flowTemplateDirURI);
-      jobTemplateMap.put(flowTemplateDirURI, jobTemplates);
-    }
-
-    return jobTemplates;
+    super(sysConfig, rwLock);
   }
 
   @Override
@@ -101,31 +62,14 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
   }
 
   /**
-   * Clear cached templates so they will be reloaded next time {@link #getFlowTemplate(URI)} is called.
-   * Also refresh git flow graph in case any edges that failed to be added on startup are successful now.
-   */
-  private void clearTemplates() {
-    this.rwLock.writeLock().lock();
-    log.info("Change detected, reloading flow templates.");
-    flowTemplateMap.clear();
-    jobTemplateMap.clear();
-    getAndSetShouldRefreshFlowGraph(true);
-    this.rwLock.writeLock().unlock();
-  }
-
-  /**
    * {@link org.apache.gobblin.util.filesystem.PathAlterationListener} that clears flow/job template cache if a file is
    * created or updated.
    */
   private class FlowCatalogPathAlterationListener extends PathAlterationListenerAdaptor {
     @Override
-    public void onFileCreate(Path path) {
+    public void onCheckDetectedChange() {
       clearTemplates();
-    }
-
-    @Override
-    public void onFileChange(Path path) {
-      clearTemplates();
+      getAndSetShouldRefreshFlowGraph(true);
     }
   }
 }

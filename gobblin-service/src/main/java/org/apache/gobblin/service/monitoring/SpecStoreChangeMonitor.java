@@ -27,7 +27,6 @@ import org.apache.commons.text.StringEscapeUtils;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -70,19 +69,19 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   protected LoadingCache<String, String>
       specChangesSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
-  @Inject
   protected FlowCatalog flowCatalog;
 
-  @Inject
   protected GobblinServiceJobScheduler scheduler;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public SpecStoreChangeMonitor(String topic, Config config, int numThreads) {
+  public SpecStoreChangeMonitor(String topic, Config config, FlowCatalog flowCatalog, GobblinServiceJobScheduler scheduler, int numThreads) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(SPEC_STORE_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
+    this.flowCatalog = flowCatalog;
+    this.scheduler = scheduler;
   }
 
   @Override
@@ -106,7 +105,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     Long timestamp = value.getTimestamp();
     String operation = value.getOperationType().name();
 
-    log.debug("Processing message where specUri is {} timestamp is {} operation is {}", key, timestamp, operation);
+    log.debug("Processing message where specUri is {} timestamp: {} operation: {}", key, timestamp, operation);
 
     String changeIdentifier = timestamp + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, specChangesSeenCache, operation,
@@ -146,6 +145,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
           this.failedAddedSpecs.mark();
         }
       } else if (operation.equals("DELETE")) {
+        log.info("Deleting spec {} after receiving spec store change event", specAsUri);
         scheduler.onDeleteSpec(specAsUri, FlowSpec.Builder.DEFAULT_VERSION);
         this.deletedSpecs.mark();
       } else {

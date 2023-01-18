@@ -88,7 +88,7 @@ public class DagManagerUtils {
    * @param dag instance of a {@link Dag}.
    * @return a DagId object associated corresponding to the {@link Dag} instance.
    */
-  static DagManager.DagId generateDagId(Dag<JobExecutionPlan> dag) {
+  public static DagManager.DagId generateDagId(Dag<JobExecutionPlan> dag) {
     return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
   }
 

@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.source.jdbc;
 
-import org.apache.gobblin.tunnel.Tunnel;
-import org.apache.commons.dbcp.BasicDataSource;
-
 import java.io.IOException;
-import java.sql.SQLException;
+
+import org.apache.gobblin.tunnel.Tunnel;
+
+import com.zaxxer.hikari.HikariDataSource;
 
 
 /**
@@ -29,7 +29,7 @@ import java.sql.SQLException;
  *
  * @author nveeramr
  */
-public class JdbcProvider extends BasicDataSource {
+public class JdbcProvider extends HikariDataSource {
   private Tunnel tunnel;
 
   // If extract type is not provided then consider it as a default type
@@ -76,14 +76,18 @@ public class JdbcProvider extends BasicDataSource {
     this.setDriverClassName(driver);
     this.setUsername(user);
     this.setPassword(password);
-    this.setUrl(connectionUrl);
-    this.setInitialSize(0);
-    this.setMaxIdle(numconn);
-    this.setMaxWait(timeout);
+    this.setJdbcUrl(connectionUrl);
+    // TODO: revisit following verification of successful connection pool migration:
+    //   whereas `o.a.commons.dbcp.BasicDataSource` defaults min idle conns to 0, hikari defaults to 10.
+    //   perhaps non-zero would have desirable runtime perf, but anything >0 currently fails unit tests (even 1!);
+    //   (so experimenting with a higher number would first require adjusting tests)
+    this.setMinimumIdle(0);
+    this.setMaximumPoolSize(numconn);
+    this.setConnectionTimeout(timeout);
   }
 
   @Override
-  public synchronized void close() throws SQLException {
+  public synchronized void close() {
     super.close();
     if (this.tunnel != null) {
       this.tunnel.close();

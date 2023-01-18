@@ -1,0 +1,167 @@
+{
+  "type": "record",
+  "name": "GaaSObservabilityEventExperimental",
+  "namespace": "org.apache.gobblin.metrics",
+  "doc": "An experimental format for GaaS to emit events during and after a job is executed.",
+  "fields": [
+    {
+      "name": "timestamp",
+      "type": "long",
+      "doc": "Time at which event was created in millis"
+    },
+    {
+      "name": "flowGroup",
+      "type": "string",
+      "doc": "Flow group for the GaaS flow",
+      "compliance": "NONE"
+    },
+    {
+      "name": "flowName",
+      "type": "string",
+      "doc": "Flow name for the GaaS flow",
+      "compliance": "NONE"
+    },
+    {
+      "name": "flowExecutionId",
+      "type": "long",
+      "doc": "Flow execution id for the GaaS flow",
+      "compliance": "NONE"
+    },
+    {
+      "name": "lastFlowModificationTime",
+      "type": "long",
+      "doc": "Timestamp in millis since Epoch when the flow config was last modified"
+    },
+    {
+      "name": "flowGraphEdgeId",
+      "type": "string",
+      "doc": "Flow edge id, in format <src_node>_<dest_node>_<edge_id>",
+      "compliance": "NONE"
+    },
+    {
+      "name": "jobName",
+      "type": "string",
+      "doc": "The name of the Gobblin job, found in the job template. One edge can contain multiple jobs",
+      "compliance": "NONE"
+    },
+    {
+      "name": "jobStatus",
+      "type": {
+        "type": "enum",
+        "name": "JobStatus",
+        "symbols": [
+          "SUCCEEDED",
+          "COMPILATION_FAILURE",
+          "SUBMISSION_FAILURE",
+          "EXEUCTION_FAILURE",
+          "CANCELLED"
+        ],
+        "doc": "Final job status for this job in the GaaS flow",
+        "compliance": "NONE"
+      }
+    },
+    {
+      "name": "jobOrchestratedTime",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Timestamp when the job was successfully sent to the job executor, null if it was unable to be sent."
+    },
+    {
+      "name": "jobStartTime",
+      "type": "long",
+      "doc": "Start time of the job in millis since Epoch",
+      "compliance": "NONE"
+    },
+    {
+      "name": "jobEndTime",
+      "type": "long",
+      "doc": "Finish time of the job in millis since Epoch",
+      "compliance": "NONE"
+    },
+    {
+      "name": "executionUserUrn",
+      "type": [
+        "null",
+        "string"
+      ],
+      "doc": "User URN (if applicable) that runs the underlying Gobblin job",
+      "compliance": "NONE"
+    },
+    {
+      "name": "executorUrl",
+      "type": [
+        "null",
+        "string"
+      ],
+      "doc": "Link to where the job ran, currently limited to Azkaban, if it was executed",
+      "compliance": "NONE"
+    },
+    {
+      "name": "executorId",
+      "type": "string",
+      "doc": "The ID of the spec executor that ran or would have ran the job",
+      "compliance": "NONE"
+    },
+    {
+      "name": "issues",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "Issue",
+            "doc": "Issue describes a specific unique problem in the job or application.\n\nIssue can be generated from log entries, health checks, and other places.",
+            "fields": [
+              {
+                "name": "timestamp",
+                "type": "long",
+                "doc": "Time when the issue occurred"
+              },
+              {
+                "name": "severity",
+                "type": {
+                  "type": "enum",
+                  "name": "IssueSeverity",
+                  "symbols": [
+                    "DEBUG",
+                    "INFO",
+                    "WARN",
+                    "ERROR",
+                    "FATAL"
+                  ]
+                },
+                "doc": "Severity from DEBUG to FATAL"
+              },
+              {
+                "name": "code",
+                "type": "string",
+                "doc": "Unique machine-readable code that identifies a specific problem.\n\nIt can be used for making programmatic decisions on how to handle and recover from this issue.\n\nIssues representing the same kind of problem will have the same code.\n"
+              },
+              {
+                "name": "summary",
+                "type": "string",
+                "doc": "Short, human-readable description of the issue.\n\nIt should focus on what is the root cause of the problem, and what steps the user should do to resolve it."
+              },
+              {
+                "name": "details",
+                "type": "string",
+                "doc": "Human-readable issue details that can include exception stack trace and additional information about the problem."
+              },
+              {
+                "name": "properties",
+                "type": {
+                  "type": "map",
+                  "values": "string"
+                },
+                "doc": "Additional machine-readable properties of the issue.\n"
+              }
+            ]
+          }
+        }
+      ]
+    }]
+}
+

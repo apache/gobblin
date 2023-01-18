@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.metastore;
 
-import org.apache.commons.dbcp.BasicDataSource;
+import javax.sql.DataSource;
 
 import com.typesafe.config.Config;
 
@@ -26,7 +26,7 @@ import org.apache.gobblin.broker.iface.SharedResourceKey;
 import lombok.Getter;
 
 /**
- * {@link SharedResourceKey} for requesting {@link BasicDataSource}s from a
+ * {@link SharedResourceKey} for requesting {@link DataSource}s from a
  * {@link org.apache.gobblin.broker.iface.SharedResourceFactory}
  */
 @Getter

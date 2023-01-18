@@ -139,16 +139,24 @@ public class HelixAssignedParticipantCheck implements CommitStep {
 
       if (jobContext != null) {
         String participant = jobContext.getAssignedParticipant(partitionNum);
-        if (participant != null) {
-          boolean isAssignedParticipant = participant.equalsIgnoreCase(helixInstanceName);
-          if (!isAssignedParticipant) {
-            log.info("The current helix instance is not the assigned participant. helixInstanceName={}, assignedParticipant={}",
-                helixInstanceName, participant);
-          }
+        if (participant == null) {
+          log.error("The current assigned participant is null. This implies that \n"
+              + "\t\t(a)Helix failed to write to zookeeper, which is often caused by lack of compression leading / exceeding zookeeper jute max buffer size (Default 1MB)\n"
+              + "\t\t(b)Helix reassigned the task (unlikely if this current task has been running without issue. Helix does not have code for reassigning \"running\" tasks)\n"
+              + "\t\tNote: This logic is true as of Helix version 1.0.2 and ZK version 3.6");
 
-          return isAssignedParticipant;
+          return false;
         }
+
+        boolean isAssignedParticipant = participant.equalsIgnoreCase(helixInstanceName);
+        if (!isAssignedParticipant) {
+          log.info("The current helix instance is not the assigned participant. helixInstanceName={}, assignedParticipant={}",
+              helixInstanceName, participant);
+        }
+
+        return isAssignedParticipant;
       }
+
       return false;
     };
 
