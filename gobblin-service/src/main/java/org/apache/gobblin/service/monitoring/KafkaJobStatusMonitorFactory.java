@@ -47,12 +47,15 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final Config config;
   private final JobIssueEventHandler jobIssueEventHandler;
   private final MultiContextIssueRepository issueRepository;
+  private final boolean instrumentationEnabled;
 
   @Inject
-  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository) {
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
+      boolean instrumentationEnabled) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
     this.issueRepository = issueRepository;
+    this.instrumentationEnabled = instrumentationEnabled;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -83,7 +86,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
         GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY,
         GaaSObservabilityEventProducer.DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS));
     GaaSObservabilityEventProducer observabilityEventProducer = (GaaSObservabilityEventProducer) GobblinConstructorUtils.invokeLongestConstructor(
-        observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository);
+        observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository, this.instrumentationEnabled);
 
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
         .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer);

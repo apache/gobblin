@@ -90,8 +90,11 @@ public class GaaSObservabilityProducerTest {
     return Issue.builder().summary(summary).code(code).time(ZonedDateTime.now()).severity(severity).build();
   }
 
-
-  public class MockGaaSObservabilityProducer extends GaaSObservabilityEventProducer {
+  /**
+   * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
+   * Tests can use a getter to fetch a read-only version of the events that were emitted
+   */
+  private class MockGaaSObservabilityProducer extends GaaSObservabilityEventProducer {
     private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
 
     public MockGaaSObservabilityProducer(State state, MultiContextIssueRepository issueRepository) {

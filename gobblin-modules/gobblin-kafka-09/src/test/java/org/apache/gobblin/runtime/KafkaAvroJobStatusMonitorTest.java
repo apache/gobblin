@@ -735,6 +735,10 @@ public class KafkaAvroJobStatusMonitorTest {
     }
   }
 
+  /**
+   * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
+   * Tests can use a getter to fetch a read-only version of the events that were emitted
+   */
   private class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
     private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
 
