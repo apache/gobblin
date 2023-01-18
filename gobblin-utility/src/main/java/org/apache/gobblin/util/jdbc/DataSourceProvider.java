@@ -48,7 +48,7 @@ public class DataSourceProvider implements Provider<DataSource> {
   public static final String PASSWORD = GOBBLIN_UTIL_JDBC_PREFIX + "password";
   public static final String SKIP_VALIDATION_QUERY = GOBBLIN_UTIL_JDBC_PREFIX + "skip.validation.query";
   public static final String MAX_ACTIVE_CONNS = GOBBLIN_UTIL_JDBC_PREFIX + "max.active.connections";
-  public static final String DEFAULT_CONN_DRIVER = "com.mysql.jdbc.Driver";
+  public static final String DEFAULT_CONN_DRIVER = "com.mysql.cj.jdbc.Driver";
 
   protected final HikariDataSource dataSource;
 

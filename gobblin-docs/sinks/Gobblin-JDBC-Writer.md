@@ -146,7 +146,7 @@ writer.builder.class=org.apache.gobblin.writer.JdbcWriterBuilder
 
 data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
 jdbc.publisher.url=jdbc:mysql://host:3306
-jdbc.publisher.driver=com.mysql.jdbc.Driver
+jdbc.publisher.driver=com.mysql.cj.jdbc.Driver
 
 converter.classes=org.apache.gobblin.converter.jdbc.AvroToJdbcEntryConverter
 # If field name mapping is needed between the input Avro and the target table:
