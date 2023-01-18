@@ -81,7 +81,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
     Class observabilityEventProducerClassName = Class.forName(ConfigUtils.getString(config,
-        config.getString(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY),
+        GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY,
         GaaSObservabilityEventProducer.DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS));
     GaaSObservabilityEventProducer observabilityEventProducer = (GaaSObservabilityEventProducer) GobblinConstructorUtils.invokeLongestConstructor(
         observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository);
