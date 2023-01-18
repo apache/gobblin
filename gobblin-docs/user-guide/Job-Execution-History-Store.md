@@ -67,7 +67,7 @@ To enable writing to the MySQL-backed Job Execution History Store, the following
 
 ```properties
 job.history.store.url=jdbc:mysql://localhost/gobblin
-job.history.store.jdbc.driver=com.mysql.jdbc.Driver
+job.history.store.jdbc.driver=com.mysql.cj.jdbc.Driver
 job.history.store.user=gobblin
 job.history.store.password=gobblin
 ``` 

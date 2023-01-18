@@ -74,7 +74,7 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_STATE_STORE_COMPRESSED_VALUES = true;
   // DB state store configuration
   public static final String STATE_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
-  public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.jdbc.Driver";
+  public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
   public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
   public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
@@ -923,7 +923,7 @@ public class ConfigurationKeys {
   public static final String JOB_HISTORY_STORE_ENABLED_KEY = "job.history.store.enabled";
   public static final String JOB_HISTORY_STORE_URL_KEY = "job.history.store.url";
   public static final String JOB_HISTORY_STORE_JDBC_DRIVER_KEY = "job.history.store.jdbc.driver";
-  public static final String DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER = "com.mysql.jdbc.Driver";
+  public static final String DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
   public static final String JOB_HISTORY_STORE_USER_KEY = "job.history.store.user";
   public static final String DEFAULT_JOB_HISTORY_STORE_USER = "gobblin";
   public static final String JOB_HISTORY_STORE_PASSWORD_KEY = "job.history.store.password";
