@@ -18,7 +18,11 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Queue;
@@ -43,7 +47,6 @@ import org.apache.gobblin.service.ExecutionStatus;
 public class GaaSObservabilityProducerTest {
 
   private MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
-  Queue<GaaSObservabilityEventExperimental> emittedEvents = new LinkedList<>();
 
   @Test
   public void testCreateGaaSObservabilityEvent() throws Exception {
@@ -55,7 +58,7 @@ public class GaaSObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
-    GaaSObservabilityEventProducer producer = new MockGaaSObservabilityProducer(new State(), this.issueRepository);
+    MockGaaSObservabilityProducer producer = new MockGaaSObservabilityProducer(new State(), this.issueRepository);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -71,8 +74,11 @@ public class GaaSObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
+    List<GaaSObservabilityEventExperimental> emittedEvents = producer.getTestEmittedEvents();
+
     Assert.assertEquals(emittedEvents.size(), 1);
-    GaaSObservabilityEventExperimental event = emittedEvents.poll();
+    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
+    GaaSObservabilityEventExperimental event = iterator.next();
     Assert.assertEquals(event.getFlowGroup(), flowGroup);
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getJobName(), jobName);
@@ -88,13 +94,26 @@ public class GaaSObservabilityProducerTest {
 
 
   public class MockGaaSObservabilityProducer extends GaaSObservabilityEventProducer {
+    private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
+
     public MockGaaSObservabilityProducer(State state, MultiContextIssueRepository issueRepository) {
-      super(state, issueRepository);
+      super(state, issueRepository, false);
     }
-    // Send the events to the class test queue, so tests should not run concurrently
+
     @Override
     protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
-      emittedEvents.add(event);
+      this.emittedEvents.add(event);
+    }
+
+
+    /**
+     * Returns the events that the mock producer has written
+     * This should only be used as a read-only object for emitted GaaSObservabilityEvents
+     * @return list of events that would have been emitted
+     */
+    public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
+      return Collections.unmodifiableList(this.emittedEvents);
     }
   }
+
 }

@@ -18,13 +18,13 @@ package org.apache.gobblin.runtime;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -54,7 +53,6 @@ import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -71,6 +69,7 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
+import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -78,6 +77,8 @@ import org.apache.gobblin.service.monitoring.GaaSObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.NoopGaaSObservabilityEventProducer;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_MULTIPLIER;
 import static org.mockito.Mockito.mock;
@@ -97,7 +98,6 @@ public class KafkaAvroJobStatusMonitorTest {
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
-  private static Queue<GaaSObservabilityEventExperimental> queue = new LinkedList<>();
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -140,7 +140,8 @@ public class KafkaAvroJobStatusMonitorTest {
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+      new NoopGaaSObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
@@ -198,7 +199,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -275,7 +276,8 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+        new NoopGaaSObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -334,7 +336,8 @@ public class KafkaAvroJobStatusMonitorTest {
     AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle = new AtomicBoolean(false);
     Config conf = ConfigFactory.empty().withValue(
         KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX + "." + RETRY_MULTIPLIER, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.toMillis(1L)));
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(shouldThrowFakeExceptionInParseJobStatusToggle, conf);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(shouldThrowFakeExceptionInParseJobStatusToggle, conf,
+        new NoopGaaSObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
@@ -367,35 +370,6 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
-  @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
-  public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
-    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
-
-    //Submit GobblinTrackingEvents to Kafka
-    ImmutableList.of(
-        createGTE(TimingEvent.JOB_COMPLETION_PERCENTAGE, new HashMap<>())
-    ).forEach(event -> {
-      context.submitEvent(event);
-      kafkaReporter.report();
-    });
-
-    try {
-      Thread.sleep(1000);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
-
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
-    jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
-        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
-        this::convertMessageAndMetadataToDecodableKafkaRecord);
-
-    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    // Verify we are able to process it without NPE
-    Assert.assertNull(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
-  }
-
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForCancelledAndKilledEvent() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
@@ -421,11 +395,11 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
-      this.kafkaTestHelper.getIteratorForTopic(TOPIC),
-      this::convertMessageAndMetadataToDecodableKafkaRecord);
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
@@ -457,13 +431,43 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
+  public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createGTE(TimingEvent.JOB_COMPLETION_PERCENTAGE, new HashMap<>())
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+        new NoopGaaSObservabilityEventProducer());
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    // Verify we are able to process it without NPE
+    Assert.assertNull(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+  }
+
+  @Test (dependsOnMethods = "testProcessProgressingMessageWhenNoPreviousStatus")
   public void testJobMonitorCreatesGaaSObservabilityEvent() throws IOException, ReflectiveOperationException {
-    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic6");
 
     //Submit GobblinTrackingEvents to Kafka
     ImmutableList.of(
         createFlowCompiledEvent(),
-        createFlowSucceededEvent()
+        createJobSucceededEvent()
     ).forEach(event -> {
       context.submitEvent(event);
       kafkaReporter.report();
@@ -473,10 +477,11 @@ public class KafkaAvroJobStatusMonitorTest {
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-    Config config = ConfigFactory.empty()
-        .withValue(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_ENABLED, ConfigValueFactory.fromAnyRef(true))
-        .withValue(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS, ConfigValueFactory.fromAnyRef(MockGaaSObservabilityEventProducer.class.getName()));
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), config);
+    MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
+    MockGaaSObservabilityEventProducer mockEventProducer = new MockGaaSObservabilityEventProducer(
+        ConfigUtils.configToState(ConfigFactory.empty()), issueRepository);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+        mockEventProducer);
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -487,10 +492,63 @@ public class KafkaAvroJobStatusMonitorTest {
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+
     // Only the COMPLETE event should create a GaaSObservabilityEvent
-    Assert.assertEquals(queue.size(), 1);
-    GaaSObservabilityEventExperimental event = queue.poll();
-    Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
+    List<GaaSObservabilityEventExperimental> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
+    GaaSObservabilityEventExperimental event1 = iterator.next();
+    Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
+    Assert.assertEquals(event1.getFlowName(), this.flowName);
+    Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
+
+    jobStatusMonitor.shutDown();
+  }
+
+  @Test (dependsOnMethods = "testJobMonitorCreatesGaaSObservabilityEvent")
+  public void testObservabilityEventSingleEmission() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic7");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobCancelledEvent(),
+        createJobSucceededEvent() // This event should be ignored
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+    MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
+    MockGaaSObservabilityEventProducer mockEventProducer = new MockGaaSObservabilityEventProducer(
+        ConfigUtils.configToState(ConfigFactory.empty()), issueRepository);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+        mockEventProducer);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
+
+    // Only the COMPLETE event should create a GaaSObservabilityEvent
+    List<GaaSObservabilityEventExperimental> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    Assert.assertEquals(emittedEvents.size(), 1);
+    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
+    GaaSObservabilityEventExperimental event1 = iterator.next();
+    Assert.assertEquals(event1.getJobStatus(), JobStatus.CANCELLED);
+    Assert.assertEquals(event1.getFlowName(), this.flowName);
+    Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
 
     jobStatusMonitor.shutDown();
   }
@@ -579,13 +637,14 @@ public class KafkaAvroJobStatusMonitorTest {
     return new GobblinTrackingEvent(timestamp, namespace, eventName, metadata);
   }
 
-  MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig) throws IOException, ReflectiveOperationException {
+  MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig,
+      GaaSObservabilityEventProducer eventProducer) throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
         .withFallback(additionalConfig);
-    return new MockKafkaAvroJobStatusMonitor("test",config, 1, shouldThrowFakeExceptionInParseJobStatusToggle);
+    return new MockKafkaAvroJobStatusMonitor("test",config, 1, shouldThrowFakeExceptionInParseJobStatusToggle, eventProducer);
   }
   /**
    *   Create a dummy event to test if it is filtered out by the consumer.
@@ -641,9 +700,9 @@ public class KafkaAvroJobStatusMonitorTest {
      * @param shouldThrowFakeExceptionInParseJobStatusToggle - pass (and retain) to dial whether `parseJobStatus` throws
      */
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
-        AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle)
+        AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSObservabilityEventProducer producer)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), true);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 
@@ -676,14 +735,25 @@ public class KafkaAvroJobStatusMonitorTest {
     }
   }
 
-  public static class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+  private class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+    private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
+
     public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
-      super(state, issueRepository);
+      super(state, issueRepository, false);
     }
 
     @Override
     protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
-       queue.add(event);
+       emittedEvents.add(event);
+    }
+
+    /**
+     * Returns the events that the mock producer has written
+     * This should only be used as a read-only object for emitted GaaSObservabilityEvents
+     * @return list of events that would have been emitted
+     */
+    public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
+      return Collections.unmodifiableList(this.emittedEvents);
     }
   }
 }

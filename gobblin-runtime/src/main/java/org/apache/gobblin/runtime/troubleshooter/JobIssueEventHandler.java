@@ -51,7 +51,6 @@ public class JobIssueEventHandler {
   private static final Logger issueLogger =
       LoggerFactory.getLogger("org.apache.gobblin.runtime.troubleshooter.JobIssueLogger");
 
-  @Getter
   private final MultiContextIssueRepository issueRepository;
   private final boolean logReceivedEvents;
 

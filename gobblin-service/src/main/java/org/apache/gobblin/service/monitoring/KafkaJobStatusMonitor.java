@@ -112,9 +112,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final Retryer<Void> persistJobStatusRetryer;
 
-  private final Optional<GaaSObservabilityEventProducer> eventProducer;
+  private final GaaSObservabilityEventProducer eventProducer;
 
-  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler, boolean instrumentationEnabled)
+  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
+      GaaSObservabilityEventProducer observabilityEventProducer)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -140,12 +141,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
-
-    if (instrumentationEnabled && ConfigUtils.getBoolean(config, GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_ENABLED, false)) {
-      this.eventProducer = Optional.of(GaaSObservabilityEventProducer.getEventProducer(config,  jobIssueEventHandler.getIssueRepository()));
-    } else {
-      this.eventProducer = Optional.empty();
-    }
+        this.eventProducer = observabilityEventProducer;
   }
 
   @Override
@@ -230,7 +226,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    */
   @VisibleForTesting
   static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore,
-      Optional<GaaSObservabilityEventProducer> eventProducer)
+      GaaSObservabilityEventProducer eventProducer)
       throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
@@ -277,9 +273,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
-
-      if (isStateTransitionToFinal(jobStatus, states) && eventProducer.isPresent()) {
-        eventProducer.get().emitObservabilityEvent(jobStatus);
+      if (isNewStateTransitionToFinal(jobStatus, states)) {
+        eventProducer.emitObservabilityEvent(jobStatus);
       }
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
@@ -303,7 +298,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
-  private static boolean isStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
     Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(), ExecutionStatus.FAILED.name());
     if (prevStates.size() == 0) {
       return finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));

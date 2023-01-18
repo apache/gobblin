@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -31,6 +32,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -45,13 +47,13 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
 
   private final Config config;
   private final JobIssueEventHandler jobIssueEventHandler;
-  private final boolean instrumentationEnabled;
+  private final MultiContextIssueRepository issueRepository;
 
   @Inject
-  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, boolean instrumentationEnabled) {
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
-    this.instrumentationEnabled = instrumentationEnabled;
+    this.issueRepository = issueRepository;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -78,8 +80,14 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
           config.getValue(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE));
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
+    Class observabilityEventProducerClassName = Class.forName(ConfigUtils.getString(config,
+        config.getString(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY),
+        GaaSObservabilityEventProducer.DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS));
+    GaaSObservabilityEventProducer observabilityEventProducer = (GaaSObservabilityEventProducer) GobblinConstructorUtils.invokeLongestConstructor(
+        observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository);
+
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
-        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, this.instrumentationEnabled);
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer);
   }
 
   @Override

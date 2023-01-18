@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
-import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,10 +37,9 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 
@@ -52,21 +50,25 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSObservabilityEventProducer.";
-  public static final String GAAS_OBSERVABILITY_EVENT_ENABLED = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "enabled";
-  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
-  public static final String ISSUE_READ_ERROR_COUNT =  "GaaSObservability.producer.getIssuesFailedCount";
+  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
+  public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
+  public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
 
   protected MetricContext metricContext;
   protected State state;
   protected MultiContextIssueRepository issueRepository;
+  boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
 
-  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
-    this.metricContext = Instrumented.getMetricContext(state, getClass());
-    getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-        ISSUE_READ_ERROR_COUNT));
+  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     this.state = state;
     this.issueRepository = issueRepository;
+    this.instrumentationEnabled = instrumentationEnabled;
+    if (this.instrumentationEnabled) {
+      this.metricContext = Instrumented.getMetricContext(state, getClass());
+      this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+          ISSUES_READ_FAILED_METRIC_NAME));
+    }
   }
 
   public void emitObservabilityEvent(State jobState) {
@@ -91,13 +93,13 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {
-      issueList = issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobState.getProperties())).stream().map(
-              issue -> new org.apache.gobblin.metrics.Issue(issue.getTime().toEpochSecond(),
-                  IssueSeverity.valueOf(issue.getSeverity().toString()), issue.getCode(), issue.getSummary(), issue.getDetails(), issue.getProperties())).collect(Collectors.toList());
+      issueList = getIssuesForJob(issueRepository, jobState);
     } catch (Exception e) {
       // If issues cannot be fetched, increment metric but continue to try to emit the event
       log.error("Could not fetch issues while creating GaaSObservabilityEvent due to ", e);
-      getIssuesFailedMeter.mark();
+      if (this.instrumentationEnabled) {
+        this.getIssuesFailedMeter.mark();
+      }
     }
     JobStatus status = convertExecutionStatusTojobState(jobState, ExecutionStatus.valueOf(jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
     builder.setTimestamp(System.currentTimeMillis())
@@ -126,6 +128,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         if (state.contains(TimingEvent.JOB_END_TIME)) {
           return JobStatus.EXECUTION_FAILURE;
         }
+        return JobStatus.SUBMISSION_FAILURE;
       case COMPLETE:
         return JobStatus.SUCCEEDED;
       case CANCELLED:
@@ -136,14 +139,23 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     }
   }
 
-  public static GaaSObservabilityEventProducer getEventProducer(Config config, MultiContextIssueRepository issueRepository) {
-    return GobblinConstructorUtils.invokeConstructor(GaaSObservabilityEventProducer.class,
-        config.getString(GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS), ConfigUtils.configToState(config), issueRepository);
+  private static List<Issue> getIssuesForJob(MultiContextIssueRepository issueRepository, State jobState) throws TroubleshooterException {
+    return issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobState.getProperties())).stream().map(
+        issue -> new Issue(
+            issue.getTime().toEpochSecond(),
+            IssueSeverity.valueOf(issue.getSeverity().toString()),
+            issue.getCode(),
+            issue.getSummary(),
+            issue.getDetails(),
+            issue.getProperties()
+        )).collect(Collectors.toList());
   }
 
   @Override
   public void close() throws IOException {
-    //producer close will handle by the cache
-    this.metricContext.close();
+    // producer close will handle by the cache
+    if (this.instrumentationEnabled) {
+      this.metricContext.close();
+    }
   }
 }

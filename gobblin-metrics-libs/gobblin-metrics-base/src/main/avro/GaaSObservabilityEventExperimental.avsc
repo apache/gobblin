@@ -74,7 +74,7 @@
         "null",
         "long"
       ],
-      "doc": "Start time of the job in millis since Epoch, null if the job was never ran",
+      "doc": "Start time of the job in millis since Epoch, null if the job was never run",
       "compliance": "NONE"
     },
     {
@@ -83,7 +83,7 @@
         "null",
         "long"
       ],
-      "doc": "Finish time of the job in millis since Epoch, null if the job was never ran",
+      "doc": "Finish time of the job in millis since Epoch, null if the job was never run",
       "compliance": "NONE"
     },
     {
