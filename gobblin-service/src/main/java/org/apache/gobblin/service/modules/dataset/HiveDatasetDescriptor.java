@@ -39,12 +39,12 @@ import org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersio
 import org.apache.gobblin.util.ConfigUtils;
 
 
-@Slf4j
 /**
  * As of now, {@link HiveDatasetDescriptor} has same implementation as that of {@link SqlDatasetDescriptor}.
  * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
  * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
  */
+@Slf4j
 @EqualsAndHashCode (exclude = {"whitelistBlacklist"}, callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   static final String IS_PARTITIONED_KEY = "isPartitioned";

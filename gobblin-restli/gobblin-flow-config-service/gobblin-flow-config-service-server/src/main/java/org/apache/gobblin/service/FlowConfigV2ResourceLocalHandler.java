@@ -133,8 +133,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
         if (error.errorPriority == 0) {
           singleHopErrors.add(String.format("ERROR %s of single hop: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdSingleHop++;
-        }
-        else {
+        } else {
           multiHopErrors.add(String.format("ERROR %s of multi hop: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdMultiHop++;
         }
@@ -144,14 +143,12 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       allErrors.put("multiHopErrors", multiHopErrors);
     }
 
-
     allErrors.put("message", new ArrayList<>(Collections.singletonList(message.toString())));
     ObjectMapper mapper = new ObjectMapper();
 
     try {
       return mapper.writeValueAsString(allErrors);
-    }
-    catch (JsonProcessingException e) {
+    } catch (JsonProcessingException e) {
       log.error("Flow Spec {} errored on Json processing", flowSpec.toString(), e);
       e.printStackTrace();
     }

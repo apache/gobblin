@@ -42,12 +42,13 @@ public class DatasetDescriptorErrorUtils {
   public static final String DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST = "%s.%s is mismatched. User input for %s: '%s' is in the blacklist. Please check the provided blacklist configuration.";
 
   /**
-   * The populateErrorForDatasetDescriptorKey function will compare the submitted variables and add associated errors to the error array called from .contains
+   * The populateErrorForDatasetDescriptorKey function will compare the submitted variables and add associated errors to the error array.
    * @param errors list of errors
    * @param inputDataset whether it's the input or output
-   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the fucntion
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the function
    * @param inputDatasetDescriptorValue the property from the flow.conf
    * @param providedDatasetDescriptorValue the property from the submitted flow configuration
+   * @param testNullOnly flag that is true if we only want to test if a property is null or not
    */
   public static void populateErrorForDatasetDescriptorKey(ArrayList<String> errors, Boolean inputDataset,
       String configKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue, Boolean testNullOnly) {
@@ -62,18 +63,37 @@ public class DatasetDescriptorErrorUtils {
     }
   }
 
+  /**
+   * The populateErrorForDatasetDescriptorKeyPartition function will compare the submitted variables and add associated errors to the error array.
+   * @param errors list of errors
+   * @param inputDataset whether it's the input or output
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the function
+   * @param partitionConfigKey the subkey for the partition (e.g. partition.pattern)
+   * @param inputDatasetDescriptorValue the property from the flow.conf
+   * @param providedDatasetDescriptorValue the property from the submitted flow configuration
+   * @param testNullOnly flag that is true if we only want to test if a property is null or not
+   */
   public static void populateErrorForDatasetDescriptorKeyPartition(ArrayList<String> errors, Boolean inputDataset,
       String configKey, String partitionConfigKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue, Boolean testNullOnly) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (providedDatasetDescriptorValue == null) {
       errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISSING_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, inputDatasetDescriptorValue));
     }
+
     if (!testNullOnly && !(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(inputDatasetDescriptorValue)
         || inputDatasetDescriptorValue.equalsIgnoreCase(providedDatasetDescriptorValue))) {
       errors.add(String.format(DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_PARTITION, datasetDescriptorPrefix, configKey, partitionConfigKey, providedDatasetDescriptorValue, inputDatasetDescriptorValue));
     }
   }
 
+  /**
+   * The populateErrorForDatasetDescriptorKeyRegex function will compare the submitted variables using the regex matching method and add associated errors to the error array.
+   * @param errors list of errors
+   * @param inputDataset whether it's the input or output
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the function
+   * @param inputDatasetDescriptorValue the property from the flow.conf
+   * @param providedDatasetDescriptorValue the property from the submitted flow configuration
+   */
   public static void populateErrorForDatasetDescriptorKeyRegex(ArrayList<String> errors, Boolean inputDataset,
       String configKey, String inputDatasetDescriptorValue, String providedDatasetDescriptorValue) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
@@ -82,23 +102,43 @@ public class DatasetDescriptorErrorUtils {
     }
   }
 
+  /**
+   * The populateErrorForDatasetDescriptorKeyBlacklist function will check whether the database and/or table is in the blacklist config.
+   * @param errors list of errors
+   * @param inputDataset whether it's the input or output
+   * @param type whether it's the database or the table within a database that the function is checking
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the function
+   * @param whitelistBlacklist whitelistblacklist object for filtering hive based tables
+   * @param inputDbName the database name from the submitted flow configuration
+   * @param inputTableName the table name from the submitted flow configuration
+   */
   public static void populateErrorForDatasetDescriptorKeyBlacklist(ArrayList<String> errors, Boolean inputDataset,
-      String type, String configKey, WhitelistBlacklist whitelistBlacklist, String otherDbName, String otherTableName) {
+      String type, String configKey, WhitelistBlacklist whitelistBlacklist, String inputDbName, String inputTableName) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
-    if (type.equals("database") && !whitelistBlacklist.acceptDb(otherDbName)) {
+    if (type.equals("database") && !whitelistBlacklist.acceptDb(inputDbName)) {
       errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
-          datasetDescriptorPrefix, "database", configKey, otherDbName));
-    } else if (type.equals("table") && !whitelistBlacklist.acceptTable(otherDbName, otherTableName)) {
+          datasetDescriptorPrefix, "database", configKey, inputDbName));
+    } else if (type.equals("table") && !whitelistBlacklist.acceptTable(inputDbName, inputTableName)) {
       errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_BLACKLIST,
-          datasetDescriptorPrefix, "table", configKey, String.join(".", otherDbName, otherTableName)));
+          datasetDescriptorPrefix, "table", configKey, String.join(".", inputDbName, inputTableName)));
     }
   }
 
+  /**
+   *
+   * @param errors list of errors
+   * @param inputDataset whether it's the input or output
+   * @param configKey DatasetDescriptorConfigKeys key of the field fed into the function
+   * @param parts the list of parts after splitting using the separation character
+   * @param inputPath the path from the submitted flow configuration
+   * @param sepChar the delimiter/separation character
+   * @param size the expected size of the list of parts
+   */
   public static void populateErrorForDatasetDescriptorKeySize(ArrayList<String> errors, Boolean inputDataset,
-      String configKey, List<String> parts, String otherPath, String sepChar, int size) {
+      String configKey, List<String> parts, String inputPath, String sepChar, int size) {
     String datasetDescriptorPrefix = inputDataset ? DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX : DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX;
     if (parts.size() != size) {
-      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, configKey, otherPath, sepChar, size));
+      errors.add(String.format(DatasetDescriptorErrorUtils.DATASET_DESCRIPTOR_KEY_MISMATCH_ERROR_TEMPLATE_STRING_SPLIT, datasetDescriptorPrefix, configKey, inputPath, sepChar, size));
     }
   }
 }

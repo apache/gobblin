@@ -57,8 +57,8 @@ import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTempla
 @Slf4j
 public class StaticFlowTemplate implements FlowTemplate {
   private static final long serialVersionUID = 84641624233978L;
-  private static final String variableSubstitutionErrorPattern = ":[\\s]*Reader:[a-zA-Z\\d\\s]*:[\\s]";
-  private static final String jobTemplatePattern = "/jobs/";
+  private static final String VARIABLE_SUBSTITUTION_PATTERN = ":[\\s]*Reader:[a-zA-Z\\d\\s]*:[\\s]";
+  private static final String JOB_TEMPLATE_PATTERN = "/jobs/";
 
   @Getter
   private URI uri;
@@ -166,7 +166,7 @@ public class StaticFlowTemplate implements FlowTemplate {
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable. Throws an exception if the flow is
    * not resolvable.
    * @param userConfig User supplied Config
-   * @return
+   * @return errors through attempting to resolve job templates
    */
   @Override
   public HashMap<String, ArrayList<String>> tryResolving(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
@@ -183,16 +183,14 @@ public class StaticFlowTemplate implements FlowTemplate {
       ArrayList<String> errors = new ArrayList<>();
       try {
         this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(template).build());
-      }
-      catch (ConfigException e) {
-        errors.add(e.toString().split(variableSubstitutionErrorPattern)[1]);
-      }
-      catch (Exception e) {
+      } catch (ConfigException e) {
+        errors.add(e.toString().split(VARIABLE_SUBSTITUTION_PATTERN)[1]);
+      } catch (Exception e) {
         log.error("Encountered exception during resolving job templates", e);
       }
       // Only insert into dictionary if errors exist
       if (errors.size() != 0) {
-        String jobName = template.getUri().toString().split(jobTemplatePattern)[1];
+        String jobName = template.getUri().toString().split(JOB_TEMPLATE_PATTERN)[1];
         resolutionErrors.put(jobName, errors);
       }
     }
