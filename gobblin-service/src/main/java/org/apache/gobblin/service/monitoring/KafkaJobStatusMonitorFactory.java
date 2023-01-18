@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Objects;
-import java.util.Optional;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;

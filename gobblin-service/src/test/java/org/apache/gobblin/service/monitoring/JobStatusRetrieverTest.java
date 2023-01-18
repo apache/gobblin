@@ -20,7 +20,6 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.testng.Assert;
