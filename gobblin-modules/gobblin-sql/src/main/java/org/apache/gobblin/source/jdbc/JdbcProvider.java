@@ -18,6 +18,7 @@
 package org.apache.gobblin.source.jdbc;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.gobblin.tunnel.Tunnel;
 
@@ -30,6 +31,8 @@ import com.zaxxer.hikari.HikariDataSource;
  * @author nveeramr
  */
 public class JdbcProvider extends HikariDataSource {
+  private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
+
   private Tunnel tunnel;
 
   // If extract type is not provided then consider it as a default type
@@ -73,6 +76,7 @@ public class JdbcProvider extends HikariDataSource {
       }
     }
 
+    this.setPoolName("HikariPool-" + POOL_NUM.incrementAndGet() + "-" + getClass().getSimpleName());
     this.setDriverClassName(driver);
     this.setUsername(user);
     this.setPassword(password);

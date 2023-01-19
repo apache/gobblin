@@ -26,6 +26,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -36,6 +38,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import javax.sql.DataSource;
@@ -79,6 +82,7 @@ import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
  **/
 public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final Logger LOG = LoggerFactory.getLogger(MysqlStateStore.class);
+  private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
 
   /** Specifies which 'Job State' query columns receive search evaluation (with SQL `LIKE` operator). */
   protected enum JobStateSearchColumns {
@@ -201,6 +205,16 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     HikariDataSource dataSource = new HikariDataSource();
     PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
 
+    String jdbcUrl = config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY);
+    String poolName = "HikariPool-" + POOL_NUM.incrementAndGet() + "-" + MysqlStateStore.class.getSimpleName();
+    try {
+      String dbPath = new URI(new URI(jdbcUrl).getSchemeSpecificPart()).getPath().replaceAll("\\W", "-");
+      // when possible, attempt discernment to the DB level
+      poolName += dbPath; // as the path will begin w/ "/", following `replaceAll`, no need to prepend additional "-"
+    } catch (URISyntaxException e) {
+      LOG.warn("unable to parse JDBC URL '{}' - {}", jdbcUrl, e.getMessage());
+    }
+    dataSource.setPoolName(poolName);
     dataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
     // MySQL server can timeout a connection so need to validate connections before use
@@ -213,7 +227,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     dataSource.setConnectionTestQuery(validationQuery);
     dataSource.setAutoCommit(false);
     dataSource.setIdleTimeout(Duration.ofSeconds(60).toMillis());
-    dataSource.setJdbcUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    dataSource.setJdbcUrl(jdbcUrl);
     // TODO: revisit following verification of successful connection pool migration:
     //   whereas `o.a.commons.dbcp.BasicDataSource` defaults min idle conns to 0, hikari defaults to 10.
     //   perhaps non-zero would have desirable runtime perf, but anything >0 currently fails unit tests (even 1!);
