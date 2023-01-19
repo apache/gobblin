@@ -131,10 +131,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
 
       for (FlowSpec.CompilationError error: errors) {
         if (error.errorPriority == 0) {
-          singleHopErrors.add(String.format("ERROR %s of single hop: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          singleHopErrors.add(String.format("ERROR %s of single-step data movement: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdSingleHop++;
         } else {
-          multiHopErrors.add(String.format("ERROR %s of multi hop: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          multiHopErrors.add(String.format("ERROR %s of multi-step data movement: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
           errorIdMultiHop++;
         }
       }
