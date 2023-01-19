@@ -50,6 +50,7 @@ dependencies {
   runtimeOnly externalDependency.protobuf
 
   testCompile project(":gobblin-service")
+  testCompile project(path: ":gobblin-service", configuration: "tests")
   testCompile project(":gobblin-modules:gobblin-service-kafka")
   testCompile project(path: ":gobblin-runtime", configuration: "tests")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")

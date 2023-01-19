@@ -107,10 +107,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   private final JobIssueEventHandler jobIssueEventHandler;
-
   private final Retryer<Void> persistJobStatusRetryer;
+  private final GaaSObservabilityEventProducer eventProducer;
 
-  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler)
+
+  public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
+      GaaSObservabilityEventProducer observabilityEventProducer)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -136,6 +138,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
+        this.eventProducer = observabilityEventProducer;
   }
 
   @Override
@@ -187,14 +190,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
         if (jobStatus != null) {
           try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-            addJobStatusToStateStore(jobStatus, this.stateStore);
+            addJobStatusToStateStore(jobStatus, this.stateStore, this.eventProducer);
           }
         }
         return null;
       });
     } catch (ExecutionException ee) {
       String msg = String.format("Failed to add job status to state store for kafka offset %d", message.getOffset());
-      log.warn(msg, ee.getCause());
+      log.warn(msg, ee);
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
       throw new RuntimeException(msg, ee.getCause());
     } catch (RetryException re) {
@@ -219,7 +222,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    * @throws IOException
    */
   @VisibleForTesting
-  static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore)
+  static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore,
+      GaaSObservabilityEventProducer eventProducer)
       throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
@@ -266,6 +270,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
+      if (isNewStateTransitionToFinal(jobStatus, states)) {
+        eventProducer.emitObservabilityEvent(jobStatus);
+      }
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -286,6 +293,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       state.removeProp(TimingEvent.JOB_END_TIME);
     }
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
+  }
+
+  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+    if (prevStates.size() == 0) {
+      return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    }
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**
