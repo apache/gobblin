@@ -110,7 +110,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     Long produceTimestamp = value.getProduceTimestamp();
     String operation = value.getOperationType().name();
 
-    produceToConsumeLagValue = System.currentTimeMillis() - produceTimestamp;
+    produceToConsumeLagValue = getProduceToConsumeLag(produceTimestamp);
     log.debug("Processing message where specUri is {} tid: {} operation: {} lag: {}", key, tid, operation,
         produceToConsumeLagValue);
 
@@ -165,6 +165,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     } catch (Exception e) {
       log.warn("Ran into unexpected error processing SpecStore changes. Reexamine scheduler. Error: {}", e);
       this.unexpectedErrors.mark();
+      return;
     }
 
     specChangesSeenCache.put(changeIdentifier, changeIdentifier);

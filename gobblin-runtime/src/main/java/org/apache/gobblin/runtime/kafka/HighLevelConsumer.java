@@ -333,4 +333,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
       }
     }
   }
+
+  public Long getProduceToConsumeLag(Long produceTimestamp) {
+    return System.currentTimeMillis() - produceTimestamp;
+  }
 }

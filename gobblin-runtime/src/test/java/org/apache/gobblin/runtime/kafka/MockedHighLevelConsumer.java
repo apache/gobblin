@@ -73,4 +73,9 @@ public class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
   public void shutDown() {
     super.shutDown();
   }
+
+  @Override
+  public Long getProduceToConsumeLag(Long produceTimestamp) {
+    return 1234567890123L - produceTimestamp;
+  }
 }

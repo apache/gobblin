@@ -109,7 +109,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    produceToConsumeLagValue = System.currentTimeMillis() - produceTimestamp;
+    produceToConsumeLagValue = getProduceToConsumeLag(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
         flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeLagValue);
 
@@ -125,15 +125,18 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       try {
         dagAction = dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId).getDagActionValue();
       } catch (IOException e) {
-        log.warn("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
+        log.error("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
         this.unexpectedErrors.mark();
+        return;
       } catch (SpecNotFoundException e) {
-        log.warn("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
+        log.error("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
             flowExecutionId, e);
         this.unexpectedErrors.mark();
+        return;
       } catch (SQLException throwables) {
-        log.warn("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
+        log.error("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
         throwables.printStackTrace();
+        return;
       }
     }
 

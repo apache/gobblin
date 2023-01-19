@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
@@ -153,6 +154,14 @@ public class HighLevelConsumerTest extends KafkaTestBase {
           5000, "waiting for committing offsets", log, 2, 1000);
     }
     consumer.shutDown();
+  }
+
+  @Test
+  public void testCalculateProduceToConsumeLag() {
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigFactory.empty(),
+        NUM_PARTITIONS);
+    Long produceTimestamp = 1234567890000L;
+    Assert.assertTrue(consumer.getProduceToConsumeLag(produceTimestamp).equals(123L));
   }
 
   private List<byte[]> createByteArrayMessages() {
