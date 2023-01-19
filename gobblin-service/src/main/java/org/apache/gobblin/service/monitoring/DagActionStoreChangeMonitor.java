@@ -54,9 +54,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter resumesInvoked;
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
-  private ContextAwareGauge produceToConsumeLag;
+  private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
-  private Long produceToConsumeLagValue = -1L;
+  private volatile Long produceToConsumeDelayValue = -1L;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -103,15 +103,15 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
     String tid = value.getChangeEventIdentifier().getTxId();
-    Long produceTimestamp = value.getChangeEventIdentifier().getProduceTimestamp();
+    Long produceTimestamp = value.getChangeEventIdentifier().getProduceTimestampMillis();
     String operation = value.getChangeEventIdentifier().getOperationType().name();
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    produceToConsumeLagValue = getProduceToConsumeLag(produceTimestamp);
+    produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
-        flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeLagValue);
+        flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
@@ -135,7 +135,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
         return;
       } catch (SQLException throwables) {
         log.error("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
-        throwables.printStackTrace();
         return;
       }
     }
@@ -185,7 +184,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
-    this.produceToConsumeLag = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_LAG, () -> produceToConsumeLagValue);
+    this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
   }
 
 }

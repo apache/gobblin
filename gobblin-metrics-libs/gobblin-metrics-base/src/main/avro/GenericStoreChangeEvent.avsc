@@ -14,7 +14,7 @@
     "doc" : "ID to uniquely identify the transaction. Used for identifying duplicate messages with different timestamps for the same transaction.",
     "compliance" : "NONE"
   }, {
-    "name" : "produceTimestamp",
+    "name" : "produceTimestampMillis",
     "type" : "long",
     "doc" : "Time the change was produced to topic (separate than the time of the update to the store)",
     "compliance" : "NONE"

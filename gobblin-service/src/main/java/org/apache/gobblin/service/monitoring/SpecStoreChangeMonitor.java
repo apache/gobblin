@@ -59,9 +59,9 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter failedAddedSpecs;
   private ContextAwareMeter deletedSpecs;
   private ContextAwareMeter unexpectedErrors;
-  private ContextAwareGauge produceToConsumeLag;
+  private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
-  private Long produceToConsumeLagValue = -1L;
+  private volatile Long produceToConsumeDelayValue = -1L;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -107,12 +107,12 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
 
     String tid = value.getTxId();
-    Long produceTimestamp = value.getProduceTimestamp();
+    Long produceTimestamp = value.getProduceTimestampMillis();
     String operation = value.getOperationType().name();
 
-    produceToConsumeLagValue = getProduceToConsumeLag(produceTimestamp);
-    log.debug("Processing message where specUri is {} tid: {} operation: {} lag: {}", key, tid, operation,
-        produceToConsumeLagValue);
+    produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
+    log.debug("Processing message where specUri is {} tid: {} operation: {} delay: {}", key, tid, operation,
+        produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, specChangesSeenCache, operation,
@@ -179,6 +179,6 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
-    this.produceToConsumeLag = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_LAG, () -> produceToConsumeLagValue);
+    this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
   }
 }

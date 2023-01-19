@@ -159,9 +159,13 @@ public class HighLevelConsumerTest extends KafkaTestBase {
   @Test
   public void testCalculateProduceToConsumeLag() {
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigFactory.empty(),
-        NUM_PARTITIONS);
-    Long produceTimestamp = 1234567890000L;
-    Assert.assertTrue(consumer.getProduceToConsumeLag(produceTimestamp).equals(123L));
+        NUM_PARTITIONS) {
+      @Override public Long calcMillisSince(Long timestamp) {
+        return 1234L - timestamp;
+      }
+    };
+    Long produceTimestamp = 1000L;
+    Assert.assertTrue(consumer.calcMillisSince(produceTimestamp).equals(234L));
   }
 
   private List<byte[]> createByteArrayMessages() {
