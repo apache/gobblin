@@ -18,9 +18,7 @@ package org.apache.gobblin.runtime;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -77,6 +75,7 @@ import org.apache.gobblin.service.monitoring.GaaSObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.MockGaaSObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.NoopGaaSObservabilityEventProducer;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -732,32 +731,6 @@ public class KafkaAvroJobStatusMonitorTest {
 
         return super.parseJobStatus(event);
       }
-    }
-  }
-
-  /**
-   * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
-   * Tests can use a getter to fetch a read-only version of the events that were emitted
-   */
-  private class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
-    private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
-
-    public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
-      super(state, issueRepository, false);
-    }
-
-    @Override
-    protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
-       emittedEvents.add(event);
-    }
-
-    /**
-     * Returns the events that the mock producer has written
-     * This should only be used as a read-only object for emitted GaaSObservabilityEvents
-     * @return list of events that would have been emitted
-     */
-    public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
-      return Collections.unmodifiableList(this.emittedEvents);
     }
   }
 }

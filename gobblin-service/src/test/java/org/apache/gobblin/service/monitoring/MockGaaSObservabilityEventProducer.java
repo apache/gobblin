@@ -17,28 +17,37 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
- * The default producer for emitting GaaS Observability Events in the KafkaJobStatusMonitor
- * This class does no work and will not create or emit any events
+ * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
+ * Tests can use a getter to fetch a read-only version of the events that were emitted
  */
-public class NoopGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+  private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
 
-  public NoopGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
-    super(state, issueRepository, instrumentationEnabled);
-  }
-
-  public NoopGaaSObservabilityEventProducer() {
-    super(null, null, false);
+  public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
+    super(state, issueRepository, false);
   }
 
   @Override
-  public void emitObservabilityEvent(State jobState) {}
+  protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
+    emittedEvents.add(event);
+  }
 
-  @Override
-  protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {}
+  /**
+   * Returns the events that the mock producer has written
+   * This should only be used as a read-only object for emitted GaaSObservabilityEvents
+   * @return list of events that would have been emitted
+   */
+  public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
+    return Collections.unmodifiableList(this.emittedEvents);
+  }
 }

@@ -109,10 +109,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   private final JobIssueEventHandler jobIssueEventHandler;
-
   private final Retryer<Void> persistJobStatusRetryer;
-
   private final GaaSObservabilityEventProducer eventProducer;
+
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSObservabilityEventProducer observabilityEventProducer)
@@ -299,12 +298,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
-    Set<String> finalStates = ImmutableSet.of(ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(), ExecutionStatus.FAILED.name());
     if (prevStates.size() == 0) {
-      return finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+      return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
     }
-    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && finalStates.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-        && !finalStates.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**

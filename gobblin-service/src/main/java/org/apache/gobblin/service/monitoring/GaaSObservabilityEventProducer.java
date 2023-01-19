@@ -71,7 +71,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     }
   }
 
-  public void emitObservabilityEvent(State jobState) {
+  public void emitObservabilityEvent(final State jobState) {
     GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
   }
@@ -87,7 +87,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
    * @param jobState
    * @return GaaSObservabilityEvent
    */
-  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(State jobState) {
+  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(final State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();

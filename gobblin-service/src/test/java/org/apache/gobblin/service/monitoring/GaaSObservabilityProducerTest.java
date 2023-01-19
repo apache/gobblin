@@ -18,8 +18,6 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +54,7 @@ public class GaaSObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
-    MockGaaSObservabilityProducer producer = new MockGaaSObservabilityProducer(new State(), this.issueRepository);
+    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -89,32 +87,4 @@ public class GaaSObservabilityProducerTest {
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
     return Issue.builder().summary(summary).code(code).time(ZonedDateTime.now()).severity(severity).build();
   }
-
-  /**
-   * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
-   * Tests can use a getter to fetch a read-only version of the events that were emitted
-   */
-  private class MockGaaSObservabilityProducer extends GaaSObservabilityEventProducer {
-    private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
-
-    public MockGaaSObservabilityProducer(State state, MultiContextIssueRepository issueRepository) {
-      super(state, issueRepository, false);
-    }
-
-    @Override
-    protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
-      this.emittedEvents.add(event);
-    }
-
-
-    /**
-     * Returns the events that the mock producer has written
-     * This should only be used as a read-only object for emitted GaaSObservabilityEvents
-     * @return list of events that would have been emitted
-     */
-    public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
-      return Collections.unmodifiableList(this.emittedEvents);
-    }
-  }
-
 }
