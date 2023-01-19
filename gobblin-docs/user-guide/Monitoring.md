@@ -46,7 +46,7 @@ Gobblin also supports writing job execution information to a job execution histo
 
 ```
 job.history.store.url=jdbc:mysql://localhost/gobblin
-job.history.store.jdbc.driver=com.mysql.jdbc.Driver
+job.history.store.jdbc.driver=com.mysql.cj.jdbc.Driver
 job.history.store.user=gobblin
 job.history.store.password=gobblin
 ``` 

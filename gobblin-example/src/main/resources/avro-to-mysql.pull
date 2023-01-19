@@ -21,7 +21,7 @@ writer.destination.type=MYSQL
 writer.jdbc.batch_size=1000
 
 data.publisher.type=org.apache.gobblin.publisher.JdbcPublisher
-jdbc.publisher.driver=com.mysql.jdbc.Driver
+jdbc.publisher.driver=com.mysql.cj.jdbc.Driver
 jdbc.publisher.database_name=database_name
 jdbc.publisher.encrypt_key_loc=/cryptokey/file/path
 jdbc.publisher.username=jdbc_user_id
