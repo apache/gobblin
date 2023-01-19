@@ -34,7 +34,6 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -641,8 +640,7 @@ public class MultiHopFlowCompilerTest {
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
     Assert.assertNull(dag);
-    Assert.assertEquals(spec.getCompilationErrors().stream().map(c -> c.errorMessage).collect(Collectors.toSet()).size(), 1);
-    spec.getCompilationErrors().stream().anyMatch(s -> s.errorMessage.contains(AzkabanProjectConfig.USER_TO_PROXY));
+    Assert.assertTrue(spec.getCompilationErrors().stream().anyMatch(s -> s.errorMessage.contains(AzkabanProjectConfig.USER_TO_PROXY)));
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")

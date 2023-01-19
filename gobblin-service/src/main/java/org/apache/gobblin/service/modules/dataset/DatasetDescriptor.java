@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.dataset;
 
 import com.typesafe.config.Config;
 
+import java.util.ArrayList;
 import org.apache.gobblin.annotation.Alpha;
 
 
@@ -62,14 +63,19 @@ public interface DatasetDescriptor {
   public String getDescription();
 
   /**
-   * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
-   * datasets described by the other {@link DatasetDescriptor} is a subset of this {@link DatasetDescriptor}.
+   * @return an arraylist of errors when comparing whether the provided {@link DatasetDescriptor} contains the input {@link DatasetDescriptor}
+   * i.e. the datasets described by the other {@link DatasetDescriptor} is a subset of this {@link DatasetDescriptor}.
    * This operation is non-commutative.
    */
-  public boolean contains(DatasetDescriptor other);
+  public ArrayList<String> contains(DatasetDescriptor other);
 
   /**
    * @return the raw config.
    */
   public Config getRawConfig();
+
+  /**
+   * @return true if is input dataset.
+   */
+  public Boolean getIsInputDataset();
 }

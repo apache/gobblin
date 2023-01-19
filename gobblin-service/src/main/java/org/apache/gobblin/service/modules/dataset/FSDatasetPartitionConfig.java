@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -33,6 +34,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -42,8 +44,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * the regex pattern) is validated.
  */
 @Slf4j
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString (exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class FSDatasetPartitionConfig {
   @Getter
   private final String partitionType;
@@ -51,6 +53,8 @@ public class FSDatasetPartitionConfig {
   private final String partitionPattern;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   public enum PartitionType {
     DATETIME("datetime"),
@@ -77,8 +81,9 @@ public class FSDatasetPartitionConfig {
           .build());
 
   public FSDatasetPartitionConfig(Config config) throws IOException {
-    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
-    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
+    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX + "." + DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+
     if (partitionType.equalsIgnoreCase(PartitionType.NONE.name())) {
       partitionPattern = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
     } else if(partitionType.equalsIgnoreCase(PartitionType.ANY.name())) {
@@ -87,7 +92,8 @@ public class FSDatasetPartitionConfig {
     validatePartitionConfig(partitionType, partitionPattern);
     this.partitionType = partitionType;
     this.partitionPattern = partitionPattern;
-    this.rawConfig = config.withFallback(DEFAULT_FALLBACK);
+    this.rawConfig = ConfigUtils.getConfig(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX, DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private void validatePartitionConfig(String partitionType, String partitionPattern)
@@ -128,13 +134,10 @@ public class FSDatasetPartitionConfig {
     }
   }
 
-  public boolean contains(FSDatasetPartitionConfig other) {
-    if (other == null) {
-      return false;
-    }
-    return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
-        || this.getPartitionType().equalsIgnoreCase(other.getPartitionType())))
-        && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
-        || this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern())));
+  public ArrayList<String> contains(FSDatasetPartitionConfig inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, this.getPartitionType(), inputDatasetDescriptorConfig.getPartitionType(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyPartition(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PARTITION_PREFIX, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, this.getPartitionPattern(), inputDatasetDescriptorConfig.getPartitionPattern(), false);
+    return errors;
   }
 }

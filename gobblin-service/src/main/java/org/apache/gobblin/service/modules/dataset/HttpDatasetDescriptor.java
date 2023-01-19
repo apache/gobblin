@@ -22,12 +22,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -37,7 +38,6 @@ import org.apache.gobblin.util.ConfigUtils;
  * e.g, https://some-api:443/user/123/names, where /user/123/names is the path
  * query string is not supported
  */
-@Slf4j
 @ToString (exclude = {"rawConfig"})
 @EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
@@ -71,6 +71,7 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
     // refers to the full HTTP url
     this.path = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY, "");
     this.rawConfig = config.withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef(this.path)).withFallback(super.getRawConfig());
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   /**
@@ -83,12 +84,14 @@ public class HttpDatasetDescriptor extends BaseDatasetDescriptor implements Data
   /**
    * Check if this HTTP path equals the other HTTP path
    *
-   * @param other whose path should be in the format of a HTTP path
+   * @param inputDatasetDescriptorConfig whose path should be in the format of a HTTP path
    */
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     // Might be null
-    String otherPath = other.getPath();
-    return this.path.equals(otherPath);
+    ArrayList<String> errors = new ArrayList<>();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, false);
+    return errors;
   }
 }

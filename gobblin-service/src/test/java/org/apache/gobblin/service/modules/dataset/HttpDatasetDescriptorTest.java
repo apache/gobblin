@@ -42,14 +42,14 @@ public class HttpDatasetDescriptorTest {
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("https"))
         .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
     HttpDatasetDescriptor descriptor2 = new HttpDatasetDescriptor(config2);
-    Assert.assertTrue(descriptor2.contains(descriptor1));
+    Assert.assertEquals(descriptor2.contains(descriptor1).size(), 0);
 
     // Verify that same path but different platform points to different dataset
     Config config3 = ConfigFactory.empty()
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("http"))
         .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
     HttpDatasetDescriptor descriptor3 = new HttpDatasetDescriptor(config3);
-    Assert.assertFalse(descriptor3.contains(descriptor1));
+    Assert.assertNotEquals(descriptor3.contains(descriptor1).size(), 0);
 
   }
 }

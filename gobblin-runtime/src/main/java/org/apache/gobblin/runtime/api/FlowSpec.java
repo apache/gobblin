@@ -125,6 +125,10 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
+  public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {
+    this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage, numberOfHops));
+  }
+
   public void addCompilationError(String src, String dst, String errorMessage) {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
   }
@@ -133,6 +137,15 @@ public class FlowSpec implements Configurable, Spec {
   public static class CompilationError {
     public int errorPriority;
     public String errorMessage;
+
+    // Increment the error priority by 1 to eliminate flows with a self edge from having the same priority as a single hop flow edge.
+    // E.g. Cluster1 -> Cluster2 is the desired edge. Cluster1 -> Cluster2 would have error priority of 0, Cluster1 -> Cluster1 -> Cluster2 would have error priority of 1
+    public CompilationError(Config config, String src, String dst, String errorMessage, int numberOfHops) {
+      this(config, src, dst, errorMessage);
+      if (numberOfHops > 1) {
+        errorPriority++;
+      }
+    }
 
     public CompilationError(Config config, String src, String dst, String errorMessage) {
       errorPriority = 0;

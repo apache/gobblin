@@ -41,8 +41,8 @@ public class IcebergDatasetDescriptorTest {
     IcebergDatasetDescriptor other = new IcebergDatasetDescriptor(config1);
     IcebergDatasetDescriptor yetAnother = new IcebergDatasetDescriptor(config2);
 
-    Assert.assertTrue(current.isPathContaining(other));
-    Assert.assertFalse(current.isPathContaining(yetAnother));
+    Assert.assertEquals(current.isPathContaining(other).size(), 0);
+    Assert.assertNotEquals(current.isPathContaining(yetAnother).size(), 0);
 
   }
   private Config createDatasetDescriptorConfig(String platform, String dbName, String tableName) {

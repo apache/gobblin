@@ -41,6 +41,7 @@ public class DatasetDescriptorConfigKeys {
   public static final String IS_RETENTION_APPLIED_KEY = "isRetentionApplied";
   public static final String IS_COMPACTED_KEY = "isCompacted";
   public static final String IS_COMPACTED_AND_DEDUPED_KEY = "isCompactedAndDeduped";
+  public static final String IS_INPUT_DATASET = "isInputDataset";
 
   //Dataset encryption related keys
   public static final String ENCYPTION_PREFIX = "encrypt";

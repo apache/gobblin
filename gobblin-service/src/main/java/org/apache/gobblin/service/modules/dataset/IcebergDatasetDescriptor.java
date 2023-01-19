@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.google.common.base.Joiner;
@@ -28,6 +29,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 /**
@@ -35,7 +37,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * Fields {@link IcebergDatasetDescriptor#databaseName} and {@link IcebergDatasetDescriptor#tableName} are used to
  * identify an iceberg.
  */
-@EqualsAndHashCode(callSuper = true)
+@EqualsAndHashCode (callSuper = true)
 public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
   protected final String databaseName;
@@ -60,6 +62,7 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
       throw new IOException("Invalid iceberg database or table name: " + this.databaseName + ":" + this.tableName);
     }
     this.path = fullyQualifiedTableName(this.databaseName, this.tableName);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   protected boolean isPlatformValid() {
@@ -71,21 +74,27 @@ public class IcebergDatasetDescriptor extends BaseDatasetDescriptor {
   }
 
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
-    String otherPath = other.getPath();
-    if (otherPath == null) {
-      return false;
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
+
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    if (errors.size() != 0) {
+      return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    if (parts.size() != 2) {
-      return false;
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
+    if (errors.size() != 0) {
+      return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    return this.databaseName.equals(otherDbName) && this.tableName.equals(otherTableName);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName, false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName, false);
+    return errors;
   }
 }
