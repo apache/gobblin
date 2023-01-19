@@ -728,7 +728,6 @@ public class KafkaAvroJobStatusMonitorTest {
         int n = ++numFakeExceptionsFromParseJobStatus;
         throw new RuntimeException(String.format("BOOM! Failure [%d] w/ event at %d", n, event.getTimestamp()));
       } else {
-
         return super.parseJobStatus(event);
       }
     }
