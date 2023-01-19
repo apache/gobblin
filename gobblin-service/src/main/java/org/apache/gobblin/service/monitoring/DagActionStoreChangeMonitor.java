@@ -113,7 +113,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
         flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeLagValue);
 
-    String changeIdentifier = produceTimestamp + key;
+    String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
         produceTimestamp.toString())) {
       return;
