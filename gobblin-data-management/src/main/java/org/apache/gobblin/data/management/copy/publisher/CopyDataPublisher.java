@@ -28,9 +28,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 import org.apache.hadoop.fs.FileStatus;
@@ -95,6 +93,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final DataFileVersionStrategy srcDataFileVersionStrategy;
   protected final DataFileVersionStrategy dstDataFileVersionStrategy;
   protected final boolean preserveDirModTime;
+  protected final boolean overwriteDirOwnerAndPermission;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -132,7 +131,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     this.srcFs = HadoopUtils.getSourceFileSystem(state);
     this.srcDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, config);
     this.dstDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, config);
+    // Default to be true to preserve the original behavior
     this.preserveDirModTime = state.getPropAsBoolean(CopyConfiguration.PRESERVE_MODTIME_FOR_DIR, true);
+    this.overwriteDirOwnerAndPermission = state.getPropAsBoolean(CopyConfiguration.ALWAYS_OVERWRITE_DIR_OWNER_AND_PERMISSION, false);
   }
 
   @Override
@@ -191,14 +192,12 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
    */
   private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
-    if (!copyableFile.getFileStatus().isFile() && state.getProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, "").equals(
-        ManifestBasedDatasetFinder.class.getCanonicalName())){
+    if (copyableFile.getFileStatus().isDirectory() && this.overwriteDirOwnerAndPermission){
       FileStatus dstFile = this.fs.getFileStatus(copyableFile.getDestination());
-      // User specifically try to copy dir metadata (which should be only doable in manifest copy), so we change the group and permissions on destination even the dir already existed
-      FileAwareInputStreamDataWriter.safeSetPathPermission(this.fs, copyableFile.getDestination(),
-          FileAwareInputStreamDataWriter.addExecutePermissionsIfRequired(dstFile, copyableFile.getDestinationOwnerAndPermission()));
+      // User specifically try to copy dir metadata, so we change the group and permissions on destination even when the dir already existed
+      FileAwareInputStreamDataWriter.safeSetPathPermission(this.fs, dstFile,copyableFile.getDestinationOwnerAndPermission());
     }
-    if ((!copyableFile.getFileStatus().isFile() && preserveDirModTime) || copyableFile.getFileStatus().isFile()) {
+    if (preserveDirModTime || copyableFile.getFileStatus().isFile()) {
       // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
       if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
         fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);

@@ -85,9 +85,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CopyManifest.CopyableUnit file = manifests.next();
         Path fileToCopy = new Path(file.fileName);
         if (this.fs.exists(fileToCopy)) {
-          if (!targetFs.exists(fileToCopy) || shouldCopy(this.fs.getFileStatus(fileToCopy), targetFs.getFileStatus(fileToCopy), configuration)) {
+          boolean existOnTarget = targetFs.exists(fileToCopy);
+          FileStatus srcFile = this.fs.getFileStatus(fileToCopy);
+          if (!existOnTarget || shouldCopy(srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
             CopyableFile copyableFile =
-                CopyableFile.fromOriginAndDestination(this.fs, this.fs.getFileStatus(fileToCopy), fileToCopy, configuration)
+                CopyableFile.fromOriginAndDestination(this.fs, srcFile, fileToCopy, configuration)
                     .fileSet(datasetURN())
                     .datasetOutputPath(fileToCopy.toString())
                     .ancestorsOwnerAndPermission(CopyableFile
@@ -96,12 +98,17 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
                     .build();
             copyableFile.setFsDatasets(this.fs, targetFs);
             copyEntities.add(copyableFile);
+            if (existOnTarget && srcFile.isFile()) {
+              // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
+              // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
+              toDelete.add(targetFs.getFileStatus(fileToCopy));
+            }
           }
         } else if (this.deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
-      if (this.deleteFileThatNotExistOnSource) {
+      if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
@@ -124,28 +131,14 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   }
 
   private static boolean shouldCopy(FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration) {
-    if (fileInSource.isDirectory()) {
-      // If dir is specified in the manifest, we blindly syn them on the metadata without concerning the mod time
-      return true;
+    if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
+      // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
+      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fileInSource, copyConfiguration);
+      return !replicatedPermission.isHavingSameOwnerAndPermission(fileInTarget);
     }
     if (fileInSource.getModificationTime() > fileInTarget.getModificationTime()) {
       // We always copy file if source has a newer version
       return true;
-    }
-    if (fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
-      // if source and dst has same version, we compare the permission to determine whether it needs another sync
-      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fileInSource, copyConfiguration);
-      boolean needCopy = false;
-      if (replicatedPermission.getGroup() != null ) {
-        needCopy = !fileInTarget.getGroup().equals(replicatedPermission.getGroup());
-      }
-      if(replicatedPermission.getOwner() != null) {
-        needCopy = needCopy || !replicatedPermission.getOwner().equals(fileInTarget.getOwner());
-      }
-      if(replicatedPermission.getFsPermission() != null) {
-        needCopy = needCopy || !replicatedPermission.getFsPermission().equals(fileInTarget.getPermission());
-      }
-      return needCopy;
     }
     // We will never copy file if dst has a newer version
     return false;
