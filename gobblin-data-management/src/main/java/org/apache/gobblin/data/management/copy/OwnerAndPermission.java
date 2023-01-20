@@ -74,19 +74,19 @@ public class OwnerAndPermission implements Writable {
    * @param file the file status that need to be evaluated
    * @return true if the metadata for the file match the current owner and permission
    */
-  public boolean isHavingSameOwnerAndPermission(FileStatus file) {
-    return this.isHavingSameFSPermission(file) && this.isHavingSameGroup(file) && this.isHavingSameOwner(file);
+  public boolean hasSameOwnerAndPermission(FileStatus file) {
+    return this.hasSameFSPermission(file) && this.hasSameGroup(file) && this.hasSameOwner(file);
   }
 
-  private boolean isHavingSameGroup(FileStatus file) {
+  private boolean hasSameGroup(FileStatus file) {
     return this.group == null || file.getGroup().equals(this.group);
   }
 
-  private boolean isHavingSameOwner(FileStatus file) {
+  private boolean hasSameOwner(FileStatus file) {
     return this.owner == null || file.getOwner().equals(this.owner);
   }
 
-  private boolean isHavingSameFSPermission(FileStatus file) {
+  private boolean hasSameFSPermission(FileStatus file) {
     return this.fsPermission == null || file.getPermission().equals(this.fsPermission);
   }
 }
