@@ -23,12 +23,14 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -42,8 +44,8 @@ import org.apache.gobblin.util.ConfigUtils;
  *  </ul>
  */
 @Alpha
-@ToString (exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString (exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class FormatConfig {
   @Getter
   private final String format;
@@ -53,6 +55,8 @@ public class FormatConfig {
   private final EncryptionConfig encryptionConfig;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -67,24 +71,30 @@ public class FormatConfig {
         .empty()));
     this.rawConfig = config.withFallback(this.encryptionConfig.getRawConfig().atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX)).
         withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
-  public boolean contains(FormatConfig other) {
-    return containsFormat(other.getFormat()) && containsCodec(other.getCodecType())
-        && containsEncryptionConfig(other.getEncryptionConfig());
+  public ArrayList<String> contains(FormatConfig inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    errors.addAll(containsFormat(inputDatasetDescriptorConfig.getFormat(), inputDatasetDescriptorConfig.getIsInputDataset()));
+    errors.addAll(containsCodec(inputDatasetDescriptorConfig.getCodecType(), inputDatasetDescriptorConfig.getIsInputDataset()));
+    errors.addAll(containsEncryptionConfig(inputDatasetDescriptorConfig.getEncryptionConfig()));
+    return errors;
   }
 
-  private boolean containsFormat(String otherFormat) {
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getFormat())
-        || (this.getFormat().equalsIgnoreCase(otherFormat));
+  private ArrayList<String> containsFormat(String inputDatasetDescriptorConfigFormat, Boolean inputDataset) {
+    ArrayList<String> errors = new ArrayList<>();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.FORMAT_KEY, this.getFormat(), inputDatasetDescriptorConfigFormat, false);
+    return errors;
   }
 
-  private boolean containsCodec(String otherCodecType) {
-    return DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getCodecType())
-        || (this.getCodecType().equalsIgnoreCase(otherCodecType));
+  private ArrayList<String> containsCodec(String inputDatasetDescriptorConfigCodecType, Boolean inputDataset) {
+    ArrayList<String> errors = new ArrayList<>();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDataset, DatasetDescriptorConfigKeys.CODEC_KEY, this.getCodecType(), inputDatasetDescriptorConfigCodecType, false);
+    return errors;
   }
 
-  private boolean containsEncryptionConfig(EncryptionConfig otherEncryptionConfig) {
-    return this.getEncryptionConfig().contains(otherEncryptionConfig);
+  private ArrayList<String> containsEncryptionConfig(EncryptionConfig inputDatasetDescriptorConfigEncryptionConfig) {
+    return this.getEncryptionConfig().contains(inputDatasetDescriptorConfigEncryptionConfig);
   }
 }

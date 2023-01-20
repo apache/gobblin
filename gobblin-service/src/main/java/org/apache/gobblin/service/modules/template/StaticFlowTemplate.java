@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -56,6 +57,8 @@ import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTempla
 @Slf4j
 public class StaticFlowTemplate implements FlowTemplate {
   private static final long serialVersionUID = 84641624233978L;
+  private static final String VARIABLE_SUBSTITUTION_PATTERN = ":[\\s]*Reader:[a-zA-Z\\d\\s]*:[\\s]";
+  private static final String JOB_TEMPLATE_PATTERN = "/jobs/";
 
   @Getter
   private URI uri;
@@ -129,11 +132,9 @@ public class StaticFlowTemplate implements FlowTemplate {
         DatasetDescriptor outputDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(outputDescriptorConfig);
 
         if (resolvable) {
-          try {
-            tryResolving(userConfig, inputDescriptor, outputDescriptor);
+          HashMap<String, ArrayList<String>> errors = tryResolving(userConfig, inputDescriptor, outputDescriptor);
+          if (errors.size() == 0) {
             result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
-          } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
-            // Dataset descriptor cannot be resolved so don't add it to result
           }
         } else {
           result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
@@ -165,19 +166,35 @@ public class StaticFlowTemplate implements FlowTemplate {
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable. Throws an exception if the flow is
    * not resolvable.
    * @param userConfig User supplied Config
+   * @return errors through attempting to resolve job templates
    */
   @Override
-  public void tryResolving(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
-      throws SpecNotFoundException, JobTemplate.TemplateException {
+  public HashMap<String, ArrayList<String>> tryResolving(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
     Config inputDescriptorConfig = inputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
     Config outputDescriptorConfig = outputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
+
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
 
     JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(userConfig);
 
+    HashMap<String, ArrayList<String>> resolutionErrors = new HashMap<>();
+
     for (JobTemplate template: this.jobTemplates) {
-      this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(template).build());
+      ArrayList<String> errors = new ArrayList<>();
+      try {
+        this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(template).build());
+      } catch (ConfigException e) {
+        errors.add(e.toString().split(VARIABLE_SUBSTITUTION_PATTERN)[1]);
+      } catch (Exception e) {
+        log.error("Encountered exception during resolving job templates", e);
+      }
+      // Only insert into dictionary if errors exist
+      if (errors.size() != 0) {
+        String jobName = template.getUri().toString().split(JOB_TEMPLATE_PATTERN)[1];
+        resolutionErrors.put(jobName, errors);
+      }
     }
+    return resolutionErrors;
   }
 
   @Override

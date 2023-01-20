@@ -40,6 +40,24 @@ Apache Gobblin is a highly scalable data management solution for structured and 
 If building the distribution with tests turned on:
 * Maven version 3.5.3 
 
+# Instructions to download gradle wrapper
+If you are going to build Gobblin from the source distribution,
+run the following command for downloading the gradle-wrapper.jar from Gobblin git repository to gradle/wrapper directory
+(replace GOBBLIN_VERSION in the URL with the version you downloaded).
+
+```
+wget --no-check-certificate -P gradle/wrapper https://github.com/apache/gobblin/raw/${GOBBLIN_VERSION}/gradle/wrapper/gradle-wrapper.jar
+```
+(or)
+```
+curl --insecure -L https://github.com/apache/gobblin/raw/${GOBBLIN_VERSION}/gradle/wrapper/gradle-wrapper.jar > gradle/wrapper/gradle-wrapper.jar
+```
+
+Alternatively, you can download it manually from:
+`https://github.com/apache/gobblin/blob/${GOBBLIN_VERSION}/gradle/wrapper/gradle-wrapper.jar`
+
+Make sure that you download it to gradle/wrapper directory.
+
 # Instructions to run Apache RAT (Release Audit Tool)
 1. Extract the archive file to your local directory.
 2. Run `./gradlew rat`. Report will be generated under build/rat/rat-report.html

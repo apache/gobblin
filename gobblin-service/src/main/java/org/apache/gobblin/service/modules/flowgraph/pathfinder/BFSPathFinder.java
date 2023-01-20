@@ -75,6 +75,8 @@ public class BFSPathFinder extends AbstractPathFinder {
   public List<FlowEdgeContext> findPathUnicast(DataNode destNode) {
     //Initialization of auxiliary data structures used for path computation
     this.pathMap = new HashMap<>();
+    int numberOfHops = 1;
+    LinkedList<FlowEdgeContext> childQueue = new LinkedList<>();
 
     //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
     // flow graph.
@@ -86,12 +88,12 @@ public class BFSPathFinder extends AbstractPathFinder {
     }
 
     //Base condition 2: Check if we are already at the target. If so, return an empty path.
-    if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
+    if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor).size() == 0) {
       return new ArrayList<>(0);
     }
 
     LinkedList<FlowEdgeContext> edgeQueue =
-        new LinkedList<>(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor));
+        new LinkedList<>(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor, numberOfHops));
     for (FlowEdgeContext flowEdgeContext : edgeQueue) {
       this.pathMap.put(flowEdgeContext, flowEdgeContext);
     }
@@ -102,29 +104,35 @@ public class BFSPathFinder extends AbstractPathFinder {
     //    2. check if the output dataset descriptor of edge E is compatible with the input dataset descriptor of the
     //       edge E'. If yes, add the edge E' to the edge queue.
     // If the edge E' satisfies 1 and 2, add it to the edge queue for further consideration.
-    while (!edgeQueue.isEmpty()) {
-      FlowEdgeContext flowEdgeContext = edgeQueue.pop();
+    do {
+      numberOfHops++;
+      while (!edgeQueue.isEmpty()) {
+        FlowEdgeContext flowEdgeContext = edgeQueue.pop();
 
-      DataNode currentNode = this.flowGraph.getNode(flowEdgeContext.getEdge().getDest());
-      DatasetDescriptor currentOutputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
+        DataNode currentNode = this.flowGraph.getNode(flowEdgeContext.getEdge().getDest());
+        DatasetDescriptor currentOutputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
 
-      //Are we done?
-      if (isPathFound(currentNode, destNode, currentOutputDatasetDescriptor, destDatasetDescriptor)) {
-        return constructPath(flowEdgeContext);
-      }
+        //Are we done?
+        if (isPathFound(currentNode, destNode, currentOutputDatasetDescriptor, destDatasetDescriptor)) {
+          return constructPath(flowEdgeContext);
+        }
 
-      //Expand the currentNode to its adjacent edges and add them to the queue.
-      List<FlowEdgeContext> nextEdges =
-          getNextEdges(currentNode, currentOutputDatasetDescriptor, destDatasetDescriptor);
-      for (FlowEdgeContext childFlowEdgeContext : nextEdges) {
-        //Add a pointer from the child edge to the parent edge, if the child edge is not already in the
-        // queue.
-        if (!this.pathMap.containsKey(childFlowEdgeContext)) {
-          edgeQueue.add(childFlowEdgeContext);
-          this.pathMap.put(childFlowEdgeContext, flowEdgeContext);
+        //Expand the currentNode to its adjacent edges and add them to the queue.
+        List<FlowEdgeContext> nextEdges = getNextEdges(currentNode, currentOutputDatasetDescriptor, destDatasetDescriptor, numberOfHops);
+        for (FlowEdgeContext childFlowEdgeContext : nextEdges) {
+          //Add a pointer from the child edge to the parent edge, if the child edge is not already in the
+          // queue.
+          if (!this.pathMap.containsKey(childFlowEdgeContext)) {
+            childQueue.add(childFlowEdgeContext);
+            this.pathMap.put(childFlowEdgeContext, flowEdgeContext);
+          }
         }
       }
-    }
+      if (!childQueue.isEmpty()) {
+        edgeQueue.addAll(childQueue);
+        childQueue.clear();
+      }
+    } while (!edgeQueue.isEmpty());
     //No path found. Return null.
     return null;
   }

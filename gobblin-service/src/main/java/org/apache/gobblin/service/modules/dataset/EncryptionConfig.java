@@ -24,17 +24,19 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
-@ToString(exclude = {"rawConfig"})
-@EqualsAndHashCode (exclude = {"rawConfig"})
+@ToString(exclude = {"rawConfig", "isInputDataset"})
+@EqualsAndHashCode (exclude = {"rawConfig", "isInputDataset"})
 public class EncryptionConfig {
   @Getter
   private final String encryptionAlgorithm;
@@ -48,6 +50,8 @@ public class EncryptionConfig {
   private final String keystoreEncoding;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   public enum  EncryptionLevel {
     FILE("file"),
@@ -98,6 +102,7 @@ public class EncryptionConfig {
       validate(this.encryptionLevel, this.encryptedFields);
     }
     this.rawConfig = encryptionConfig.withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(encryptionConfig, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private void validate(String encryptionLevel, String encryptedFields) throws IOException {
@@ -124,26 +129,15 @@ public class EncryptionConfig {
     return;
   }
 
-  public boolean contains(EncryptionConfig other) {
-    if (other == null) {
-      return false;
-    }
+  public ArrayList<String> contains(EncryptionConfig inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
 
-    String otherEncryptionAlgorithm = other.getEncryptionAlgorithm();
-    String otherKeystoreType = other.getKeystoreType();
-    String otherKeystoreEncoding = other.getKeystoreEncoding();
-    String otherEncryptionLevel = other.getEncryptionLevel();
-    String otherEncryptedFields = other.getEncryptedFields();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, this.getEncryptionAlgorithm(), inputDatasetDescriptorConfig.getEncryptionAlgorithm(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, this.getKeystoreType(), inputDatasetDescriptorConfig.getKeystoreType(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, this.getKeystoreEncoding(), inputDatasetDescriptorConfig.getKeystoreEncoding(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, this.getEncryptionLevel(), inputDatasetDescriptorConfig.getEncryptionLevel(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, this.getEncryptedFields(), inputDatasetDescriptorConfig.getEncryptedFields(), false);
 
-    return (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionAlgorithm())
-        || this.encryptionAlgorithm.equalsIgnoreCase(otherEncryptionAlgorithm))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreType())
-        || this.keystoreType.equalsIgnoreCase(otherKeystoreType))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getKeystoreEncoding())
-        || this.keystoreEncoding.equalsIgnoreCase(otherKeystoreEncoding))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptionLevel())
-        || this.encryptionLevel.equalsIgnoreCase(otherEncryptionLevel))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
-        || this.encryptedFields.equalsIgnoreCase(otherEncryptedFields));
+    return errors;
   }
 }

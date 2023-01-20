@@ -18,8 +18,8 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Joiner;
@@ -31,14 +31,13 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 
-@Slf4j
 @ToString (exclude = {"rawConfig"})
 @EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
@@ -81,6 +80,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     this.tableName = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.TABLE_KEY, ".*");
     this.path = fullyQualifiedTableName(this.databaseName, this.tableName);
     this.rawConfig = config.withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef(this.path)).withFallback(super.getRawConfig());
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   private String fullyQualifiedTableName(String databaseName, String tableName) {
@@ -101,28 +101,34 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    * NOTE: otherPath cannot be a globPattern. So:
    * isPathContaining("test_db.*;test_table_*") = false
    *
-   * @param other whose path should be in the format of dbName.tableName
+   * @param inputDatasetDescriptorConfig whose path should be in the format of dbName.tableName
    */
   @Override
-  protected boolean isPathContaining(DatasetDescriptor other) {
-    String otherPath = other.getPath();
-    if (otherPath == null) {
-      return false;
+  protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    String otherPath = inputDatasetDescriptorConfig.getPath();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, true);
+    if (errors.size() != 0) {
+      return errors;
     }
 
     if (PathUtils.GLOB_TOKENS.matcher(otherPath).find()) {
-      return false;
+      return errors;
     }
 
     //Extract the dbName and tableName from otherPath
     List<String> parts = Splitter.on(SEPARATION_CHAR).splitToList(otherPath);
-    if (parts.size() != 2) {
-      return false;
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeySize(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, parts, otherPath, SEPARATION_CHAR, 2);
+    if (errors.size() != 0) {
+      return errors;
     }
 
     String otherDbName = parts.get(0);
     String otherTableName = parts.get(1);
 
-    return Pattern.compile(this.databaseName).matcher(otherDbName).matches() && Pattern.compile(this.tableName).matcher(otherTableName).matches();
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyRegex(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.DATABASE_KEY, this.databaseName, otherDbName);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKeyRegex(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.TABLE_KEY, this.tableName, otherTableName);
+
+    return errors;
   }
 }

@@ -53,7 +53,7 @@
           "SUCCEEDED",
           "COMPILATION_FAILURE",
           "SUBMISSION_FAILURE",
-          "EXEUCTION_FAILURE",
+          "EXECUTION_FAILURE",
           "CANCELLED"
         ],
         "doc": "Final job status for this job in the GaaS flow",
@@ -70,14 +70,20 @@
     },
     {
       "name": "jobStartTime",
-      "type": "long",
-      "doc": "Start time of the job in millis since Epoch",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Start time of the job in millis since Epoch, null if the job was never run",
       "compliance": "NONE"
     },
     {
       "name": "jobEndTime",
-      "type": "long",
-      "doc": "Finish time of the job in millis since Epoch",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Finish time of the job in millis since Epoch, null if the job was never run",
       "compliance": "NONE"
     },
     {

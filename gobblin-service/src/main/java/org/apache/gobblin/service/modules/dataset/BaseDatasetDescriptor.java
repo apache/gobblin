@@ -23,15 +23,17 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import java.util.ArrayList;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
-@EqualsAndHashCode (exclude = {"description", "rawConfig"})
-@ToString (exclude = {"description", "rawConfig"})
+@EqualsAndHashCode (exclude = {"description", "rawConfig", "isInputDataset"})
+@ToString (exclude = {"description", "rawConfig", "isInputDataset"})
 public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final String platform;
@@ -43,6 +45,8 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   private final String description;
   @Getter
   private final Config rawConfig;
+  @Getter
+  protected Boolean isInputDataset;
 
   private static final Config DEFAULT_FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
@@ -57,37 +61,33 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
     this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
     this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
+    this.isInputDataset = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_INPUT_DATASET, false);
   }
 
   /**
    * {@inheritDoc}
    */
-  protected abstract boolean isPathContaining(DatasetDescriptor other);
+  protected abstract ArrayList<String> isPathContaining(DatasetDescriptor other);
 
   /**
    * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
    * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other
    * {@link DatasetDescriptor}. This operation is non-commutative.
-   * @param other
+   * @param inputDatasetDescriptorConfig This is the flow configuration that is sent in from user side and is compared against the flowgraph edges.
    */
   @Override
-  public boolean contains(DatasetDescriptor other) {
-    if (this == other) {
-      return true;
+  public ArrayList<String> contains(DatasetDescriptor inputDatasetDescriptorConfig) {
+    ArrayList<String> errors = new ArrayList<>();
+    if (this == inputDatasetDescriptorConfig) {
+      return errors;
     }
 
-    if (other == null || !getClass().equals(other.getClass())) {
-      return false;
-    }
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.CLASS_KEY, this.getClass().toString(), inputDatasetDescriptorConfig.getClass().toString(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PLATFORM_KEY, this.getPlatform(), inputDatasetDescriptorConfig.getPlatform(), false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, String.valueOf(this.isRetentionApplied()), String.valueOf(inputDatasetDescriptorConfig.isRetentionApplied()), false);
 
-    if (this.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
-      return false;
-    }
-
-    if ((this.isRetentionApplied() != other.isRetentionApplied())) {
-      return false;
-    }
-
-    return isPathContaining(other) && getFormatConfig().contains(other.getFormatConfig());
+    errors.addAll(isPathContaining(inputDatasetDescriptorConfig));
+    errors.addAll(getFormatConfig().contains(inputDatasetDescriptorConfig.getFormatConfig()));
+    return errors;
   }
 }
