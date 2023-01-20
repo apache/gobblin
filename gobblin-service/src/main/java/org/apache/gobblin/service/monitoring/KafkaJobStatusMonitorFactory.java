@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.util.ConfigUtils;
@@ -50,6 +51,11 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final boolean instrumentationEnabled;
 
   @Inject
+  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
+      GobblinInstanceEnvironment env) {
+    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled());
+  }
+
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
       boolean instrumentationEnabled) {
     this.config = Objects.requireNonNull(config);
