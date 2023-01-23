@@ -19,6 +19,7 @@ package org.apache.gobblin.metastore;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,9 +37,11 @@ import org.apache.gobblin.util.jdbc.MysqlDataSourceUtils;
  */
 public class JobHistoryDataSourceProvider extends org.apache.gobblin.util.jdbc.DataSourceProvider {
   private static final Logger LOG = LoggerFactory.getLogger(JobHistoryDataSourceProvider.class);
+  private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
 
   @Inject
   public JobHistoryDataSourceProvider(@Named("dataSourceProperties") Properties properties) {
+    this.dataSource.setPoolName("HikariPool-" + POOL_NUM.incrementAndGet() + "-" + getClass().getSimpleName());
     this.dataSource.setDriverClassName(properties.getProperty(ConfigurationKeys.JOB_HISTORY_STORE_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_JOB_HISTORY_STORE_JDBC_DRIVER));
 

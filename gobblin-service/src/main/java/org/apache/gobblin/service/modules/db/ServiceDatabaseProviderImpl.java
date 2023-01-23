@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.db;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceDatabaseProviderImpl.class);
+  private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
 
   private final Configuration configuration;
   private HikariDataSource dataSource;
@@ -62,6 +64,7 @@ public class ServiceDatabaseProviderImpl implements ServiceDatabaseProvider {
 
     dataSource = new HikariDataSource();
 
+    dataSource.setPoolName("HikariPool-" + POOL_NUM.incrementAndGet() + "-" + getClass().getSimpleName());
     dataSource.setJdbcUrl(configuration.getUrl());
     dataSource.setUsername(configuration.getUserName());
     dataSource.setPassword(configuration.getPassword());
