@@ -397,7 +397,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * The method makes sure it always grants execute permissions for an owner if the <code>file</code> passed is a
    * directory. The publisher needs it to publish it to the final directory and list files under this directory.
    */
-  public static OwnerAndPermission setOwnerExecuteBitIfDirectory(FileStatus file,
+  private static OwnerAndPermission setOwnerExecuteBitIfDirectory(FileStatus file,
       OwnerAndPermission ownerAndPermission) {
 
     if (ownerAndPermission.getFsPermission() == null) {
