@@ -26,6 +26,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -65,5 +66,27 @@ public class OwnerAndPermission implements Writable {
     OwnerAndPermission oap = new OwnerAndPermission();
     oap.readFields(input);
     return oap;
+  }
+
+  /**
+   * given a file, return whether the metadata for the file match the current owner and permission
+   * note: if field is null, we always think it's match as no update needed.
+   * @param file the file status that need to be evaluated
+   * @return true if the metadata for the file match the current owner and permission
+   */
+  public boolean hasSameOwnerAndPermission(FileStatus file) {
+    return this.hasSameFSPermission(file) && this.hasSameGroup(file) && this.hasSameOwner(file);
+  }
+
+  private boolean hasSameGroup(FileStatus file) {
+    return this.group == null || file.getGroup().equals(this.group);
+  }
+
+  private boolean hasSameOwner(FileStatus file) {
+    return this.owner == null || file.getOwner().equals(this.owner);
+  }
+
+  private boolean hasSameFSPermission(FileStatus file) {
+    return this.fsPermission == null || file.getPermission().equals(this.fsPermission);
   }
 }
