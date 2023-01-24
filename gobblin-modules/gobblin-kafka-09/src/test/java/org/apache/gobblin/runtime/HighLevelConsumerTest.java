@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
@@ -153,6 +154,26 @@ public class HighLevelConsumerTest extends KafkaTestBase {
           5000, "waiting for committing offsets", log, 2, 1000);
     }
     consumer.shutDown();
+  }
+
+  @Test
+  public void testCalculateProduceToConsumeLag() {
+    Properties consumerProps = new Properties();
+    consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
+    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps),
+        NUM_PARTITIONS) {
+      @Override public Long calcMillisSince(Long timestamp) {
+        return 1234L - timestamp;
+      }
+    };
+    Long produceTimestamp = 1000L;
+    Assert.assertTrue(consumer.calcMillisSince(produceTimestamp).equals(234L));
   }
 
   private List<byte[]> createByteArrayMessages() {
