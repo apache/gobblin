@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.metrics.reporter;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Queue;
@@ -30,8 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nullable;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -50,6 +45,10 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import javax.annotation.Nullable;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
@@ -141,7 +140,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
    */
   public void addEventToReportingQueue(GobblinTrackingEvent event) {
     if (this.reportingQueue.size() > this.queueCapacity * 2 / 3) {
-      log.info("Trigger immediate run to report the event since queue is almost full");
+      log.debug("Trigger immediate run to report the event since queue is almost full");
       immediatelyScheduleReport();
     }
     try {
