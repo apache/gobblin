@@ -19,7 +19,9 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.apache.commons.lang.StringUtils;
@@ -382,6 +384,7 @@ final class SafeDatasetCommit implements Callable<Void> {
   }
 
   private void finalizeDatasetState(JobState.DatasetState datasetState, String datasetUrn) {
+    Set<String> taskErrors = new HashSet<>();
     for (TaskState taskState : datasetState.getTaskStates()) {
       // Backoff the actual high watermark to the low watermark for each task that has not been committed
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
@@ -393,13 +396,16 @@ final class SafeDatasetCommit implements Callable<Void> {
           // 2. Otherwise, the processing of the dataset is considered successful even if some tasks for the
           //    dataset failed to be committed.
           datasetState.setState(JobState.RunningState.FAILED);
-          Optional<String> taskStateException = taskState.getTaskFailureException();
-          log.warn("At least one task did not committed successfully. Setting dataset state to FAILED. {}",
-              taskStateException.isPresent() ? taskStateException.get() : "Exception not set.");
+          String taskStateException = taskState.getTaskFailureException().isPresent() ? taskState.getTaskFailureException().get() : "Could not get exception.";
+          // Only print out the unique exceptions to avoid needless logging duplication on large datasets
+          if (taskErrors.contains(taskStateException)) {
+            taskErrors.add(taskStateException);
+            log.warn("At least one task in {} did not committed successfully. Setting dataset state to FAILED. {}", datasetUrn,
+                taskStateException);
+          }
         }
       }
     }
-
     datasetState.setId(datasetUrn);
   }
 
