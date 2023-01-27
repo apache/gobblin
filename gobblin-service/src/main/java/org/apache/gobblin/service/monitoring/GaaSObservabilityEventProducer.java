@@ -57,7 +57,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected MetricContext metricContext;
   protected State state;
   protected MultiContextIssueRepository issueRepository;
-  boolean instrumentationEnabled;
+  protected boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
 
   public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
