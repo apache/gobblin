@@ -203,8 +203,9 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     if (FlowCatalog.isCompileSuccessful(response) && this.userQuotaManager.isPresent() && !flowSpec.isExplain() &&
-        (!flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
+        flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       try {
+        // We only check quota for adhoc flow, since we don't have the execution id for run-immediately flow
         userQuotaManager.get().checkQuota(dag.getStartNodes());
       } catch (IOException e) {
         throw new RuntimeException(e);
