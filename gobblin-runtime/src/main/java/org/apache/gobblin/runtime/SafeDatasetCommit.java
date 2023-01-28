@@ -319,7 +319,7 @@ final class SafeDatasetCommit implements Callable<Void> {
         datasetState.setState(JobState.RunningState.FAILED);
         datasetState.incrementJobFailures();
         Optional<String> taskStateException = taskState.getTaskFailureException();
-        log.warn("At least one task did not committed successfully. Setting dataset state to FAILED. "
+        log.warn("At least one task did not get committed successfully. Setting dataset state to FAILED. "
             + (taskStateException.isPresent() ? taskStateException.get() : "Exception not set."));
         return;
       }
@@ -396,11 +396,11 @@ final class SafeDatasetCommit implements Callable<Void> {
           // 2. Otherwise, the processing of the dataset is considered successful even if some tasks for the
           //    dataset failed to be committed.
           datasetState.setState(JobState.RunningState.FAILED);
-          String taskStateException = taskState.getTaskFailureException().isPresent() ? taskState.getTaskFailureException().get() : "Could not get exception.";
+          String taskStateException = taskState.getTaskFailureException().isPresent() ? taskState.getTaskFailureException().get() : "Exception not set.";
           // Only print out the unique exceptions to avoid needless logging duplication on large datasets
-          if (taskErrors.contains(taskStateException)) {
+          if (!taskErrors.contains(taskStateException)) {
             taskErrors.add(taskStateException);
-            log.warn("At least one task in {} did not committed successfully. Setting dataset state to FAILED. {}", datasetUrn,
+            log.warn("At least one task in {} did not get committed successfully. Setting dataset state to FAILED. {}", datasetUrn,
                 taskStateException);
           }
         }
