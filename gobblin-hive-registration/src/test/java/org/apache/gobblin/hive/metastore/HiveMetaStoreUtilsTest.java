@@ -20,12 +20,18 @@ package org.apache.gobblin.hive.metastore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.metastore.api.*;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Order;
+import org.apache.hadoop.hive.metastore.api.SerDeInfo;
+import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
@@ -211,5 +217,121 @@ public class HiveMetaStoreUtilsTest {
     Assert.assertEquals(fieldA.getName(), "testName");
     Assert.assertEquals(fieldA.getType(), "int");
 
+  }
+
+  @Test
+  public void testContainsUnionType_AvroSucceeds() {
+    final State serdeProps = new State();
+    final String avroSchema = "{\"type\": \"record\", \"name\": \"TestEvent\",\"namespace\": \"test.namespace\", \"fields\": [{\"name\":\"fieldName\", \"type\": %s}]}";
+    Consumer<String> assertContainsNonOptionalUnionType = fieldType -> {
+      serdeProps.setProp("avro.schema.literal", String.format(avroSchema, fieldType));
+      HiveTable hiveTable = createTestHiveTable_Avro(serdeProps);
+      Assert.assertEquals(hiveTable.getColumns().size(), 1);
+      Assert.assertTrue(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+    };
+
+    assertContainsNonOptionalUnionType.accept("[\"string\", \"int\"]");
+    assertContainsNonOptionalUnionType.accept("[\"string\", \"int\", \"null\"]");
+    assertContainsNonOptionalUnionType.accept("[{\"type\":\"map\",\"values\":[\"boolean\",\"null\", {\"type\": \"array\", \"items\":\"string\"}]},\"null\"]");
+  }
+
+  @Test
+  public void testContainsUnionType_AvroFails() {
+    final State serdeProps = new State();
+    serdeProps.setProp("avro.schema.literal", "{\"type\": \"record\", \"name\": \"TestEvent\",\"namespace\": \"test.namespace\", "
+        + "\"fields\": ["
+            + "{\"name\":\"someString\", \"type\": \"string\"}, "
+            + "{\"name\":\"aNullableInt\", \"type\": [\"null\", \"int\"]},"
+            + "{\"name\":\"nonNullableInt\", \"type\": [\"int\"]},"
+            + "{\"name\":\"nonArray\", \"type\": [{\"type\": \"array\", \"items\":{\"type\":\"map\",\"values\":\"string\"}}]}"
+        + "]}");
+
+    HiveTable hiveTable = createTestHiveTable_Avro(serdeProps);
+    Assert.assertEquals(hiveTable.getColumns().size(), 4);
+
+    Assert.assertFalse(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+  }
+
+  @Test
+  public void testContainsUnionType_AvroNoSchemaLiteral() {
+    HiveTable table = new HiveTable.Builder().withDbName("db").withTableName("tb").build();
+    Assert.assertThrows(RuntimeException.class, () -> HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(table));
+  }
+
+  @Test
+  public void testContainsUnionType_OrcUnionType() {
+    final State serdeProps = new State();
+    serdeProps.setProp("columns", "someInt,someString,someMap,someUT");
+    // NOTE: unlike in avro, all values in ORC are nullable, so it's not necessary to test null permutations
+    serdeProps.setProp("columns.types", "bigint,string,map<string,string>,uniontype<string,int>");
+
+    HiveTable hiveTable = createTestHiveTable_ORC(serdeProps);
+    Assert.assertEquals(hiveTable.getColumns().size(), 4);
+
+    Assert.assertTrue(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+  }
+
+  @Test
+  public void testContainsUnionType_OrcNestedValue() {
+    final State serdeProps = new State();
+    serdeProps.setProp("columns", "nestedNonOptionalUT");
+    serdeProps.setProp("columns.types", "map<string,array<struct<i:int,someUT:uniontype<array<string>,struct<i:int>>>>>");
+
+    HiveTable hiveTable = createTestHiveTable_ORC(serdeProps);
+    Assert.assertEquals(hiveTable.getColumns().size(), 1);
+
+    Assert.assertTrue(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+  }
+
+  @Test
+  public void testContainsUnionType_OrcNestedUnionPrimitive() {
+    final State serdeProps = new State();
+    serdeProps.setProp("columns", "nesteduniontypeint");
+    serdeProps.setProp("columns.types", "uniontype<array<map<string,struct<i:int,someUt:uniontype<int>>>>>");
+
+    HiveTable hiveTable = createTestHiveTable_ORC(serdeProps);
+    Assert.assertEquals(hiveTable.getColumns().size(), 1);
+
+    Assert.assertFalse(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+  }
+
+  @Test
+  public void testContainsUnionType_OrcPrimitive() {
+    final State serdeProps = new State();
+    serdeProps.setProp("columns", "timestamp,uniontypeint");
+    serdeProps.setProp("columns.types", "bigint,uniontype<int>");
+
+    HiveTable hiveTable = createTestHiveTable_ORC(serdeProps);
+    Assert.assertEquals(hiveTable.getColumns().size(), 2);
+
+    Assert.assertFalse(HiveMetaStoreUtils.containsNonOptionalUnionTypeColumn(hiveTable));
+  }
+
+  private HiveTable createTestHiveTable_ORC(State props) {
+    return createTestHiveTable("testDb", "testTable", props, (hiveTable) -> {
+      hiveTable.setInputFormat(OrcInputFormat.class.getName());
+      hiveTable.setOutputFormat(OrcOutputFormat.class.getName());
+      hiveTable.setSerDeType(OrcSerde.class.getName());
+      return null;
+    });
+  }
+
+  private HiveTable createTestHiveTable_Avro(State props) {
+    return createTestHiveTable("testDB", "testTable", props, (hiveTable) -> {
+      hiveTable.setInputFormat(AvroContainerInputFormat.class.getName());
+      hiveTable.setOutputFormat(AvroContainerOutputFormat.class.getName());
+      hiveTable.setSerDeType(AvroSerDe.class.getName());
+      return null;
+    });
+  }
+
+  private HiveTable createTestHiveTable(String dbName, String tableName, State props, Function<HiveTable, Void> additionalSetup) {
+    HiveTable.Builder builder = new HiveTable.Builder();
+    HiveTable hiveTable = builder.withDbName(dbName).withTableName(tableName).withProps(props).build();
+    additionalSetup.apply(hiveTable);
+
+    // Serialize then deserialize as a way to quickly setup tables for other tests in util class
+    Table table = HiveMetaStoreUtils.getTable(hiveTable);
+    return HiveMetaStoreUtils.getHiveTable(table);
   }
 }
