@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.hive.writer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -36,8 +37,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -51,6 +55,7 @@ import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
+import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
@@ -89,7 +94,11 @@ public class HiveMetadataWriter implements MetadataWriter {
   private static final long DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = 60;
   private final Joiner tableNameJoiner = Joiner.on('.');
   private final Closer closer = Closer.create();
-  protected final HiveRegister hiveRegister;
+
+  @VisibleForTesting
+  @Setter(AccessLevel.PACKAGE)
+  protected HiveRegister hiveRegister;
+
   private final WhitelistBlacklist whitelistBlacklist;
   // Always use the latest table Schema for tables in #useLatestTableSchemaWhiteListBlackList
   // unless a newer writer schema arrives
@@ -166,7 +175,7 @@ public class HiveMetadataWriter implements MetadataWriter {
         }
         Cache<List<String>, HiveSpec> cache = specMaps.get(tableKey);
         if (cache != null) {
-          HiveSpec hiveSpec = specMaps.get(tableKey).getIfPresent(execution.getKey());
+          HiveSpec hiveSpec = cache.getIfPresent(execution.getKey());
           if (hiveSpec != null) {
             eventSubmitter.submit(buildCommitEvent(dbName, tableName, execution.getKey(), hiveSpec, HivePartitionOperation.ADD_OR_MODIFY));
           }
@@ -191,31 +200,19 @@ public class HiveMetadataWriter implements MetadataWriter {
     String dbName = tableSpec.getTable().getDbName();
     String tableName = tableSpec.getTable().getTableName();
     String tableKey = tableNameJoiner.join(dbName, tableName);
-    if (!specMaps.containsKey(tableKey) || specMaps.get(tableKey).size() == 0) {
-      //Try to create table first to make sure table existed
-      this.hiveRegister.createTableIfNotExists(tableSpec.getTable());
-    }
+    OperationType opType = gmce.getOperationType();
+    String topicName = getTopicName(gmce);
 
-    //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    if (useLatestTableSchemaAllowDenyList.acceptTable(dbName, tableName)
-        || !latestSchemaMap.containsKey(tableKey)) {
-      HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
-      latestSchemaMap.put(tableKey,
-          existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    if (opType != OperationType.drop_files) {
+      if (!createTable(tableSpec, tableKey))  {
+        return;
+      }
+      updateLatestSchemaMap(dbName, tableName, tableKey);
     }
 
     tableTopicPartitionMap.put(tableKey, gmceTopicPartition);
 
-    //Calculate the topic name from gmce, fall back to topic.name in hive spec which can also be null
-    //todo: make topicName fall back to topic.name in hive spec so that we can also get schema for re-write operation
-    String topicName = null;
-    if (gmce.getTopicPartitionOffsetsRange() != null && !gmce.getTopicPartitionOffsetsRange().isEmpty()) {
-      String topicPartitionString = gmce.getTopicPartitionOffsetsRange().keySet().iterator().next();
-      //In case the topic name is not the table name or the topic name contains '-'
-      topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
-    }
-
-    switch (gmce.getOperationType()) {
+    switch (opType) {
       case add_files: {
         addFiles(gmce, newSpecsMap, dbName, tableName, topicName);
         break;
@@ -232,10 +229,67 @@ public class HiveMetadataWriter implements MetadataWriter {
         break;
       }
       default: {
-        log.error("unsupported operation {}", gmce.getOperationType().toString());
+        log.error("unsupported operation {}", opType);
         return;
       }
     }
+  }
+
+  /**
+   * Helper function to gracefully handle errors when creating a hive table. i.e. IOExceptions when creating the table
+   * are swallowed and logged to error
+   * @param tableSpec
+   * @param tableKey table key used to check if table is in spec cache
+   * @return if the table the table was created. If the table existed beforehand, it still returns true.
+   */
+  private boolean createTable(HiveSpec tableSpec, String tableKey) {
+    try {
+      // no-op if it's in spec cache (spec cache contains tablekey for all db / tables created since last flush)
+      if (inHiveSpecCache(tableKey)) {
+        return true;
+      }
+
+      this.hiveRegister.createTableIfNotExists(tableSpec.getTable());
+      return true;
+    } catch (IOException e) {
+      log.error("Failed to create table. Skipping this event", e);
+      return false;
+    }
+  }
+
+  @Nullable
+  private String getTopicName(GobblinMetadataChangeEvent gmce) {
+    //Calculate the topic name from gmce, fall back to topic.name in hive spec which can also be null
+    //todo: make topicName fall back to topic.name in hive spec so that we can also get schema for re-write operation
+    String topicName = null;
+    if (gmce.getTopicPartitionOffsetsRange() != null && !gmce.getTopicPartitionOffsetsRange().isEmpty()) {
+      String topicPartitionString = gmce.getTopicPartitionOffsetsRange().keySet().iterator().next();
+      //In case the topic name is not the table name or the topic name contains '-'
+      topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
+    }
+    return topicName;
+  }
+
+  /**
+   * We care about if a table key is in the spec cache because it means that we have already created this table before
+   * since the last flush. Therefore, we can use this method to check whether we need to create a table
+   * @param tableKey
+   * @return
+   */
+  private boolean inHiveSpecCache(String tableKey) {
+    return specMaps.containsKey(tableKey) && specMaps.get(tableKey).size() > 0;
+  }
+
+  private void updateLatestSchemaMap(String dbName, String tableName, String tableKey) throws IOException {
+    //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
+    boolean alwaysUseLatestSchema = useLatestTableSchemaAllowDenyList.acceptTable(dbName, tableName);
+    if (alwaysUseLatestSchema || !latestSchemaMap.containsKey(tableKey)) {
+      return;
+    }
+
+    HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
+    latestSchemaMap.put(tableKey,
+        existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
   }
 
   public void deleteFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> oldSpecsMap, String dbName,

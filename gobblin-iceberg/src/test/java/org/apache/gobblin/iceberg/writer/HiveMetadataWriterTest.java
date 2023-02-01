@@ -61,6 +61,8 @@ import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 import org.apache.gobblin.hive.writer.HiveMetadataWriter;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
@@ -77,6 +79,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
+import org.mockito.Mockito;
 
 
 public class HiveMetadataWriterTest extends HiveMetastoreTest {
@@ -254,6 +257,83 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
         client.getPartition("hivedb", "testTable",Lists.newArrayList("2020-03-17-08"));
       }
     });
+  }
+
+  /**
+   * Goal: General test for de-registering a partition created in
+   * {@link HiveMetadataWriterTest#testHiveWriteRewriteFileGMCE()}
+   */
+  @Test(dependsOnMethods = {"testHiveWriteRewriteFileGMCE"}, groups={"hiveMetadataWriterTest"})
+  public void testHiveWriteDeleteFileGMCE() throws IOException, TException {
+    // partitions should exist from the previous test
+    Assert.assertNotNull(client.getPartition(dbName, "testTable", Lists.newArrayList("2020-03-17-00")));
+    Assert.assertNotNull(client.getPartition(dedupedDbName, "testTable", Lists.newArrayList("2020-03-17-00")));
+
+    gmce.setTopicPartitionOffsetsRange(null);
+    Map<String, String> registrationState = gmce.getRegistrationProperties();
+    registrationState.put("additional.hive.database.names", dedupedDbName);
+    registrationState.put(HiveMetaStoreBasedRegister.SCHEMA_SOURCE_DB, dbName);
+    gmce.setRegistrationProperties(registrationState);
+    gmce.setSchemaSource(SchemaSource.NONE);
+    gmce.setOldFilePrefixes(Lists.newArrayList(dailyDataFile.toString()));
+    gmce.setOperationType(OperationType.drop_files);
+
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(40L))));
+    gobblinMCEWriter.flush();
+
+    // Partition created in previous test should now be dropped in the DB and the additional DB
+    Assert.assertThrows(NoSuchObjectException.class, () ->
+        client.getPartition(dbName, "testTable",Lists.newArrayList("2020-03-17-00")));
+    Assert.assertThrows(NoSuchObjectException.class, () ->
+        client.getPartition(dedupedDbName, "testTable",Lists.newArrayList("2020-03-17-00")));
+
+    // Test additional table still registered, since this operation should only drop partitions but not table
+    Assert.assertTrue(client.tableExists(dedupedDbName, "testTable"));
+    Assert.assertTrue(client.tableExists(dbName, "testTable"));
+
+    // dropping a partition that does not exist anymore should be safe
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(40L))));
+  }
+
+  /**
+   * Goal: to ensure that errors when creating a table do not bubble up any exceptions (which would otherwise
+   * cause the container to fail and metadata registration to be blocked)
+   * <ul>
+   *   <li>add file to non existent DB should swallow up exception</li>
+   * </ul>
+   */
+  @Test(dependsOnMethods = {"testHiveWriteDeleteFileGMCE"}, groups={"hiveMetadataWriterTest"})
+  public void testHiveWriteSwallowsExceptionOnCreateTable() throws IOException {
+    // add file to a DB that does not exist should trigger an exception and the exception should be swallowed
+    HiveSpec spec = new SimpleHiveSpec.Builder(new org.apache.hadoop.fs.Path("pathString"))
+        .withTable(new HiveTable.Builder()
+            .withDbName("dbWhichDoesNotExist")
+            .withTableName("testTable")
+        .build()).build();
+    gmce.setOperationType(OperationType.add_files);
+    HiveMetadataWriter hiveWriter = (HiveMetadataWriter) gobblinMCEWriter.getMetadataWriters().get(0);
+    hiveWriter.write(gmce, null, null, spec, "someTopicPartition");
+  }
+
+  @Test(dependsOnMethods = {"testHiveWriteSwallowsExceptionOnCreateTable"}, groups={"hiveMetadataWriterTest"})
+  public void testDropFilesDoesNotCreateTable() throws IOException {
+    HiveMetadataWriter hiveWriter = (HiveMetadataWriter) gobblinMCEWriter.getMetadataWriters().get(0);
+    HiveRegister mockRegister = Mockito.mock(HiveRegister.class);
+    HiveSpec spec = new SimpleHiveSpec.Builder(new org.apache.hadoop.fs.Path("pathString"))
+        .withTable(new HiveTable.Builder().withDbName("stubDB").withTableName("stubTable").build()).build();
+
+    // Since there are no old file prefixes, there are no files to delete. And the writer shouldn't touch the hive register
+    // i.e. dropping files will not create a table
+    gmce.setOperationType(OperationType.drop_files);
+    gmce.setOldFilePrefixes(null);
+    hiveWriter.write(gmce, null, null, spec, "someTopicPartition");
+    Mockito.verifyZeroInteractions(mockRegister);
   }
 
   private String writeRecord(File file) throws IOException {
