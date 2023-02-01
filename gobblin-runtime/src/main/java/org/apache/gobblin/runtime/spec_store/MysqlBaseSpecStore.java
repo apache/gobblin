@@ -84,6 +84,8 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
+  // TODO check if i need the spec uri too
+  private static final String GET_BATCH_SPEC_URIS_STATEMENT = "SELECT spec FROM %s WHERE spec_uri >= %s ORDER BY spec_uri ASC LIMIT %s";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
   // NOTE: using max length of a `FlowSpec` URI, as it's believed to be the longest of existing `Spec` types
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
@@ -103,6 +105,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     public final String getAllStatement = String.format(getTablelessGetAllStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsStatement = String.format(getTablelessGetAllURIsStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getBatchSpecUrisStatement = String.format(getTablelessGetBatchSpecUrisStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlBaseSpecStore.this.tableName);
     public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlBaseSpecStore.this.tableName);
 
@@ -127,6 +130,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     protected String getTablelessGetAllStatement() { return MysqlBaseSpecStore.GET_ALL_STATEMENT; }
     protected String getTablelessGetAllURIsStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_STATEMENT; }
     protected String getTablelessGetAllURIsWithTagStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
+    protected String getTablelessGetBatchSpecUrisStatement() { return MysqlBaseSpecStore.GET_BATCH_SPEC_URIS_STATEMENT; }
     protected String getTablelessGetSizeStatement() { return MysqlBaseSpecStore.GET_SIZE_STATEMENT; }
     protected String getTablelessCreateTableStatement() { return MysqlBaseSpecStore.CREATE_TABLE_STATEMENT; }
   }
