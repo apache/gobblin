@@ -20,6 +20,7 @@ package org.apache.gobblin.util.jdbc;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.sql.DataSource;
 
@@ -39,6 +40,7 @@ import org.apache.gobblin.password.PasswordManager;
  */
 public class DataSourceProvider implements Provider<DataSource> {
   private static final Logger LOG = LoggerFactory.getLogger(DataSourceProvider.class);
+  private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
 
   public static final String GOBBLIN_UTIL_JDBC_PREFIX = "gobblin.util.jdbc.";
   public static final String CONN_DRIVER = GOBBLIN_UTIL_JDBC_PREFIX + "conn.driver";
@@ -55,6 +57,7 @@ public class DataSourceProvider implements Provider<DataSource> {
   @Inject
   public DataSourceProvider(@Named("dataSourceProperties") Properties properties) {
     this.dataSource = new HikariDataSource();
+    this.dataSource.setPoolName("HikariPool-" + POOL_NUM.incrementAndGet() + "-" + getClass().getSimpleName());
     this.dataSource.setDriverClassName(properties.getProperty(CONN_DRIVER, DEFAULT_CONN_DRIVER));
     // the validation query should work beyond mysql; still, to bypass for any reason, heed directive
     if (!Boolean.parseBoolean(properties.getProperty(SKIP_VALIDATION_QUERY, "false"))) {

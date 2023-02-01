@@ -353,22 +353,24 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * Sets the {@link FsPermission}, owner, group for the path passed. It will not throw exceptions, if operations
    * cannot be executed, will warn and continue.
    */
-  private void safeSetPathPermission(Path path, OwnerAndPermission ownerAndPermission) {
+  public static void safeSetPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission) {
 
+    Path path = file.getPath();
+    OwnerAndPermission targetOwnerAndPermission = setOwnerExecuteBitIfDirectory(file, ownerAndPermission);
     try {
-      if (ownerAndPermission.getFsPermission() != null) {
-        this.fs.setPermission(path, ownerAndPermission.getFsPermission());
+      if (targetOwnerAndPermission.getFsPermission() != null) {
+        fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
     }
 
-    String owner = Strings.isNullOrEmpty(ownerAndPermission.getOwner()) ? null : ownerAndPermission.getOwner();
-    String group = Strings.isNullOrEmpty(ownerAndPermission.getGroup()) ? null : ownerAndPermission.getGroup();
+    String owner = Strings.isNullOrEmpty(targetOwnerAndPermission.getOwner()) ? null : targetOwnerAndPermission.getOwner();
+    String group = Strings.isNullOrEmpty(targetOwnerAndPermission.getGroup()) ? null : targetOwnerAndPermission.getGroup();
 
     try {
       if (owner != null || group != null) {
-        this.fs.setOwner(path, owner, group);
+        fs.setOwner(path, owner, group);
       }
     } catch (IOException ioe) {
       log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
@@ -387,7 +389,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Collections.reverse(files);
 
     for (FileStatus file : files) {
-      safeSetPathPermission(file.getPath(), addExecutePermissionsIfRequired(file, ownerAndPermission));
+      safeSetPathPermission(this.fs, file, ownerAndPermission);
     }
   }
 
@@ -395,7 +397,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * The method makes sure it always grants execute permissions for an owner if the <code>file</code> passed is a
    * directory. The publisher needs it to publish it to the final directory and list files under this directory.
    */
-  private static OwnerAndPermission addExecutePermissionsIfRequired(FileStatus file,
+  private static OwnerAndPermission setOwnerExecuteBitIfDirectory(FileStatus file,
       OwnerAndPermission ownerAndPermission) {
 
     if (ownerAndPermission.getFsPermission() == null) {
@@ -456,10 +458,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
               : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
       ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
-
-      // Do not store the FileContext after doing the rename because FileContexts are not cached and a new object
-      // is created for every task's commit
-      FileContext.getFileContext(this.uri, this.conf).rename(stagingFilePath, outputFilePath, renameOptions);
+      if (copyableFile.getFileStatus().isDirectory() && this.fs.exists(outputFilePath)) {
+        log.info(String.format("CopyableFile %s is a directory which already exists at %s - skipping overwrite; if necessary, publisher will sync metadata",
+            stagingFilePath, outputFilePath));
+      } else {
+        // Do not store the FileContext after doing to rename because FileContexts are not cached and a new object
+        // is created for every task's commit
+        FileContext.getFileContext(this.uri, this.conf).rename(stagingFilePath, outputFilePath, renameOptions);
+      }
     } catch (IOException ioe) {
       log.error("Could not commit file {}.", outputFilePath);
       // persist file

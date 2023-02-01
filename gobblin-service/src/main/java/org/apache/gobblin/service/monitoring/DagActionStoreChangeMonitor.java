@@ -31,6 +31,7 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -53,6 +54,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter resumesInvoked;
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
+  private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
+
+  private volatile Long produceToConsumeDelayValue = -1L;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -98,18 +102,20 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String key = (String) message.getKey();
     DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
 
-    Long timestamp = value.getChangeEventIdentifier().getTimestamp();
+    String tid = value.getChangeEventIdentifier().getTxId();
+    Long produceTimestamp = value.getChangeEventIdentifier().getProduceTimestampMillis();
     String operation = value.getChangeEventIdentifier().getOperationType().name();
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} timestamp {} operation {}",
-        flowGroup, flowName, flowExecutionId, timestamp, operation);
+    produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
+    log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
+        flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeDelayValue);
 
-    String changeIdentifier = timestamp + key;
+    String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
-        timestamp.toString())) {
+        produceTimestamp.toString())) {
       return;
     }
 
@@ -119,15 +125,17 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       try {
         dagAction = dagActionStore.getDagAction(flowGroup, flowName, flowExecutionId).getDagActionValue();
       } catch (IOException e) {
-        log.warn("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
+        log.error("Encountered IOException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, e);
         this.unexpectedErrors.mark();
+        return;
       } catch (SpecNotFoundException e) {
-        log.warn("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
+        log.error("DagAction not found for flow group: {} name: {} executionId: {} Exception: {}", flowGroup, flowName,
             flowExecutionId, e);
         this.unexpectedErrors.mark();
+        return;
       } catch (SQLException throwables) {
-        log.warn("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
-        throwables.printStackTrace();
+        log.error("Encountered SQLException trying to retrieve dagAction for flow group: {} name: {} executionId: {}. " + "Exception: {}", flowGroup, flowName, flowExecutionId, throwables);
+        return;
       }
     }
 
@@ -176,6 +184,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
+    this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
   }
 
 }

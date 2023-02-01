@@ -32,6 +32,9 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
+import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
@@ -82,6 +85,11 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event.getExecutorUrl(), "hostName");
     Assert.assertEquals(event.getIssues().size(), 1);
+
+    AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
+        GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
+    );
+    serializer.serializeRecord(event);
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {

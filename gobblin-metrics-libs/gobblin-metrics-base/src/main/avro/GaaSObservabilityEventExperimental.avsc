@@ -153,16 +153,16 @@
               },
               {
                 "name": "details",
-                "type": "string",
-                "doc": "Human-readable issue details that can include exception stack trace and additional information about the problem."
+                "type": ["null","string"],
+                "doc": "Optional human-readable issue details that can include exception stack trace and additional information about the problem."
               },
               {
                 "name": "properties",
-                "type": {
+                "type": ["null", {
                   "type": "map",
                   "values": "string"
-                },
-                "doc": "Additional machine-readable properties of the issue.\n"
+                }],
+                "doc": "Optional additional machine-readable properties of the issue.\n"
               }
             ]
           }
