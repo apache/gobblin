@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -80,7 +81,7 @@ public class FileAwareInputStreamDataWriterTest {
 
   FileSystem fs;
   Path testTempPath;
-  public boolean isAclSet = false;
+  public static ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -369,6 +370,7 @@ public class FileAwareInputStreamDataWriterTest {
 
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
+    pathToAclEntries = new ConcurrentHashMap<>();
 
     CopyableFile cf = CopyableFile.fromOriginAndDestination(this.fs, status, destination,
         CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
@@ -423,8 +425,30 @@ public class FileAwareInputStreamDataWriterTest {
     // previously existing paths should not have permissions changed
     fileStatus = this.fs.getFileStatus(existingOutputPath);
     Assert.assertEquals(fileStatus.getPermission(), existingPathPermission);
+    verifyAclEntries(writer, pathToAclEntries, expectedOutputPath);
     Assert.assertFalse(this.fs.exists(writer.stagingDir));
 
+  }
+
+  private void verifyAclEntries(FileAwareInputStreamDataWriter writer, ConcurrentHashMap pathToAclEntries, Path expectedOutputPath) {
+    // fetching and preparing file paths from FileAwareInputStreamDataWriter object
+    Path stagingDir = writer.stagingDir;
+    Path outputDir = writer.outputDir;
+    String[] splitExpectedOutputPath = expectedOutputPath.toString().split("output");
+    Path dstOutputPath = new Path(outputDir.toString().concat(splitExpectedOutputPath[1])).getParent();
+    Path stgFilePath = new Path("file:".concat(stagingDir.toString().concat("/file")));
+
+    Assert.assertTrue(pathToAclEntries.containsKey(dstOutputPath));
+    Assert.assertTrue(pathToAclEntries.containsKey(stgFilePath));
+
+    OwnerAndPermission destinationOwnerAndPermission = writer.actualProcessedCopyableFile.get().getDestinationOwnerAndPermission();
+    List<AclEntry> actual = destinationOwnerAndPermission.getAclEntries();
+    List<AclEntry> expectedStgAclEntries = (List<AclEntry>) pathToAclEntries.get(stgFilePath);
+    List<AclEntry> expectedDstAclEntries = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
+
+
+    Assert.assertEquals(actual, expectedStgAclEntries);
+    Assert.assertEquals(actual, expectedDstAclEntries);
   }
 
   @Test
@@ -510,10 +534,11 @@ public class FileAwareInputStreamDataWriterTest {
 //    }
 //  }
   protected static class TestFileSystem extends LocalFileSystem {
-    @Override
-    public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
-      System.out.println("testing");
-    }
-
+  @Override
+  public void setAcl(Path path, List<AclEntry> aclSpec)
+      throws IOException {
+    System.out.println("testing");
+    pathToAclEntries.put(path, aclSpec);
   }
+}
 }

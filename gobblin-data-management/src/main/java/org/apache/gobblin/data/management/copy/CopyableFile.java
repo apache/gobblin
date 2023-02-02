@@ -250,7 +250,7 @@ public class CopyableFile extends CopyEntity implements File {
         }
 
         FsPermission permission = this.preserve.preserve(Option.PERMISSION) ? this.origin.getPermission() : null;
-        List<AclEntry> aclEntries = this.preserve.preserve(Option.ACL) ? getAclEntries(this.originFs, this.origin.getPath()) : Lists.newArrayList();
+        List<AclEntry> aclEntries = this.preserve.preserve(Option.ACLS) ? getAclEntries(this.originFs, this.origin.getPath()) : Lists.newArrayList();
 
         this.destinationOwnerAndPermission = new OwnerAndPermission(owner, group, permission, aclEntries);
       }
@@ -345,10 +345,9 @@ public class CopyableFile extends CopyEntity implements File {
       group = originFileStatus.getGroup();
     }
 
-
     return new OwnerAndPermission(preserve.preserve(Option.OWNER) ? originFileStatus.getOwner() : null, group,
         preserve.preserve(Option.PERMISSION) ? originFileStatus.getPermission() : null,
-        preserve.preserve(Option.ACL) ? getAclEntries(fs, originFileStatus.getPath()) : Lists.newArrayList());
+        preserve.preserve(Option.ACLS) ? getAclEntries(fs, originFileStatus.getPath()) : Lists.newArrayList());
   }
 
   /**
