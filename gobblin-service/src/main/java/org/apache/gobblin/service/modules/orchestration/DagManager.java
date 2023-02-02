@@ -188,6 +188,9 @@ public class DagManager extends AbstractIdleService {
   private final boolean instrumentationEnabled;
   private DagStateStore dagStateStore;
   private Map<URI, TopologySpec> topologySpecMap;
+  private int houseKeepingThreadInitialDelay = 2;
+  @Getter
+  private ScheduledExecutorService houseKeepingThreadPool;
 
   @Getter
   private final Integer numThreads;
@@ -272,6 +275,9 @@ public class DagManager extends AbstractIdleService {
    * @param setStatus if true, set all jobs in the dag to pending
    */
   synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
+    if (!this.isActive) {
+      return;
+    }
     if (persist) {
       //Persist the dag
       this.dagStateStore.writeCheckpoint(dag);
@@ -388,7 +394,7 @@ public class DagManager extends AbstractIdleService {
                 topologySpecMap);
         Set<String> failedDagIds = Collections.synchronizedSet(failedDagStateStore.getDagIds());
 
-       this.dagManagerMetrics.activate();
+        this.dagManagerMetrics.activate();
 
         UserQuotaManager quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
             ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
@@ -405,10 +411,15 @@ public class DagManager extends AbstractIdleService {
         }
         FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDagIds, failedDagRetentionTime);
         this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionPollingInterval, TimeUnit.MINUTES);
-        List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
-        log.info("Loading " + dags.size() + " dags from dag state store");
-        for (Dag<JobExecutionPlan> dag : dags) {
-          addDag(dag, false, false);
+        loadingDagsFromDagStateStore();
+        this.houseKeepingThreadPool = Executors.newSingleThreadScheduledExecutor();
+        for (int delay = houseKeepingThreadInitialDelay; delay < 180; delay *= 2) {
+          this.houseKeepingThreadPool.schedule(() -> {
+            try {
+              loadingDagsFromDagStateStore();
+            } catch (Exception e ) {
+              log.error("failed to sync dag state store due to ", e);
+            }}, delay, TimeUnit.MINUTES);
         }
         if (dagActionStore.isPresent()) {
           Collection<DagActionStore.DagAction> dagActions = dagActionStore.get().getDagActions();
@@ -429,6 +440,7 @@ public class DagManager extends AbstractIdleService {
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         this.scheduledExecutorPool.shutdown();
         this.dagManagerMetrics.cleanup();
+        this.houseKeepingThreadPool.shutdown();
         try {
           this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -438,6 +450,14 @@ public class DagManager extends AbstractIdleService {
     } catch (IOException e) {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
+    }
+  }
+
+  private void loadingDagsFromDagStateStore() throws IOException {
+    List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
+    log.info("Loading " + dags.size() + " dags from dag state store");
+    for (Dag<JobExecutionPlan> dag : dags) {
+      addDag(dag, false, false);
     }
   }
 
@@ -789,10 +809,10 @@ public class DagManager extends AbstractIdleService {
             submitJob(node);
           }
         } catch (Exception e) {
-            // Error occurred while processing dag, continue processing other dags assigned to this thread
-            log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
-                DagManagerUtils.getFullyQualifiedDagName(node)), e);
-          }
+          // Error occurred while processing dag, continue processing other dags assigned to this thread
+          log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
+              DagManagerUtils.getFullyQualifiedDagName(node)), e);
+        }
       }
 
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
@@ -1170,11 +1190,11 @@ public class DagManager extends AbstractIdleService {
       log.info("Cleaning up dagId {}", dagId);
       // clears flow event after cancelled job to allow resume event status to be set
       this.dags.get(dagId).setFlowEvent(null);
-       try {
-         this.dagStateStore.cleanUp(dags.get(dagId));
-       } catch (IOException ioe) {
-         log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
-       }
+      try {
+        this.dagStateStore.cleanUp(dags.get(dagId));
+      } catch (IOException ioe) {
+        log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
+      }
       this.dags.remove(dagId);
       this.dagToJobs.remove(dagId);
     }
@@ -1222,7 +1242,7 @@ public class DagManager extends AbstractIdleService {
           }
         }
 
-      log.info("Cleaned " + numCleaned + " dags from the failed dag state store");
+        log.info("Cleaned " + numCleaned + " dags from the failed dag state store");
       } catch (Exception e) {
         log.error("Failed to run retention on failed dag state store", e);
       }
