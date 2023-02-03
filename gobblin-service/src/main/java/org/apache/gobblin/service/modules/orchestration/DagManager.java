@@ -135,7 +135,8 @@ public class DagManager extends AbstractIdleService {
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
   private static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
   private static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
-
+  private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
+  private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
   /**
    * Action to be performed on a {@link Dag}, in case of a job failure. Currently, we allow 2 modes:
    * <ul>
@@ -188,7 +189,7 @@ public class DagManager extends AbstractIdleService {
   private final boolean instrumentationEnabled;
   private DagStateStore dagStateStore;
   private Map<URI, TopologySpec> topologySpecMap;
-  private int houseKeepingThreadInitialDelay = 2;
+  private int houseKeepingThreadInitialDelay = INITIAL_HOUSEKEEPING_THREAD_DELAY;
   @Getter
   private ScheduledExecutorService houseKeepingThreadPool;
 
@@ -275,9 +276,6 @@ public class DagManager extends AbstractIdleService {
    * @param setStatus if true, set all jobs in the dag to pending
    */
   synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
-    if (!this.isActive) {
-      return;
-    }
     if (persist) {
       //Persist the dag
       this.dagStateStore.writeCheckpoint(dag);
@@ -411,12 +409,12 @@ public class DagManager extends AbstractIdleService {
         }
         FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDagIds, failedDagRetentionTime);
         this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionPollingInterval, TimeUnit.MINUTES);
-        loadingDagsFromDagStateStore();
+        loadDagFromDagStateStore();
         this.houseKeepingThreadPool = Executors.newSingleThreadScheduledExecutor();
-        for (int delay = houseKeepingThreadInitialDelay; delay < 180; delay *= 2) {
+        for (int delay = houseKeepingThreadInitialDelay; delay < MAX_HOUSEKEEPING_THREAD_DELAY; delay *= 2) {
           this.houseKeepingThreadPool.schedule(() -> {
             try {
-              loadingDagsFromDagStateStore();
+              loadDagFromDagStateStore();
             } catch (Exception e ) {
               log.error("failed to sync dag state store due to ", e);
             }}, delay, TimeUnit.MINUTES);
@@ -453,11 +451,13 @@ public class DagManager extends AbstractIdleService {
     }
   }
 
-  private void loadingDagsFromDagStateStore() throws IOException {
+  private void loadDagFromDagStateStore() throws IOException {
     List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
     log.info("Loading " + dags.size() + " dags from dag state store");
     for (Dag<JobExecutionPlan> dag : dags) {
-      addDag(dag, false, false);
+      if (this.isActive) {
+        addDag(dag, false, false);
+      }
     }
   }
 
