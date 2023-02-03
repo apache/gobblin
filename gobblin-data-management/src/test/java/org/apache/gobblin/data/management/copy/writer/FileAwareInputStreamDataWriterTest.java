@@ -51,7 +51,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
 import org.apache.gobblin.crypto.GPGFileDecryptor;
@@ -85,8 +84,7 @@ public class FileAwareInputStreamDataWriterTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    //fs = FileSystem.getLocal(new Configuration());
-    fs = new TestFileSystem();
+    fs = new TestLocalFileSystem();
     fs.initialize(URI.create("file:///"), new Configuration());
     testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "InputStreamDataWriterTest");
     fs.mkdirs(testTempPath);
@@ -446,7 +444,6 @@ public class FileAwareInputStreamDataWriterTest {
     List<AclEntry> expectedStgAclEntries = (List<AclEntry>) pathToAclEntries.get(stgFilePath);
     List<AclEntry> expectedDstAclEntries = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
 
-
     Assert.assertEquals(actual, expectedStgAclEntries);
     Assert.assertEquals(actual, expectedDstAclEntries);
   }
@@ -526,19 +523,11 @@ public class FileAwareInputStreamDataWriterTest {
     }
   }
 
-//  protected static class TestFileAwareInputStreamDataWriter extends FileAwareInputStreamDataWriter {
-//
-//    public TestFileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
-//        throws IOException {
-//      super(state, numBranches, branchId, null);
-//    }
-//  }
-  protected static class TestFileSystem extends LocalFileSystem {
-  @Override
-  public void setAcl(Path path, List<AclEntry> aclSpec)
-      throws IOException {
-    System.out.println("testing");
-    pathToAclEntries.put(path, aclSpec);
+  protected static class TestLocalFileSystem extends LocalFileSystem {
+
+    @Override
+    public void setAcl(Path path, List<AclEntry> aclEntries) {
+      pathToAclEntries.put(path, aclEntries);
+    }
   }
-}
 }

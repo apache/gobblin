@@ -32,7 +32,6 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
@@ -364,7 +363,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
       if (!ownerAndPermission.getAclEntries().isEmpty()) {
-        setAclOnPath(fs, path, ownerAndPermission.getAclEntries());
+        fs.setAcl(path, ownerAndPermission.getAclEntries());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
@@ -517,19 +516,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setOwner(path, owner, group);
       }
       if (!aclEntries.isEmpty()) {
-        setAclOnPath(fs, path, aclEntries);
+        fs.setAcl(path, aclEntries);
       }
     } else {
       fs.mkdirs(path);
     }
-  }
-
-
-  /*
-   * Creating an abstraction layer to support unit testing on raw local file system for validating if ACLs are set on a file path
-   */
-  protected static void setAclOnPath(FileSystem theFs, Path path, List<AclEntry> aclEntries) throws IOException {
-    theFs.setAcl(path, aclEntries);
   }
 
   @Override
