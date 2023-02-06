@@ -33,6 +33,7 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -95,6 +96,12 @@ public class DagManagerFlowTest {
     Thread.sleep(10000);
     // On active, should proceed request and delete action entry
     Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
+  }
+
+  @AfterClass
+  public void cleanUp() throws Exception {
+    dagManager.setActive(false);
+    Assert.assertEquals(dagManager.getHouseKeepingThreadPool().isShutdown(), true);
   }
 
   @Test
