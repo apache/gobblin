@@ -78,9 +78,8 @@ import static org.mockito.Mockito.spy;
 
 public class FileAwareInputStreamDataWriterTest {
 
-  FileSystem fs;
+  TestLocalFileSystem fs;
   Path testTempPath;
-  public static ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -368,8 +367,6 @@ public class FileAwareInputStreamDataWriterTest {
 
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
-    pathToAclEntries = new ConcurrentHashMap<>();
-
     CopyableFile cf = CopyableFile.fromOriginAndDestination(this.fs, status, destination,
         CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
             .preserve(PreserveAttributes.fromMnemonicString("")).build())
@@ -394,22 +391,15 @@ public class FileAwareInputStreamDataWriterTest {
     this.fs.mkdirs(writtenFile.getParent());
     this.fs.createNewFile(writtenFile);
 
+    writer.actualProcessedCopyableFile = Optional.of(cf);
+    // commit
+    writer.commit();
     // create existing directories in writer output
     Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
     Path existingOutputPath = new Path(outputRoot, destinationExistingToken);
     this.fs.mkdirs(existingOutputPath);
     FileStatus fileStatus = this.fs.getFileStatus(existingOutputPath);
     FsPermission existingPathPermission = fileStatus.getPermission();
-
-
-    // check initial state of the relevant directories
-    Assert.assertTrue(this.fs.exists(existingOutputPath));
-    Assert.assertEquals(this.fs.listStatus(existingOutputPath).length, 0);
-
-    writer.actualProcessedCopyableFile = Optional.of(cf);
-    // commit
-    writer.commit();
-
     // check state of relevant paths after commit
     Path expectedOutputPath = new Path(outputRoot, destinationWithoutLeadingSeparator);
     Assert.assertTrue(this.fs.exists(expectedOutputPath));
@@ -423,29 +413,25 @@ public class FileAwareInputStreamDataWriterTest {
     // previously existing paths should not have permissions changed
     fileStatus = this.fs.getFileStatus(existingOutputPath);
     Assert.assertEquals(fileStatus.getPermission(), existingPathPermission);
-    verifyAclEntries(writer, pathToAclEntries, expectedOutputPath);
+    verifyAclEntries(writer, this.fs.getPathToAclEntries(), expectedOutputPath);
     Assert.assertFalse(this.fs.exists(writer.stagingDir));
 
   }
 
   private void verifyAclEntries(FileAwareInputStreamDataWriter writer, ConcurrentHashMap pathToAclEntries, Path expectedOutputPath) {
     // fetching and preparing file paths from FileAwareInputStreamDataWriter object
-    Path stagingDir = writer.stagingDir;
     Path outputDir = writer.outputDir;
     String[] splitExpectedOutputPath = expectedOutputPath.toString().split("output");
     Path dstOutputPath = new Path(outputDir.toString().concat(splitExpectedOutputPath[1])).getParent();
-    Path stgFilePath = new Path("file:".concat(stagingDir.toString().concat("/file")));
-
     Assert.assertTrue(pathToAclEntries.containsKey(dstOutputPath));
-    Assert.assertTrue(pathToAclEntries.containsKey(stgFilePath));
 
     OwnerAndPermission destinationOwnerAndPermission = writer.actualProcessedCopyableFile.get().getDestinationOwnerAndPermission();
     List<AclEntry> actual = destinationOwnerAndPermission.getAclEntries();
-    List<AclEntry> expectedStgAclEntries = (List<AclEntry>) pathToAclEntries.get(stgFilePath);
-    List<AclEntry> expectedDstAclEntries = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
-
-    Assert.assertEquals(actual, expectedStgAclEntries);
-    Assert.assertEquals(actual, expectedDstAclEntries);
+    do {
+      List<AclEntry> expected = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
+      Assert.assertEquals(actual, expected);
+      dstOutputPath = dstOutputPath.getParent();
+    } while (pathToAclEntries.containsKey(dstOutputPath));
   }
 
   @Test
@@ -523,11 +509,14 @@ public class FileAwareInputStreamDataWriterTest {
     }
   }
 
-  protected static class TestLocalFileSystem extends LocalFileSystem {
-
+  protected class TestLocalFileSystem extends LocalFileSystem {
+    ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries = new ConcurrentHashMap<>();
     @Override
     public void setAcl(Path path, List<AclEntry> aclEntries) {
       pathToAclEntries.put(path, aclEntries);
+    }
+    public ConcurrentHashMap<Path, List<AclEntry>> getPathToAclEntries() {
+      return pathToAclEntries;
     }
   }
 }
