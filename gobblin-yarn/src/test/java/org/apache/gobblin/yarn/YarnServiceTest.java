@@ -106,7 +106,7 @@ public class YarnServiceTest extends PowerMockTestCase{
         .thenReturn(mockResource);
     FileSystem fs = Mockito.mock(FileSystem.class);
 
-    // create and start the test yarn service
+    // Create the test yarn service, but don't start yet
     this.yarnService = new TestYarnService(this.config, "testApp", "appId",
         this.clusterConf, fs, this.eventBus);
   }
@@ -122,6 +122,7 @@ public class YarnServiceTest extends PowerMockTestCase{
     // Not allowed to request target number of containers since yarnService hasn't started up yet.
     Assert.assertFalse(canRequestNewContainers);
 
+    // Start the yarn service
     this.yarnService.startUp();
     canRequestNewContainers = this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET);
 
