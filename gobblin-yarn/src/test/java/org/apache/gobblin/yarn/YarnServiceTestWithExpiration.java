@@ -75,7 +75,7 @@ public class YarnServiceTestWithExpiration {
   private YarnConfiguration clusterConf;
   private ApplicationId applicationId;
   private ApplicationAttemptId applicationAttemptId;
-  private final EventBus eventBus = new EventBus("YarnServiceTest");
+  private final EventBus eventBus = new EventBus("YarnServiceIT");
 
   private final Closer closer = Closer.create();
 
