@@ -47,6 +47,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
@@ -348,6 +349,202 @@ public class FileAwareInputStreamDataWriterTest {
     FileStatus status = this.fs.getFileStatus(originFile);
     FsPermission readWrite = new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE);
     FsPermission dirReadWrite = new FsPermission(FsAction.ALL, FsAction.READ_WRITE, FsAction.READ_WRITE);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(), readWrite);
+    List<OwnerAndPermission> ancestorOwnerAndPermissions = Lists.newArrayList();
+    ancestorOwnerAndPermissions.add(ownerAndPermission);
+    ancestorOwnerAndPermissions.add(ownerAndPermission);
+    ancestorOwnerAndPermissions.add(ownerAndPermission);
+    ancestorOwnerAndPermissions.add(ownerAndPermission);
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
+
+    CopyableFile cf = CopyableFile.fromOriginAndDestination(this.fs, status, destination,
+            CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
+                .preserve(PreserveAttributes.fromMnemonicString("")).build())
+        .destinationOwnerAndPermission(ownerAndPermission)
+        .ancestorsOwnerAndPermission(ancestorOwnerAndPermissions)
+        .build();
+
+    // create work unit state
+    WorkUnitState state = createWorkUnitState(stagingDir, outputDir, cf);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    // create writer
+    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    // create output of writer.write
+    Path writtenFile = writer.getStagingFilePath(cf);
+    this.fs.mkdirs(writtenFile.getParent());
+    this.fs.createNewFile(writtenFile);
+
+    // create existing directories in writer output
+    Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
+    Path existingOutputPath = new Path(outputRoot, destinationExistingToken);
+    this.fs.mkdirs(existingOutputPath);
+    FileStatus fileStatus = this.fs.getFileStatus(existingOutputPath);
+    FsPermission existingPathPermission = fileStatus.getPermission();
+
+    // check initial state of the relevant directories
+    Assert.assertTrue(this.fs.exists(existingOutputPath));
+    Assert.assertEquals(this.fs.listStatus(existingOutputPath).length, 0);
+
+    writer.actualProcessedCopyableFile = Optional.of(cf);
+
+    // commit
+    writer.commit();
+
+    // check state of relevant paths after commit
+    Path expectedOutputPath = new Path(outputRoot, destinationWithoutLeadingSeparator);
+    Assert.assertTrue(this.fs.exists(expectedOutputPath));
+    fileStatus = this.fs.getFileStatus(expectedOutputPath);
+    Assert.assertEquals(fileStatus.getOwner(), ownerAndPermission.getOwner());
+    Assert.assertEquals(fileStatus.getGroup(), ownerAndPermission.getGroup());
+    Assert.assertEquals(fileStatus.getPermission(), readWrite);
+    // parent should have permissions set correctly
+    fileStatus = this.fs.getFileStatus(expectedOutputPath.getParent());
+    Assert.assertEquals(fileStatus.getPermission(), dirReadWrite);
+    // previously existing paths should not have permissions changed
+    fileStatus = this.fs.getFileStatus(existingOutputPath);
+    Assert.assertEquals(fileStatus.getPermission(), existingPathPermission);
+    Assert.assertFalse(this.fs.exists(writer.stagingDir));
+  }
+
+  @Test
+  public void testCommitWithAclPreservationWhenAncestorPathsAbsent() throws IOException {
+    String fileName = "file";
+    // Asemble destination paths
+    String destinationExistingToken = "destination";
+    String destinationAdditionalTokens = "path";
+    Path destination = new Path(new Path(new Path("/", destinationExistingToken), destinationAdditionalTokens), fileName);
+    Path destinationWithoutLeadingSeparator = new Path(new Path(destinationExistingToken, destinationAdditionalTokens), fileName);
+
+    // Create temp directory
+    File tmpFile = Files.createTempDir();
+    tmpFile.deleteOnExit();
+    Path tmpPath = new Path(tmpFile.getAbsolutePath());
+
+    // create origin file
+    Path originFile = new Path(tmpPath, fileName);
+    this.fs.createNewFile(originFile);
+
+    // create stating dir
+    Path stagingDir = new Path(tmpPath, "staging");
+    this.fs.mkdirs(stagingDir);
+
+    // create output dir
+    Path outputDir = new Path(tmpPath, "output");
+    this.fs.mkdirs(outputDir);
+
+    // create copyable file
+    CopyableFile cf = createCopyableFile(originFile, destination, "a");
+
+    // create work unit state
+    WorkUnitState state = createWorkUnitState(stagingDir, outputDir, cf);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+    // create writer
+    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, fs,1, 0, null);
+
+    // create output of writer.write
+    Path writtenFile = writer.getStagingFilePath(cf);
+    this.fs.mkdirs(writtenFile.getParent());
+    this.fs.createNewFile(writtenFile);
+    Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
+    Path expectedOutputPath = new Path(outputRoot, destinationWithoutLeadingSeparator);
+    // check ancestor path is absent before commit
+    Assert.assertFalse(this.fs.exists(expectedOutputPath.getParent().getParent()));
+    writer.actualProcessedCopyableFile = Optional.of(cf);
+    // commit
+    writer.commit();
+    // check ancestor path was created as part of commit
+    Assert.assertTrue(this.fs.exists(expectedOutputPath.getParent().getParent()));
+    verifyAclEntries(writer, this.fs.getPathToAclEntries(), expectedOutputPath, outputDir);
+  }
+
+  @Test
+  public void testCommitWithAclPreservationWhenAncestorPathsPresent() throws IOException {
+    String fileName = "file";
+    // Asemble destination paths
+    String destinationExistingToken = "destination";
+    String destinationAdditionalTokens = "path";
+    Path destination = new Path(new Path(new Path("/", destinationExistingToken), destinationAdditionalTokens), fileName);
+    Path destinationWithoutLeadingSeparator = new Path(new Path(destinationExistingToken, destinationAdditionalTokens), fileName);
+
+    // Create temp directory
+    File tmpFile = Files.createTempDir();
+    tmpFile.deleteOnExit();
+    Path tmpPath = new Path(tmpFile.getAbsolutePath());
+
+    // create origin file
+    Path originFile = new Path(tmpPath, fileName);
+    this.fs.createNewFile(originFile);
+
+    // create stating dir
+    Path stagingDir = new Path(tmpPath, "staging");
+    this.fs.mkdirs(stagingDir);
+
+    // create output dir
+    Path outputDir = new Path(tmpPath, "output");
+    this.fs.mkdirs(outputDir);
+
+    // create copyable file
+    CopyableFile cf = createCopyableFile(originFile, destination, "a");
+
+    // create work unit state
+    WorkUnitState state = createWorkUnitState(stagingDir, outputDir, cf);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+    // create writer
+    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, fs,1, 0, null);
+
+    // create output of writer.write
+    Path writtenFile = writer.getStagingFilePath(cf);
+    this.fs.mkdirs(writtenFile.getParent());
+    this.fs.createNewFile(writtenFile);
+    // create existing directories in writer output
+    Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
+    Path existingOutputPath = new Path(outputRoot, destinationExistingToken);
+    Path expectedOutputPath = new Path(outputRoot, destinationWithoutLeadingSeparator);
+    // create output path and check ancestor path is present
+    this.fs.mkdirs(existingOutputPath);
+    Assert.assertTrue(this.fs.exists(expectedOutputPath.getParent().getParent()));
+    writer.actualProcessedCopyableFile = Optional.of(cf);
+    // commit
+    writer.commit();
+    verifyAclEntries(writer, this.fs.getPathToAclEntries(), expectedOutputPath, existingOutputPath);
+  }
+
+  private void verifyAclEntries(FileAwareInputStreamDataWriter writer, ImmutableMap pathToAclEntries, Path expectedOutputPath, Path ancestorRoot) {
+    // fetching and preparing file paths from FileAwareInputStreamDataWriter object
+    Path outputDir = writer.outputDir;
+    String[] splitExpectedOutputPath = expectedOutputPath.toString().split("output");
+    Path dstOutputPath = new Path(outputDir.toString().concat(splitExpectedOutputPath[1])).getParent();
+
+    OwnerAndPermission destinationOwnerAndPermission = writer.actualProcessedCopyableFile.get().getDestinationOwnerAndPermission();
+    List<AclEntry> actual = destinationOwnerAndPermission.getAclEntries();
+    while (!dstOutputPath.equals(ancestorRoot)) {
+      List<AclEntry> expected = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
+      Assert.assertEquals(actual, expected);
+      dstOutputPath = dstOutputPath.getParent();
+    }
+  }
+
+  private WorkUnitState createWorkUnitState(Path stagingDir, Path outputDir, CopyableFile cf) {
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir.toUri().getPath());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    return state;
+  }
+
+  private CopyableFile createCopyableFile(Path originFile, Path destination, String preserveAttrs) throws IOException {
+    FileStatus status = this.fs.getFileStatus(originFile);
+    FsPermission readWrite = new FsPermission(FsAction.READ_WRITE, FsAction.READ_WRITE, FsAction.READ_WRITE);
     AclEntry aclEntry = new AclEntry.Builder()
         .setPermission(FsAction.READ_WRITE)
         .setName("test-acl")
@@ -363,75 +560,16 @@ public class FileAwareInputStreamDataWriterTest {
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
     ancestorOwnerAndPermissions.add(ownerAndPermission);
-    ancestorOwnerAndPermissions.add(ownerAndPermission);
 
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/publisher");
     CopyableFile cf = CopyableFile.fromOriginAndDestination(this.fs, status, destination,
-        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
-            .preserve(PreserveAttributes.fromMnemonicString("")).build())
+            CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).publishDir(new Path("/target"))
+                .preserve(PreserveAttributes.fromMnemonicString(preserveAttrs)).build())
         .destinationOwnerAndPermission(ownerAndPermission)
         .ancestorsOwnerAndPermission(ancestorOwnerAndPermissions)
         .build();
-
-    // create work unit state
-    WorkUnitState state = TestUtils.createTestWorkUnitState();
-    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir.toUri().getPath());
-    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir.toUri().getPath());
-    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
-    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
-    CopySource.serializeCopyEntity(state, cf);
-    CopySource.serializeCopyableDataset(state, metadata);
-
-    // create writer
-    FileAwareInputStreamDataWriter writer = new FileAwareInputStreamDataWriter(state, fs,1, 0, null);
-
-    // create output of writer.write
-    Path writtenFile = writer.getStagingFilePath(cf);
-    this.fs.mkdirs(writtenFile.getParent());
-    this.fs.createNewFile(writtenFile);
-
-    writer.actualProcessedCopyableFile = Optional.of(cf);
-    // commit
-    writer.commit();
-    // create existing directories in writer output
-    Path outputRoot = FileAwareInputStreamDataWriter.getPartitionOutputRoot(outputDir, cf.getDatasetAndPartition(metadata));
-    Path existingOutputPath = new Path(outputRoot, destinationExistingToken);
-    this.fs.mkdirs(existingOutputPath);
-    FileStatus fileStatus = this.fs.getFileStatus(existingOutputPath);
-    FsPermission existingPathPermission = fileStatus.getPermission();
-    // check state of relevant paths after commit
-    Path expectedOutputPath = new Path(outputRoot, destinationWithoutLeadingSeparator);
-    Assert.assertTrue(this.fs.exists(expectedOutputPath));
-    fileStatus = this.fs.getFileStatus(expectedOutputPath);
-    Assert.assertEquals(fileStatus.getOwner(), ownerAndPermission.getOwner());
-    Assert.assertEquals(fileStatus.getGroup(), ownerAndPermission.getGroup());
-    Assert.assertEquals(fileStatus.getPermission(), readWrite);
-    // parent should have permissions set correctly
-    fileStatus = this.fs.getFileStatus(expectedOutputPath.getParent());
-    Assert.assertEquals(fileStatus.getPermission(), dirReadWrite);
-    // previously existing paths should not have permissions changed
-    fileStatus = this.fs.getFileStatus(existingOutputPath);
-    Assert.assertEquals(fileStatus.getPermission(), existingPathPermission);
-    verifyAclEntries(writer, this.fs.getPathToAclEntries(), expectedOutputPath);
-    Assert.assertFalse(this.fs.exists(writer.stagingDir));
-
-  }
-
-  private void verifyAclEntries(FileAwareInputStreamDataWriter writer, ConcurrentHashMap pathToAclEntries, Path expectedOutputPath) {
-    // fetching and preparing file paths from FileAwareInputStreamDataWriter object
-    Path outputDir = writer.outputDir;
-    String[] splitExpectedOutputPath = expectedOutputPath.toString().split("output");
-    Path dstOutputPath = new Path(outputDir.toString().concat(splitExpectedOutputPath[1])).getParent();
-    Assert.assertTrue(pathToAclEntries.containsKey(dstOutputPath));
-
-    OwnerAndPermission destinationOwnerAndPermission = writer.actualProcessedCopyableFile.get().getDestinationOwnerAndPermission();
-    List<AclEntry> actual = destinationOwnerAndPermission.getAclEntries();
-    do {
-      List<AclEntry> expected = (List<AclEntry>) pathToAclEntries.get(dstOutputPath);
-      Assert.assertEquals(actual, expected);
-      dstOutputPath = dstOutputPath.getParent();
-    } while (pathToAclEntries.containsKey(dstOutputPath));
+    return cf;
   }
 
   @Test
@@ -509,14 +647,18 @@ public class FileAwareInputStreamDataWriterTest {
     }
   }
 
+  /**
+   * Created this class to support `setAcl` method for {@link LocalFileSystem} for unit testing since LocalFileSystem
+   * doesn't provide any implementation for `setAcl` method
+   */
   protected class TestLocalFileSystem extends LocalFileSystem {
-    ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries = new ConcurrentHashMap<>();
     @Override
     public void setAcl(Path path, List<AclEntry> aclEntries) {
       pathToAclEntries.put(path, aclEntries);
     }
-    public ConcurrentHashMap<Path, List<AclEntry>> getPathToAclEntries() {
-      return pathToAclEntries;
+    public ImmutableMap<Path, List<AclEntry>> getPathToAclEntries() {
+      return ImmutableMap.copyOf(pathToAclEntries);
     }
   }
 }
