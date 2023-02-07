@@ -66,7 +66,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Test(groups = {"gobblin.yarn", "disabledOnCI"})
 public class YarnServiceTestWithExpiration {
-  final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
+  final Logger LOG = LoggerFactory.getLogger(YarnServiceIT.class);
 
   private YarnClient yarnClient;
   private MiniYARNCluster yarnCluster;
@@ -122,8 +122,8 @@ public class YarnServiceTestWithExpiration {
     this.yarnClient.init(this.clusterConf);
     this.yarnClient.start();
 
-    URL url = YarnServiceTest.class.getClassLoader()
-        .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
+    URL url = YarnServiceIT.class.getClassLoader()
+        .getResource(YarnServiceIT.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.config = ConfigFactory.parseURL(url).resolve();
@@ -215,7 +215,7 @@ public class YarnServiceTestWithExpiration {
 
   }
 
-  private static class TestExpiredYarnService extends YarnServiceTest.TestYarnService {
+  private static class TestExpiredYarnService extends YarnServiceIT.TestYarnService {
     public HashSet<ContainerId> startErrorContainers = new HashSet<>();
     public HashSet<ContainerStatus> completedContainers = new HashSet<>();
     public TestExpiredYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
