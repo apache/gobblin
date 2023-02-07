@@ -74,12 +74,19 @@ public class DatasetUtils {
    * @throws IOException
    */
   @SuppressWarnings("unchecked")
-  public static <T extends org.apache.gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(Properties props,
-      FileSystem fs, String default_class, Object... additionalArgs)
+  public static <T extends org.apache.gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(
+      Properties props, FileSystem fs, String default_class, Object... additionalArgs)
       throws IOException {
+    return instantiateDatasetFinder(DATASET_PROFILE_CLASS_KEY, props, fs, default_class, additionalArgs);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends org.apache.gobblin.dataset.Dataset> DatasetsFinder<T> instantiateDatasetFinder(
+      String classKey, Properties props, FileSystem fs, String default_class, Object... additionalArgs)
+  throws IOException{
     String className = default_class;
-    if (props.containsKey(DATASET_PROFILE_CLASS_KEY)) {
-      className = props.getProperty(DATASET_PROFILE_CLASS_KEY);
+    if (props.containsKey(classKey)) {
+      className = props.getProperty(classKey);
     }
     try {
       Class<?> datasetFinderClass = Class.forName(className);
