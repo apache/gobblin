@@ -67,7 +67,7 @@ import static org.powermock.api.mockito.PowerMockito.*;
 /**
  * Tests for {@link YarnService}.
  */
-@PrepareForTest({AMRMClientAsync.class, RegisterApplicationMasterResponse.class, AMRMClientAsyncImpl.class})
+@PrepareForTest({AMRMClientAsync.class, RegisterApplicationMasterResponse.class})
 @PowerMockIgnore({"javax.management.*"})
 public class YarnServiceTest extends PowerMockTestCase{
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
@@ -80,15 +80,12 @@ public class YarnServiceTest extends PowerMockTestCase{
   @Mock
   RegisterApplicationMasterResponse mockRegisterApplicationMasterResponse;
   @Mock
-  AMRMClientAsyncImpl mockAMRMClientImpl;
-  @Mock
   Resource mockResource;
 
   @BeforeClass
   public void setUp() throws Exception {
     mockAMRMClient = Mockito.mock(AMRMClientAsync.class);
     mockRegisterApplicationMasterResponse = Mockito.mock(RegisterApplicationMasterResponse.class);
-    mockAMRMClientImpl = Mockito.mock(AMRMClientAsyncImpl.class);
     mockResource = Mockito.mock(Resource.class);
 
     URL url = YarnServiceTest.class.getClassLoader()
@@ -105,7 +102,8 @@ public class YarnServiceTest extends PowerMockTestCase{
     doNothing().when(mockAMRMClient).init(any(YarnConfiguration.class));
     when(mockAMRMClient.registerApplicationMaster(anyString(), anyInt(), anyString()))
         .thenReturn(mockRegisterApplicationMasterResponse);
-    when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability()).thenReturn(mockResource);
+    when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability())
+        .thenReturn(mockResource);
     FileSystem fs = Mockito.mock(FileSystem.class);
 
     // create and start the test yarn service
@@ -114,28 +112,21 @@ public class YarnServiceTest extends PowerMockTestCase{
   }
 
   /**
-   * Test if requested resource exceed the resource limit, yarnService should fail.
+   * Testing the race condition between the yarn start up and creating yarn container request
+   * Block on creating new yarn containers until start up of the yarn service and purging is complete
    */
   @Test(groups = {"gobblin.yarn"})
   public void testYarnStartUpFirst() throws Exception{
-    Resource resource = Resource.newInstance(204800, 10240);
-    Boolean canRequest = false;
-    canRequest = this.yarnService.requestTargetNumberOfContainers(
-        GobblinYarnTestUtils.createYarnContainerRequest(10, resource), Collections.EMPTY_SET);
+    boolean canRequestNewContainers = this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET);
 
     // Not allowed to request target number of containers since yarnService hasn't started up yet.
-    Assert.assertFalse(canRequest);
-    System.out.println("HERE1");
-    System.out.println(canRequest);
+    Assert.assertFalse(canRequestNewContainers);
 
     this.yarnService.startUp();
-    YarnContainerRequestBundle testing = new YarnContainerRequestBundle();
-    canRequest = this.yarnService.requestTargetNumberOfContainers(testing, Collections.EMPTY_SET);
+    canRequestNewContainers = this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET);
 
     // Allowed to request target number of containers after yarnService is started up.
-    Assert.assertTrue(canRequest);
-    System.out.println("HERE");
-    System.out.println(canRequest);
+    Assert.assertTrue(canRequestNewContainers);
   }
 
   static class TestYarnService extends YarnService {
@@ -186,13 +177,10 @@ public class YarnServiceTest extends PowerMockTestCase{
     protected ByteBuffer getSecurityTokens() throws IOException {
       return mock(ByteBuffer.class);
     }
-
   }
 
   @ObjectFactory
   public IObjectFactory getObjectFactory() {
     return new PowerMockObjectFactory();
   }
-
-
 }
