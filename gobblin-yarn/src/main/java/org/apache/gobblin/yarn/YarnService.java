@@ -464,12 +464,13 @@ public class YarnService extends AbstractIdleService {
    *
    * @param yarnContainerRequestBundle the desired containers information, including numbers, resource and helix tag
    * @param inUseInstances  a set of in use instances
+   * @return whether the requestTargetNumberOfContainers function has executed yet
    */
   public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
         yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
     if (startupInProgress) {
-      LOGGER.info("YarnService is still starting up. Unable to request containers from yarn until YarnService is finished starting up.");
+      LOGGER.warn("YarnService is still starting up. Unable to request containers from yarn until YarnService is finished starting up.");
       return false;
     }
 
