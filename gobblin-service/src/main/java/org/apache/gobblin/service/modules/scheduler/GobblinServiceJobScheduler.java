@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -60,6 +60,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
@@ -106,10 +107,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   private volatile boolean isActive;
   private String serviceName;
+  private final ContextAwareGauge averageGetSpecTimeMillis;
+  private final ContextAwareGauge batchSize;
+  private final ContextAwareGauge timeToInitalizeSchedulerMillis;
+  private volatile Long averageGetSpecTimeValue = -1L;
+  private volatile Long timeToInitializeSchedulerValue = -1L;
   private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
-  private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);;
+  private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);
 
   /**
    * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
@@ -145,6 +151,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
     this.quotaManager = quotaManager;
+    this.averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);
+    metricContext.register(this.averageGetSpecTimeMillis);
+    this.batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
+    metricContext.register(this.batchSize);
+    this.timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
+    metricContext.register(timeToInitalizeSchedulerMillis);
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
@@ -223,12 +235,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     int startUriIndex = 0;
     URI startSpecUri = specUris.get(startUriIndex);
+    long batchGetStartTime;
+    long batchGetEndTime;
+    int numSpecs;
 
     while (startUriIndex < specUris.size()) {
       try {
+        batchGetStartTime  = System.currentTimeMillis();
         Iterator<Spec> batchOfSpecsIterator = this.flowCatalog.get().getBatchedSpecs(startSpecUri, this.loadSpecsBatchSize);
+        batchGetEndTime = System.currentTimeMillis();
+        numSpecs = 0;
         while (batchOfSpecsIterator.hasNext()) {
           Spec spec = batchOfSpecsIterator.next();
+          numSpecs += 1;
           try {
             // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
             if (spec instanceof FlowSpec && PropertiesUtils
@@ -248,11 +267,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         // Update index uri to start next batch from
         startUriIndex += this.loadSpecsBatchSize;
         startSpecUri = specUris.get(startUriIndex);
+        averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / numSpecs;
       } catch (IOException e) {
         e.printStackTrace();
       }
     }
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
+    this.timeToInitializeSchedulerValue = System.currentTimeMillis() - startTime;
   }
 
   /**
