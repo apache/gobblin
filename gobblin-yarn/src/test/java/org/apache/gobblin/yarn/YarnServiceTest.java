@@ -20,6 +20,7 @@ package org.apache.gobblin.yarn;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -75,18 +76,18 @@ public class YarnServiceTest extends PowerMockTestCase{
   private Config config;
   private YarnConfiguration clusterConf = new YarnConfiguration();
   private final EventBus eventBus = new EventBus("YarnServiceTest");
-  @Mock
+
   AMRMClientAsync mockAMRMClient;
-  @Mock
   RegisterApplicationMasterResponse mockRegisterApplicationMasterResponse;
-  @Mock
   Resource mockResource;
+  FileSystem mockFs;
 
   @BeforeClass
   public void setUp() throws Exception {
     mockAMRMClient = Mockito.mock(AMRMClientAsync.class);
     mockRegisterApplicationMasterResponse = Mockito.mock(RegisterApplicationMasterResponse.class);
     mockResource = Mockito.mock(Resource.class);
+    mockFs = Mockito.mock(FileSystem.class);
 
     URL url = YarnServiceTest.class.getClassLoader()
         .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
@@ -104,11 +105,10 @@ public class YarnServiceTest extends PowerMockTestCase{
         .thenReturn(mockRegisterApplicationMasterResponse);
     when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability())
         .thenReturn(mockResource);
-    FileSystem fs = Mockito.mock(FileSystem.class);
 
     // Create the test yarn service, but don't start yet
     this.yarnService = new TestYarnService(this.config, "testApp", "appId",
-        this.clusterConf, fs, this.eventBus);
+        this.clusterConf, mockFs, this.eventBus);
   }
 
   /**
@@ -117,17 +117,14 @@ public class YarnServiceTest extends PowerMockTestCase{
    */
   @Test(groups = {"gobblin.yarn"})
   public void testYarnStartUpFirst() throws Exception{
-    boolean canRequestNewContainers = this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET);
-
     // Not allowed to request target number of containers since yarnService hasn't started up yet.
-    Assert.assertFalse(canRequestNewContainers);
+    Assert.assertFalse(this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
 
     // Start the yarn service
     this.yarnService.startUp();
-    canRequestNewContainers = this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET);
 
     // Allowed to request target number of containers after yarnService is started up.
-    Assert.assertTrue(canRequestNewContainers);
+    Assert.assertTrue(this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
   }
 
   static class TestYarnService extends YarnService {
@@ -138,28 +135,12 @@ public class YarnServiceTest extends PowerMockTestCase{
 
     private static HelixManager getMockHelixManager(Config config) {
       HelixManager helixManager = Mockito.mock(HelixManager.class);
-      HelixDataAccessor helixDataAccessor = Mockito.mock(HelixDataAccessor.class);
-      PropertyKey propertyKey = Mockito.mock(PropertyKey.class);
-      PropertyKey.Builder propertyKeyBuilder = Mockito.mock(PropertyKey.Builder.class);
-
-      Mockito.when(helixManager.getInstanceName()).thenReturn("helixInstance1");
       Mockito.when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-
-      Mockito.when(helixManager.getHelixDataAccessor()).thenReturn(helixDataAccessor);
       Mockito.when(helixManager.getMetadataStoreConnectionString()).thenReturn("stub");
-      Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(propertyKeyBuilder);
-      Mockito.when(propertyKeyBuilder.liveInstance(Mockito.anyString())).thenReturn(propertyKey);
-      Mockito.when(helixDataAccessor.getProperty(propertyKey)).thenReturn(null);
-
       return helixManager;
     }
 
-    private static HelixAdmin getMockHelixAdmin() {
-      HelixAdmin helixAdmin = Mockito.mock(HelixAdmin.class);
-      Mockito.doNothing().when(helixAdmin).purgeOfflineInstances(Mockito.anyString(), Mockito.anyLong());
-      Mockito.doNothing().when(helixAdmin).enableInstance(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
-      return helixAdmin;
-    }
+    private static HelixAdmin getMockHelixAdmin() { return Mockito.mock(HelixAdmin.class); }
 
     protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
         throws IOException {
@@ -167,17 +148,8 @@ public class YarnServiceTest extends PowerMockTestCase{
           Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
     }
 
-    /**
-     * Get the list of matching container requests for the specified resource memory and cores.
-     */
-    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequestsList(Resource resource) {
-      Priority priority = Priority.newInstance(0);
-      return getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
-    }
     @Override
-    protected ByteBuffer getSecurityTokens() throws IOException {
-      return mock(ByteBuffer.class);
-    }
+    protected ByteBuffer getSecurityTokens() throws IOException { return mock(ByteBuffer.class); }
   }
 
   @ObjectFactory

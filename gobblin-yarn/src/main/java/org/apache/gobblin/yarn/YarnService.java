@@ -207,9 +207,7 @@ public class YarnService extends AbstractIdleService {
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
 
   private volatile boolean shutdownInProgress = false;
-
-  @VisibleForTesting
-  protected volatile boolean startupInProgress = true;
+  private volatile boolean startupInProgress = true;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus, HelixManager helixManager, HelixAdmin helixAdmin) throws Exception {
@@ -471,9 +469,10 @@ public class YarnService extends AbstractIdleService {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
         yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
     if (startupInProgress) {
-      LOGGER.info("RequestTargetNumberOfContainers waiting for startup to complete first.");
+      LOGGER.info("YarnService is still starting up. Unable to request containers from yarn until YarnService is finished starting up.");
       return false;
     }
+
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
