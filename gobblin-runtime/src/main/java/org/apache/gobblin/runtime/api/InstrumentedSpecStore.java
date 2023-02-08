@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.MetricRegistry;
@@ -92,6 +93,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   private OptionallyTimingInvoker getSizeTimer;
   private OptionallyTimingInvoker getURIsTimer;
   private OptionallyTimingInvoker getURIsWithTagTimer;
+  // TODO: do i need to do anything else before adding this timer?
+  private OptionallyTimingInvoker getSortedURIsTimer;
+  private OptionallyTimingInvoker getBatchedSpecsTimer;
   private MetricContext metricContext;
   private final boolean instrumentationEnabled;
 
@@ -107,6 +111,8 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     this.getSizeTimer = createTimingInvoker("-GETCOUNT");
     this.getURIsTimer = createTimingInvoker("-GETURIS");
     this.getURIsWithTagTimer = createTimingInvoker("-GETURISWITHTAG");
+    this.getSortedURIsTimer = createTimingInvoker("-GETSORTEDURIS");
+    this.getBatchedSpecsTimer = createTimingInvoker("-GETBATCHEDSPECS");
   }
 
   private OptionallyTimingInvoker createTimingInvoker(String suffix) {
@@ -146,6 +152,11 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
+  public Iterator<Spec> getBatchedSpecs(URI startSpecUri, int batchSize) throws IOException {
+    return this.getBatchedSpecsTimer.invokeMayThrowIO(() -> getBatchedSpecsImpl(startSpecUri, batchSize));
+  }
+
+  @Override
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
     return this.updateTimer.invokeMayThrowBoth(() -> updateSpecImpl(spec));
   }
@@ -171,6 +182,11 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
+  public List<URI> getSortedSpecURIs() throws IOException {
+    return this.getSortedURIsTimer.invokeMayThrowIO(() -> getSortedSpecURIsImpl());
+  }
+
+  @Override
   public Collection<Spec> getSpecs(int start, int count) throws IOException {
     return this.getTimer.invokeMayThrowIO(() -> getSpecsImpl(start, count));
   }
@@ -192,6 +208,8 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract Collection<Spec> getSpecsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException;
+  public abstract <T> T getSortedSpecURIsImpl() throws IOException;
+  public abstract Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException;
   public abstract int getSizeImpl() throws IOException;
   public abstract Collection<Spec> getSpecsImpl(int start, int count) throws IOException;
 

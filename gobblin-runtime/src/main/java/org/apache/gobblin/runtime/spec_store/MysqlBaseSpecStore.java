@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import javax.sql.DataSource;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -36,6 +35,7 @@ import com.google.common.io.ByteStreams;
 import com.typesafe.config.Config;
 import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -84,8 +84,8 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
-  // TODO check if i need the spec uri too
-  private static final String GET_BATCH_SPEC_URIS_STATEMENT = "SELECT spec FROM %s WHERE spec_uri >= %s ORDER BY spec_uri ASC LIMIT %s";
+  private static final String GET_BATCH_IN_RANGE_STATEMENT = "SELECT spec FROM %s WHERE spec_uri >= "
+      + "%s ORDER BY spec_uri ASC LIMIT %s";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
   // NOTE: using max length of a `FlowSpec` URI, as it's believed to be the longest of existing `Spec` types
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
@@ -105,7 +105,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     public final String getAllStatement = String.format(getTablelessGetAllStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsStatement = String.format(getTablelessGetAllURIsStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlBaseSpecStore.this.tableName);
-    public final String getBatchSpecUrisStatement = String.format(getTablelessGetBatchSpecUrisStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getBatchStatement = String.format(getTablelessGetBatchStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlBaseSpecStore.this.tableName);
     public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlBaseSpecStore.this.tableName);
 
@@ -122,6 +122,13 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       return MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
     }
 
+    public void completeGetBatchStatement(PreparedStatement statement, String maxSpecUri, int batchSize)
+        throws SQLException {
+      int i = 0;
+      statement.setString(++i, maxSpecUri);
+      statement.setInt(++i, batchSize);
+    }
+
     protected String getTablelessExistsStatement() { return MysqlBaseSpecStore.EXISTS_STATEMENT; }
     protected String getTablelessUpdateStatement() { return MysqlBaseSpecStore.UPDATE_STATEMENT; }
     protected String getTablelessInsertStatement() { return MysqlBaseSpecStore.INSERT_STATEMENT; }
@@ -130,7 +137,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     protected String getTablelessGetAllStatement() { return MysqlBaseSpecStore.GET_ALL_STATEMENT; }
     protected String getTablelessGetAllURIsStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_STATEMENT; }
     protected String getTablelessGetAllURIsWithTagStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
-    protected String getTablelessGetBatchSpecUrisStatement() { return MysqlBaseSpecStore.GET_BATCH_SPEC_URIS_STATEMENT; }
+    protected String getTablelessGetBatchStatement() {return MysqlBaseSpecStore.GET_BATCH_IN_RANGE_STATEMENT; }
     protected String getTablelessGetSizeStatement() { return MysqlBaseSpecStore.GET_SIZE_STATEMENT; }
     protected String getTablelessCreateTableStatement() { return MysqlBaseSpecStore.CREATE_TABLE_STATEMENT; }
   }
@@ -272,6 +279,15 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
+  public List<URI> getSortedSpecURIsImpl() throws IOException {
+    return withPreparedStatement(this.sqlStatements.getAllURIsStatement, statement -> {
+      List<URI> uris = retreiveURIs(statement);
+      uris.sort(URI::compareTo);
+      return uris;
+    });
+  }
+
+  @Override
   public int getSizeImpl() throws IOException {
     return withPreparedStatement(this.sqlStatements.getSizeStatement, statement -> {
       try (ResultSet resultSet = statement.executeQuery()) {
@@ -304,6 +320,14 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     return withPreparedStatement(this.sqlStatements.getAllURIsWithTagStatement, statement -> {
       statement.setString(1, tag);
       return retreiveURIs(statement).iterator();
+    });
+  }
+
+  @Override
+  public Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException {
+    return withPreparedStatement(this.sqlStatements.getBatchStatement, statement -> {
+      this.sqlStatements.completeGetBatchStatement(statement, startSpecUri.toString(), batchSize);
+      return retrieveSpecs(statement).iterator();
     });
   }
 

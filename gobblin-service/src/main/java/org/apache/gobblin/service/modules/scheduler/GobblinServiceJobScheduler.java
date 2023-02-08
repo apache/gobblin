@@ -17,22 +17,38 @@
 
 package org.apache.gobblin.service.modules.scheduler;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.helix.HelixManager;
+import org.quartz.DisallowConcurrentExecution;
+import org.quartz.InterruptableJob;
+import org.quartz.JobDataMap;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.SchedulerException;
+import org.quartz.UnableToInterruptJobException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
+
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -47,6 +63,7 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -56,20 +73,9 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
-import org.apache.helix.HelixManager;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.InterruptableJob;
-import org.quartz.JobDataMap;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
-import org.quartz.SchedulerException;
-import org.quartz.UnableToInterruptJobException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 
@@ -96,6 +102,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<UserQuotaManager> quotaManager;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
+  protected final int loadSpecsBatchSize;
   @Getter
   private volatile boolean isActive;
   private String serviceName;
@@ -133,6 +140,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
+    this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
@@ -196,11 +204,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    Iterator<URI> specUris = null;
+    List<URI> specUris = null;
     long startTime = System.currentTimeMillis();
 
     try {
-      specUris = this.flowCatalog.get().getSpecURIs();
+      specUris = this.flowCatalog.get().getSortedSpecURIS();
 
       // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
       if (isNominatedDRHandler) {
@@ -213,20 +221,35 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
     }
 
-    while (specUris.hasNext()) {
-      Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
+    int startUriIndex = 0;
+    URI startSpecUri = specUris.get(startUriIndex);
+
+    while (startUriIndex < specUris.size()) {
       try {
-        // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-        if (spec instanceof FlowSpec && PropertiesUtils.getPropAsBoolean((
-            (FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-          Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-          onAddSpec(modifiedSpec);
-        } else {
-          onAddSpec(spec);
+        Iterator<Spec> batchOfSpecsIterator = this.flowCatalog.get().getBatchedSpecs(startSpecUri, this.loadSpecsBatchSize);
+        while (batchOfSpecsIterator.hasNext()) {
+          Spec spec = batchOfSpecsIterator.next();
+          try {
+            // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+            if (spec instanceof FlowSpec && PropertiesUtils
+                .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+                    "false")) {
+              Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+              onAddSpec(modifiedSpec);
+            } else {
+              onAddSpec(spec);
+            }
+          } catch (Exception e) {
+            // If there is an uncaught error thrown during compilation, log it and continue adding flows
+            _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+          }
         }
-      } catch (Exception e) {
-        // If there is an uncaught error thrown during compilation, log it and continue adding flows
-        _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+
+        // Update index uri to start next batch from
+        startUriIndex += this.loadSpecsBatchSize;
+        startSpecUri = specUris.get(startUriIndex);
+      } catch (IOException e) {
+        e.printStackTrace();
       }
     }
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);

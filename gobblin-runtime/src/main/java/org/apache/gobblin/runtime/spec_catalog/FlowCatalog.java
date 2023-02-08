@@ -254,6 +254,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return specStore.getSpecURIsWithTag(tag);
   }
 
+  public List<URI> getSortedSpecURIS() throws IOException {
+    return specStore.getSortedSpecURIs();
+  }
+
   /**
    * Get all specs from {@link SpecStore}
    * Not suggested for {@link FlowCatalog} where the total amount of space that all {@link FlowSpec}s occupied
@@ -268,6 +272,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }
+  }
+
+  public Iterator<Spec> getBatchedSpecs(URI maxSpecURI, int batchSize) throws IOException {
+    return specStore.getBatchedSpecs(maxSpecURI, batchSize);
   }
 
   /**

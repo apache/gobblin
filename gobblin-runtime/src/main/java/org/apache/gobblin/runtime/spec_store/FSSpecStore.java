@@ -272,6 +272,18 @@ public class FSSpecStore extends InstrumentedSpecStore {
     throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
   }
 
+  // TODO: do these make sense to be implemented for FSSpecStore?
+  @Override
+  public <T> T getSortedSpecURIsImpl() throws IOException {
+    throw new UnsupportedOperationException("Loading sorted spec uris is not supported in FS-Implementation of SpecStore");
+  }
+
+  @Override
+  public Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException {
+    // get specs implementation sort and then return from maxSpecURI to batch size
+    throw new UnsupportedOperationException("Loading batch specs is not supported in FS-Implementation of SpecStore");
+  }
+
   @Override
   public Optional<URI> getSpecStoreURI() {
     return Optional.of(this.fsSpecStoreDirPath.toUri());
