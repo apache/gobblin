@@ -325,8 +325,8 @@ public class FileAwareInputStreamDataWriterTest {
     String fileName = "file";
 
     // Asemble destination paths
-    Path destination = new Path(new Path(new Path("/", destinationExistingToken), destinationAdditionalTokens), fileName);
     Path destinationWithoutLeadingSeparator = new Path(new Path(destinationExistingToken, destinationAdditionalTokens), fileName);
+    Path destination = new Path("/", destinationWithoutLeadingSeparator);
 
     // Create temp directory
     File tmpFile = Files.createTempDir();
@@ -418,8 +418,8 @@ public class FileAwareInputStreamDataWriterTest {
     // Asemble destination paths
     String destinationExistingToken = "destination";
     String destinationAdditionalTokens = "path";
-    Path destination = new Path(new Path(new Path("/", destinationExistingToken), destinationAdditionalTokens), fileName);
     Path destinationWithoutLeadingSeparator = new Path(new Path(destinationExistingToken, destinationAdditionalTokens), fileName);
+    Path destination = new Path("/", destinationWithoutLeadingSeparator);
 
     // Create temp directory
     File tmpFile = Files.createTempDir();
@@ -471,8 +471,8 @@ public class FileAwareInputStreamDataWriterTest {
     // Asemble destination paths
     String destinationExistingToken = "destination";
     String destinationAdditionalTokens = "path";
-    Path destination = new Path(new Path(new Path("/", destinationExistingToken), destinationAdditionalTokens), fileName);
     Path destinationWithoutLeadingSeparator = new Path(new Path(destinationExistingToken, destinationAdditionalTokens), fileName);
+    Path destination = new Path("/", destinationWithoutLeadingSeparator);
 
     // Create temp directory
     File tmpFile = Files.createTempDir();
