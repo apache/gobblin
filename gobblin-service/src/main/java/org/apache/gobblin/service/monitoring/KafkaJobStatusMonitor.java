@@ -251,10 +251,17 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
         int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
         int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
+        // Verify if the current job status is flow status. If yes, we check for its current execution status to be PENDING_RESUME (limiting to just resume flow statuses)
+        // When the above two conditions satisfy, we NEED NOT check for the out-of-order events since GaaS would manage the lifecycle of these events
+        // Hence, we update the merge state so that the flow can proceed with its execution
+        if (jobName != null && jobGroup != null
+            && jobName.equals(JobStatusRetriever.NA_KEY) && jobGroup.equals(JobStatusRetriever.NA_KEY) && currentStatus.equals(ExecutionStatus.PENDING_RESUME.name())) {
+          jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
+        }
         // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
         // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
         // And job status reflect the execution status in one attempt
-        if (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
+        else if (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
             previousGeneration == currentGeneration && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
             && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
             < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))))) {
