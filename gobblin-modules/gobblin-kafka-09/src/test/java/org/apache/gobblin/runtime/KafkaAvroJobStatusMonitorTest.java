@@ -429,6 +429,62 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
+  @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
+  public void testProcessMessageForFlowPendingResume() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobOrchestratedEvent(1, 2),
+        createJobCancelledEvent(),
+        createFlowPendingResumeEvent(),
+        createJobOrchestratedEvent(2, 2),
+        createJobStartEvent(),
+        createJobSucceededEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSObservabilityEventProducer());
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
+
+    // Job for flow pending resume status after it was cancelled or failed
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RESUME.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    //Job orchestrated for retrying
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+
+    jobStatusMonitor.shutDown();
+  }
+
   @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
   public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
@@ -617,6 +673,14 @@ public class KafkaAvroJobStatusMonitorTest {
 
   private GobblinTrackingEvent createJobStartSLAKilledEvent() {
     return createGTE(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED, Maps.newHashMap());
+  }
+
+  private GobblinTrackingEvent createFlowPendingResumeEvent() {
+    GobblinTrackingEvent event = createGTE(TimingEvent.FlowTimings.FLOW_PENDING_RESUME, Maps.newHashMap());
+    event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+    event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+    return event;
+
   }
 
   private GobblinTrackingEvent createGTE(String eventName, Map<String, String> customMetadata) {
