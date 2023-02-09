@@ -47,6 +47,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import org.mockito.Mockito;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -79,7 +80,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
-import org.mockito.Mockito;
 
 
 public class HiveMetadataWriterTest extends HiveMetastoreTest {
@@ -182,6 +182,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     state.setProp("gmce.metadata.writer.classes", "org.apache.gobblin.hive.writer.HiveMetadataWriter");
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
   }
+
   @Test
   public void testHiveWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,

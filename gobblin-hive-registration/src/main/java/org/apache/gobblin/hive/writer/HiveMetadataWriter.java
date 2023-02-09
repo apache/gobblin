@@ -102,7 +102,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   private final WhitelistBlacklist whitelistBlacklist;
   // Always use the latest table Schema for tables in #useLatestTableSchemaWhiteListBlackList
   // unless a newer writer schema arrives
-  private final WhitelistBlacklist useLatestTableSchemaAllowDenyList;
+  private final WhitelistBlacklist useExistingTableSchemaAllowDenyList;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
@@ -136,7 +136,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.latestSchemaMap = new HashMap<>();
-    this.useLatestTableSchemaAllowDenyList = new WhitelistBlacklist(state.getProp(HIVE_USE_LATEST_SCHEMA_ALLOWLIST, ""),
+    this.useExistingTableSchemaAllowDenyList = new WhitelistBlacklist(state.getProp(HIVE_USE_LATEST_SCHEMA_ALLOWLIST, ""),
         state.getProp(HIVE_USE_LATEST_SCHEMA_DENYLIST, ""));
     this.tableTopicPartitionMap = new HashMap<>();
     this.timeOutSeconds =
@@ -207,7 +207,7 @@ public class HiveMetadataWriter implements MetadataWriter {
       if (!createTable(tableSpec, tableKey))  {
         return;
       }
-      updateLatestSchemaMap(dbName, tableName, tableKey);
+      updateLatestSchemaMapWithExistingSchema(dbName, tableName, tableKey);
     }
 
     tableTopicPartitionMap.put(tableKey, gmceTopicPartition);
@@ -280,14 +280,14 @@ public class HiveMetadataWriter implements MetadataWriter {
     return specMaps.containsKey(tableKey) && specMaps.get(tableKey).size() > 0;
   }
 
-  private void updateLatestSchemaMap(String dbName, String tableName, String tableKey) throws IOException {
+  private void updateLatestSchemaMapWithExistingSchema(String dbName, String tableName, String tableKey) throws IOException {
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    boolean alwaysUseLatestSchema = useLatestTableSchemaAllowDenyList.acceptTable(dbName, tableName);
-    if (alwaysUseLatestSchema || !latestSchemaMap.containsKey(tableKey)) {
+    boolean alwaysUseExistingSchema = useExistingTableSchemaAllowDenyList.acceptTable(dbName, tableName);
+    if (!alwaysUseExistingSchema && latestSchemaMap.containsKey(tableKey)) {
       return;
     }
 
-    HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
+    HiveTable existingTable = hiveRegister.getTable(dbName, tableName).get();
     latestSchemaMap.put(tableKey,
         existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
   }
