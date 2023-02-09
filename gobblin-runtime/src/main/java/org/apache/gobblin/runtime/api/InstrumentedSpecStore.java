@@ -93,7 +93,6 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   private OptionallyTimingInvoker getSizeTimer;
   private OptionallyTimingInvoker getURIsTimer;
   private OptionallyTimingInvoker getURIsWithTagTimer;
-  // TODO: do i need to do anything else before adding this timer?
   private OptionallyTimingInvoker getSortedURIsTimer;
   private OptionallyTimingInvoker getBatchedSpecsTimer;
   private MetricContext metricContext;
