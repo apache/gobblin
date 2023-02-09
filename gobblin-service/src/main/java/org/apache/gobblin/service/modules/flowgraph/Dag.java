@@ -35,7 +35,6 @@ import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 
-
 /**
  * An implementation of Dag. Assumes that nodes have unique values. Nodes with duplicate values will produce
  * unpredictable behavior.

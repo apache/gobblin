@@ -481,7 +481,7 @@ public class DagManager extends AbstractIdleService {
     final Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
     final Map<String, Long> dagToSLA = new HashMap<>();
     private final MetricContext metricContext;
-    private final Set<String> dagIdstoClean = Collections.synchronizedSet(new HashSet<>());
+    private final Set<String> dagIdstoClean = new HashSet<>();
     private final Optional<EventSubmitter> eventSubmitter;
     private final Optional<Timer> jobStatusPolledTimer;
     private final AtomicLong orchestrationDelay = new AtomicLong(0);
@@ -1184,7 +1184,6 @@ public class DagManager extends AbstractIdleService {
      * Add a dag to failed dag state store
      */
     private synchronized void addFailedDag(String dagId, Dag<JobExecutionPlan> dag) {
-      FlowId flowId = DagManagerUtils.getFlowId(dag);
       try {
         log.info("Adding dag " + dagId + " to failed dag state store");
         this.failedDagStateStore.writeCheckpoint(this.dags.get(dagId));
