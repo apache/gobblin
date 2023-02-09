@@ -19,8 +19,10 @@ package org.apache.gobblin.runtime.spec_store;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -272,16 +274,36 @@ public class FSSpecStore extends InstrumentedSpecStore {
     throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
   }
 
-  // TODO: do these make sense to be implemented for FSSpecStore?
   @Override
-  public <T> T getSortedSpecURIsImpl() throws IOException {
-    throw new UnsupportedOperationException("Loading sorted spec uris is not supported in FS-Implementation of SpecStore");
+  public List<URI> getSortedSpecURIsImpl() throws IOException {
+    Iterator<URI> uriIterator = getSpecURIsImpl();
+    List<URI> uris = new ArrayList<>();
+    while (uriIterator.hasNext()) {
+      uris.add(uriIterator.next());
+    }
+    uris.sort(URI::compareTo);
+    return uris;
   }
 
   @Override
   public Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException {
-    // get specs implementation sort and then return from maxSpecURI to batch size
-    throw new UnsupportedOperationException("Loading batch specs is not supported in FS-Implementation of SpecStore");
+    List<URI> sortedURIs = getSortedSpecURIsImpl();
+    int indexOfStartURI = sortedURIs.indexOf(startSpecUri);
+    int numElements = 0;
+    List<Spec> batchOfSpecs = new ArrayList<>();
+    URI currentURI;
+
+    while (indexOfStartURI + numElements < sortedURIs.size() && numElements < batchSize) {
+      currentURI = sortedURIs.get(indexOfStartURI + numElements);
+      try {
+        batchOfSpecs.add(getSpecImpl(currentURI));
+      } catch (SpecNotFoundException e) {
+        log.warn("Unable to find spec for uri {} so proceeding to next URI. Stacktrace {}", currentURI, e);
+        continue;
+      }
+      numElements += 1;
+    }
+    return batchOfSpecs.iterator();
   }
 
   @Override

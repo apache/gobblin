@@ -208,7 +208,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract Collection<Spec> getSpecsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException;
-  public abstract <T> T getSortedSpecURIsImpl() throws IOException;
+  public abstract List<URI> getSortedSpecURIsImpl() throws IOException;
   public abstract Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException;
   public abstract int getSizeImpl() throws IOException;
   public abstract Collection<Spec> getSpecsImpl(int start, int count) throws IOException;
