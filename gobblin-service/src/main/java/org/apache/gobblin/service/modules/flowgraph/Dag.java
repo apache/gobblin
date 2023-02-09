@@ -53,6 +53,9 @@ public class Dag<T> {
   private String message;
   @Setter
   private String flowEvent;
+  // Keep track of when the final flow status is emitted, in milliseconds to avoid many duplicate events
+  @Setter @Getter
+  private long eventEmittedTimeMillis = -1;
 
   public Dag(List<DagNode<T>> dagNodes) {
     this.nodes = dagNodes;

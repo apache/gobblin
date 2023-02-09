@@ -215,7 +215,7 @@ public class DagManagerMetrics {
         MetricRegistry.name(
             ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
             DagManagerUtils.getSpecExecutorName(dagNode),
-            ServiceMetricNames.RUNNING_FLOWS_COUNTER));
+            ServiceMetricNames.Optional));
   }
 
 
