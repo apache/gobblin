@@ -687,7 +687,9 @@ public class ConfigurationKeys {
    */
   public static final String MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
   /** Specifies a static location in HDFS to upload jars to. Useful for sharing jars across different Gobblin runs.*/
+  @Deprecated // Deprecated; use MR_JARS_BASE_DIR instead
   public static final String MR_JARS_DIR = "mr.jars.dir";
+  public static final String MR_JARS_BASE_DIR = "mr.jars.base.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY = "mr.job.map.failure.is.fatal";
   public static final String MR_TARGET_MAPPER_SIZE = "mr.target.mapper.size";

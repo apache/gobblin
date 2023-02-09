@@ -21,11 +21,14 @@ import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -228,8 +231,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
       this.fs.delete(this.mrJobDir, true);
     }
     this.unsharedJarsDir = new Path(this.mrJobDir, JARS_DIR_NAME);
-    this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
-        this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : this.unsharedJarsDir;
+
+    if (this.jobProps.containsKey(ConfigurationKeys.MR_JARS_BASE_DIR)) {
+      Path jarsBaseDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JARS_BASE_DIR));
+      String monthSuffix = new SimpleDateFormat("yyyy-MM").format(System.currentTimeMillis());
+      cleanUpOldJarsDirIfRequired(jarsBaseDir);
+      this.jarsDir = new Path(jarsBaseDir, monthSuffix);
+    } else {
+      this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
+          this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : this.unsharedJarsDir;
+    }
+
     this.fs.mkdirs(this.mrJobDir);
 
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
@@ -262,6 +274,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
     log.info("Configured fs:{}", fs);
     log.debug("Configuration: {}", conf);
     startCancellationExecutor();
+  }
+
+  private void cleanUpOldJarsDirIfRequired(Path jarsBaseDir) throws IOException {
+    List<FileStatus> jarDirs = Arrays.stream(this.fs.exists(jarsBaseDir)
+        ? this.fs.listStatus(jarsBaseDir) : new FileStatus[0]).sorted().collect(Collectors.toList());
+    if (jarDirs.size() > 2) {
+      this.fs.delete(jarDirs.get(0).getPath(), true);
+    }
   }
 
   @Override
