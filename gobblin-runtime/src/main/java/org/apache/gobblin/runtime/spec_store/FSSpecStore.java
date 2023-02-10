@@ -275,38 +275,6 @@ public class FSSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public List<URI> getSortedSpecURIsImpl() throws IOException {
-    Iterator<URI> uriIterator = getSpecURIsImpl();
-    List<URI> uris = new ArrayList<>();
-    while (uriIterator.hasNext()) {
-      uris.add(uriIterator.next());
-    }
-    uris.sort(URI::compareTo);
-    return uris;
-  }
-
-  @Override
-  public Iterator<Spec> getBatchedSpecsImpl(URI startSpecUri, int batchSize) throws IOException {
-    List<URI> sortedURIs = getSortedSpecURIsImpl();
-    int indexOfStartURI = sortedURIs.indexOf(startSpecUri);
-    int numElements = 0;
-    List<Spec> batchOfSpecs = new ArrayList<>();
-    URI currentURI;
-
-    while (indexOfStartURI + numElements < sortedURIs.size() && numElements < batchSize) {
-      currentURI = sortedURIs.get(indexOfStartURI + numElements);
-      try {
-        batchOfSpecs.add(getSpecImpl(currentURI));
-      } catch (SpecNotFoundException e) {
-        log.warn("Unable to find spec for uri {} so proceeding to next URI. Stacktrace {}", currentURI, e);
-        continue;
-      }
-      numElements += 1;
-    }
-    return batchOfSpecs.iterator();
-  }
-
-  @Override
   public Optional<URI> getSpecStoreURI() {
     return Optional.of(this.fsSpecStoreDirPath.toUri());
   }
@@ -392,8 +360,31 @@ public class FSSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecsImpl(int start, int count) throws UnsupportedOperationException {
-    throw new UnsupportedOperationException();
+  public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize)
+      throws IOException {
+    // Obtain sorted list of spec uris to paginate from
+    Iterator<URI> uriIterator = getSpecURIsImpl();
+    List<URI> sortedUris = new ArrayList<>();
+    while (uriIterator.hasNext()) {
+      sortedUris.add(uriIterator.next());
+    }
+    sortedUris.sort(URI::compareTo);
+
+    int numElements = 0;
+    List<Spec> batchOfSpecs = new ArrayList<>();
+    URI currentURI;
+
+    while (startOffset + numElements < sortedUris.size() && numElements < batchSize) {
+      currentURI = sortedUris.get(startOffset + numElements);
+      try {
+        batchOfSpecs.add(getSpecImpl(currentURI));
+      } catch (SpecNotFoundException e) {
+        log.warn("Unable to find spec for uri {} so proceeding to next URI. Stacktrace {}", currentURI, e);
+        continue;
+      }
+      numElements += 1;
+    }
+    return batchOfSpecs;
   }
 
   private int getSizeImpl(Path directory) throws IOException {

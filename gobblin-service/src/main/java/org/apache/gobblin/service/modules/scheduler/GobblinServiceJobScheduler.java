@@ -19,8 +19,8 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -159,6 +159,33 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     metricContext.register(timeToInitalizeSchedulerMillis);
   }
 
+  /**
+   * Use this constructor that does not register gauges with metric context for testing because this class does not
+   * expect multiple instances of the GobblinServiceJobScheduler
+   */
+    @VisibleForTesting
+    public GobblinServiceJobScheduler(String serviceName, Config config,
+      Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
+      Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
+      boolean warmStandbyEnabled, boolean testing) throws Exception {
+      super(ConfigUtils.configToProperties(config), schedulerService);
+
+      _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+      this.serviceName = serviceName;
+      this.flowCatalog = flowCatalog;
+      this.helixManager = helixManager;
+      this.orchestrator = orchestrator;
+      this.scheduledFlowSpecs = Maps.newHashMap();
+      this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
+      this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
+          && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
+      this.warmStandbyEnabled = warmStandbyEnabled;
+      this.quotaManager = quotaManager;
+      this.averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);
+      this.batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
+      this.timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
+  }
+
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager,
@@ -216,12 +243,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    List<URI> specUris = null;
+    int numSpecs = this.flowCatalog.get().getSize();
     long startTime = System.currentTimeMillis();
 
     try {
-      specUris = this.flowCatalog.get().getSortedSpecURIS();
-
       // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
       if (isNominatedDRHandler) {
         // Synchronously cleaning the execution state for DR-applicable FlowSpecs
@@ -230,48 +255,42 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         clearRunningFlowState(drUris);
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
+      throw new RuntimeException("Failed to get Spec URIs with tag to clear running flow state", e);
     }
 
-    int startUriIndex = 0;
-    URI startSpecUri = specUris.get(startUriIndex);
+    int startOffset = 0;
     long batchGetStartTime;
     long batchGetEndTime;
-    int numSpecs;
 
-    while (startUriIndex < specUris.size()) {
-      try {
-        batchGetStartTime  = System.currentTimeMillis();
-        Iterator<Spec> batchOfSpecsIterator = this.flowCatalog.get().getBatchedSpecs(startSpecUri, this.loadSpecsBatchSize);
-        batchGetEndTime = System.currentTimeMillis();
-        numSpecs = 0;
-        while (batchOfSpecsIterator.hasNext()) {
-          Spec spec = batchOfSpecsIterator.next();
-          numSpecs += 1;
-          try {
-            // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-            if (spec instanceof FlowSpec && PropertiesUtils
-                .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-                    "false")) {
-              Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-              onAddSpec(modifiedSpec);
-            } else {
-              onAddSpec(spec);
-            }
-          } catch (Exception e) {
-            // If there is an uncaught error thrown during compilation, log it and continue adding flows
-            _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+    while (startOffset < numSpecs) {
+      batchGetStartTime  = System.currentTimeMillis();
+      Collection<Spec> batchOfSpecs = this.flowCatalog.get().getSpecsPaginated(startOffset, this.loadSpecsBatchSize);
+      Iterator<Spec> batchOfSpecsIterator = batchOfSpecs.iterator();
+      batchGetEndTime = System.currentTimeMillis();
+
+      while (batchOfSpecsIterator.hasNext()) {
+        Spec spec = batchOfSpecsIterator.next();
+        try {
+          // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+          if (spec instanceof FlowSpec && PropertiesUtils
+              .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+                  "false")) {
+            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+            onAddSpec(modifiedSpec);
+          } else {
+            onAddSpec(spec);
           }
+        } catch (Exception e) {
+          // If there is an uncaught error thrown during compilation, log it and continue adding flows
+          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
         }
-
-        // Update index uri to start next batch from
-        startUriIndex += this.loadSpecsBatchSize;
-        startSpecUri = specUris.get(startUriIndex);
-        averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / numSpecs;
-      } catch (IOException e) {
-        e.printStackTrace();
       }
+      startOffset += this.loadSpecsBatchSize;
+      // This count is used to ensure the average spec get time is calculated accurately for the last batch which may be
+      // smaller than the loadSpecsBatchSize
+      averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / batchOfSpecs.size();
     }
+
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     this.timeToInitializeSchedulerValue = System.currentTimeMillis() - startTime;
   }

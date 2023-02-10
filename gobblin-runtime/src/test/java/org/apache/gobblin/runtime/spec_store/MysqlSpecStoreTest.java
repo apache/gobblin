@@ -289,7 +289,7 @@ public class MysqlSpecStoreTest {
      * Sorted order of the specStore configurations is flowSpec1, flowSpec2, flowSpec4
      */
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
-    Collection<Spec> specs = this.specStore.getSpecs(0,10);
+    Collection<Spec> specs = this.specStore.getSpecsPaginated(0,10);
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -303,7 +303,7 @@ public class MysqlSpecStoreTest {
     Assert.assertTrue(specs.contains(this.flowSpec4));
 
     // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
-    specs = this.specStore.getSpecs(0,2);
+    specs = this.specStore.getSpecsPaginated(0,2);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -311,7 +311,7 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
     // Check that functionality for not including a start value is the same as including start value of 0
-    specs = this.specStore.getSpecs(-1, 2);
+    specs = this.specStore.getSpecsPaginated(-1, 2);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));

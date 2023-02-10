@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 
 import com.google.common.base.Optional;
 
@@ -105,16 +104,6 @@ public interface SpecStore {
   Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException;
 
   /***
-   * Retrieve a batch of {@link Spec}s of at most size batchSize using the maxSpecUri {@link URI} to dilineate the
-   * starting point of the specs to retrieve. Note that this assumes that the URI is an unique identifier key of the
-   * table.
-   * @param startSpecUri starting value to batch the specs returned from
-   * @param batchSize max number of specs returned in the batch
-   * @throws IOException Exception in retrieving the {@link Spec}
-   */
-  Iterator<Spec> getBatchedSpecs(URI startSpecUri, int batchSize) throws IOException;
-
-  /***
    * Retrieve specified version of the {@link Spec} by URI from the {@link SpecStore}.
    * @param specUri URI for the {@link Spec} to be retrieved.
    * @param version Version for the {@link Spec} to be retrieved.
@@ -138,10 +127,13 @@ public interface SpecStore {
   Collection<Spec> getSpecs() throws IOException;
 
   /***
-   * Get all {@link Spec}s from the {@link SpecStore} with pagination input.
-   * @throws IOException Exception in retrieving {@link Spec}s.
+   * Retrieve a batch of {@link Spec}s of at most size batchSize beginning at startOffset after creating a unique
+   * ordering of the specs based on primary key spec_uri.
+   * @param startOffset starting row to batch the specs returned from
+   * @param batchSize max number of specs returned in the batch
+   * @throws IOException Exception in retrieving the {@link Spec}
    */
-  Collection<Spec> getSpecs(int start, int count) throws IOException;
+  Collection<Spec> getSpecsPaginated(int startOffset, int batchSize) throws IOException;
 
   /**
    * Return an iterator of Spec URIs(Spec identifiers)
@@ -159,11 +151,6 @@ public interface SpecStore {
    *
    */
   Iterator<URI> getSpecURIsWithTag(String tag) throws IOException;
-
-  /**
-   * Return a sorted list of Spec URIs in ascending order.
-   */
-  List<URI> getSortedSpecURIs() throws IOException;
 
   /**
    * @return A URI to identify the SpecStore itself.
