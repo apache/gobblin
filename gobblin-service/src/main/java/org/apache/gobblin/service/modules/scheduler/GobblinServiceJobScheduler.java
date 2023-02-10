@@ -36,6 +36,7 @@ import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricFilter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
@@ -53,6 +54,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.Metric;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.JobException;
@@ -103,15 +105,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<UserQuotaManager> quotaManager;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
-  protected final int loadSpecsBatchSize;
+  protected volatile int loadSpecsBatchSize = -1;
   @Getter
   private volatile boolean isActive;
   private String serviceName;
-  private final ContextAwareGauge averageGetSpecTimeMillis;
-  private final ContextAwareGauge batchSize;
-  private final ContextAwareGauge timeToInitalizeSchedulerMillis;
   private volatile Long averageGetSpecTimeValue = -1L;
   private volatile Long timeToInitializeSchedulerValue = -1L;
+  private final ContextAwareGauge averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);;
+  private final ContextAwareGauge batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
+  private final ContextAwareGauge timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
   private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
@@ -151,39 +153,17 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
     this.quotaManager = quotaManager;
-    this.averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);
-    metricContext.register(this.averageGetSpecTimeMillis);
-    this.batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
-    metricContext.register(this.batchSize);
-    this.timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
-    metricContext.register(timeToInitalizeSchedulerMillis);
-  }
-
-  /**
-   * Use this constructor that does not register gauges with metric context for testing because this class does not
-   * expect multiple instances of the GobblinServiceJobScheduler
-   */
-    @VisibleForTesting
-    public GobblinServiceJobScheduler(String serviceName, Config config,
-      Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
-      Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
-      boolean warmStandbyEnabled, boolean testing) throws Exception {
-      super(ConfigUtils.configToProperties(config), schedulerService);
-
-      _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-      this.serviceName = serviceName;
-      this.flowCatalog = flowCatalog;
-      this.helixManager = helixManager;
-      this.orchestrator = orchestrator;
-      this.scheduledFlowSpecs = Maps.newHashMap();
-      this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
-      this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
-          && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
-      this.warmStandbyEnabled = warmStandbyEnabled;
-      this.quotaManager = quotaManager;
-      this.averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);
-      this.batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
-      this.timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
+    // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
+    // of the scheduler. If one metric exists, then the others should as well.
+    MetricFilter filter = MetricFilter.contains(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS);
+    if (metricContext.getGauges(filter).isEmpty()) {
+//      this.averageGetSpecTimeMillis =
+      metricContext.register(this.averageGetSpecTimeMillis);
+//      this.batchSize ;
+      metricContext.register(this.batchSize);
+//      this.timeToInitalizeSchedulerMillis
+      metricContext.register(timeToInitalizeSchedulerMillis);
+    }
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
