@@ -235,7 +235,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     if (this.jobProps.containsKey(ConfigurationKeys.MR_JARS_BASE_DIR)) {
       Path jarsBaseDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JARS_BASE_DIR));
       String monthSuffix = new SimpleDateFormat("yyyy-MM").format(System.currentTimeMillis());
-      cleanUpOldJarsDirIfRequired(jarsBaseDir);
+      cleanUpOldJarsDirIfRequired(this.fs, jarsBaseDir);
       this.jarsDir = new Path(jarsBaseDir, monthSuffix);
     } else {
       this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
@@ -276,11 +276,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
     startCancellationExecutor();
   }
 
-  private void cleanUpOldJarsDirIfRequired(Path jarsBaseDir) throws IOException {
-    List<FileStatus> jarDirs = Arrays.stream(this.fs.exists(jarsBaseDir)
-        ? this.fs.listStatus(jarsBaseDir) : new FileStatus[0]).sorted().collect(Collectors.toList());
+  static void cleanUpOldJarsDirIfRequired(FileSystem fs, Path jarsBaseDir) throws IOException {
+    List<FileStatus> jarDirs = Arrays.stream(fs.exists(jarsBaseDir)
+        ? fs.listStatus(jarsBaseDir) : new FileStatus[0]).sorted().collect(Collectors.toList());
     if (jarDirs.size() > 2) {
-      this.fs.delete(jarDirs.get(0).getPath(), true);
+      fs.delete(jarDirs.get(0).getPath(), true);
     }
   }
 

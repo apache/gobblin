@@ -26,6 +26,9 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.jboss.byteman.contrib.bmunit.BMRules;
@@ -37,6 +40,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -115,6 +119,22 @@ public class MRJobLauncherTest extends BMNGRunner {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
     log.info("out");
+  }
+
+  @Test
+  public void testCleanUpMrJarsBaseDir() throws Exception {
+    File tmpDirectory = Files.createTempDir();
+    tmpDirectory.deleteOnExit();
+    FileSystem fs = FileSystem.get(new Configuration());
+    String baseJarDir = tmpDirectory.getAbsolutePath();
+    fs.mkdirs(new Path(baseJarDir, "2023-01"));
+    fs.mkdirs(new Path(baseJarDir, "2022-12"));
+    fs.mkdirs(new Path(baseJarDir, "2023-02"));
+    MRJobLauncher.cleanUpOldJarsDirIfRequired(FileSystem.get(new Configuration()), new Path(tmpDirectory.getPath()));
+    Assert.assertFalse(fs.exists(new Path(baseJarDir, "2022-12")));
+    Assert.assertTrue(fs.exists(new Path(baseJarDir, "2023-01")));
+    Assert.assertTrue(fs.exists(new Path(baseJarDir, "2023-02")));
+    fs.delete(new Path(baseJarDir), true);
   }
 
   @Test
