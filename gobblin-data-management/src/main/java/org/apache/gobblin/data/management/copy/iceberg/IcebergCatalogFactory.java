@@ -18,19 +18,20 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.hive.HiveCatalog;
+import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.catalog.Catalog;
 
 import com.google.common.collect.Maps;
+
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
  * Provides an {@link IcebergCatalog}.
  */
 public class IcebergCatalogFactory {
-  public static IcebergCatalog create(Configuration configuration) {
-    HiveCatalog hcat = new HiveCatalog();
-    hcat.setConf(configuration);
-    hcat.initialize("hive", Maps.newHashMap());
-    return new IcebergHiveCatalog(hcat);
+  public static IcebergCatalog create(IcebergCatalog.CatalogSpecifier specifier, Configuration configuration) throws ReflectiveOperationException {
+    Catalog catalog = CatalogUtil.loadCatalog(specifier.getCatalogClass().getName(), specifier.getCatalogType(), Maps.newHashMap(), configuration);
+    return GobblinConstructorUtils.invokeLongestConstructor(specifier.getIcebergCatalogClass(), catalog);
   }
 }

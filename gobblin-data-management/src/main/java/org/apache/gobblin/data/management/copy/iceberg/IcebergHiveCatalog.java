@@ -17,21 +17,53 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
+import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Hive-Metastore-based {@link IcebergCatalog}.
  */
 @Slf4j
-@AllArgsConstructor
 public class IcebergHiveCatalog implements IcebergCatalog {
+
+  /**
+   * Ensures pairing between {@link IcebergCatalog} and its implementation type i.e. {@link HiveCatalog} in this case.
+   * Unfortunately, {@link org.apache.iceberg.BaseMetastoreCatalog}.newTableOps is protected.
+   * Hence it necessitates this abtraction to define and access {@link IcebergTable}
+   */
+  public static class HiveSpecifier implements CatalogSpecifier {
+
+    public static final String HIVE_CATALOG_TYPE = "hive";
+    @Override
+    public Class<? extends Catalog> getCatalogClass() {
+      return HiveCatalog.class;
+    }
+
+    @Override
+    public Class<? extends IcebergCatalog> getIcebergCatalogClass() {
+      return IcebergHiveCatalog.class;
+    }
+
+    @Override
+    public String getCatalogType() {
+      return HIVE_CATALOG_TYPE;
+    }
+  }
+
   // NOTE: specifically necessitates `HiveCatalog`, as `BaseMetastoreCatalog.newTableOps` is `protected`!
   private final HiveCatalog hc;
+
+  public IcebergHiveCatalog(Catalog catalog) {
+    if (catalog instanceof HiveCatalog) {
+      hc = (HiveCatalog) catalog;
+    } else {
+      throw new IllegalArgumentException("Incorrect Catalog Provided: Catalog cannot resolve to HiveCatalog");
+    }
+  }
 
   @Override
   public IcebergTable openTable(String dbName, String tableName) {

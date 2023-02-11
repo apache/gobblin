@@ -34,6 +34,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 
 /**
  * Finds {@link IcebergDataset}s. Will look for tables in a database using a {@link IcebergCatalog},
@@ -47,6 +49,8 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public static final String ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY = ICEBERG_DATASET_PREFIX + ".hive.metastore.uri";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
+  public static final String ICEBERG_CATALOG_SPECIFIER_CLASS_KEY = DatasetConstants.PLATFORM_ICEBERG + "catalog.specifier.class";
+  public static final String DEFAULT_ICEBERG_CATALOG_SPECIFIER_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog.HiveSpecifier";
 
   protected final FileSystem sourceFs;
   private final Properties properties;
@@ -67,17 +71,25 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     }
     String dbName = properties.getProperty(ICEBERG_DB_NAME);
     String tblName = properties.getProperty(ICEBERG_TABLE_NAME);
+    String specifierName = properties.getProperty(ICEBERG_CATALOG_SPECIFIER_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_SPECIFIER_CLASS);
 
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
 
-    IcebergCatalog icebergCatalog = IcebergCatalogFactory.create(configuration);
-    /* Each Iceberg dataset maps to an Iceberg table
-     * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
-     */
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, sourceFs));
-    log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(), matchingDatasets, dbName, tblName);
-
-    return matchingDatasets;
+    try {
+      Class<?> catalogSpecifier = Class.forName(specifierName);
+      IcebergCatalog.CatalogSpecifier specifier =
+          (IcebergCatalog.CatalogSpecifier) GobblinConstructorUtils.invokeConstructor(catalogSpecifier, specifierName);
+      IcebergCatalog icebergCatalog = IcebergCatalogFactory.create(specifier, configuration);
+      /* Each Iceberg dataset maps to an Iceberg table
+       * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
+       */
+      matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, sourceFs));
+      log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
+          matchingDatasets, dbName, tblName);
+      return matchingDatasets;
+    } catch (ReflectiveOperationException exception) {
+      throw new IOException(exception);
+    }
   }
 
   @Override

@@ -17,10 +17,23 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import org.apache.iceberg.catalog.Catalog;
+
 
 /**
  * Any catalog from which to access {@link IcebergTable}s.
  */
 public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName);
+
+  /**
+   * Adding a sub interface to help us provide an association between {@link Catalog} and {@link IcebergCatalog}.
+   * This helps us resolve to the Catalog type and its concrete implementation class
+   */
+  interface CatalogSpecifier {
+    Class<? extends Catalog> getCatalogClass();
+    Class<? extends IcebergCatalog> getIcebergCatalogClass();
+    String getCatalogType();
+  }
+
 }
