@@ -351,7 +351,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
    * </ul>
    */
   @Test
-  public void  testUpdateLatestSchemaWithExistingSchema() throws IOException {
+  public void testUpdateLatestSchemaWithExistingSchema() throws IOException {
     final String tableNameAllowed = "tableAllowed";
     final String tableNameDenied = "tableDenied";
     final WhitelistBlacklist useExistingTableSchemaAllowDenyList = new WhitelistBlacklist(
@@ -374,6 +374,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
 
 
     // Tables part of deny list, schema only fetched from hive on the first time and the all future calls will use the cache
+    Assert.assertTrue(updateLatestSchema.apply(tableNameDenied));
     Assert.assertFalse(updateLatestSchema.apply(tableNameDenied));
     Assert.assertEquals(latestSchemaMap, ImmutableMap.of(
         getTableKey.apply(tableNameDenied), avroSchema
@@ -404,9 +405,12 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
   }
 
   /**
-   * Test class for exposing methods for exposing internal HiveMetaWriter functions without making them public.
+   * Test class for exposing internal {@link HiveMetadataWriter} functions without making them public.
    * Although the ultimate fix would be to break up the logic in the hive metadata writer into smaller pieces,
-   * this a stop gap way to make testing internal logic easier
+   * this a stop gap way to make testing internal logic easier.
+   *
+   * This approach was taken because the writer lives in a separate module from this test class, and dependencies make
+   * putting the test and implementation classes in the same module difficult
    */
   public static class TestHiveMetadataWriter extends HiveMetadataWriter {
     public TestHiveMetadataWriter(State state) throws IOException {

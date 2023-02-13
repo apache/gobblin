@@ -284,7 +284,19 @@ public class HiveMetadataWriter implements MetadataWriter {
     updateLatestSchemaMapWithExistingSchema(dbName, tableName, tableKey, useExistingTableSchemaAllowDenyList, hiveRegister, latestSchemaMap);
   }
 
-  // returns if latest schema map was updated with the existing schema in Hive
+
+  /**
+   * Helper method for updating the schema map with the latest existing schema from Hive if necessary
+   *
+   * @param dbName Hive DB name
+   * @param tableName Hive table name
+   * @param tableKey table key for the latest schema map
+   * @param useExistingTableSchemaAllowDenyList list of topics that should always use the latest existing schema in hive
+   * @param hiveRegister hive register for getting table info
+   * @param latestSchemaMap map containing the latest schema for all topics since last flush
+   * @return true if latest schema map was updated with the existing schema in Hive
+   * @throws IOException
+   */
   @VisibleForTesting
   protected static boolean updateLatestSchemaMapWithExistingSchema(String dbName, String tableName, String tableKey,
       WhitelistBlacklist useExistingTableSchemaAllowDenyList, HiveRegister hiveRegister,
