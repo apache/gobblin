@@ -23,6 +23,8 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
+import static org.mockito.Mockito.anyList;
+
 
 @Test
 public class HivePurgerConverterTest {
@@ -44,6 +46,6 @@ public class HivePurgerConverterTest {
 
   public void convertRecordTest() {
     this.hivePurgerConverterMock.convertRecord(this.schemaMock, this.datasetMock, this.stateMock);
-    Mockito.verify(this.datasetMock).setPurgeQueries(Mockito.anyListOf(String.class));
+    Mockito.verify(this.datasetMock).setPurgeQueries(anyList());
   }
 }

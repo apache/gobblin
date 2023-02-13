@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Meter;
-import com.google.common.base.Joiner;
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -43,15 +39,19 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -77,6 +77,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
@@ -129,13 +130,16 @@ public class DagManager extends AbstractIdleService {
   private static final String DEFAULT_FAILED_DAG_RETENTION_TIME_UNIT = "DAYS";
   private static final String FAILED_DAG_RETENTION_TIME = FAILED_DAG_STATESTORE_PREFIX + ".retention.time";
   private static final long DEFAULT_FAILED_DAG_RETENTION_TIME = 7L;
+  // Re-emit the final flow status if not detected within 5 minutes
+  private static final long DAG_FLOW_STATUS_TOLERANCE_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
   public static final String FAILED_DAG_POLLING_INTERVAL = FAILED_DAG_STATESTORE_PREFIX + ".retention.pollingIntervalMinutes";
   public static final Integer DEFAULT_FAILED_DAG_POLLING_INTERVAL = 60;
   public static final String DAG_MANAGER_HEARTBEAT = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".dagManager.heartbeat-%s";
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
   private static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
   private static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
-
+  private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
+  private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
   /**
    * Action to be performed on a {@link Dag}, in case of a job failure. Currently, we allow 2 modes:
    * <ul>
@@ -188,6 +192,9 @@ public class DagManager extends AbstractIdleService {
   private final boolean instrumentationEnabled;
   private DagStateStore dagStateStore;
   private Map<URI, TopologySpec> topologySpecMap;
+  private int houseKeepingThreadInitialDelay = INITIAL_HOUSEKEEPING_THREAD_DELAY;
+  @Getter
+  private ScheduledExecutorService houseKeepingThreadPool;
 
   @Getter
   private final Integer numThreads;
@@ -388,7 +395,7 @@ public class DagManager extends AbstractIdleService {
                 topologySpecMap);
         Set<String> failedDagIds = Collections.synchronizedSet(failedDagStateStore.getDagIds());
 
-       this.dagManagerMetrics.activate();
+        this.dagManagerMetrics.activate();
 
         UserQuotaManager quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
             ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
@@ -405,10 +412,15 @@ public class DagManager extends AbstractIdleService {
         }
         FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDagIds, failedDagRetentionTime);
         this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionPollingInterval, TimeUnit.MINUTES);
-        List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
-        log.info("Loading " + dags.size() + " dags from dag state store");
-        for (Dag<JobExecutionPlan> dag : dags) {
-          addDag(dag, false, false);
+        loadDagFromDagStateStore();
+        this.houseKeepingThreadPool = Executors.newSingleThreadScheduledExecutor();
+        for (int delay = houseKeepingThreadInitialDelay; delay < MAX_HOUSEKEEPING_THREAD_DELAY; delay *= 2) {
+          this.houseKeepingThreadPool.schedule(() -> {
+            try {
+              loadDagFromDagStateStore();
+            } catch (Exception e ) {
+              log.error("failed to sync dag state store due to ", e);
+            }}, delay, TimeUnit.MINUTES);
         }
         if (dagActionStore.isPresent()) {
           Collection<DagActionStore.DagAction> dagActions = dagActionStore.get().getDagActions();
@@ -429,6 +441,7 @@ public class DagManager extends AbstractIdleService {
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         this.scheduledExecutorPool.shutdown();
         this.dagManagerMetrics.cleanup();
+        this.houseKeepingThreadPool.shutdown();
         try {
           this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -438,6 +451,16 @@ public class DagManager extends AbstractIdleService {
     } catch (IOException e) {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
+    }
+  }
+
+  private void loadDagFromDagStateStore() throws IOException {
+    List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
+    log.info("Loading " + dags.size() + " dags from dag state store");
+    for (Dag<JobExecutionPlan> dag : dags) {
+      if (this.isActive) {
+        addDag(dag, false, false);
+      }
     }
   }
 
@@ -457,9 +480,8 @@ public class DagManager extends AbstractIdleService {
     // dagToJobs holds a map of dagId to running jobs of that dag
     final Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
     final Map<String, Long> dagToSLA = new HashMap<>();
-    private final Set<String> failedDagIdsFinishRunning = new HashSet<>();
-    private final Set<String> failedDagIdsFinishAllPossible = new HashSet<>();
     private final MetricContext metricContext;
+    private final Set<String> dagIdstoClean = new HashSet<>();
     private final Optional<EventSubmitter> eventSubmitter;
     private final Optional<Timer> jobStatusPolledTimer;
     private final AtomicLong orchestrationDelay = new AtomicLong(0);
@@ -740,7 +762,6 @@ public class DagManager extends AbstractIdleService {
      * Proceed the execution of each dag node based on job status.
      */
     private void pollAndAdvanceDag() throws IOException, ExecutionException, InterruptedException {
-      this.failedDagIdsFinishRunning.clear();
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
@@ -786,13 +807,14 @@ public class DagManager extends AbstractIdleService {
           if (jobStatus != null && jobStatus.isShouldRetry()) {
             log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
                 jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+            this.jobToDag.get(node).setFlowEvent(null);
             submitJob(node);
           }
         } catch (Exception e) {
-            // Error occurred while processing dag, continue processing other dags assigned to this thread
-            log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
-                DagManagerUtils.getFullyQualifiedDagName(node)), e);
-          }
+          // Error occurred while processing dag, continue processing other dags assigned to this thread
+          log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
+              DagManagerUtils.getFullyQualifiedDagName(node)), e);
+        }
       }
 
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
@@ -1028,9 +1050,6 @@ public class DagManager extends AbstractIdleService {
     /**
      * Method that defines the actions to be performed when a job finishes either successfully or with failure.
      * This method updates the state of the dag and performs clean up actions as necessary.
-     * TODO : Dag should have a status field, like JobExecutionPlan has. This method should update that field,
-     *        which should be used by cleanup(). It may also remove the need of failedDagIdsFinishRunning,
-     *        failedDagIdsFinishAllPossible.
      */
     private Map<String, Set<DagNode<JobExecutionPlan>>> onJobFinish(DagNode<JobExecutionPlan> dagNode)
         throws IOException {
@@ -1047,19 +1066,11 @@ public class DagManager extends AbstractIdleService {
       switch (jobStatus) {
         case FAILED:
           dag.setMessage("Flow failed because job " + jobName + " failed");
-          if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
-            this.failedDagIdsFinishRunning.add(dagId);
-          } else {
-            this.failedDagIdsFinishAllPossible.add(dagId);
-          }
+          dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
           dagManagerMetrics.incrementExecutorFailed(dagNode);
           return Maps.newHashMap();
         case CANCELLED:
-          if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
-            this.failedDagIdsFinishRunning.add(dagId);
-          } else {
-            this.failedDagIdsFinishAllPossible.add(dagId);
-          }
+          dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
           return Maps.newHashMap();
         case COMPLETE:
           dagManagerMetrics.incrementExecutorSuccess(dagNode);
@@ -1097,46 +1108,73 @@ public class DagManager extends AbstractIdleService {
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */
     private void cleanUp() {
-      List<String> dagIdstoClean = new ArrayList<>();
-      //Clean up failed dags
-      for (String dagId : this.failedDagIdsFinishRunning) {
-        //Skip monitoring of any other jobs of the failed dag.
-        LinkedList<DagNode<JobExecutionPlan>> dagNodeList = this.dagToJobs.get(dagId);
-        while (!dagNodeList.isEmpty()) {
-          DagNode<JobExecutionPlan> dagNode = dagNodeList.poll();
-          deleteJobState(dagId, dagNode);
-        }
-        Dag<JobExecutionPlan> dag = this.dags.get(dagId);
-        String status = TimingEvent.FlowTimings.FLOW_FAILED;
-        addFailedDag(dagId, dag);
-        log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
-        // send an event before cleaning up dag
-        DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), status);
-        dagIdstoClean.add(dagId);
-      }
+      // Approximate the time when the flow events are emitted to account for delay when the flow event is received by the job monitor
+      long cleanUpProcessingTime = System.currentTimeMillis();
 
       // Remove dags that are finished and emit their appropriate metrics
       for (Map.Entry<String, Dag<JobExecutionPlan>> dagIdKeyPair : this.dags.entrySet()) {
         String dagId = dagIdKeyPair.getKey();
+        // On service restart, we repopulate the dags that are waiting to be cleaned up
+        if (dagIdstoClean.contains(dagId)) {
+          continue;
+        }
         Dag<JobExecutionPlan> dag = dagIdKeyPair.getValue();
-        if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
-          String status = TimingEvent.FlowTimings.FLOW_SUCCEEDED;
-          if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
-            status = TimingEvent.FlowTimings.FLOW_FAILED;
-            addFailedDag(dagId, dag);
-            this.failedDagIdsFinishAllPossible.remove(dagId);
-          } else {
-            dagManagerMetrics.emitFlowSuccessMetrics(DagManagerUtils.getFlowId(this.dags.get(dagId)));
+        if ((TimingEvent.FlowTimings.FLOW_FAILED.equals(dag.getFlowEvent()) || TimingEvent.FlowTimings.FLOW_CANCELLED.equals(dag.getFlowEvent())) &&
+            DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
+          //Skip monitoring of any other jobs of the failed dag.
+          LinkedList<DagNode<JobExecutionPlan>> dagNodeList = this.dagToJobs.get(dagId);
+          while (!dagNodeList.isEmpty()) {
+            DagNode<JobExecutionPlan> dagNode = dagNodeList.poll();
+            deleteJobState(dagId, dagNode);
           }
-          log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
+        }
+        if (!hasRunningJobs(dagId)) {
+          // Collect all the dagIds that are finished
+          this.dagIdstoClean.add(dagId);
+          if (dag.getFlowEvent() == null) {
+            // If the dag flow event is not set, then it is successful
+            dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_SUCCEEDED);
+          } else {
+            addFailedDag(dagId, dag);
+          }
           // send an event before cleaning up dag
-          DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), status);
-          dagIdstoClean.add(dagId);
+          DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), dag.getFlowEvent());
+          dag.setEventEmittedTimeMillis(cleanUpProcessingTime);
         }
       }
 
-      for (String dagId: dagIdstoClean) {
-        cleanUpDag(dagId);
+      // Only clean up dags after the job status monitor processed the flow event
+      for (Iterator<String> dagIdIterator = this.dagIdstoClean.iterator(); dagIdIterator.hasNext();) {
+        String dagId = dagIdIterator.next();
+        Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+        JobStatus flowStatus = pollFlowStatus(dag);
+        if (flowStatus != null && FlowStatusGenerator.FINISHED_STATUSES.contains(flowStatus.getEventName())) {
+          FlowId flowId = DagManagerUtils.getFlowId(dag);
+          switch(dag.getFlowEvent()) {
+            case TimingEvent.FlowTimings.FLOW_SUCCEEDED:
+              this.dagManagerMetrics.emitFlowSuccessMetrics(flowId);
+              this.dagManagerMetrics.conditionallyMarkFlowAsState(flowId, FlowState.SUCCESSFUL);
+              break;
+            case TimingEvent.FlowTimings.FLOW_FAILED:
+              this.dagManagerMetrics.emitFlowFailedMetrics(flowId);
+              this.dagManagerMetrics.conditionallyMarkFlowAsState(flowId, FlowState.FAILED);
+              break;
+            case TimingEvent.FlowTimings.FLOW_CANCELLED:
+              this.dagManagerMetrics.emitFlowSlaExceededMetrics(flowId);
+              this.dagManagerMetrics.conditionallyMarkFlowAsState(flowId, FlowState.FAILED);
+              break;
+            default:
+              log.warn("Unexpected flow event {} for dag {}", dag.getFlowEvent(), dagId);
+          }
+          log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, dag.getFlowEvent());
+          cleanUpDag(dagId);
+          dagIdIterator.remove();
+        } else if (cleanUpProcessingTime > dag.getEventEmittedTimeMillis() + DAG_FLOW_STATUS_TOLERANCE_TIME_MILLIS) {
+          // Re-emit the flow event if the flow status has not been processed within the DagFlowStatusTolerance time
+          DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, dag.getFlowEvent());
+        } else {
+          log.info("Waiting for flow event {} to be emitted before cleaning up dag {}", dag.getFlowEvent(), dagId);
+        }
       }
     }
 
@@ -1144,7 +1182,6 @@ public class DagManager extends AbstractIdleService {
      * Add a dag to failed dag state store
      */
     private synchronized void addFailedDag(String dagId, Dag<JobExecutionPlan> dag) {
-      FlowId flowId = DagManagerUtils.getFlowId(dag);
       try {
         log.info("Adding dag " + dagId + " to failed dag state store");
         this.failedDagStateStore.writeCheckpoint(this.dags.get(dagId));
@@ -1152,12 +1189,6 @@ public class DagManager extends AbstractIdleService {
         log.error("Failed to add dag " + dagId + " to failed dag state store", e);
       }
       this.failedDagIds.add(dagId);
-      if (TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-        this.dagManagerMetrics.emitFlowSlaExceededMetrics(flowId);
-      } else if (!TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED.equals(dag.getFlowEvent())) {
-        dagManagerMetrics.emitFlowFailedMetrics(flowId);
-      }
-      this.dagManagerMetrics.conditionallyMarkFlowAsState(flowId, DagManager.FlowState.FAILED);
     }
 
     /**
@@ -1170,11 +1201,11 @@ public class DagManager extends AbstractIdleService {
       log.info("Cleaning up dagId {}", dagId);
       // clears flow event after cancelled job to allow resume event status to be set
       this.dags.get(dagId).setFlowEvent(null);
-       try {
-         this.dagStateStore.cleanUp(dags.get(dagId));
-       } catch (IOException ioe) {
-         log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
-       }
+      try {
+        this.dagStateStore.cleanUp(dags.get(dagId));
+      } catch (IOException ioe) {
+        log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
+      }
       this.dags.remove(dagId);
       this.dagToJobs.remove(dagId);
     }
@@ -1222,7 +1253,7 @@ public class DagManager extends AbstractIdleService {
           }
         }
 
-      log.info("Cleaned " + numCleaned + " dags from the failed dag state store");
+        log.info("Cleaned " + numCleaned + " dags from the failed dag state store");
       } catch (Exception e) {
         log.error("Failed to run retention on failed dag state store", e);
       }

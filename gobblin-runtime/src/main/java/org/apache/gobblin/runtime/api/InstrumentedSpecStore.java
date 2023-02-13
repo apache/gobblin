@@ -171,8 +171,8 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecs(int start, int count) throws IOException {
-    return this.getTimer.invokeMayThrowIO(() -> getSpecsImpl(start, count));
+  public Collection<Spec> getSpecsPaginated(int startOffset, int batchSize) throws IOException, IllegalArgumentException {
+    return this.getTimer.invokeMayThrowIO(() -> getSpecsPaginatedImpl(startOffset, batchSize));
   }
 
   @Override
@@ -193,7 +193,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException;
   public abstract int getSizeImpl() throws IOException;
-  public abstract Collection<Spec> getSpecsImpl(int start, int count) throws IOException;
+  public abstract Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize) throws IOException, IllegalArgumentException;
 
   /** child classes can implement this if they want to get specs using {@link SpecSearchObject} */
   public Collection<Spec> getSpecsImpl(SpecSearchObject specUri) throws IOException {

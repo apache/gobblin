@@ -80,6 +80,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
+  public static final String MYSQL_GET_MAX_RETRIES = "mysql.get.max.retries";
+  public static final int DEFAULT_MYSQL_GET_MAX_RETRIES = 3;
 
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 
@@ -89,6 +91,10 @@ public class ConfigurationKeys {
   // Job retriggering
   public static final String JOB_RETRIGGERING_ENABLED = "job.retriggering.enabled";
   public static final String DEFAULT_JOB_RETRIGGERING_ENABLED = "true";
+  public static final String LOAD_SPEC_BATCH_SIZE = "load.spec.batch.size";
+  public static final int DEFAULT_LOAD_SPEC_BATCH_SIZE = 500;
+  public static final String SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS = "skip.scheduling.flows.after.num.days";
+  public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 365;
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
@@ -128,6 +134,7 @@ public class ConfigurationKeys {
    */
   public static final String FLOW_NAME_KEY = "flow.name";
   public static final String FLOW_GROUP_KEY = "flow.group";
+  public static final String FLOW_EDGE_ID_KEY = "flow.edgeId";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
   public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
@@ -137,6 +144,7 @@ public class ConfigurationKeys {
   public static final String FLOW_EXPLAIN_KEY = "flow.explain";
   public static final String FLOW_UNSCHEDULE_KEY = "flow.unschedule";
   public static final String FLOW_OWNING_GROUP_KEY = "flow.owningGroup";
+  public static final String FLOW_SPEC_EXECUTOR = "flow.edge.specExecutors";
 
   /**
    * Common topology configuration properties.

@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import javax.sql.DataSource;
+import java.util.Properties;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -36,6 +36,7 @@ import com.google.common.io.ByteStreams;
 import com.typesafe.config.Config;
 import com.zaxxer.hikari.HikariDataSource;
 
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -81,9 +82,10 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   protected static final String UPDATE_STATEMENT = "UPDATE %s SET spec=?,spec_json=? WHERE spec_uri=? AND UNIX_TIMESTAMP(modified_time) < ?";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT_BASE = "SELECT spec_uri, spec FROM %s WHERE ";
-  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
+  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
+  private static final String GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
   // NOTE: using max length of a `FlowSpec` URI, as it's believed to be the longest of existing `Spec` types
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
@@ -103,6 +105,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     public final String getAllStatement = String.format(getTablelessGetAllStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsStatement = String.format(getTablelessGetAllURIsStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getAllURIsWithTagStatement = String.format(getTablelessGetAllURIsWithTagStatement(), MysqlBaseSpecStore.this.tableName);
+    public final String getBatchStatement = String.format(getTablelessGetBatchStatement(), MysqlBaseSpecStore.this.tableName);
     public final String getSizeStatement = String.format(getTablelessGetSizeStatement(), MysqlBaseSpecStore.this.tableName);
     public final String createTableStatement = String.format(getTablelessCreateTableStatement(), MysqlBaseSpecStore.this.tableName);
 
@@ -119,6 +122,26 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       return MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
     }
 
+    public Spec extractSpecWithModificationTime(ResultSet rs) throws SQLException, IOException {
+      Spec spec = MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
+      // Set modified timestamp in flowSpec properties list
+      if (spec instanceof FlowSpec) {
+        long timestamp = rs.getTimestamp(FlowSpec.MODIFICATION_TIME_KEY).getTime();
+        FlowSpec flowSpec = (FlowSpec) spec;
+        Properties properties = flowSpec.getConfigAsProperties();
+        properties.setProperty(FlowSpec.MODIFICATION_TIME_KEY, String.valueOf(timestamp));
+        return flowSpec;
+      }
+      return spec;
+    }
+
+    public void completeGetBatchStatement(PreparedStatement statement, int startOffset, int batchSize)
+        throws SQLException {
+      int i = 0;
+      statement.setInt(++i, batchSize);
+      statement.setInt(++i, startOffset);
+    }
+
     protected String getTablelessExistsStatement() { return MysqlBaseSpecStore.EXISTS_STATEMENT; }
     protected String getTablelessUpdateStatement() { return MysqlBaseSpecStore.UPDATE_STATEMENT; }
     protected String getTablelessInsertStatement() { return MysqlBaseSpecStore.INSERT_STATEMENT; }
@@ -127,6 +150,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     protected String getTablelessGetAllStatement() { return MysqlBaseSpecStore.GET_ALL_STATEMENT; }
     protected String getTablelessGetAllURIsStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_STATEMENT; }
     protected String getTablelessGetAllURIsWithTagStatement() { return MysqlBaseSpecStore.GET_ALL_URIS_WITH_TAG_STATEMENT; }
+    protected String getTablelessGetBatchStatement() {return MysqlBaseSpecStore.GET_SPECS_BATCH_STATEMENT; }
     protected String getTablelessGetSizeStatement() { return MysqlBaseSpecStore.GET_SIZE_STATEMENT; }
     protected String getTablelessCreateTableStatement() { return MysqlBaseSpecStore.CREATE_TABLE_STATEMENT; }
   }
@@ -221,7 +245,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   public Spec getSpecImpl(URI specUri) throws IOException, SpecNotFoundException {
     Iterator<Spec> resultSpecs = withPreparedStatement(this.sqlStatements.getAllStatement + " WHERE spec_uri = ?", statement -> {
       statement.setString(1, specUri.toString());
-      return retrieveSpecs(statement).iterator();
+      return retrieveSpecsWithModificationTime(statement).iterator();
     });
     if (resultSpecs.hasNext()) {
       return resultSpecs.next();
@@ -260,10 +284,23 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     return specs;
   }
 
+  protected final Collection<Spec> retrieveSpecsWithModificationTime(PreparedStatement statement) throws IOException {
+    List<Spec> specs = new ArrayList<>();
+    try (ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        specs.add(this.sqlStatements.extractSpecWithModificationTime(rs));
+      }
+    } catch (SQLException | SpecSerDeException e) {
+      log.error("Failed to deserialize spec", e);
+      throw new IOException(e);
+    }
+    return specs;
+  }
+
   @Override
   public Iterator<URI> getSpecURIsImpl() throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsStatement, statement -> {
-      return retreiveURIs(statement).iterator();
+      return retrieveURIs(statement).iterator();
     });
   }
 
@@ -278,20 +315,14 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecsImpl(int start, int count) throws IOException {
-    List<String> limitAndOffset = new ArrayList<>();
-    if (count > 0) {
-      // Order by two fields to make a full order by
-      limitAndOffset.add(" ORDER BY modified_time DESC, spec_uri ASC LIMIT");
-      limitAndOffset.add(String.valueOf(count));
-      if (start > 0) {
-        limitAndOffset.add("OFFSET");
-        limitAndOffset.add(String.valueOf(start));
-      }
+  public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize) throws IOException, IllegalArgumentException {
+    if (startOffset < 0 || batchSize < 0) {
+      throw new IllegalArgumentException(String.format("Received negative offset or batch size value when they should be >= 0. "
+          + "Offset is %s and batch size is %s", startOffset, batchSize));
     }
-    String finalizedStatement = this.sqlStatements.getAllStatement + String.join(" ", limitAndOffset);
-    return withPreparedStatement(finalizedStatement, statement -> {
-      return retrieveSpecs(statement);
+    return withPreparedStatement(this.sqlStatements.getBatchStatement, statement -> {
+      this.sqlStatements.completeGetBatchStatement(statement, startOffset, batchSize);
+      return retrieveSpecsWithModificationTime(statement);
     });
   }
 
@@ -299,11 +330,11 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   public Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsWithTagStatement, statement -> {
       statement.setString(1, tag);
-      return retreiveURIs(statement).iterator();
+      return retrieveURIs(statement).iterator();
     });
   }
 
-  private List<URI> retreiveURIs(PreparedStatement statement) throws SQLException {
+  private List<URI> retrieveURIs(PreparedStatement statement) throws SQLException {
     List<URI> uris = new ArrayList<>();
 
     try (ResultSet rs = statement.executeQuery()) {

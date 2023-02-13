@@ -631,6 +631,8 @@ public class MultiHopFlowCompilerTest {
     String jobName2 = jobConfig2.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertTrue(jobName2.startsWith(retentionJobName));
     Assert.assertTrue(jobConfig2.getString(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY).endsWith("{dataset0,dataset1,dataset2}"));
+    // Should be empty since compilation was successful
+    Assert.assertEquals(spec.getCompilationErrors().size(), 0);
   }
 
   @Test (dependsOnMethods = "testCompileCombinedDatasetFlow")

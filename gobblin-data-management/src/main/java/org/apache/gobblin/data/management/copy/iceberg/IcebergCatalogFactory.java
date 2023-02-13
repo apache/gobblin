@@ -17,20 +17,24 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.IOException;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.hive.HiveCatalog;
-
-import com.google.common.collect.Maps;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
  * Provides an {@link IcebergCatalog}.
  */
 public class IcebergCatalogFactory {
-  public static IcebergCatalog create(Configuration configuration) {
-    HiveCatalog hcat = new HiveCatalog();
-    hcat.setConf(configuration);
-    hcat.initialize("hive", Maps.newHashMap());
-    return new IcebergHiveCatalog(hcat);
+  public static IcebergCatalog create(String icebergCatalogClassName, Map<String, String> properties, Configuration configuration) throws IOException {
+    try {
+      Class<?> icebergCatalogClass = Class.forName(icebergCatalogClassName);
+      IcebergCatalog icebergCatalog = (IcebergCatalog) GobblinConstructorUtils.invokeConstructor(icebergCatalogClass, icebergCatalogClassName);
+      icebergCatalog.initialize(properties, configuration);
+      return icebergCatalog;
+    } catch (ReflectiveOperationException ex) {
+      throw new IOException(ex);
+    }
   }
 }

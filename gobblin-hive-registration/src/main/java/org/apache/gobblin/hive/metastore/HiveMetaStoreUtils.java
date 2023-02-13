@@ -24,9 +24,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 
+import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang.reflect.MethodUtils;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -47,6 +50,7 @@ import org.apache.hadoop.hive.serde2.SerDeUtils;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.orc.TypeDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,13 +215,16 @@ public class HiveMetaStoreUtils {
     return parameters;
   }
 
+  public static boolean isNonAvroFormat(HiveRegistrationUnit unit) {
+    return unit.getInputFormat().isPresent() && !unit.getInputFormat().get().equals(AvroContainerInputFormat.class.getName());
+  }
+
   public static StorageDescriptor getStorageDescriptor(HiveRegistrationUnit unit) {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
     //Treat AVRO and other formats differently. Details can be found in GOBBLIN-877
-    if (unit.isRegisterSchema() ||
-        (unit.getInputFormat().isPresent() && !unit.getInputFormat().get().equals(AvroContainerInputFormat.class.getName()))) {
+    if (unit.isRegisterSchema() || isNonAvroFormat(unit)) {
       sd.setCols(getFieldSchemas(unit));
     }
     if (unit.getLocation().isPresent()) {
@@ -254,6 +261,83 @@ public class HiveMetaStoreUtils {
       si.setSerializationLib(unit.getSerDeType().get());
     }
     return si;
+  }
+
+  public static boolean containsNonOptionalUnionTypeColumn(Table t) {
+    return containsNonOptionalUnionTypeColumn(getHiveTable(t));
+  }
+
+  /**
+   * Util for detecting if a hive table has a non-optional union (aka complex unions) column types. A non optional
+   * union is defined as a uniontype with n >= 2 non-null subtypes
+   *
+   * @param hiveTable Hive table with either avro.schema.literal set or is an ORC table
+   * @return if hive table contains non-optional uniontype columns
+   */
+  public static boolean containsNonOptionalUnionTypeColumn(HiveTable hiveTable) {
+    if (hiveTable.getProps().contains(HiveAvroSerDeManager.SCHEMA_LITERAL)) {
+      Schema.Parser parser = new Schema.Parser();
+      Schema schema = parser.parse(hiveTable.getProps().getProp(HiveAvroSerDeManager.SCHEMA_LITERAL));
+      return isNonOptionalUnion(schema);
+    }
+
+    if (isNonAvroFormat(hiveTable)) {
+      return hiveTable.getColumns().stream()
+          .map(HiveRegistrationUnit.Column::getType)
+          .filter(type -> type.contains("uniontype"))
+          .map(type -> TypeDescription.fromString(type))
+          .anyMatch(type -> isNonOptionalUnion(type));
+    }
+
+    throw new RuntimeException("Avro based Hive tables without \"" + HiveAvroSerDeManager.SCHEMA_LITERAL +"\" are not supported");
+  }
+
+  /**
+   * Detects if an Avro schema contains a non-optional union. A non optional (aka complex)
+   * union is defined as a uniontype with n >= 2 non-null subtypes
+   * @param schema Avro Schema
+   * @return if schema contains non optional union
+   */
+  public static boolean isNonOptionalUnion(Schema schema) {
+    switch (schema.getType()) {
+      case UNION:
+        Stream<Schema.Type> nonNullSubTypes = schema.getTypes().stream()
+            .map(Schema::getType).filter(t -> !t.equals(Schema.Type.NULL));
+        if (nonNullSubTypes.count() >= 2)  {
+          return true;
+        }
+        return schema.getTypes().stream().anyMatch(s -> isNonOptionalUnion(s));
+      case MAP: // key is a string and doesn't need to be checked
+        return isNonOptionalUnion(schema.getValueType());
+      case ARRAY:
+        return isNonOptionalUnion(schema.getElementType());
+      case RECORD:
+        return schema.getFields().stream().map(Schema.Field::schema).anyMatch(s -> isNonOptionalUnion(s));
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Detects if an ORC column data type contains a non-optional union. A non optional (aka complex)
+   * union is defined as a UNION with n >= 2 non-null subtypes
+   * @param description ORC type description
+   * @return if the ORC data type contains a non optional union type
+   */
+  public static boolean isNonOptionalUnion(TypeDescription description) {
+    switch (description.getCategory()) {
+      case UNION:
+        if (description.getChildren().size() >= 2) {
+          return true;
+        }
+      case MAP:
+      case LIST:
+      case STRUCT:
+        return description.getChildren()
+            .stream().anyMatch(st -> isNonOptionalUnion(st));
+      default:
+        return false;
+    }
   }
 
   public static State getTableProps(Table table) {

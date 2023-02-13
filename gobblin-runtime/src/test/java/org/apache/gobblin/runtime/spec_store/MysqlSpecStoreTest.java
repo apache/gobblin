@@ -153,6 +153,7 @@ public class MysqlSpecStoreTest {
   @Test (dependsOnMethods = "testAddSpec")
   public void testGetSpec() throws Exception {
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
+    removeModificationTimestampFromSpecs(result);
     Assert.assertEquals(result, this.flowSpec1);
 
     Collection<Spec> specs = this.specStore.getSpecs();
@@ -283,13 +284,24 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(specs.contains(this.flowSpec4));
   }
 
+  /**
+   * This method is used for testing to remove the `modification_timestamp` key from the FlowSpec config field for
+   * only for testing purposes because the equality check between FlowSpec created for testing and retrieved from the
+   * store will not be equal. In practice, we would never encounter this issue as we only compare specs obtained from
+   * the store with the key mentioned.
+   */
+  public static void removeModificationTimestampFromSpecs(Spec spec) {
+    ((FlowSpec) spec).getConfigAsProperties().remove(FlowSpec.MODIFICATION_TIME_KEY);
+  }
+
   @Test (dependsOnMethods =  "testGetSpec")
   public void testGetAllSpecPaginate() throws Exception {
     /**
      * Sorted order of the specStore configurations is flowSpec1, flowSpec2, flowSpec4
      */
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
-    Collection<Spec> specs = this.specStore.getSpecs(0,10);
+    Collection<Spec> specs = this.specStore.getSpecsPaginated(0,10);
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -297,25 +309,31 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs using the default get all specs function. Testing default functionality of returning everything
     specs = this.specStore.getSpecs();
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertTrue(specs.contains(this.flowSpec4));
 
     // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
-    specs = this.specStore.getSpecs(0,2);
+    specs = this.specStore.getSpecsPaginated(0,2);
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
-    // Check that functionality for not including a start value is the same as including start value of 0
-    specs = this.specStore.getSpecs(-1, 2);
-    Assert.assertEquals(specs.size(), 2);
-    Assert.assertTrue(specs.contains(this.flowSpec1));
-    Assert.assertTrue(specs.contains(this.flowSpec2));
-    Assert.assertFalse(specs.contains(this.flowSpec4));
+    // Return 0 flowSpecs when batch size is 0.
+    specs = this.specStore.getSpecsPaginated(2,0);
+    Assert.assertEquals(specs.size(), 0);
+
+    // Return 0 flowSpecs when start offset is past the end
+    specs = this.specStore.getSpecsPaginated(3,1);
+    Assert.assertEquals(specs.size(), 0);
+
+    // Check that we throw an error for incorrect inputs
+    Assert.assertThrows(IllegalArgumentException.class, () -> this.specStore.getSpecsPaginated(-1, 2));
+    Assert.assertThrows(IllegalArgumentException.class, () -> this.specStore.getSpecsPaginated(2, -4));
   }
 
   @Test (expectedExceptions = {IOException.class})
@@ -336,6 +354,7 @@ public class MysqlSpecStoreTest {
     this.oldSpecStore.addSpec(this.flowSpec1);
 
     FlowSpec spec = (FlowSpec) this.specStore.getSpec(this.uri1);
+    removeModificationTimestampFromSpecs(spec);
     Assert.assertEquals(spec, this.flowSpec1);
   }
 

@@ -17,17 +17,20 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
-import org.apache.gobblin.dataset.IterableDatasetFinder;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
+
+import org.apache.gobblin.dataset.IterableDatasetFinder;
 
 
 public class ManifestBasedDatasetFinder implements IterableDatasetFinder<ManifestBasedDataset> {

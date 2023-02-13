@@ -19,10 +19,7 @@ package org.apache.gobblin.iceberg.writer;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.SchemaBuilder;
@@ -64,8 +61,8 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
-import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.hive.writer.MetadataWriter;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
 import org.apache.gobblin.metadata.DataOrigin;
@@ -83,6 +80,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
+
 import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 public class IcebergMetadataWriterTest extends HiveMetastoreTest {
@@ -177,7 +175,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
 
     gobblinMCEWriter.eventSubmitter = Mockito.mock(EventSubmitter.class);
-    Mockito.doAnswer(invocation -> eventsSent.add(invocation.getArgumentAt(0, GobblinEventBuilder.class)))
+    Mockito.doAnswer(invocation -> eventsSent.add(invocation.getArgument(0, GobblinEventBuilder.class)))
         .when(gobblinMCEWriter.eventSubmitter).submit(Mockito.any(GobblinEventBuilder.class));
   }
 
@@ -424,13 +422,16 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Test when completeness watermark = -1 bootstrap case
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
     Mockito.when(verifier.isComplete("testIcebergTable", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis)).thenReturn(true);
-    ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
+    IcebergMetadataWriter imw = (IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next();
+    imw.setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     //completeness watermark = "2020-09-16-10"
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testIcebergTable");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+    // 1631811600000L correspond to 2020-09-16-10 in PT
+    Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631811600000L);
 
     Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -479,6 +480,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
+    // watermark 1631815200000L correspond to 2021-09-16-11 in PT
+    Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631815200000L);
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile2.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());

@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,14 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-
 import java.util.function.Function;
-import javax.annotation.concurrent.NotThreadSafe;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.util.function.CheckedExceptionFunction;
-import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -47,6 +39,10 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import javax.annotation.concurrent.NotThreadSafe;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
@@ -54,9 +50,10 @@ import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.function.CheckedExceptionFunction;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
 /**
@@ -72,12 +69,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   protected final FileSystem sourceFs;
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
-  private final Optional<URI> sourceCatalogMetastoreURI;
-  private final Optional<URI> targetCatalogMetastoreURI;
-
   /** Target metastore URI */
-  public static final String TARGET_METASTORE_URI_KEY =
-      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.metastore.uri";
+  public static final String ICEBERG_TARGET_CATALOG_URI_KEY =
+      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
@@ -87,8 +81,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     this.icebergTable = icebergTbl;
     this.properties = properties;
     this.sourceFs = sourceFs;
-    this.sourceCatalogMetastoreURI = getAsOptionalURI(this.properties, IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY);
-    this.targetCatalogMetastoreURI = getAsOptionalURI(this.properties, TARGET_METASTORE_URI_KEY);
   }
 
   @Override
@@ -314,25 +306,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return fileStatus.getPath().getFileSystem(hadoopConfig);
   }
 
-  protected static Optional<URI> getAsOptionalURI(Properties props, String key) {
-    return Optional.ofNullable(props.getProperty(key)).map(URI::create);
-  }
-
   protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
-    return getDatasetDescriptor(sourceCatalogMetastoreURI, sourceFs);
+    return this.icebergTable.getDatasetDescriptor(sourceFs);
   }
 
   protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
-    return getDatasetDescriptor(targetCatalogMetastoreURI, targetFs);
-  }
-
-  private DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
-    DatasetDescriptor descriptor = new DatasetDescriptor(
-        DatasetConstants.PLATFORM_ICEBERG,
-        catalogMetastoreURI.orElse(null),
-        this.getFileSetId()
-    );
-    descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
-    return descriptor;
+    return this.icebergTable.getDatasetDescriptor(targetFs);
   }
 }

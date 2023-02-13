@@ -65,6 +65,9 @@ import org.apache.gobblin.util.ConfigUtils;
 @SuppressFBWarnings(value="SE_BAD_FIELD",
     justification = "FindBugs complains about Config not being serializable, but the implementation of Config is serializable")
 public class FlowSpec implements Configurable, Spec {
+  // Key for Property associated with modified_time
+  public static final String MODIFICATION_TIME_KEY = "modified_time";
+
   private static final long serialVersionUID = -5511988862945107734L;
 
   /** An URI identifying the flow. */
@@ -131,6 +134,10 @@ public class FlowSpec implements Configurable, Spec {
 
   public void addCompilationError(String src, String dst, String errorMessage) {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
+  }
+
+  public void clearCompilationErrors() {
+    this.compilationErrors.clear();
   }
 
   @EqualsAndHashCode

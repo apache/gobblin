@@ -16,12 +16,6 @@
  */
 package org.apache.gobblin.service.modules.scheduler;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.io.Files;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,6 +24,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import org.mockito.Mockito;
+import org.mockito.invocation.Invocation;
+import org.mockito.stubbing.Answer;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -40,6 +49,7 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -50,23 +60,15 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
-import org.mockito.Mockito;
-import org.mockito.invocation.Invocation;
-import org.mockito.stubbing.Answer;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.*;
+import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.FLOWSPEC_STORE_DIR_KEY;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.when;
 
 
 public class GobblinServiceJobSchedulerTest {
@@ -80,6 +82,20 @@ public class GobblinServiceJobSchedulerTest {
   public void setUp() {
     this.quotaConfig = ConfigFactory.empty().withValue(AbstractUserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1"));
   }
+
+  @Test
+  public void testIsNextRunWithinRangeToSchedule() throws Throwable {
+    int thresholdToSkipScheduling = 100;
+    Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 ? 1 1 2050", thresholdToSkipScheduling));
+    Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 ? 1 1 2030", thresholdToSkipScheduling));
+    // Schedule at 3:20am every day should pass
+    Assert.assertTrue(GobblinServiceJobScheduler.isWithinRange("0 20 3 * * ?", thresholdToSkipScheduling));
+    // Schedule every sun, mon 4am should pass
+    Assert.assertTrue(GobblinServiceJobScheduler.isWithinRange("0 * 4 ? * 1,2", thresholdToSkipScheduling));
+    // For adhoc flows schedule is empty string
+    Assert.assertTrue(GobblinServiceJobScheduler.isWithinRange("", thresholdToSkipScheduling));
+  }
+
   /**
    * Test whenever JobScheduler is calling setActive, the FlowSpec is loading into scheduledFlowSpecs (eventually)
    */
@@ -317,9 +333,9 @@ public class GobblinServiceJobSchedulerTest {
     serviceLauncher.start();
 
     FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"), "flowName0", "group1",
-        ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, ConfigValueFactory.fromAnyRef("true")));
+        ConfigFactory.empty(), true);
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"), "flowName1", "group1",
-        ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, ConfigValueFactory.fromAnyRef("true")));
+        ConfigFactory.empty(), true);
 
     Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
     SpecCompiler mockSpecCompiler = Mockito.mock(SpecCompiler.class);

@@ -31,12 +31,10 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
 import org.apache.gobblin.writer.Batch;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
 
-import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.*;
 
 

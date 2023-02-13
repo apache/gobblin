@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.runtime.job_catalog;
 
-import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -31,15 +29,18 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobCatalogListener;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
-import org.testng.Assert;
+import static org.mockito.Mockito.any;
 
 
 /**
@@ -83,7 +84,7 @@ public class TestFSJobCatalog {
         specs.put(spec.getUri(), spec);
         return null;
       }
-    }).when(l).onAddJob(Mockito.any(JobSpec.class));
+    }).when(l).onAddJob(any(JobSpec.class));
     Mockito.doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation)
@@ -92,7 +93,7 @@ public class TestFSJobCatalog {
         specs.put(spec.getUri(), spec);
         return null;
       }
-    }).when(l).onUpdateJob(Mockito.any(JobSpec.class));
+    }).when(l).onUpdateJob(any(JobSpec.class));
 
     Mockito.doAnswer(new Answer<Void>() {
       @Override
@@ -102,7 +103,7 @@ public class TestFSJobCatalog {
         specs.remove(uri);
         return null;
       }
-    }).when(l).onDeleteJob(Mockito.any(URI.class), Mockito.anyString());
+    }).when(l).onDeleteJob(any(URI.class), any());
 
     JobSpec js1_1 = JobSpec.builder("test_job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test_job1").withVersion("2").build();

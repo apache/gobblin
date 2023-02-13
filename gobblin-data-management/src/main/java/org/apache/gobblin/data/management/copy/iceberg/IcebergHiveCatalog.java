@@ -17,25 +17,41 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
+import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * Hive-Metastore-based {@link IcebergCatalog}.
  */
 @Slf4j
-@AllArgsConstructor
-public class IcebergHiveCatalog implements IcebergCatalog {
+
+public class IcebergHiveCatalog extends BaseIcebergCatalog {
+  public static final String HIVE_CATALOG_NAME = "HiveCatalog";
   // NOTE: specifically necessitates `HiveCatalog`, as `BaseMetastoreCatalog.newTableOps` is `protected`!
-  private final HiveCatalog hc;
+  private HiveCatalog hc;
+
+  public IcebergHiveCatalog() {
+    super(HIVE_CATALOG_NAME, HiveCatalog.class);
+  }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) {
-    TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, hc.newTableOps(tableId));
+  public void initialize(Map<String, String> properties, Configuration configuration) {
+    hc = (HiveCatalog) createCompanionCatalog(properties, configuration);
+  }
+
+  @Override
+  public String getCatalogUri() {
+    return hc.getConf().get(CatalogProperties.URI, "<<not set>>");
+  }
+
+  @Override
+  protected TableOperations createTableOperations(TableIdentifier tableId) {
+    return hc.newTableOps(tableId);
   }
 }

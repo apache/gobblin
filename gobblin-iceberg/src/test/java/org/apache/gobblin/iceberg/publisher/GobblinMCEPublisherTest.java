@@ -17,44 +17,28 @@
 
 package org.apache.gobblin.iceberg.publisher;
 
-import azkaban.jobExecutor.AbstractJob;
-import com.google.common.io.Closer;
-import com.google.common.io.Files;
-import java.io.InputStream;
-import java.util.ArrayList;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.gobblin.hive.policy.HiveSnapshotRegistrationPolicy;
-import org.apache.gobblin.iceberg.GobblinMCEProducer;
-import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
-import org.apache.gobblin.metadata.OperationType;
-import org.apache.gobblin.metadata.SchemaSource;
-import gobblin.configuration.WorkUnitState;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.writer.FsDataWriterBuilder;
-import org.apache.gobblin.writer.GobblinOrcWriter;
-import org.apache.gobblin.writer.PartitionedDataWriter;
-import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -67,8 +51,29 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
+import com.google.common.io.Closer;
+import com.google.common.io.Files;
+
+import azkaban.jobExecutor.AbstractJob;
+import gobblin.configuration.WorkUnitState;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.policy.HiveSnapshotRegistrationPolicy;
+import org.apache.gobblin.iceberg.GobblinMCEProducer;
+import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
+import org.apache.gobblin.metadata.OperationType;
+import org.apache.gobblin.metadata.SchemaSource;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.writer.FsDataWriterBuilder;
+import org.apache.gobblin.writer.GobblinOrcWriter;
+import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.gobblin.writer.partitioner.TimeBasedWriterPartitioner;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.anyMap;
+import static org.mockito.Mockito.when;
 
 
 public class GobblinMCEPublisherTest {

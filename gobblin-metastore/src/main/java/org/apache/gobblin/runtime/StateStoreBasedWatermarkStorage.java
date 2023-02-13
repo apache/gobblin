@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -55,10 +56,10 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
    * A watermark prefix that is compatible with different watermark storage implementations.
    * As such, this prefix should not include any characters disallowed in a {@link java.net.URI}.
    */
-  private static final String WATERMARK_STORAGE_PREFIX="streamingWatermarks_";
+  protected static final String WATERMARK_STORAGE_PREFIX="streamingWatermarks_";
 
   public final StateStore<CheckpointableWatermarkState> _stateStore;
-  private final String _storeName;
+  protected final String _storeName;
 
   /**
    * A private method that creates a state store config
@@ -140,6 +141,10 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
 
   public Iterable<CheckpointableWatermarkState> getAllCommittedWatermarks() throws IOException {
     return _stateStore.getAll(_storeName);
+  }
+
+  public void deleteWatermarks(List<String> tableNames) throws IOException {
+    _stateStore.delete(_storeName, tableNames);
   }
 
 }

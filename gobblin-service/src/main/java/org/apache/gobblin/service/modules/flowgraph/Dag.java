@@ -35,7 +35,6 @@ import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 
-
 /**
  * An implementation of Dag. Assumes that nodes have unique values. Nodes with duplicate values will produce
  * unpredictable behavior.
@@ -53,6 +52,9 @@ public class Dag<T> {
   private String message;
   @Setter
   private String flowEvent;
+  // Keep track of when the final flow status is emitted, in milliseconds to avoid many duplicate events
+  @Setter @Getter
+  private long eventEmittedTimeMillis = -1;
 
   public Dag(List<DagNode<T>> dagNodes) {
     this.nodes = dagNodes;

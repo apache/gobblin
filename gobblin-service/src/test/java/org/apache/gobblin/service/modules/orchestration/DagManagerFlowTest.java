@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -26,25 +25,27 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
-import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -53,10 +54,7 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 
 public class DagManagerFlowTest {
@@ -95,6 +93,12 @@ public class DagManagerFlowTest {
     Thread.sleep(10000);
     // On active, should proceed request and delete action entry
     Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
+  }
+
+  @AfterClass
+  public void cleanUp() throws Exception {
+    dagManager.setActive(false);
+    Assert.assertEquals(dagManager.getHouseKeepingThreadPool().isShutdown(), true);
   }
 
   @Test
@@ -161,6 +165,17 @@ public class DagManagerFlowTest {
         .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow2", "group2",
         flowExecutionId3, "job0", "group2");
 
+    Mockito.doReturn(DagManagerTest.getMockFlowStatus("flow0", "group0", flowExecutionId1, String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow0", "group0",
+            flowExecutionId1, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY);
+
+    Mockito.doReturn(DagManagerTest.getMockFlowStatus("flow1", "group1", flowExecutionId2, String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow1", "group1",
+            flowExecutionId2, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY);
+
+    Mockito.doReturn(DagManagerTest.getMockFlowStatus("flow2", "group2", flowExecutionId3, String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow2", "group2",
+            flowExecutionId3, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY);
     // check removal of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> !dagManager.dagManagerThreads[queue1].dagToJobs.containsKey(dagId1), ERROR_MESSAGE);

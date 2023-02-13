@@ -19,18 +19,20 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.util.HadoopUtils;
@@ -44,9 +46,13 @@ import org.apache.gobblin.util.HadoopUtils;
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
 
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
-  public static final String ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY = ICEBERG_DATASET_PREFIX + ".hive.metastore.uri";
+  public static final String ICEBERG_CLUSTER_KEY = "cluster";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
+  public static final String ICEBERG_SRC_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
+  public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
+  public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
+  public static final String ICEBERG_SRC_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".source.cluster.name";
 
   protected final FileSystem sourceFs;
   private final Properties properties;
@@ -68,16 +74,18 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     String dbName = properties.getProperty(ICEBERG_DB_NAME);
     String tblName = properties.getProperty(ICEBERG_TABLE_NAME);
 
-    Configuration configuration = HadoopUtils.getConfFromProperties(properties);
-
-    IcebergCatalog icebergCatalog = IcebergCatalogFactory.create(configuration);
-    /* Each Iceberg dataset maps to an Iceberg table
-     * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
-     */
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, sourceFs));
-    log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(), matchingDatasets, dbName, tblName);
-
-    return matchingDatasets;
+    try {
+      IcebergCatalog icebergCatalog = createIcebergCatalog(this.properties);
+      /* Each Iceberg dataset maps to an Iceberg table
+       * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
+       */
+      matchingDatasets.add(createIcebergDataset(dbName, tblName, icebergCatalog, properties, sourceFs));
+      log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
+          matchingDatasets, dbName, tblName);
+      return matchingDatasets;
+    } catch (ReflectiveOperationException exception) {
+      throw new IOException(exception);
+    }
   }
 
   @Override
@@ -93,5 +101,17 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog icebergCatalog, Properties properties, FileSystem fs) {
     IcebergTable icebergTable = icebergCatalog.openTable(dbName, tblName);
     return new IcebergDataset(dbName, tblName, icebergTable, properties, fs);
+  }
+
+  protected IcebergCatalog createIcebergCatalog(Properties properties) throws IOException, ClassNotFoundException {
+    Map<String, String> catalogProperties = new HashMap<>();
+    String catalogUri = properties.getProperty(ICEBERG_SRC_CATALOG_URI_KEY);
+    Preconditions.checkNotNull(catalogUri, "Catalog Table Service URI is required");
+    catalogProperties.put(CatalogProperties.URI, catalogUri);
+    // introducing an optional property for catalogs requiring cluster specific properties
+    Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+    Configuration configuration = HadoopUtils.getConfFromProperties(properties);
+    String icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
+    return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }
 }

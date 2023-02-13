@@ -26,7 +26,22 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Sets;
+
 import lombok.SneakyThrows;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -41,38 +56,11 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockObjectFactory;
-import org.powermock.modules.testng.PowerMockTestCase;
-import org.testng.Assert;
-import org.testng.IObjectFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.ObjectFactory;
-import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 import static org.mockito.Mockito.*;
 
 
-/**
- * Test class uses PowerMockito and Testng
- * References:
- * https://github.com/powermock/powermock/issues/434
- * https://jivimberg.io/blog/2016/04/03/using-powermock-plus-testng-to-mock-a-static-class/
- * https://www.igorkromin.net/index.php/2018/10/04/how-to-fix-powermock-exception-linkageerror-loader-constraint-violation/
- */
-@PrepareForTest({GobblinConstructorUtils.class, FileSystem.class})
-@PowerMockIgnore("javax.management.*")
-public class GobblinMCEWriterTest extends PowerMockTestCase {
+public class GobblinMCEWriterTest {
 
   private String dbName = "hivedb";
   private String tableName = "testTable";
@@ -93,10 +81,14 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
 
   @Mock
   private HiveTable mockTable;
+  private MockedStatic<GobblinConstructorUtils> mockConstructorUtils;
+  private MockedStatic<FileSystem> mockedFileSystem;
 
   @AfterMethod
   public void clean() throws Exception {
     gobblinMCEWriter.close();
+    mockConstructorUtils.close();
+    mockedFileSystem.close();
   }
 
   @BeforeMethod
@@ -122,21 +114,21 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
 
     Mockito.doNothing().when(mockWriter)
         .writeEnvelope(
-            Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+            any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
     Mockito.doThrow(new IOException("Test Exception")).when(exceptionWriter)
         .writeEnvelope(
-            Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+            any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
 
-    PowerMockito.mockStatic(GobblinConstructorUtils.class);
-    when(GobblinConstructorUtils.invokeConstructor(
+    mockConstructorUtils = Mockito.mockStatic(GobblinConstructorUtils.class);
+    mockConstructorUtils.when(() -> GobblinConstructorUtils.invokeConstructor(
             eq(MetadataWriter.class), eq(mockWriter.getClass().getName()), any(State.class)))
         .thenReturn(mockWriter);
     when(GobblinConstructorUtils.invokeConstructor(
         eq(MetadataWriter.class), eq(exceptionWriter.getClass().getName()), any(State.class)))
         .thenReturn(exceptionWriter);
 
-    PowerMockito.mockStatic(FileSystem.class);
-    when(FileSystem.get(any()))
+    mockedFileSystem = Mockito.mockStatic(FileSystem.class);
+    mockedFileSystem.when(() -> FileSystem.get(any()))
         .thenReturn(fs);
 
     when(mockTable.getDbName()).thenReturn(dbName);
@@ -152,9 +144,9 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
     writeWithMetadataWriters(gmceBuilder.build());
 
     Mockito.verify(mockWriter, Mockito.times(1)).writeEnvelope(
-        Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+        any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
     Mockito.verify(exceptionWriter, never()).writeEnvelope(
-        Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+        any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
   }
 
   @Test
@@ -179,9 +171,9 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
 
         // also validates that order is maintained since all writers after an exception should reset instead of write
         Mockito.verify(mockWriter, Mockito.times(timesCalled)).writeEnvelope(
-            Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+            any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
         Mockito.verify(exceptionWriter, Mockito.times(timesCalled)).writeEnvelope(
-            Mockito.any(RecordEnvelope.class), Mockito.anyMap(), Mockito.anyMap(), Mockito.any(HiveSpec.class));
+            any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
         Mockito.verify(exceptionWriter, Mockito.times(1)).reset(dbName, tableName);
         Mockito.verify(mockWriter, Mockito.times(1)).reset(dbName, tableName);
       }
@@ -239,7 +231,7 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
   }
 
   private void initMocks() {
-    MockitoAnnotations.initMocks(this);
+    MockitoAnnotations.openMocks(this);
     // Hacky way to have 2 mock MetadataWriter "classes" with different underlying names
     mockWriter = Mockito.mock(MetadataWriter.class);
     exceptionWriter = Mockito.mock(TestExceptionMetadataWriter.class);
@@ -258,11 +250,6 @@ public class GobblinMCEWriterTest extends PowerMockTestCase {
   private void addTableStatus(String dbName, String datasetPath) {
     gobblinMCEWriter.tableOperationTypeMap.put(dbName + "." + tableName, new GobblinMCEWriter.TableStatus(
         OperationType.add_files, datasetPath, "GobblinMetadataChangeEvent_test-1", 0, 50));
-  }
-
-  @ObjectFactory
-  public IObjectFactory getObjectFactory() {
-    return new PowerMockObjectFactory();
   }
 }
 

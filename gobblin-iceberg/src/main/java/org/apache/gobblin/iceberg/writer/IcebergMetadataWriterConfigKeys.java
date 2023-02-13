@@ -40,6 +40,7 @@ public class IcebergMetadataWriterConfigKeys {
   public static final boolean DEFAULT_ICEBERG_NEW_PARTITION_ENABLED = false;
   public static final String ICEBERG_NEW_PARTITION_WHITELIST = "iceberg.new.partition.whitelist";
   public static final String ICEBERG_NEW_PARTITION_BLACKLIST = "iceberg.new.partition.blacklist";
+  public static final String STATE_COMPLETION_WATERMARK_KEY_OF_TABLE = "completion.watermark.%s";
 
 
 }

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import lombok.AllArgsConstructor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -82,7 +82,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
@@ -207,6 +206,7 @@ public class YarnService extends AbstractIdleService {
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
 
   private volatile boolean shutdownInProgress = false;
+  private volatile boolean startupInProgress = true;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus, HelixManager helixManager, HelixAdmin helixAdmin) throws Exception {
@@ -342,7 +342,7 @@ public class YarnService extends AbstractIdleService {
   }
 
   @Override
-  protected void startUp() throws Exception {
+  protected synchronized void startUp() throws Exception {
     LOGGER.info("Starting the YarnService");
 
     // Register itself with the EventBus for container-related requests
@@ -363,6 +363,7 @@ public class YarnService extends AbstractIdleService {
 
     LOGGER.info("Requesting initial containers");
     requestInitialContainers(this.initialContainers);
+    startupInProgress = false;
   }
 
   private void purgeHelixOfflineInstances(long laggingThresholdMs) {
@@ -462,10 +463,16 @@ public class YarnService extends AbstractIdleService {
    *
    * @param yarnContainerRequestBundle the desired containers information, including numbers, resource and helix tag
    * @param inUseInstances  a set of in use instances
+   * @return whether successfully requested the target number of containers
    */
-  public synchronized void requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
+  public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
         yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
+    if (startupInProgress) {
+      LOGGER.warn("YarnService is still starting up. Unable to request containers from yarn until YarnService is finished starting up.");
+      return false;
+    }
+
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
@@ -524,6 +531,7 @@ public class YarnService extends AbstractIdleService {
     this.yarnContainerRequest = yarnContainerRequestBundle;
     LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}",
         yarnContainerRequestBundle.getHelixTagContainerCountMap(), this.allocatedContainerCountMap);
+    return true;
   }
 
   // Request initial containers with default resource and helix tag
@@ -596,7 +604,7 @@ public class YarnService extends AbstractIdleService {
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
-    containerLaunchContext.setCommands(Lists.newArrayList(buildContainerCommand(containerInfo)));
+    containerLaunchContext.setCommands(Arrays.asList(containerInfo.getStartupCommand()));
 
     Map<ApplicationAccessType, String> acls = new HashMap<>(1);
     acls.put(ApplicationAccessType.VIEW_APP, this.appViewAcl);
@@ -624,7 +632,7 @@ public class YarnService extends AbstractIdleService {
   }
 
 
-  private ByteBuffer getSecurityTokens() throws IOException {
+  protected ByteBuffer getSecurityTokens() throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
     Closer closer = Closer.create();
     try {
@@ -649,11 +657,11 @@ public class YarnService extends AbstractIdleService {
   }
 
   @VisibleForTesting
-  protected String buildContainerCommand(ContainerInfo containerInfo) {
+  protected String buildContainerCommand(Container container, String helixParticipantId, String helixInstanceTag) {
     String containerProcessName = GobblinYarnTaskRunner.class.getSimpleName();
     StringBuilder containerCommand = new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
-        .append(" -Xmx").append((int) (containerInfo.getContainer().getResource().getMemory() * this.jvmMemoryXmxRatio) -
+        .append(" -Xmx").append((int) (container.getResource().getMemory() * this.jvmMemoryXmxRatio) -
             this.jvmMemoryOverheadMbs).append("M")
         .append(" -D").append(GobblinYarnConfigurationKeys.JVM_USER_TIMEZONE_CONFIG).append("=").append(this.containerTimezone)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
@@ -665,11 +673,11 @@ public class YarnService extends AbstractIdleService {
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)
         .append(" ").append(this.applicationId)
         .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
-        .append(" ").append(containerInfo.getHelixParticipantId());
+        .append(" ").append(helixParticipantId);
 
-    if (!Strings.isNullOrEmpty(containerInfo.getHelixTag())) {
+    if (!Strings.isNullOrEmpty(helixInstanceTag)) {
       containerCommand.append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME)
-          .append(" ").append(containerInfo.getHelixTag());
+          .append(" ").append(helixInstanceTag);
     }
     return containerCommand.append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
         containerProcessName).append(".").append(ApplicationConstants.STDOUT)
@@ -725,30 +733,17 @@ public class YarnService extends AbstractIdleService {
           containerStatus.getContainerId(), containerStatus.getDiagnostics()));
     }
 
-    if (containerStatus.getExitStatus() == ContainerExitStatus.ABORTED) {
-      if (this.releasedContainerCache.getIfPresent(containerStatus.getContainerId()) != null) {
-        LOGGER.info("Container release requested, so not spawning a replacement for containerId {}", containerStatus.getContainerId());
-        if (completedContainerInfo != null) {
-          LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
-          this.unusedHelixInstanceNames.add(completedInstanceName);
+    switch(containerStatus.getExitStatus()) {
+      case(ContainerExitStatus.ABORTED):
+        if (handleAbortedContainer(containerStatus, completedContainerInfo, completedInstanceName)) {
+          return;
         }
-        return;
-      } else {
-        LOGGER.info("Container {} aborted due to lost NM", containerStatus.getContainerId());
-        // Container release was not requested. Likely, the container was running on a node on which the NM died.
-        // In this case, RM assumes that the containers are "lost", even though the container process may still be
-        // running on the node. We need to ensure that the Helix instances running on the orphaned containers
-        // are fenced off from the Helix cluster to avoid double publishing and state being committed by the
-        // instances.
-        if (!UNKNOWN_HELIX_INSTANCE.equals(completedInstanceName)) {
-          String clusterName = this.helixManager.getClusterName();
-          //Disable the orphaned instance.
-          if (HelixUtils.isInstanceLive(helixManager, completedInstanceName)) {
-            LOGGER.info("Disabling the Helix instance {}", completedInstanceName);
-            this.helixManager.getClusterManagmentTool().enableInstance(clusterName, completedInstanceName, false);
-          }
-        }
-      }
+        break;
+      case(1): // Same as linux exit status 1 Often occurs when launch_container.sh failed
+        LOGGER.info("Exit status 1. CompletedContainerInfo={}", completedContainerInfo);
+        break;
+      default:
+        break;
     }
 
     if (this.shutdownInProgress) {
@@ -793,6 +788,55 @@ public class YarnService extends AbstractIdleService {
     this.eventBus.post(new NewContainerRequest(
         shouldStickToTheSameNode(containerStatus.getExitStatus()) && completedContainerInfo != null ?
             Optional.of(completedContainerInfo.getContainer()) : Optional.absent(), newContainerResource));
+  }
+
+  /**
+   * Handles containers aborted. This method handles 2 cases:
+   * <ol>
+   *   <li>
+   *     Case 1: Gobblin AM intentionally requested container to be released (often because the number of helix tasks
+   *     has decreased due to decreased traffic)
+   *   </li>
+   *   <li>
+   *     Case 2: Unexpected hardware fault and the node is lost. Need to do specific Helix logic to ensure 2 helix tasks
+   *     are not being run by the multiple containers
+   *   </li>
+   * </ol>
+   * @param containerStatus
+   * @param completedContainerInfo
+   * @param completedInstanceName
+   * @return if release request was intentionally released (Case 1)
+   */
+  private boolean handleAbortedContainer(ContainerStatus containerStatus, ContainerInfo completedContainerInfo,
+      String completedInstanceName) {
+
+    // Case 1: Container intentionally released
+    if (this.releasedContainerCache.getIfPresent(containerStatus.getContainerId()) != null) {
+      LOGGER.info("Container release requested, so not spawning a replacement for containerId {}", containerStatus.getContainerId());
+      if (completedContainerInfo != null) {
+        LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
+        this.unusedHelixInstanceNames.add(completedInstanceName);
+      }
+
+      return true;
+    }
+
+    // Case 2: Container release was not requested. Likely, the container was running on a node on which the NM died.
+    // In this case, RM assumes that the containers are "lost", even though the container process may still be
+    // running on the node. We need to ensure that the Helix instances running on the orphaned containers
+    // are fenced off from the Helix cluster to avoid double publishing and state being committed by the
+    // instances.
+    LOGGER.info("Container {} aborted due to lost NM", containerStatus.getContainerId());
+    if (!UNKNOWN_HELIX_INSTANCE.equals(completedInstanceName)) {
+      String clusterName = this.helixManager.getClusterName();
+      //Disable the orphaned instance.
+      if (HelixUtils.isInstanceLive(helixManager, completedInstanceName)) {
+        LOGGER.info("Disabling the Helix instance {}", completedInstanceName);
+        this.helixManager.getClusterManagmentTool().enableInstance(clusterName, completedInstanceName, false);
+      }
+    }
+
+    return false;
   }
 
   private ImmutableMap.Builder<String, String> buildContainerStatusEventMetadata(ContainerStatus containerStatus) {
@@ -1050,12 +1094,20 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  //A class encapsulates Container instances, Helix participant IDs of the containers and Helix Tag
-  @AllArgsConstructor
+  // Class encapsulates Container instances, Helix participant IDs of the containers, Helix Tag, and
+  // initial startup command
   @Getter
-  static class ContainerInfo {
+  class ContainerInfo {
     private final Container container;
     private final String helixParticipantId;
     private final String helixTag;
+    private final String startupCommand;
+
+    public ContainerInfo(Container container, String helixParticipantId, String helixTag) {
+      this.container = container;
+      this.helixParticipantId = helixParticipantId;
+      this.helixTag = helixTag;
+      this.startupCommand = YarnService.this.buildContainerCommand(container, helixParticipantId, helixTag);
+    }
   }
 }

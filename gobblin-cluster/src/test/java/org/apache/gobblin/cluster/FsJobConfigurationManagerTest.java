@@ -89,7 +89,7 @@ public class FsJobConfigurationManagerTest {
         throw new IOException("Unexpected event type");
       }
       return null;
-    }).when(this.eventBus).post(Mockito.anyObject());
+    }).when(this.eventBus).post(Mockito.any());
 
     this.fs = FileSystem.getLocal(new Configuration(false));
     Path jobConfDirPath = new Path(jobConfDir);

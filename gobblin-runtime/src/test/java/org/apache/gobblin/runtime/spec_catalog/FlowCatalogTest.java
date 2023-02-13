@@ -111,10 +111,10 @@ public class FlowCatalogTest {
      * Create FLowSpec with specified URI and SpecStore location.
      */
   public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
-    return initFlowSpec(specStore, uri, flowName, "", ConfigFactory.empty());
+    return initFlowSpec(specStore, uri, flowName, "", ConfigFactory.empty(), false);
   }
 
-  public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName, String flowGroup, Config additionalConfigs) {
+  public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName, String flowGroup, Config additionalConfigs, boolean isAdhoc) {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
     properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
@@ -122,7 +122,9 @@ public class FlowCatalogTest {
     properties.put("job.group", flowGroup);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
-    properties.put("job.schedule", "0 0 0 ? * * 2050");
+    if (!isAdhoc) {
+      properties.put("job.schedule", "0 2 3 ? * 2-6");
+    }
     Config defaults = ConfigUtils.propertiesToConfig(properties);
     Config config = additionalConfigs.withFallback(defaults);
     SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(config);

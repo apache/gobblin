@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.EnumSet;
 
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.ContentSummary;
@@ -37,6 +38,8 @@ import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
@@ -98,6 +101,14 @@ class FileSystemDecorator extends FileSystem implements Decorator {
   public FileStatus getFileLinkStatus(Path f) throws java.io.IOException {
     return replaceScheme(this.underlyingFs.getFileLinkStatus(replaceScheme(f, this.replacementScheme, this.underlyingScheme)),
         this.underlyingScheme, this.replacementScheme);
+  }
+
+  public AclStatus getAclStatus(Path path) throws IOException {
+    return this.underlyingFs.getAclStatus(path);
+  }
+
+  public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
+    this.underlyingFs.setAcl(path, aclSpec);
   }
 
   public FsStatus getStatus() throws java.io.IOException {

@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
@@ -54,7 +55,6 @@ public class AvroHdfsDataWriterTest {
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
   private Schema schema;
-  private DataWriter<GenericRecord> writer;
   private String filePath;
   private State properties;
 
@@ -83,24 +83,31 @@ public class AvroHdfsDataWriterTest {
     properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, TestConstants.TEST_OUTPUT_DIR);
     properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, this.filePath);
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, TestConstants.TEST_FILE_NAME);
-
-    // Build a writer to write test records
-    this.writer = new AvroDataWriterBuilder().writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
-        .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID).withSchema(this.schema)
-        .withBranches(1).forBranch(0).build();
   }
 
-  @Test
-  public void testWrite() throws IOException {
+  @DataProvider(name = "codecs")
+  private String[] codecs() {
+    return new String[]{"null", "deflate", "snappy", "bzip2", "xz", "zstandard"};
+  }
+
+  @Test(dataProvider = "codecs")
+  public void testWrite(String codec) throws IOException {
+    properties.setProp(ConfigurationKeys.WRITER_CODEC_TYPE, codec);
+    DataWriterBuilder<Schema, GenericRecord> builder = new AvroDataWriterBuilder()
+            .writeTo(Destination.of(Destination.DestinationType.HDFS, properties))
+            .writeInFormat(WriterOutputFormat.AVRO).withWriterId(TestConstants.TEST_WRITER_ID)
+            .withSchema(this.schema).withBranches(1).forBranch(0);
+    DataWriter<GenericRecord> writer = builder.build();
+
     // Write all test records
     for (String record : TestConstants.JSON_RECORDS) {
-      this.writer.write(convertRecord(record));
+      writer.write(convertRecord(record));
     }
 
-    Assert.assertEquals(this.writer.recordsWritten(), 3);
+    Assert.assertEquals(writer.recordsWritten(), 3);
 
-    this.writer.close();
-    this.writer.commit();
+    writer.close();
+    writer.commit();
 
     File outputFile =
         new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);

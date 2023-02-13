@@ -71,6 +71,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -100,6 +101,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Meter> skippedFlowsMeter;
   @Setter
   private FlowStatusGenerator flowStatusGenerator;
+
+  private UserQuotaManager quotaManager;
+
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -150,6 +154,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
+    quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+        ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
   }
 
   @Inject
@@ -242,11 +248,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       boolean allowConcurrentExecution = ConfigUtils
           .getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, this.flowConcurrencyFlag);
 
+      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
         conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SKIPPED);
         Instrumented.markMeter(this.skippedFlowsMeter);
+        if (!((FlowSpec)spec).getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+          // For ad-hoc flow, we might already increase quota, we need to decrease here
+          for(Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
+            quotaManager.releaseQuota(dagNode);
+          }
+        }
 
         // Send FLOW_FAILED event
         Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
@@ -260,8 +274,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       Optional<TimingEvent> flowCompilationTimer = this.eventSubmitter.transform(submitter ->
           new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
-
-      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {

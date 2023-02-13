@@ -25,15 +25,19 @@ import lombok.NoArgsConstructor;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-
+import java.util.List;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
+import com.google.api.client.util.Lists;
+
 
 /**
- * Wrapper for owner, group, and permission of a path.
+ * Wrapper for owner, group, permission including sticky bit and ACL entry of a path.
  */
 @Data
 @AllArgsConstructor
@@ -43,6 +47,11 @@ public class OwnerAndPermission implements Writable {
   private String owner;
   private String group;
   private FsPermission fsPermission;
+  private List<AclEntry> aclEntries;
+
+  public OwnerAndPermission (String owner, String group, FsPermission fsPermission) {
+    this(owner, group, fsPermission, Lists.newArrayList());
+  }
 
   @Override
   public void write(DataOutput dataOutput) throws IOException {
@@ -74,8 +83,8 @@ public class OwnerAndPermission implements Writable {
    * @param file the file status that need to be evaluated
    * @return true if the metadata for the file match the current owner and permission
    */
-  public boolean hasSameOwnerAndPermission(FileStatus file) {
-    return this.hasSameFSPermission(file) && this.hasSameGroup(file) && this.hasSameOwner(file);
+  public boolean hasSameOwnerAndPermission(FileSystem fs, FileStatus file) throws IOException {
+    return this.hasSameFSPermission(file) && this.hasSameGroup(file) && this.hasSameOwner(file) && this.hasSameAcls(fs.getAclStatus(file.getPath()).getEntries());
   }
 
   private boolean hasSameGroup(FileStatus file) {
@@ -88,5 +97,9 @@ public class OwnerAndPermission implements Writable {
 
   private boolean hasSameFSPermission(FileStatus file) {
     return this.fsPermission == null || file.getPermission().equals(this.fsPermission);
+  }
+
+  private boolean hasSameAcls(List<AclEntry> acls) {
+    return this.aclEntries.isEmpty() || acls.equals(aclEntries);
   }
 }

@@ -319,7 +319,7 @@ public class GobblinAWSClusterLauncher {
   }
 
   @VisibleForTesting
-  AWSSdkClient createAWSSdkClient() {
+  protected AWSSdkClient createAWSSdkClient() {
     return new AWSSdkClient(this.awsClusterSecurityManager,
         Region.getRegion(Regions.fromName(this.awsRegion)));
   }
