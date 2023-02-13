@@ -281,15 +281,24 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   private void updateLatestSchemaMapWithExistingSchema(String dbName, String tableName, String tableKey) throws IOException {
+    updateLatestSchemaMapWithExistingSchema(dbName, tableName, tableKey, useExistingTableSchemaAllowDenyList, hiveRegister, latestSchemaMap);
+  }
+
+  // returns if latest schema map was updated with the existing schema in Hive
+  @VisibleForTesting
+  protected static boolean updateLatestSchemaMapWithExistingSchema(String dbName, String tableName, String tableKey,
+      WhitelistBlacklist useExistingTableSchemaAllowDenyList, HiveRegister hiveRegister,
+      HashMap<String, String> latestSchemaMap) throws IOException{
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
     boolean alwaysUseExistingSchema = useExistingTableSchemaAllowDenyList.acceptTable(dbName, tableName);
     if (!alwaysUseExistingSchema && latestSchemaMap.containsKey(tableKey)) {
-      return;
+      return false;
     }
 
     HiveTable existingTable = hiveRegister.getTable(dbName, tableName).get();
     latestSchemaMap.put(tableKey,
         existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    return true;
   }
 
   public void deleteFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> oldSpecsMap, String dbName,

@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import java.util.Map;
+import java.util.function.Function;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
@@ -40,6 +41,7 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.thrift.TException;
@@ -47,7 +49,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.mockito.Mockito;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -56,6 +57,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegister;
@@ -80,6 +82,10 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.function.CheckedExceptionFunction;
+import org.mockito.Mockito;
+
+import static org.mockito.Matchers.eq;
 
 
 public class HiveMetadataWriterTest extends HiveMetastoreTest {
@@ -337,6 +343,53 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     Mockito.verifyZeroInteractions(mockRegister);
   }
 
+  /**
+   * Goal: Ensure the logic for always using the latest schema in Hive table is working properly:
+   * <ul>
+   *   <li>deny listed topics should fetch the schema once, and then use a cached version for all future calls</li>
+   *   <li>allow listed topics should fetch the schema each time</li>
+   * </ul>
+   */
+  @Test
+  public void  testUpdateLatestSchemaWithExistingSchema() throws IOException {
+    final String tableNameAllowed = "tableAllowed";
+    final String tableNameDenied = "tableDenied";
+    final WhitelistBlacklist useExistingTableSchemaAllowDenyList = new WhitelistBlacklist(
+        "hivedb.tableAllowed", "hivedb.tableDenied", true);
+    final HiveRegister hiveRegister = Mockito.mock(HiveRegister.class);
+    final HashMap<String, String> latestSchemaMap = new HashMap<>();
+    final Function<String,String> getTableKey = (tableName) -> String.format("%s.%s", dbName, tableName);
+    final HiveTable mockTable = Mockito.mock(HiveTable.class);
+    final State avroSchemaProp = Mockito.mock(State.class);
+    final String avroSchema = "avro schema";
+
+    Mockito.when(hiveRegister.getTable(eq(dbName), eq(tableNameAllowed))).thenReturn(Optional.of(mockTable));
+    Mockito.when(hiveRegister.getTable(eq(dbName), eq(tableNameDenied))).thenReturn(Optional.of(mockTable));
+    Mockito.when(avroSchemaProp.getProp(eq(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()))).thenReturn(avroSchema);
+    Mockito.when(mockTable.getSerDeProps()).thenReturn(avroSchemaProp);
+
+    CheckedExceptionFunction<String, Boolean, IOException> updateLatestSchema = (tableName) ->
+        TestHiveMetadataWriter.updateLatestSchemaMapWithExistingSchema(dbName, tableName, getTableKey.apply(tableName),
+            useExistingTableSchemaAllowDenyList, hiveRegister, latestSchemaMap);
+
+
+    // Tables part of deny list, schema only fetched from hive on the first time and the all future calls will use the cache
+    Assert.assertFalse(updateLatestSchema.apply(tableNameDenied));
+    Assert.assertEquals(latestSchemaMap, ImmutableMap.of(
+        getTableKey.apply(tableNameDenied), avroSchema
+    ));
+    Mockito.verify(hiveRegister, Mockito.times(1)).getTable(eq(dbName), eq(tableNameDenied));
+
+    // For tables included in the allow list, hive should be called and schema map should be updated with the latest schema
+    Assert.assertTrue(updateLatestSchema.apply(tableNameAllowed));
+    Assert.assertEquals(latestSchemaMap, ImmutableMap.of(
+        getTableKey.apply(tableNameAllowed), avroSchema,
+        getTableKey.apply(tableNameDenied), avroSchema
+    ));
+    Assert.assertTrue(updateLatestSchema.apply(tableNameAllowed));
+    Mockito.verify(hiveRegister, Mockito.times(2)).getTable(eq(dbName), eq(tableNameAllowed));
+  }
+
   private String writeRecord(File file) throws IOException {
     GenericData.Record record = new GenericData.Record(avroDataSchema);
     record.put("id", 1L);
@@ -348,6 +401,34 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     dataFileWriter.append(record);
     dataFileWriter.close();
     return path;
+  }
+
+  /**
+   * Test class for exposing methods for exposing internal HiveMetaWriter functions without making them public.
+   * Although the ultimate fix would be to break up the logic in the hive metadata writer into smaller pieces,
+   * this a stop gap way to make testing internal logic easier
+   */
+  public static class TestHiveMetadataWriter extends HiveMetadataWriter {
+    public TestHiveMetadataWriter(State state) throws IOException {
+      super(state);
+    }
+
+    public static boolean updateLatestSchemaMapWithExistingSchema(
+        String dbName,
+        String tableName,
+        String tableKey,
+        WhitelistBlacklist useExistingTableSchemaAllowDenyList,
+        HiveRegister hiveRegister,
+        HashMap<String, String> latestSchemaMap
+    ) throws IOException{
+      return HiveMetadataWriter.updateLatestSchemaMapWithExistingSchema(dbName,
+          tableName,
+          tableKey,
+          useExistingTableSchemaAllowDenyList,
+          hiveRegister,
+          latestSchemaMap
+      );
+    }
   }
 
   public static class TestHiveRegistrationPolicy extends HiveRegistrationPolicyBase {
