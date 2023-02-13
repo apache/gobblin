@@ -201,7 +201,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
    * @param config the properties used for datasource instantiation
    * @return
    */
-  public static DataSource newDataSource(Config config) {
+  static DataSource newDataSource(Config config) {
     HikariDataSource dataSource = new HikariDataSource();
     PasswordManager passwordManager = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
 

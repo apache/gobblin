@@ -87,7 +87,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         if (this.fs.exists(fileToCopy)) {
           boolean existOnTarget = targetFs.exists(fileToCopy);
           FileStatus srcFile = this.fs.getFileStatus(fileToCopy);
-          if (!existOnTarget || shouldCopy(srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
+          if (!existOnTarget || shouldCopy(this.fs, srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
             CopyableFile copyableFile =
                 CopyableFile.fromOriginAndDestination(this.fs, srcFile, fileToCopy, configuration)
                     .fileSet(datasetURN())
@@ -130,10 +130,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean shouldCopy(FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration) {
+  private static boolean shouldCopy(FileSystem srcFs, FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration)
+      throws IOException {
     if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
       // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
-      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fileInSource, copyConfiguration);
+      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, fileInSource, copyConfiguration);
       return !replicatedPermission.hasSameOwnerAndPermission(fileInTarget);
     }
     return fileInSource.getModificationTime() > fileInTarget.getModificationTime();

@@ -78,8 +78,8 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  * Tests for {@link YarnService}.
  */
 @Test(groups = {"gobblin.yarn", "disabledOnCI"}, singleThreaded=true)
-public class YarnServiceTest {
-  final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
+public class YarnServiceIT {
+  final Logger LOG = LoggerFactory.getLogger(YarnServiceIT.class);
 
   private YarnClient yarnClient;
   private MiniYARNCluster yarnCluster;
@@ -88,7 +88,7 @@ public class YarnServiceTest {
   private YarnConfiguration clusterConf;
   private ApplicationId applicationId;
   private ApplicationAttemptId applicationAttemptId;
-  private final EventBus eventBus = new EventBus("YarnServiceTest");
+  private final EventBus eventBus = new EventBus("YarnServiceIT");
 
   private final Closer closer = Closer.create();
 
@@ -134,8 +134,8 @@ public class YarnServiceTest {
     this.yarnClient.init(this.clusterConf);
     this.yarnClient.start();
 
-    URL url = YarnServiceTest.class.getClassLoader()
-        .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
+    URL url = YarnServiceIT.class.getClassLoader()
+        .getResource(YarnServiceIT.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
     this.config = ConfigFactory.parseURL(url).resolve();

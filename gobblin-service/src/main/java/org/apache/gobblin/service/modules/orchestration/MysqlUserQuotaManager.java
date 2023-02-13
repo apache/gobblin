@@ -37,9 +37,10 @@ import javax.inject.Singleton;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.exception.QuotaExceededException;
-import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -63,6 +64,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   @Inject
   public MysqlUserQuotaManager(Config config) throws IOException {
     super(config);
+    log.info("Going to initialize mysqlUserQuotaManager");
     Config quotaStoreConfig;
     if (config.hasPath(CONFIG_PREFIX)) {
       quotaStoreConfig = config.getConfig(CONFIG_PREFIX).withFallback(config);
@@ -225,10 +227,6 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         decrementJobCount(connection, proxyUserKey, CountType.USER_COUNT);
       }
 
-      String flowGroup =
-          ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_GROUP_KEY, "");
-      decrementJobCount(connection, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
-
       String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
       try {
         for (String requester : DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters)) {
@@ -239,6 +237,10 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         log.error("Failed to release quota for requester list " + serializedRequesters, e);
         return false;
       }
+
+      String flowGroup =
+          ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_GROUP_KEY, "");
+      decrementJobCount(connection, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
       connection.commit();
     } catch (SQLException ex) {
       throw new IOException(ex);
@@ -265,7 +267,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_STORE_DB_TABLE_KEY,
         ServiceConfigKeys.DEFAULT_QUOTA_STORE_DB_TABLE);
 
-    DataSource dataSource = MysqlStateStore.newDataSource(config);
+    DataSource dataSource = MysqlDataSourceFactory.get(config,
+        SharedResourcesBrokerFactory.getImplicitBroker());
 
     return new MysqlQuotaStore(dataSource, quotaStoreTableName);
   }
@@ -274,7 +277,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     String quotaStoreTableName = ConfigUtils.getString(config, ServiceConfigKeys.RUNNING_DAG_IDS_DB_TABLE_KEY,
         ServiceConfigKeys.DEFAULT_RUNNING_DAG_IDS_DB_TABLE);
 
-    DataSource dataSource = MysqlStateStore.newDataSource(config);
+    DataSource dataSource = MysqlDataSourceFactory.get(config,
+        SharedResourcesBrokerFactory.getImplicitBroker());;
 
     return new RunningDagIdsStore(dataSource, quotaStoreTableName);
   }

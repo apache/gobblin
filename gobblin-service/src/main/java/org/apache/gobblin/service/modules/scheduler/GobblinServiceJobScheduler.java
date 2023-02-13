@@ -328,10 +328,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return new AddSpecResponse<>(response);
     }
 
-    // Check quota limits against run immediately flows or adhoc flows before saving the schedule
+    // Check quota limits against adhoc flows before saving the schedule
     // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
-    if (!this.warmStandbyEnabled && (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
-      // This block should be reachable only for the first execution for the adhoc flows (flows that either do not have a schedule or have runImmediately=true.
+    if (!this.warmStandbyEnabled && !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      // This block should be reachable only for the execution for the adhoc flows
+      // For flow that has scheduler but run-immediately set to be true, we won't check the quota as we will use a different execution id later
       if (quotaManager.isPresent()) {
         // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
         try {

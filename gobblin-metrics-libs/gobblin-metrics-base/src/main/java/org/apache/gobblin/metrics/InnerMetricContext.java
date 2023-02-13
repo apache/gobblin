@@ -299,7 +299,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
   @Override
   public synchronized boolean remove(String name) {
     MetricContext metricContext = this.metricContext.get();
-    if (metricContext != null) {
+    if (metricContext != null && this.contextAwareMetrics.get(name) != null) {
       metricContext.removeFromMetrics(this.contextAwareMetrics.get(name).getContextAwareMetric());
     }
     return this.contextAwareMetrics.remove(name) != null && removeChildrenMetrics(name);

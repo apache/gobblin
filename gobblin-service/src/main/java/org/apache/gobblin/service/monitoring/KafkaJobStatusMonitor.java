@@ -251,13 +251,17 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
         int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
         int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
+        // Verify if the current job status is flow status. If yes, we check for its current execution status to be PENDING_RESUME (limiting to just resume flow statuses)
+        // When the above two conditions satisfy, we NEED NOT check for the out-of-order events since GaaS would manage the lifecycle of these events
+        // Hence, we update the merge state accordingly so that the flow can proceed with its execution to the next state in the DAG
+        boolean isFlowStatusAndPendingResume = isFlowStatusAndPendingResume(jobName, jobGroup, currentStatus);
         // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
         // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
         // And job status reflect the execution status in one attempt
-        if (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
+         if (!isFlowStatusAndPendingResume && (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
             previousGeneration == currentGeneration && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
             && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
-            < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))))) {
+            < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus)))))) {
           log.warn(String.format(
               "Received status [generation.attempts] = %s [%s.%s] when already %s [%s.%s] for flow (%s, %s, %s), job (%s, %s)",
               currentStatus, currentGeneration, currentAttempts, previousStatus, previousGeneration, previousAttempts,
@@ -278,6 +282,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
       throw new IOException(e);
     }
+  }
+
+  private static boolean isFlowStatusAndPendingResume(String jobName, String jobGroup, String currentStatus) {
+    return jobName != null && jobGroup != null && jobName.equals(JobStatusRetriever.NA_KEY) && jobGroup.equals(JobStatusRetriever.NA_KEY)
+        && currentStatus.equals(ExecutionStatus.PENDING_RESUME.name());
   }
 
   private static void modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {

@@ -30,8 +30,9 @@ import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -67,7 +68,8 @@ public class MysqlDagActionStore implements DagActionStore {
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
 
-    this.dataSource = MysqlStateStore.newDataSource(config);
+    this.dataSource = MysqlDataSourceFactory.get(config,
+        SharedResourcesBrokerFactory.getImplicitBroker());;
     try (Connection connection = dataSource.getConnection();
         PreparedStatement createStatement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, tableName))) {
       createStatement.executeUpdate();

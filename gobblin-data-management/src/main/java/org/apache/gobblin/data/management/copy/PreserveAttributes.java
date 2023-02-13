@@ -45,6 +45,7 @@ public class PreserveAttributes {
     GROUP('g'),
     PERMISSION('p'),
     VERSION('v'),
+    ACLS('a'),
     MOD_TIME('t');
 
     private final char token;
