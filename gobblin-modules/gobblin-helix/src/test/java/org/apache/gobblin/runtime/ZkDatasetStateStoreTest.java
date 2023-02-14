@@ -261,14 +261,14 @@ public class ZkDatasetStateStoreTest {
 
   @Test(dependsOnMethods = "testGetPreviousDatasetStatesByUrns")
   public void testDeleteDatasetJobState() throws IOException {
-    JobState.DatasetState datasetState = zkDatasetStateStore.get(TEST_JOB_NAME,
-        TEST_DATASET_URN + "-" + zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
-            zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX, TEST_DATASET_URN);
+    String tableName = TEST_DATASET_URN + "-" + zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +
+        zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX;
+    JobState.DatasetState datasetState = zkDatasetStateStore.get(TEST_JOB_NAME, tableName, TEST_DATASET_URN);
 
     Assert.assertNotNull(datasetState);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
 
-    zkDatasetStateStore.delete(TEST_JOB_NAME);
+    zkDatasetStateStore.delete(TEST_JOB_NAME, Collections.singletonList(tableName));
 
     datasetState = zkDatasetStateStore.get(TEST_JOB_NAME,
         TEST_DATASET_URN + "-" + zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX +

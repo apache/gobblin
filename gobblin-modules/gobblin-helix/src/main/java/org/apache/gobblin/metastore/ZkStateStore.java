@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -295,6 +296,12 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
   @Override
   public void delete(String storeName, String tableName) throws IOException {
     propStore.remove(formPath(storeName, tableName), 0);
+  }
+
+  @Override
+  public void delete(String storeName, List<String> tableNames) throws IOException {
+    List<String> paths = tableNames.stream().map(table -> formPath(storeName, table)).collect(Collectors.toList());
+    propStore.remove(paths, 0);
   }
 
   @Override

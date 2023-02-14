@@ -206,6 +206,20 @@ public interface StateStore<T extends State> {
       throws IOException;
 
   /**
+   * Delete a list of tables from a store.
+   *
+   * @param storeName store name
+   * @param tableNames List of table names in the state store to delete
+   * @throws IOException
+   */
+  default void delete(String storeName, List<String> tableNames)
+      throws IOException {
+    for (String tableName : tableNames) {
+      delete(storeName, tableName);
+    }
+  }
+
+  /**
    * Delete a store.
    *
    * @param storeName store name
