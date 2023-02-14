@@ -35,6 +35,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -214,6 +215,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     } catch (URISyntaxException e) {
       LOG.warn("unable to parse JDBC URL '{}' - {}", jdbcUrl, e.getMessage());
     }
+    // TODO: consider whether to demote to DEBUG log level
+    LOG.info("creating pool '{}' for caller with stacktrace: {}", poolName,
+        Arrays.toString(Thread.currentThread().getStackTrace()).replace(", ", "\n  at "));
     dataSource.setPoolName(poolName);
     dataSource.setDriverClassName(ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
