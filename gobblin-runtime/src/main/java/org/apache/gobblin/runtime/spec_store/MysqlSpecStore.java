@@ -61,6 +61,7 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
       + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), spec_json = VALUES(spec_json)";
   private static final String SPECIFIC_GET_STATEMENT_BASE = "SELECT spec_uri, spec, spec_json FROM %s WHERE ";
   private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json FROM %s";
+  private static final String SPECIFIC_GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, spec_json FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
   private static final String SPECIFIC_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR("
       + FlowSpec.Utils.maxFlowSpecUriLength()
       + ") NOT NULL, flow_group VARCHAR(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + "), flow_name VARCHAR("
@@ -116,6 +117,8 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
     protected String getTablelessGetStatementBase() { return MysqlSpecStore.SPECIFIC_GET_STATEMENT_BASE; }
     @Override
     protected String getTablelessGetAllStatement() { return MysqlSpecStore.SPECIFIC_GET_ALL_STATEMENT; }
+    @Override
+    protected String getTablelessGetBatchStatement() { return MysqlSpecStore.SPECIFIC_GET_SPECS_BATCH_STATEMENT; }
     @Override
     protected String getTablelessCreateTableStatement() { return MysqlSpecStore.SPECIFIC_CREATE_TABLE_STATEMENT; }
   }
