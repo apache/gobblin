@@ -207,6 +207,7 @@ public class YarnService extends AbstractIdleService {
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
 
   private volatile boolean shutdownInProgress = false;
+  private volatile boolean startupInProgress = true;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus, HelixManager helixManager, HelixAdmin helixAdmin) throws Exception {
@@ -342,7 +343,7 @@ public class YarnService extends AbstractIdleService {
   }
 
   @Override
-  protected void startUp() throws Exception {
+  protected synchronized void startUp() throws Exception {
     LOGGER.info("Starting the YarnService");
 
     // Register itself with the EventBus for container-related requests
@@ -363,6 +364,7 @@ public class YarnService extends AbstractIdleService {
 
     LOGGER.info("Requesting initial containers");
     requestInitialContainers(this.initialContainers);
+    startupInProgress = false;
   }
 
   private void purgeHelixOfflineInstances(long laggingThresholdMs) {
@@ -462,10 +464,16 @@ public class YarnService extends AbstractIdleService {
    *
    * @param yarnContainerRequestBundle the desired containers information, including numbers, resource and helix tag
    * @param inUseInstances  a set of in use instances
+   * @return whether successfully requested the target number of containers
    */
-  public synchronized void requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
+  public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
         yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
+    if (startupInProgress) {
+      LOGGER.warn("YarnService is still starting up. Unable to request containers from yarn until YarnService is finished starting up.");
+      return false;
+    }
+
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
@@ -524,6 +532,7 @@ public class YarnService extends AbstractIdleService {
     this.yarnContainerRequest = yarnContainerRequestBundle;
     LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}",
         yarnContainerRequestBundle.getHelixTagContainerCountMap(), this.allocatedContainerCountMap);
+    return true;
   }
 
   // Request initial containers with default resource and helix tag
@@ -624,7 +633,7 @@ public class YarnService extends AbstractIdleService {
   }
 
 
-  private ByteBuffer getSecurityTokens() throws IOException {
+  protected ByteBuffer getSecurityTokens() throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
     Closer closer = Closer.create();
     try {
