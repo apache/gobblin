@@ -464,7 +464,7 @@ public class YarnService extends AbstractIdleService {
    *
    * @param yarnContainerRequestBundle the desired containers information, including numbers, resource and helix tag
    * @param inUseInstances  a set of in use instances
-   * @return whether the requestTargetNumberOfContainers function has executed yet
+   * @return whether successfully requested the target number of containers
    */
   public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
