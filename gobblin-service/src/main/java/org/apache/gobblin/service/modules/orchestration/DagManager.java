@@ -807,6 +807,7 @@ public class DagManager extends AbstractIdleService {
           if (jobStatus != null && jobStatus.isShouldRetry()) {
             log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
                 jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+            this.jobToDag.get(node).setFlowEvent(null);
             submitJob(node);
           }
         } catch (Exception e) {
@@ -1136,7 +1137,6 @@ public class DagManager extends AbstractIdleService {
           } else {
             addFailedDag(dagId, dag);
           }
-          log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, dag.getFlowEvent());
           // send an event before cleaning up dag
           DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), dag.getFlowEvent());
           dag.setEventEmittedTimeMillis(cleanUpProcessingTime);
@@ -1144,8 +1144,8 @@ public class DagManager extends AbstractIdleService {
       }
 
       // Only clean up dags after the job status monitor processed the flow event
-      Set<String> cleanedDags = new HashSet<>();
-      for (String dagId: this.dagIdstoClean) {
+      for (Iterator<String> dagIdIterator = this.dagIdstoClean.iterator(); dagIdIterator.hasNext();) {
+        String dagId = dagIdIterator.next();
         Dag<JobExecutionPlan> dag = this.dags.get(dagId);
         JobStatus flowStatus = pollFlowStatus(dag);
         if (flowStatus != null && FlowStatusGenerator.FINISHED_STATUSES.contains(flowStatus.getEventName())) {
@@ -1166,17 +1166,15 @@ public class DagManager extends AbstractIdleService {
             default:
               log.warn("Unexpected flow event {} for dag {}", dag.getFlowEvent(), dagId);
           }
+          log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, dag.getFlowEvent());
           cleanUpDag(dagId);
-          cleanedDags.add(dagId);
+          dagIdIterator.remove();
         } else if (cleanUpProcessingTime > dag.getEventEmittedTimeMillis() + DAG_FLOW_STATUS_TOLERANCE_TIME_MILLIS) {
           // Re-emit the flow event if the flow status has not been processed within the DagFlowStatusTolerance time
           DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, dag.getFlowEvent());
         } else {
           log.info("Waiting for flow event {} to be emitted before cleaning up dag {}", dag.getFlowEvent(), dagId);
         }
-      }
-      for (String dagId: cleanedDags) {
-        this.dagIdstoClean.remove(dagId);
       }
     }
 
