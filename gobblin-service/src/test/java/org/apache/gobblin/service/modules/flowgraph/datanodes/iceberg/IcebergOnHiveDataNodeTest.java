@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.modules.flowgraph.datanodes.iceberg;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -30,7 +33,7 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 
 
-public class IcebergDataNodeTest {
+public class IcebergOnHiveDataNodeTest {
 
   Config config = null;
 
@@ -38,27 +41,31 @@ public class IcebergDataNodeTest {
   public void setUp() {
     String sampleNodeId = "some-iceberg-node-id";
     String sampleAdlFsUri = "hdfs://data.hdfs.core.windows.net";
-    String sampleCatalogUri = "https://xyz.company.com/clusters/db/catalog:443";
+    String sampleHiveMetastoreUri = "thrift://hcat.company.com:7552";
 
     config = ConfigFactory.empty()
         .withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef(sampleNodeId))
         .withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(sampleAdlFsUri))
-        .withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "iceberg.catalog.uri", ConfigValueFactory.fromAnyRef(sampleCatalogUri));
+        .withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri", ConfigValueFactory.fromAnyRef(sampleHiveMetastoreUri));
   }
 
   @AfterMethod
   public void tearDown() {
   }
+
   @Test
-  public void testIcebergDataNodeWithValidCatalogUri() throws DataNode.DataNodeCreationException {
-    IcebergDataNode icebergDataNode = new IcebergDataNode(config);
-    Assert.assertNotNull(icebergDataNode);
+  public void testIcebergDataNodeWithValidMetastoreUri() throws DataNode.DataNodeCreationException, URISyntaxException {
+    IcebergOnHiveDataNode icebergDataNode = new IcebergOnHiveDataNode(config);
+    URI uri = new URI(config.getString(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri"));
+    Assert.assertTrue(icebergDataNode.isMetastoreUriValid(uri));
   }
 
   @Test(expectedExceptions = DataNode.DataNodeCreationException.class)
-  public void testIcebergDataNodeWithInvalidCatalogUri() throws DataNode.DataNodeCreationException {
-    String emptyCatalogUri = "";
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "iceberg.catalog.uri", ConfigValueFactory.fromAnyRef(emptyCatalogUri));
-    IcebergDataNode icebergDataNode = new IcebergDataNode(config);
+  public void testIcebergDataNodeWithInvalidMetastoreUri() throws DataNode.DataNodeCreationException, URISyntaxException {
+    String bogusHiveMetastoreUri = "not-thrift://hcat.company.com:7552";
+    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri", ConfigValueFactory.fromAnyRef(bogusHiveMetastoreUri));
+    IcebergOnHiveDataNode icebergDataNode = new IcebergOnHiveDataNode(config);
+    URI uri = new URI(config.getString(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri"));
+    icebergDataNode.isMetastoreUriValid(uri);
   }
 }
