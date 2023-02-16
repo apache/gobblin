@@ -34,7 +34,7 @@ public interface IcebergCatalog {
   interface CatalogSpecifier {
     Class<? extends Catalog> getCatalogClass();
     Class<? extends IcebergCatalog> getIcebergCatalogClass();
-    String getCatalogType();
+    String getCatalogName();
   }
 
 }

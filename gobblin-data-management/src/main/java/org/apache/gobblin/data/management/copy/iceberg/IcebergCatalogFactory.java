@@ -33,12 +33,10 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class IcebergCatalogFactory {
   public static IcebergCatalog create(IcebergCatalog.CatalogSpecifier specifier, Map<String, String> properties, Configuration configuration) throws IOException {
     try {
-      Catalog catalog = CatalogUtil.loadCatalog(specifier.getCatalogClass().getName(), specifier.getCatalogType(), properties, configuration);
+      Catalog catalog = CatalogUtil.loadCatalog(specifier.getCatalogClass().getName(), specifier.getCatalogName(), properties, configuration);
       return GobblinConstructorUtils.invokeLongestConstructor(specifier.getIcebergCatalogClass(), catalog);
     } catch (ReflectiveOperationException ex) {
       throw new IOException(ex);
     }
-
-
   }
 }

@@ -33,11 +33,11 @@ public class IcebergHiveCatalog implements IcebergCatalog {
   /**
    * Ensures pairing between {@link IcebergCatalog} and its implementation type i.e. {@link HiveCatalog} in this case.
    * Unfortunately, {@link org.apache.iceberg.BaseMetastoreCatalog}.newTableOps is protected.
-   * Hence it necessitates this abstraction to define and access {@link IcebergTable}
+   * Hence, it necessitates this abstraction to define and access {@link IcebergTable}
    */
   public static class HiveSpecifier implements CatalogSpecifier {
 
-    public static final String HIVE_CATALOG_TYPE = "hive";
+    public static final String HIVE_CATALOG_NAME = "hive";
     @Override
     public Class<? extends Catalog> getCatalogClass() {
       return HiveCatalog.class;
@@ -49,8 +49,8 @@ public class IcebergHiveCatalog implements IcebergCatalog {
     }
 
     @Override
-    public String getCatalogType() {
-      return HIVE_CATALOG_TYPE;
+    public String getCatalogName() {
+      return HIVE_CATALOG_NAME;
     }
   }
 
