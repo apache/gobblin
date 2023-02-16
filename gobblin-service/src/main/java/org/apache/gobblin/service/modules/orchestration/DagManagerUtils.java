@@ -16,8 +16,6 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.collect.ImmutableMap;
-import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -28,12 +26,14 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import java.util.stream.Collectors;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
