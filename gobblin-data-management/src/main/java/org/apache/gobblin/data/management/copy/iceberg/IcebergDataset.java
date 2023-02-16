@@ -72,12 +72,12 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   protected final FileSystem sourceFs;
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
-  private final Optional<URI> sourceCatalogMetastoreURI;
-  private final Optional<URI> targetCatalogMetastoreURI;
+  private final Optional<URI> sourceCatalogURI;
+  private final Optional<URI> targetCatalogURI;
 
   /** Target metastore URI */
-  public static final String TARGET_METASTORE_URI_KEY =
-      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.metastore.uri";
+  public static final String ICEBERG_TARGET_CATALOG_URI_KEY =
+      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
@@ -87,8 +87,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     this.icebergTable = icebergTbl;
     this.properties = properties;
     this.sourceFs = sourceFs;
-    this.sourceCatalogMetastoreURI = getAsOptionalURI(this.properties, IcebergDatasetFinder.ICEBERG_HIVE_CATALOG_METASTORE_URI_KEY);
-    this.targetCatalogMetastoreURI = getAsOptionalURI(this.properties, TARGET_METASTORE_URI_KEY);
+    this.sourceCatalogURI = getAsOptionalURI(this.properties, IcebergDatasetFinder.ICEBERG_SRC_CATALOG_URI_KEY);
+    this.targetCatalogURI = getAsOptionalURI(this.properties, ICEBERG_TARGET_CATALOG_URI_KEY);
   }
 
   @Override
@@ -319,11 +319,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
-    return getDatasetDescriptor(sourceCatalogMetastoreURI, sourceFs);
+    return getDatasetDescriptor(sourceCatalogURI, sourceFs);
   }
 
   protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
-    return getDatasetDescriptor(targetCatalogMetastoreURI, targetFs);
+    return getDatasetDescriptor(targetCatalogURI, targetFs);
   }
 
   private DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
