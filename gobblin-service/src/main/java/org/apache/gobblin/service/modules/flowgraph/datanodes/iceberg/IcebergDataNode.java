@@ -29,13 +29,11 @@ import org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog;
 import org.apache.gobblin.service.modules.dataset.IcebergDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.hive.HiveMetastoreUriDataNode;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * In addition to the required properties of a {@link HiveMetastoreUriDataNode}, an {@link IcebergOnHiveDataNode}
- * must have a metastore URI specified. Specifies iceberg platform and uniquely identifies a hive catalog.
+ * Specifies iceberg platform and uniquely identifies an Iceberg Catalog based on the URI.
  * See {@link IcebergHiveCatalog} for more information
  */
 @Alpha
@@ -46,7 +44,10 @@ public class IcebergDataNode extends BaseDataNode {
 
   @Getter
   private String catalogUri;
-
+  /**
+   * Constructor. An IcebergDataNode must have iceberg.catalog.uri property specified to get information about specific catalog. eg. {@link IcebergHiveCatalog}
+   * @param nodeProps
+   */
   public IcebergDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
     try {
