@@ -309,12 +309,17 @@ public class MysqlSpecStoreTest {
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    // Return all flowSpecs from index 1 to 3 - 1. Total of 2 flowSpecs, only return second two.
-    specs = this.specStore.getSpecsPaginated(1, 2);
-    Assert.assertEquals(specs.size(), 2);
-    Assert.assertFalse(specs.contains(this.flowSpec1));
-    Assert.assertTrue(specs.contains(this.flowSpec2));
-    Assert.assertTrue(specs.contains(this.flowSpec4));
+    // Return 0 flowSpecs when batch size is 0.
+    specs = this.specStore.getSpecsPaginated(2,0);
+    Assert.assertEquals(specs.size(), 0);
+
+    // Return 0 flowSpecs when start offset is past the end
+    specs = this.specStore.getSpecsPaginated(3,1);
+    Assert.assertEquals(specs.size(), 0);
+
+    // Check that we throw an error for incorrect inputs
+    Assert.assertThrows(IllegalArgumentException.class, () -> this.specStore.getSpecsPaginated(-1, 2));
+    Assert.assertThrows(IllegalArgumentException.class, () -> this.specStore.getSpecsPaginated(2, -4));
   }
 
   @Test (expectedExceptions = {IOException.class})

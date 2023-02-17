@@ -273,7 +273,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   @Override
   public Iterator<URI> getSpecURIsImpl() throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsStatement, statement -> {
-      return retreiveURIs(statement).iterator();
+      return retrieveURIs(statement).iterator();
     });
   }
 
@@ -290,7 +290,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   @Override
   public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize) throws IOException {
     if (startOffset < 0 || batchSize < 0) {
-      throw new IOException(String.format("Received negative offset or batch size value when they should be >= 0. "
+      throw new IllegalArgumentException(String.format("Received negative offset or batch size value when they should be >= 0. "
           + "Offset is %s and batch size is %s", startOffset, batchSize));
     }
     return withPreparedStatement(this.sqlStatements.getBatchStatement, statement -> {
@@ -303,11 +303,11 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   public Iterator<URI> getSpecURIsWithTagImpl(String tag) throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsWithTagStatement, statement -> {
       statement.setString(1, tag);
-      return retreiveURIs(statement).iterator();
+      return retrieveURIs(statement).iterator();
     });
   }
 
-  private List<URI> retreiveURIs(PreparedStatement statement) throws SQLException {
+  private List<URI> retrieveURIs(PreparedStatement statement) throws SQLException {
     List<URI> uris = new ArrayList<>();
 
     try (ResultSet rs = statement.executeQuery()) {

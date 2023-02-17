@@ -156,11 +156,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     // of the scheduler. If one metric exists, then the others should as well.
     MetricFilter filter = MetricFilter.contains(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS);
     if (metricContext.getGauges(filter).isEmpty()) {
-//      this.averageGetSpecTimeMillis =
       metricContext.register(this.averageGetSpecTimeMillis);
-//      this.batchSize ;
       metricContext.register(this.batchSize);
-//      this.timeToInitalizeSchedulerMillis
       metricContext.register(timeToInitalizeSchedulerMillis);
     }
   }
@@ -268,6 +265,28 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // This count is used to ensure the average spec get time is calculated accurately for the last batch which may be
       // smaller than the loadSpecsBatchSize
       averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / batchOfSpecs.size();
+    }
+
+    // Ensure no specs were more specs were added during the load time
+    int updatedNumSpecs = flowCatalog.get().getSize();
+    if (updatedNumSpecs > numSpecs) {
+      Collection<Spec> batchOfSpecs = this.flowCatalog.get().getSpecsPaginated(numSpecs, updatedNumSpecs - numSpecs);
+      for (Spec spec : batchOfSpecs) {
+        try {
+          // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+          if (spec instanceof FlowSpec && PropertiesUtils
+              .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+                  "false")) {
+            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+            onAddSpec(modifiedSpec);
+          } else {
+            onAddSpec(spec);
+          }
+        } catch (Exception e) {
+          // If there is an uncaught error thrown during compilation, log it and continue adding flows
+          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+        }
+      }
     }
 
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);

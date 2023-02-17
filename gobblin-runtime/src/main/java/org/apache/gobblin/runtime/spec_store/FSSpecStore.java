@@ -363,7 +363,7 @@ public class FSSpecStore extends InstrumentedSpecStore {
   public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize)
       throws IOException {
     if (startOffset < 0 || batchSize < 0) {
-      throw new IOException(String.format("Received negative offset or batch size value when they should be >= 0. "
+      throw new IllegalArgumentException(String.format("Received negative offset or batch size value when they should be >= 0. "
           + "Offset is %s and batch size is %s", startOffset, batchSize));
     }
     // Obtain sorted list of spec uris to paginate from

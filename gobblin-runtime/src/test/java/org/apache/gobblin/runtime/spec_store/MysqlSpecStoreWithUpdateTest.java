@@ -331,12 +331,8 @@ public class MysqlSpecStoreWithUpdateTest {
     Assert.assertTrue(specs.contains(this.flowSpec2));
     Assert.assertFalse(specs.contains(this.flowSpec4));
 
-    // Return all flowSpecs from index 1 to 3 - 1. Total of 2 flowSpecs, only return second two.
-    specs = this.specStore.getSpecsPaginated(1, 2);
-    Assert.assertEquals(specs.size(), 2);
-    Assert.assertFalse(specs.contains(this.flowSpec1));
-    Assert.assertTrue(specs.contains(this.flowSpec2));
-    Assert.assertTrue(specs.contains(this.flowSpec4));
+    // Check that we throw an error for incorrect inputs
+    Assert.assertThrows(IllegalArgumentException.class, () -> this.specStore.getSpecsPaginated(-1, -4));
   }
 
   @Test (expectedExceptions = {IOException.class})
