@@ -138,7 +138,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     long gmceHighWatermark;
   }
 
-  GobblinMCEWriter(DataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
+  public GobblinMCEWriter(DataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     newSpecsMaps = new HashMap<>();
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
