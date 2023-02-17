@@ -65,6 +65,7 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.spec_store.MysqlSpecStore;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
@@ -104,9 +105,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<UserQuotaManager> quotaManager;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
+  @Getter
+  protected final Map<String, Long> lastUpdatedTimeForFlowSpec;
   protected volatile int loadSpecsBatchSize = -1;
   @Getter
   private volatile boolean isActive;
+  @Getter
+  private boolean isSchedulingSpecsFromCatalog;
   private String serviceName;
   private volatile Long averageGetSpecTimeValue = -1L;
   private volatile Long timeToInitializeSchedulerValue = -1L;
@@ -147,6 +152,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
+    this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
+    this.isSchedulingSpecsFromCatalog = false;
     this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
@@ -219,6 +226,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
+    this.isSchedulingSpecsFromCatalog = true;
     int numSpecs = this.flowCatalog.get().getSize();
     long startTime = System.currentTimeMillis();
 
@@ -291,6 +299,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     this.timeToInitializeSchedulerValue = System.currentTimeMillis() - startTime;
+    this.isSchedulingSpecsFromCatalog = false;
   }
 
   /**
@@ -403,8 +412,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     }
 
+    // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
+    // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
+    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(MysqlSpecStore.modificationTimeKey, "0"));
+    if (this.isSchedulingSpecsFromCatalog()) {
+      String uriString = flowSpec.getUri().toString();
+      // If spec does not exist in scheduler or have a modification time associated with it, assume it's the most recent
+      if (this.scheduledFlowSpecs.containsKey(uriString) && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
+        if (this.lastUpdatedTimeForFlowSpec.get(uriString) >= modificationTime) {
+          _log.info("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
+              addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
+          return new AddSpecResponse(response);
+        }
+      }
+    }
+
     // todo : we should probably not schedule a flow if it is a runOnce flow
     this.scheduledFlowSpecs.put(flowSpecUri.toString(), addedSpec);
+    this.lastUpdatedTimeForFlowSpec.put(flowSpecUri.toString(), modificationTime);
 
     if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);

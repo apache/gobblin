@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.ByteStreams;
-import com.google.gson.Gson;
-import com.typesafe.config.Config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -28,7 +24,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Properties;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.ByteStreams;
+import com.google.gson.Gson;
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -38,7 +42,8 @@ import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.apache.gobblin.service.ServiceConfigKeys.*;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY;
 
 
 /**
@@ -53,15 +58,16 @@ import static org.apache.gobblin.service.ServiceConfigKeys.*;
 @Slf4j
 public class MysqlSpecStore extends MysqlBaseSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
+  public static final String modificationTimeKey = "modified_time";
 
   // Historical Note: the `spec_json` column didn't always exist and was introduced for GOBBLIN-1150; the impl. thus allows that not every
   // record may contain data there... though in practice, all should, given the passage of time (amidst the usual retention expiry).
   protected static final String SPECIFIC_INSERT_STATEMENT = "INSERT INTO %s (spec_uri, flow_group, flow_name, template_uri, "
       + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, owning_group, spec, spec_json) "
       + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), spec_json = VALUES(spec_json)";
-  private static final String SPECIFIC_GET_STATEMENT_BASE = "SELECT spec_uri, spec, spec_json FROM %s WHERE ";
-  private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json FROM %s";
-  private static final String SPECIFIC_GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, spec_json FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
+  private static final String SPECIFIC_GET_STATEMENT_BASE = "SELECT spec_uri, spec, spec_json, modified_time FROM %s WHERE ";
+  private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s";
+  private static final String SPECIFIC_GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
   private static final String SPECIFIC_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR("
       + FlowSpec.Utils.maxFlowSpecUriLength()
       + ") NOT NULL, flow_group VARCHAR(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + "), flow_name VARCHAR("
@@ -106,9 +112,15 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
 
     @Override
     public Spec extractSpec(ResultSet rs) throws SQLException, IOException {
-      return rs.getString(3) == null
+      Spec spec = rs.getString(3) == null
           ? MysqlSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()))
           : MysqlSpecStore.this.specSerDe.deserialize(rs.getString(3).getBytes(Charsets.UTF_8));
+      // Set modified timestamp in flowSpec properties list
+      long timestamp = rs.getTimestamp(modificationTimeKey).getTime();
+      FlowSpec flowSpec = (FlowSpec) spec;
+      Properties properties = flowSpec.getConfigAsProperties();
+      properties.put(modificationTimeKey, timestamp);
+      return flowSpec;
     }
 
     @Override
