@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -72,6 +73,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
 
   public static final String CONFIG_PREFIX = "mysqlBaseSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
+  public static final String modificationTimeKey = "modified_time";
 
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) "
@@ -84,7 +86,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
-  private static final String GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
+  private static final String GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
   private static final String GET_SIZE_STATEMENT = "SELECT COUNT(*) FROM %s ";
   // NOTE: using max length of a `FlowSpec` URI, as it's believed to be the longest of existing `Spec` types
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(" + FlowSpec.Utils.maxFlowSpecUriLength()
@@ -119,6 +121,16 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
 
     public Spec extractSpec(ResultSet rs) throws SQLException, IOException {
       return MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
+    }
+
+    public Spec extractSpecWithModificationTime(ResultSet rs) throws SQLException, IOException {
+      Spec spec = MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
+      // Set modified timestamp in flowSpec properties list
+      long timestamp = rs.getTimestamp(modificationTimeKey).getTime();
+      FlowSpec flowSpec = (FlowSpec) spec;
+      Properties properties = flowSpec.getConfigAsProperties();
+      properties.setProperty(modificationTimeKey, String.valueOf(timestamp));
+      return flowSpec;
     }
 
     public void completeGetBatchStatement(PreparedStatement statement, int startOffset, int batchSize)
@@ -270,6 +282,19 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     return specs;
   }
 
+  protected final Collection<Spec> retrieveSpecsWithModificationTime(PreparedStatement statement) throws IOException {
+    List<Spec> specs = new ArrayList<>();
+    try (ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        specs.add(this.sqlStatements.extractSpecWithModificationTime(rs));
+      }
+    } catch (SQLException | SpecSerDeException e) {
+      log.error("Failed to deserialize spec", e);
+      throw new IOException(e);
+    }
+    return specs;
+  }
+
   @Override
   public Iterator<URI> getSpecURIsImpl() throws IOException {
     return withPreparedStatement(this.sqlStatements.getAllURIsStatement, statement -> {
@@ -288,14 +313,14 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize) throws IOException {
+  public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize) throws IOException, IllegalArgumentException {
     if (startOffset < 0 || batchSize < 0) {
       throw new IllegalArgumentException(String.format("Received negative offset or batch size value when they should be >= 0. "
           + "Offset is %s and batch size is %s", startOffset, batchSize));
     }
     return withPreparedStatement(this.sqlStatements.getBatchStatement, statement -> {
       this.sqlStatements.completeGetBatchStatement(statement, startOffset, batchSize);
-      return retrieveSpecs(statement);
+      return retrieveSpecsWithModificationTime(statement);
     });
   }
 

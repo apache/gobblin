@@ -328,7 +328,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   public Collection<Spec> getSpecsPaginated(int start, int count) {
     try {
       return specStore.getSpecsPaginated(start, count);
-    } catch (IOException e) {
+    } catch (IOException | IllegalArgumentException e) {
       throw new RuntimeException("Cannot retrieve specs from Spec stores between " + start + " and " + (start + count - 1), e);
     }
   }

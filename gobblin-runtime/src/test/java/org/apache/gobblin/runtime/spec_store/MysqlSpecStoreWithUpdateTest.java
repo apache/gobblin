@@ -309,6 +309,7 @@ public class MysqlSpecStoreWithUpdateTest {
      */
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
     Collection<Spec> specs = this.specStore.getSpecsPaginated(0,10);
+    MysqlSpecStoreTest.removeModificationTimestampFromSpecs(specs);
     for (Spec spec: specs) {
       System.out.println("test" + spec.getUri());
     }
@@ -326,6 +327,7 @@ public class MysqlSpecStoreWithUpdateTest {
 
     // Return all flowSpecs of index [0, 2). Total of 3 flowSpecs, only return first two.
     specs = this.specStore.getSpecsPaginated(0,2);
+    MysqlSpecStoreTest.removeModificationTimestampFromSpecs(specs);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));

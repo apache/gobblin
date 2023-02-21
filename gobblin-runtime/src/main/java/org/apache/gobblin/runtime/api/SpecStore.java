@@ -131,9 +131,10 @@ public interface SpecStore {
    * ordering of the specs based on primary key spec_uri.
    * @param startOffset starting row to batch the specs returned from, startOffset >= 0
    * @param batchSize max number of specs returned in the batch, batchSize >= 0
-   * @throws IOException Exception in retrieving the {@link Spec} or if startOffset < 0, batchSize < 0
+   * @throws IOException
+   * @throws IllegalArgumentException in retrieving the {@link Spec} or if startOffset < 0, batchSize < 0
    */
-  Collection<Spec> getSpecsPaginated(int startOffset, int batchSize) throws IOException;
+  Collection<Spec> getSpecsPaginated(int startOffset, int batchSize) throws IOException, IllegalArgumentException;
 
   /**
    * Return an iterator of Spec URIs(Spec identifiers)

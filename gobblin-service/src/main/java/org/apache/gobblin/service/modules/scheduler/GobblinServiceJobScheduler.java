@@ -65,7 +65,7 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
-import org.apache.gobblin.runtime.spec_store.MysqlSpecStore;
+import org.apache.gobblin.runtime.spec_store.MysqlBaseSpecStore;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
@@ -414,7 +414,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
     // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
-    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(MysqlSpecStore.modificationTimeKey, "0"));
+    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(MysqlBaseSpecStore.modificationTimeKey, "0"));
     if (this.isSchedulingSpecsFromCatalog()) {
       String uriString = flowSpec.getUri().toString();
       // If spec does not exist in scheduler or have a modification time associated with it, assume it's the most recent

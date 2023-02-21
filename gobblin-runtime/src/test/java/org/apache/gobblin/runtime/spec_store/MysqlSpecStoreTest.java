@@ -283,6 +283,18 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(specs.contains(this.flowSpec4));
   }
 
+  /**
+   * This method is used for testing to remove the `modification_timestamp` key from the FlowSpec config field for
+   * only for testing purposes because the equality check between FlowSpec created for testing and retrieved from the
+   * store will not be equal. In practice, we would never encounter this issue as we only compare specs obtained from
+   * the store with the key mentioned.
+   */
+  public static void removeModificationTimestampFromSpecs(Collection<Spec> specs) {
+    for (Spec spec: specs) {
+      ((FlowSpec) spec).getConfigAsProperties().remove(MysqlBaseSpecStore.modificationTimeKey);
+    }
+  }
+
   @Test (dependsOnMethods =  "testGetSpec")
   public void testGetAllSpecPaginate() throws Exception {
     /**
@@ -290,6 +302,7 @@ public class MysqlSpecStoreTest {
      */
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
     Collection<Spec> specs = this.specStore.getSpecsPaginated(0,10);
+    removeModificationTimestampFromSpecs(specs);
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -297,6 +310,7 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs using the default get all specs function. Testing default functionality of returning everything
     specs = this.specStore.getSpecs();
+    removeModificationTimestampFromSpecs(specs);
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -304,6 +318,7 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
     specs = this.specStore.getSpecsPaginated(0,2);
+    removeModificationTimestampFromSpecs(specs);
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));

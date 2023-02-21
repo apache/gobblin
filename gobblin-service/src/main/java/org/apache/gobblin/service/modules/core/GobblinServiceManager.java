@@ -440,12 +440,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.serviceLauncher.start();
 
     // Wait until spec consumer service is running to set scheduler to active
-    while (!this.specStoreChangeMonitor.isRunning()) {
-      try {
-        LOGGER.info("Waiting for SpecStoreChangeMonitor to be started...");
-        Thread.sleep(10);
-      } catch (InterruptedException e) {
-        LOGGER.warn("Interrupted while waiting for SpecStoreChangeMonitor to be started");
+    if (this.configuration.isWarmStandbyEnabled()) {
+      while (!this.specStoreChangeMonitor.isRunning()) {
+        try {
+          LOGGER.info("Waiting for SpecStoreChangeMonitor to be started...");
+          Thread.sleep(10);
+        } catch (InterruptedException e) {
+          LOGGER.warn("Interrupted while waiting for SpecStoreChangeMonitor to be started");
+        }
       }
     }
 
