@@ -25,6 +25,7 @@ import org.apache.iceberg.catalog.Catalog;
  */
 public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName);
+  String getCatalogUri();
 
   /**
    * Adding a sub interface to help us provide an association between {@link Catalog} and {@link IcebergCatalog}.

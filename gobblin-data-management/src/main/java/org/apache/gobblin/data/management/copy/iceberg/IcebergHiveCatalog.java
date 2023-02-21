@@ -38,6 +38,7 @@ public class IcebergHiveCatalog implements IcebergCatalog {
   public static class HiveSpecifier implements CatalogSpecifier {
 
     public static final String HIVE_CATALOG_NAME = "hive";
+    public static final String HIVE_CATALOG_URI = "uri";
     @Override
     public Class<? extends Catalog> getCatalogClass() {
       return HiveCatalog.class;
@@ -61,7 +62,7 @@ public class IcebergHiveCatalog implements IcebergCatalog {
     if (catalog instanceof HiveCatalog) {
       hc = (HiveCatalog) catalog;
     } else {
-      throw new IllegalArgumentException(String.format("Incorrect Catalog Provided: Got %s instead of HiveCatalog " ,catalog.getClass().getName()));
+      throw new IllegalArgumentException(String.format("Incorrect Catalog Provided: Got %s instead of HiveCatalog", catalog.getClass().getName()));
     }
   }
 
@@ -69,5 +70,10 @@ public class IcebergHiveCatalog implements IcebergCatalog {
   public IcebergTable openTable(String dbName, String tableName) {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
     return new IcebergTable(tableId, hc.newTableOps(tableId));
+  }
+
+  @Override
+  public String getCatalogUri() {
+    return hc.getConf().get(HiveSpecifier.HIVE_CATALOG_URI, "");
   }
 }

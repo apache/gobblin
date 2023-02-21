@@ -81,13 +81,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
-  public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem sourceFs) {
+  public IcebergDataset(String db, String table, IcebergTable icebergTbl, String srcCatalogUri, Properties properties, FileSystem sourceFs) {
     this.dbName = db;
     this.inputTableName = table;
     this.icebergTable = icebergTbl;
     this.properties = properties;
     this.sourceFs = sourceFs;
-    this.sourceCatalogURI = getAsOptionalURI(this.properties, IcebergDatasetFinder.ICEBERG_SRC_CATALOG_URI_KEY);
+    this.sourceCatalogURI = Optional.of(URI.create(srcCatalogUri));
+    //TODO: Use dest-side IcebergCatalog's getCatalogUri() method to get target catalog URI; as opposed to fetching from properties
     this.targetCatalogURI = getAsOptionalURI(this.properties, ICEBERG_TARGET_CATALOG_URI_KEY);
   }
 

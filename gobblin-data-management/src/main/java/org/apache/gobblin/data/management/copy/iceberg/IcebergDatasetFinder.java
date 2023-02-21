@@ -50,7 +50,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
 
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
-  public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
+  public static final String ICEBERG_CLUSTER_KEY = "cluster";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
   public static final String ICEBERG_SRC_CATALOG_SPECIFIER_CLASS_KEY = ICEBERG_DATASET_PREFIX + "source.catalog.specifier.class";
@@ -70,25 +70,15 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   @Override
   public List<IcebergDataset> findDatasets() throws IOException {
     List<IcebergDataset> matchingDatasets = new ArrayList<>();
-    Map<String, String> catalogProperties = Maps.newHashMap();
     if (StringUtils.isBlank(properties.getProperty(ICEBERG_DB_NAME)) || StringUtils.isBlank(properties.getProperty(ICEBERG_TABLE_NAME))) {
       throw new IllegalArgumentException(String.format("Iceberg database name: {%s} or Iceberg table name: {%s} is missing",
           ICEBERG_DB_NAME, ICEBERG_TABLE_NAME));
     }
     String dbName = properties.getProperty(ICEBERG_DB_NAME);
     String tblName = properties.getProperty(ICEBERG_TABLE_NAME);
-    String specifierName = properties.getProperty(ICEBERG_SRC_CATALOG_SPECIFIER_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_SPECIFIER_CLASS);
-    // introducing an optional property for catalogs requiring cluster specific properties
-    Optional<String> srcClusterName = Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME));
-    srcClusterName.ifPresent(s -> catalogProperties.put(DatasetConstants.PLATFORM_CLUSTER, s));
-
-    Configuration configuration = HadoopUtils.getConfFromProperties(properties);
 
     try {
-      Class<?> catalogSpecifier = Class.forName(specifierName);
-      IcebergCatalog.CatalogSpecifier specifier =
-          (IcebergCatalog.CatalogSpecifier) GobblinConstructorUtils.invokeConstructor(catalogSpecifier, specifierName);
-      IcebergCatalog icebergCatalog = IcebergCatalogFactory.create(specifier, catalogProperties, configuration);
+      IcebergCatalog icebergCatalog = createIcebergCatalog(this.properties);
       /* Each Iceberg dataset maps to an Iceberg table
        * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
        */
@@ -113,6 +103,19 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog icebergCatalog, Properties properties, FileSystem fs) {
     IcebergTable icebergTable = icebergCatalog.openTable(dbName, tblName);
-    return new IcebergDataset(dbName, tblName, icebergTable, properties, fs);
+    return new IcebergDataset(dbName, tblName, icebergTable, icebergCatalog.getCatalogUri(), properties, fs);
+  }
+
+  protected IcebergCatalog createIcebergCatalog(Properties properties) throws IOException, ClassNotFoundException {
+    Map<String, String> catalogProperties = Maps.newHashMap();
+    String specifierName = properties.getProperty(ICEBERG_SRC_CATALOG_SPECIFIER_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_SPECIFIER_CLASS);
+    // introducing an optional property for catalogs requiring cluster specific properties
+    Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+    Configuration configuration = HadoopUtils.getConfFromProperties(properties);
+
+    Class<?> catalogSpecifier = Class.forName(specifierName);
+    IcebergCatalog.CatalogSpecifier specifier =
+        (IcebergCatalog.CatalogSpecifier) GobblinConstructorUtils.invokeConstructor(catalogSpecifier, specifierName);
+    return IcebergCatalogFactory.create(specifier, catalogProperties, configuration);
   }
 }
