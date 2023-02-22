@@ -40,7 +40,7 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ExecutionStatus;
-
+import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 
 
 /**
@@ -90,6 +90,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(final State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
+    Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
+    String userToProxy = jobState.contains(AzkabanProjectConfig.USER_TO_PROXY) ? jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {
@@ -105,19 +107,19 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     builder.setTimestamp(System.currentTimeMillis())
         .setFlowName(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
         .setFlowGroup(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
+        .setFlowGraphEdgeId(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD))
         .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
         .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
         .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
+        .setExecutorId(jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD))
         .setJobStartTime(jobStartTime)
         .setJobEndTime(jobEndTime)
+        .setJobOrchestratedTime(jobOrchestratedTime)
         .setIssues(issueList)
         .setJobStatus(status)
-        // TODO: Populate the below fields in a separate PR
-        .setExecutionUserUrn(null)
-        .setExecutorId("")
-        .setLastFlowModificationTime(0)
-        .setFlowGraphEdgeId("")
-        .setJobOrchestratedTime(null); // TODO: Investigate why TimingEvent.JOB_ORCHESTRATED_TIME is never propagated to the JobStatus
+        .setExecutionUserUrn(userToProxy)
+        // TODO: Set this value when flowSpec stores its modification time
+        .setLastFlowModificationTime(0);
     return builder.build();
   }
 

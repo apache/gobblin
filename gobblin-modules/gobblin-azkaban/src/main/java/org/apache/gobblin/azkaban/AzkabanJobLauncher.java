@@ -68,6 +68,7 @@ import org.apache.gobblin.runtime.listeners.CompositeJobListener;
 import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.services.MetricsReportingService;
+import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
@@ -415,6 +416,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
     metadataTags.add(new Tag<>(TimingEvent.METADATA_MESSAGE, jobExecutionUrl));
 
+    metadataTags.add(new Tag<>(AzkabanProjectConfig.USER_TO_PROXY, jobProps.getProperty(AzkabanProjectConfig.USER_TO_PROXY, "")));
     LOG.debug(String.format("AzkabanJobLauncher.addAdditionalMetadataTags: metadataTags %s", metadataTags));
 
     return metadataTags;
