@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.scheduler;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
@@ -65,7 +66,6 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
-import org.apache.gobblin.runtime.spec_store.MysqlBaseSpecStore;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
@@ -110,8 +110,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected volatile int loadSpecsBatchSize = -1;
   @Getter
   private volatile boolean isActive;
-  @Getter
-  private boolean isSchedulingSpecsFromCatalog;
   private String serviceName;
   private volatile Long averageGetSpecTimeValue = -1L;
   private volatile Long timeToInitializeSchedulerValue = -1L;
@@ -153,7 +151,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
-    this.isSchedulingSpecsFromCatalog = false;
     this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
@@ -226,9 +223,18 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    this.isSchedulingSpecsFromCatalog = true;
     int numSpecs = this.flowCatalog.get().getSize();
     long startTime = System.currentTimeMillis();
+    Iterator<URI> uriIterator;
+    HashSet<URI> urisLeftToSchedule = new HashSet<>();
+    try {
+      uriIterator = this.flowCatalog.get().getSpecURIs();
+      while (uriIterator.hasNext()) {
+        urisLeftToSchedule.add(uriIterator.next());
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     try {
       // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
@@ -264,6 +270,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           } else {
             onAddSpec(spec);
           }
+          urisLeftToSchedule.remove(spec.getUri());
         } catch (Exception e) {
           // If there is an uncaught error thrown during compilation, log it and continue adding flows
           _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
@@ -275,12 +282,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / batchOfSpecs.size();
     }
 
-    // Ensure no specs were more specs were added during the load time
-    int updatedNumSpecs = flowCatalog.get().getSize();
-    if (updatedNumSpecs > numSpecs) {
-      Collection<Spec> batchOfSpecs = this.flowCatalog.get().getSpecsPaginated(numSpecs, updatedNumSpecs - numSpecs);
-      for (Spec spec : batchOfSpecs) {
+    // Ensure we did not miss any specs due to ordering changing (deletions/insertions) while loading
+    Iterator<URI> urisLeft = urisLeftToSchedule.iterator();
+    while (urisLeft.hasNext()) {
+        URI uri = urisLeft.next();
         try {
+          Spec spec = this.flowCatalog.get().getSpecs(uri);
           // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
           if (spec instanceof FlowSpec && PropertiesUtils
               .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
@@ -292,14 +299,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           }
         } catch (Exception e) {
           // If there is an uncaught error thrown during compilation, log it and continue adding flows
-          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+          _log.error("Could not schedule spec uri {} from flowCatalog due to ", uri, e);
         }
-      }
+
     }
 
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     this.timeToInitializeSchedulerValue = System.currentTimeMillis() - startTime;
-    this.isSchedulingSpecsFromCatalog = false;
   }
 
   /**
@@ -414,16 +420,16 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
     // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
-    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(MysqlBaseSpecStore.modificationTimeKey, "0"));
-    if (this.isSchedulingSpecsFromCatalog()) {
-      String uriString = flowSpec.getUri().toString();
-      // If spec does not exist in scheduler or have a modification time associated with it, assume it's the most recent
-      if (this.scheduledFlowSpecs.containsKey(uriString) && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
-        if (this.lastUpdatedTimeForFlowSpec.get(uriString) >= modificationTime) {
-          _log.info("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
-              addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
-          return new AddSpecResponse(response);
-        }
+    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.modificationTimeKey, "0"));
+    String uriString = flowSpec.getUri().toString();
+    // If the modification time is 0 (which means the original API was used to retrieve spec or warm standby mode is not
+    // enabled), spec not in scheduler, or have a modification time associated with it assume it's the most recent
+    if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
+        && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
+      if (this.lastUpdatedTimeForFlowSpec.get(uriString) >= modificationTime) {
+        _log.info("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
+            addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
+        return new AddSpecResponse(response);
       }
     }
 

@@ -73,7 +73,6 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
 
   public static final String CONFIG_PREFIX = "mysqlBaseSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
-  public static final String modificationTimeKey = "modified_time";
 
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) "
@@ -83,7 +82,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   protected static final String UPDATE_STATEMENT = "UPDATE %s SET spec=?,spec_json=? WHERE spec_uri=? AND UNIX_TIMESTAMP(modified_time) < ?";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT_BASE = "SELECT spec_uri, spec FROM %s WHERE ";
-  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
+  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_URIS_WITH_TAG_STATEMENT = "SELECT spec_uri FROM %s WHERE tag = ?";
   private static final String GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
@@ -126,11 +125,14 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     public Spec extractSpecWithModificationTime(ResultSet rs) throws SQLException, IOException {
       Spec spec = MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
       // Set modified timestamp in flowSpec properties list
-      long timestamp = rs.getTimestamp(modificationTimeKey).getTime();
-      FlowSpec flowSpec = (FlowSpec) spec;
-      Properties properties = flowSpec.getConfigAsProperties();
-      properties.setProperty(modificationTimeKey, String.valueOf(timestamp));
-      return flowSpec;
+      if (spec instanceof FlowSpec) {
+        long timestamp = rs.getTimestamp(FlowSpec.modificationTimeKey).getTime();
+        FlowSpec flowSpec = (FlowSpec) spec;
+        Properties properties = flowSpec.getConfigAsProperties();
+        properties.setProperty(FlowSpec.modificationTimeKey, String.valueOf(timestamp));
+        return flowSpec;
+      }
+      return spec;
     }
 
     public void completeGetBatchStatement(PreparedStatement statement, int startOffset, int batchSize)
@@ -243,7 +245,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
   public Spec getSpecImpl(URI specUri) throws IOException, SpecNotFoundException {
     Iterator<Spec> resultSpecs = withPreparedStatement(this.sqlStatements.getAllStatement + " WHERE spec_uri = ?", statement -> {
       statement.setString(1, specUri.toString());
-      return retrieveSpecs(statement).iterator();
+      return retrieveSpecsWithModificationTime(statement).iterator();
     });
     if (resultSpecs.hasNext()) {
       return resultSpecs.next();
