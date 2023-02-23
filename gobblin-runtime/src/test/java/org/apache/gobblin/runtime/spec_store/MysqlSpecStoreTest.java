@@ -153,6 +153,7 @@ public class MysqlSpecStoreTest {
   @Test (dependsOnMethods = "testAddSpec")
   public void testGetSpec() throws Exception {
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
+    removeModificationTimestampFromSpecs(result);
     Assert.assertEquals(result, this.flowSpec1);
 
     Collection<Spec> specs = this.specStore.getSpecs();
@@ -289,10 +290,8 @@ public class MysqlSpecStoreTest {
    * store will not be equal. In practice, we would never encounter this issue as we only compare specs obtained from
    * the store with the key mentioned.
    */
-  public static void removeModificationTimestampFromSpecs(Collection<Spec> specs) {
-    for (Spec spec: specs) {
-      ((FlowSpec) spec).getConfigAsProperties().remove(FlowSpec.modificationTimeKey);
-    }
+  public static void removeModificationTimestampFromSpecs(Spec spec) {
+    ((FlowSpec) spec).getConfigAsProperties().remove(FlowSpec.modificationTimeKey);
   }
 
   @Test (dependsOnMethods =  "testGetSpec")
@@ -302,7 +301,7 @@ public class MysqlSpecStoreTest {
      */
     // Return all flowSpecs from index 0 to 9. Total of 3 flowSpecs only so return all 3 flowSpecs
     Collection<Spec> specs = this.specStore.getSpecsPaginated(0,10);
-    removeModificationTimestampFromSpecs(specs);
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -310,7 +309,7 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs using the default get all specs function. Testing default functionality of returning everything
     specs = this.specStore.getSpecs();
-    removeModificationTimestampFromSpecs(specs);
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -318,7 +317,7 @@ public class MysqlSpecStoreTest {
 
     // Return all flowSpecs from index 0 to 2 - 1. Total of 3 flowSpecs, only return first two.
     specs = this.specStore.getSpecsPaginated(0,2);
-    removeModificationTimestampFromSpecs(specs);
+    specs.forEach(spec -> removeModificationTimestampFromSpecs(spec));
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
@@ -355,6 +354,7 @@ public class MysqlSpecStoreTest {
     this.oldSpecStore.addSpec(this.flowSpec1);
 
     FlowSpec spec = (FlowSpec) this.specStore.getSpec(this.uri1);
+    removeModificationTimestampFromSpecs(spec);
     Assert.assertEquals(spec, this.flowSpec1);
   }
 
