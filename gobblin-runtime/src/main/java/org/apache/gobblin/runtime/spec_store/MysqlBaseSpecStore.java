@@ -126,10 +126,10 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
       Spec spec = MysqlBaseSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()));
       // Set modified timestamp in flowSpec properties list
       if (spec instanceof FlowSpec) {
-        long timestamp = rs.getTimestamp(FlowSpec.modificationTimeKey).getTime();
+        long timestamp = rs.getTimestamp(FlowSpec.MODIFICATION_TIME_KEY).getTime();
         FlowSpec flowSpec = (FlowSpec) spec;
         Properties properties = flowSpec.getConfigAsProperties();
-        properties.setProperty(FlowSpec.modificationTimeKey, String.valueOf(timestamp));
+        properties.setProperty(FlowSpec.MODIFICATION_TIME_KEY, String.valueOf(timestamp));
         return flowSpec;
       }
       return spec;

@@ -66,7 +66,7 @@ import org.apache.gobblin.util.ConfigUtils;
     justification = "FindBugs complains about Config not being serializable, but the implementation of Config is serializable")
 public class FlowSpec implements Configurable, Spec {
   // Key for Property associated with modified_time
-  public static final String modificationTimeKey = "modified_time";
+  public static final String MODIFICATION_TIME_KEY = "modified_time";
 
   private static final long serialVersionUID = -5511988862945107734L;
 

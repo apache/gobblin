@@ -216,6 +216,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
+  /** Helps modify spec before adding to scheduler for adhoc flows */
+  private void addSpecHelperMethod(Spec spec) {
+    // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+    if (spec instanceof FlowSpec && PropertiesUtils
+        .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+            "false")) {
+      Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+      onAddSpec(modifiedSpec);
+    } else {
+      onAddSpec(spec);
+    }
+  }
+
   /**
    * Load all {@link FlowSpec}s from {@link FlowCatalog} as one of the initialization step,
    * and make schedulers be aware of that.
@@ -261,15 +274,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       while (batchOfSpecsIterator.hasNext()) {
         Spec spec = batchOfSpecsIterator.next();
         try {
-          // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-          if (spec instanceof FlowSpec && PropertiesUtils
-              .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-                  "false")) {
-            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-            onAddSpec(modifiedSpec);
-          } else {
-            onAddSpec(spec);
-          }
+          addSpecHelperMethod(spec);
           urisLeftToSchedule.remove(spec.getUri());
         } catch (Exception e) {
           // If there is an uncaught error thrown during compilation, log it and continue adding flows
@@ -287,16 +292,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     while (urisLeft.hasNext()) {
         URI uri = urisLeft.next();
         try {
-          Spec spec = this.flowCatalog.get().getSpecs(uri);
-          // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-          if (spec instanceof FlowSpec && PropertiesUtils
-              .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-                  "false")) {
-            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-            onAddSpec(modifiedSpec);
-          } else {
-            onAddSpec(spec);
-          }
+          Spec spec = this.flowCatalog.get().getSpecWrapper(uri);
+          addSpecHelperMethod(spec);
         } catch (Exception e) {
           // If there is an uncaught error thrown during compilation, log it and continue adding flows
           _log.error("Could not schedule spec uri {} from flowCatalog due to ", uri, e);
@@ -406,7 +403,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Check quota limits against run immediately flows or adhoc flows before saving the schedule
     // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
-    if (!this.warmStandbyEnabled && (!jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"))) {
+    Boolean isRunImmediatelyOrAdhoc = !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
+    if (!this.warmStandbyEnabled && isRunImmediatelyOrAdhoc) {
       // This block should be reachable only for the first execution for the adhoc flows (flows that either do not have a schedule or have runImmediately=true.
       if (quotaManager.isPresent()) {
         // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
@@ -420,14 +418,16 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
     // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
-    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.modificationTimeKey, "0"));
+    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.MODIFICATION_TIME_KEY, "0"));
     String uriString = flowSpec.getUri().toString();
     // If the modification time is 0 (which means the original API was used to retrieve spec or warm standby mode is not
     // enabled), spec not in scheduler, or have a modification time associated with it assume it's the most recent
     if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
         && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
-      if (this.lastUpdatedTimeForFlowSpec.get(uriString) >= modificationTime) {
-        _log.info("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
+      // For run-immediately flows with a schedule the modified_time would remain the same
+      if (this.lastUpdatedTimeForFlowSpec.get(uriString) > modificationTime
+          || (this.lastUpdatedTimeForFlowSpec.get(uriString).equals(modificationTime) && !isRunImmediatelyOrAdhoc)) {
+        _log.warn("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
             addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
         return new AddSpecResponse(response);
       }

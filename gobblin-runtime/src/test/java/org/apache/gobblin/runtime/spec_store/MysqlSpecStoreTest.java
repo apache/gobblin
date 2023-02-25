@@ -291,7 +291,7 @@ public class MysqlSpecStoreTest {
    * the store with the key mentioned.
    */
   public static void removeModificationTimestampFromSpecs(Spec spec) {
-    ((FlowSpec) spec).getConfigAsProperties().remove(FlowSpec.modificationTimeKey);
+    ((FlowSpec) spec).getConfigAsProperties().remove(FlowSpec.MODIFICATION_TIME_KEY);
   }
 
   @Test (dependsOnMethods =  "testGetSpec")
