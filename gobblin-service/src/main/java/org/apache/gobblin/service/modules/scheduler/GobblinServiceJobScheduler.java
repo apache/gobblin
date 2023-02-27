@@ -17,49 +17,15 @@
 
 package org.apache.gobblin.service.modules.scheduler;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecCatalogListener;
-import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
-import org.apache.gobblin.scheduler.BaseGobblinJob;
-import org.apache.gobblin.scheduler.JobScheduler;
-import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.helix.HelixManager;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
@@ -70,6 +36,49 @@ import org.quartz.SchedulerException;
 import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.MetricFilter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.scheduler.BaseGobblinJob;
+import org.apache.gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 
@@ -97,12 +106,20 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
   @Getter
+  protected final Map<String, Long> lastUpdatedTimeForFlowSpec;
+  protected volatile int loadSpecsBatchSize = -1;
+  @Getter
   private volatile boolean isActive;
   private String serviceName;
+  private volatile Long averageGetSpecTimeValue = -1L;
+  private volatile Long timeToInitializeSchedulerValue = -1L;
+  private final ContextAwareGauge averageGetSpecTimeMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS, () -> this.averageGetSpecTimeValue);;
+  private final ContextAwareGauge batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
+  private final ContextAwareGauge timeToInitalizeSchedulerMillis = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS, () -> this.timeToInitializeSchedulerValue);
   private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
-  private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);;
+  private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);
 
   /**
    * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
@@ -133,10 +150,20 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
+    this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
+    this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
     this.quotaManager = quotaManager;
+    // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
+    // of the scheduler. If one metric exists, then the others should as well.
+    MetricFilter filter = MetricFilter.contains(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS);
+    if (metricContext.getGauges(filter).isEmpty()) {
+      metricContext.register(this.averageGetSpecTimeMillis);
+      metricContext.register(this.batchSize);
+      metricContext.register(timeToInitalizeSchedulerMillis);
+    }
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
@@ -189,6 +216,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
+  /** Helps modify spec before adding to scheduler for adhoc flows */
+  private void addSpecHelperMethod(Spec spec) {
+    // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+    if (spec instanceof FlowSpec && PropertiesUtils
+        .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+            "false")) {
+      Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+      onAddSpec(modifiedSpec);
+    } else {
+      onAddSpec(spec);
+    }
+  }
+
   /**
    * Load all {@link FlowSpec}s from {@link FlowCatalog} as one of the initialization step,
    * and make schedulers be aware of that.
@@ -196,12 +236,20 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    Iterator<URI> specUris = null;
+    int numSpecs = this.flowCatalog.get().getSize();
     long startTime = System.currentTimeMillis();
+    Iterator<URI> uriIterator;
+    HashSet<URI> urisLeftToSchedule = new HashSet<>();
+    try {
+      uriIterator = this.flowCatalog.get().getSpecURIs();
+      while (uriIterator.hasNext()) {
+        urisLeftToSchedule.add(uriIterator.next());
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     try {
-      specUris = this.flowCatalog.get().getSpecURIs();
-
       // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
       if (isNominatedDRHandler) {
         // Synchronously cleaning the execution state for DR-applicable FlowSpecs
@@ -210,26 +258,51 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         clearRunningFlowState(drUris);
       }
     } catch (IOException e) {
-      throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
+      throw new RuntimeException("Failed to get Spec URIs with tag to clear running flow state", e);
     }
 
-    while (specUris.hasNext()) {
-      Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
-      try {
-        // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-        if (spec instanceof FlowSpec && PropertiesUtils.getPropAsBoolean((
-            (FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-          Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-          onAddSpec(modifiedSpec);
-        } else {
-          onAddSpec(spec);
+    int startOffset = 0;
+    long batchGetStartTime;
+    long batchGetEndTime;
+
+    while (startOffset < numSpecs) {
+      batchGetStartTime  = System.currentTimeMillis();
+      Collection<Spec> batchOfSpecs = this.flowCatalog.get().getSpecsPaginated(startOffset, this.loadSpecsBatchSize);
+      Iterator<Spec> batchOfSpecsIterator = batchOfSpecs.iterator();
+      batchGetEndTime = System.currentTimeMillis();
+
+      while (batchOfSpecsIterator.hasNext()) {
+        Spec spec = batchOfSpecsIterator.next();
+        try {
+          addSpecHelperMethod(spec);
+          urisLeftToSchedule.remove(spec.getUri());
+        } catch (Exception e) {
+          // If there is an uncaught error thrown during compilation, log it and continue adding flows
+          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
         }
-      } catch (Exception e) {
-        // If there is an uncaught error thrown during compilation, log it and continue adding flows
-        _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
       }
+      startOffset += this.loadSpecsBatchSize;
+      // This count is used to ensure the average spec get time is calculated accurately for the last batch which may be
+      // smaller than the loadSpecsBatchSize
+      averageGetSpecTimeValue = (batchGetEndTime - batchGetStartTime) / batchOfSpecs.size();
     }
+
+    // Ensure we did not miss any specs due to ordering changing (deletions/insertions) while loading
+    Iterator<URI> urisLeft = urisLeftToSchedule.iterator();
+    while (urisLeft.hasNext()) {
+        URI uri = urisLeft.next();
+        try {
+          Spec spec = this.flowCatalog.get().getSpecWrapper(uri);
+          addSpecHelperMethod(spec);
+        } catch (Exception e) {
+          // If there is an uncaught error thrown during compilation, log it and continue adding flows
+          _log.error("Could not schedule spec uri {} from flowCatalog due to ", uri, e);
+        }
+
+    }
+
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
+    this.timeToInitializeSchedulerValue = System.currentTimeMillis() - startTime;
   }
 
   /**
@@ -343,8 +416,27 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     }
 
+    // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
+    // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
+    Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.MODIFICATION_TIME_KEY, "0"));
+    String uriString = flowSpec.getUri().toString();
+    Boolean isRunImmediately = PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
+    // If the modification time is 0 (which means the original API was used to retrieve spec or warm standby mode is not
+    // enabled), spec not in scheduler, or have a modification time associated with it assume it's the most recent
+    if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
+        && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
+      // For run-immediately flows with a schedule the modified_time would remain the same
+      if (this.lastUpdatedTimeForFlowSpec.get(uriString).compareTo(modificationTime) > 0
+          || (this.lastUpdatedTimeForFlowSpec.get(uriString).equals(modificationTime) && !isRunImmediately)) {
+        _log.warn("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
+            addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
+        return new AddSpecResponse(response);
+      }
+    }
+
     // todo : we should probably not schedule a flow if it is a runOnce flow
     this.scheduledFlowSpecs.put(flowSpecUri.toString(), addedSpec);
+    this.lastUpdatedTimeForFlowSpec.put(flowSpecUri.toString(), modificationTime);
 
     if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
@@ -353,6 +445,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName, addedSpec, je);
         this.scheduledFlowSpecs.remove(addedSpec.getUri().toString());
+        this.lastUpdatedTimeForFlowSpec.remove(flowSpecUri.toString());
         return null;
       }
       if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
@@ -378,6 +471,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     if (this.scheduledFlowSpecs.containsKey(specURI.toString())) {
       _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
       this.scheduledFlowSpecs.remove(specURI.toString());
+      this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
     } else {
       throw new JobException(String.format(
@@ -523,6 +617,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           }
           GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
+          GobblinServiceJobScheduler.this.lastUpdatedTimeForFlowSpec.remove(specUri.toString());
         }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);

@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.ByteStreams;
-import com.google.gson.Gson;
-import com.typesafe.config.Config;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -28,7 +24,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Properties;
+
+import com.google.common.base.Charsets;
+import com.google.common.io.ByteStreams;
+import com.google.gson.Gson;
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -38,7 +42,8 @@ import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.apache.gobblin.service.ServiceConfigKeys.*;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY;
 
 
 /**
@@ -60,7 +65,8 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
       + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, owning_group, spec, spec_json) "
       + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), spec_json = VALUES(spec_json)";
   private static final String SPECIFIC_GET_STATEMENT_BASE = "SELECT spec_uri, spec, spec_json FROM %s WHERE ";
-  private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json FROM %s";
+  private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s";
+  private static final String SPECIFIC_GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
   private static final String SPECIFIC_CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR("
       + FlowSpec.Utils.maxFlowSpecUriLength()
       + ") NOT NULL, flow_group VARCHAR(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + "), flow_name VARCHAR("
@@ -111,11 +117,29 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
     }
 
     @Override
+    public Spec extractSpecWithModificationTime(ResultSet rs) throws SQLException, IOException {
+      Spec spec = rs.getString(3) == null
+          ? MysqlSpecStore.this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()))
+          : MysqlSpecStore.this.specSerDe.deserialize(rs.getString(3).getBytes(Charsets.UTF_8));
+      // Set modified timestamp in flowSpec properties list
+      if (spec instanceof FlowSpec) {
+        long timestamp = rs.getTimestamp(FlowSpec.MODIFICATION_TIME_KEY).getTime();
+        FlowSpec flowSpec = (FlowSpec) spec;
+        Properties properties = flowSpec.getConfigAsProperties();
+        properties.setProperty(FlowSpec.MODIFICATION_TIME_KEY, String.valueOf(timestamp));
+        return flowSpec;
+      }
+      return spec;
+    }
+
+    @Override
     protected String getTablelessInsertStatement() { return MysqlSpecStore.SPECIFIC_INSERT_STATEMENT; }
     @Override
     protected String getTablelessGetStatementBase() { return MysqlSpecStore.SPECIFIC_GET_STATEMENT_BASE; }
     @Override
     protected String getTablelessGetAllStatement() { return MysqlSpecStore.SPECIFIC_GET_ALL_STATEMENT; }
+    @Override
+    protected String getTablelessGetBatchStatement() { return MysqlSpecStore.SPECIFIC_GET_SPECS_BATCH_STATEMENT; }
     @Override
     protected String getTablelessCreateTableStatement() { return MysqlSpecStore.SPECIFIC_CREATE_TABLE_STATEMENT; }
   }

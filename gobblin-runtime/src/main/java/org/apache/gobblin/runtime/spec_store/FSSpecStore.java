@@ -19,8 +19,10 @@ package org.apache.gobblin.runtime.spec_store;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -358,8 +360,35 @@ public class FSSpecStore extends InstrumentedSpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecsImpl(int start, int count) throws UnsupportedOperationException {
-    throw new UnsupportedOperationException();
+  public Collection<Spec> getSpecsPaginatedImpl(int startOffset, int batchSize)
+      throws IOException {
+    if (startOffset < 0 || batchSize < 0) {
+      throw new IllegalArgumentException(String.format("Received negative offset or batch size value when they should be >= 0. "
+          + "Offset is %s and batch size is %s", startOffset, batchSize));
+    }
+    // Obtain sorted list of spec uris to paginate from
+    Iterator<URI> uriIterator = getSpecURIsImpl();
+    List<URI> sortedUris = new ArrayList<>();
+    while (uriIterator.hasNext()) {
+      sortedUris.add(uriIterator.next());
+    }
+    sortedUris.sort(URI::compareTo);
+
+    int numElements = 0;
+    List<Spec> batchOfSpecs = new ArrayList<>();
+    URI currentURI;
+
+    while (startOffset + numElements < sortedUris.size() && numElements < batchSize) {
+      currentURI = sortedUris.get(startOffset + numElements);
+      try {
+        batchOfSpecs.add(getSpecImpl(currentURI));
+      } catch (SpecNotFoundException e) {
+        log.warn("Unable to find spec for uri {} so proceeding to next URI. Stacktrace {}", currentURI, e);
+        continue;
+      }
+      numElements += 1;
+    }
+    return batchOfSpecs;
   }
 
   private int getSizeImpl(Path directory) throws IOException {
