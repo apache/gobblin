@@ -522,6 +522,7 @@ public class KafkaAvroJobStatusMonitorTest {
     //Submit GobblinTrackingEvents to Kafka
     ImmutableList.of(
         createFlowCompiledEvent(),
+        createWorkUnitTimingEvent(),
         createJobSucceededEvent()
     ).forEach(event -> {
       context.submitEvent(event);
@@ -545,6 +546,7 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
+    getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
@@ -555,7 +557,8 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
-
+    Assert.assertEquals(event1.getJobPlanningPhaseStartTime(), Long.valueOf(2));
+    Assert.assertEquals(event1.getJobPlanningPhaseEndTime(), Long.valueOf(3));
     jobStatusMonitor.shutDown();
   }
 
@@ -680,8 +683,15 @@ public class KafkaAvroJobStatusMonitorTest {
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     return event;
-
   }
+
+  private GobblinTrackingEvent createWorkUnitTimingEvent() {
+    Map<String, String> metadata = Maps.newHashMap();
+    metadata.put(TimingEvent.METADATA_START_TIME, "2");
+    metadata.put(TimingEvent.METADATA_END_TIME, "3");
+    return createGTE(TimingEvent.RunJobTimings.WORK_UNITS_PREPARATION, metadata);
+  }
+
 
   private GobblinTrackingEvent createGTE(String eventName, Map<String, String> customMetadata) {
     String namespace = "org.apache.gobblin.metrics";

@@ -62,7 +62,7 @@ public class GaaSObservabilityProducerTest {
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowExecutionId);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
@@ -94,6 +94,7 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
     Assert.assertEquals(event.getExecutionUserUrn(), "azkabanUser");
     Assert.assertEquals(event.getJobOrchestratedTime(), Long.valueOf(1));
+    Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
 
     AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()

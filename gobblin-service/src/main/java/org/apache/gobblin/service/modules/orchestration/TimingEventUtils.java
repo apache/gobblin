@@ -64,7 +64,8 @@ class TimingEventUtils {
     jobMetadata.put(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, Integer.toString(jobExecutionPlan.getCurrentAttempts()));
     jobMetadata.put(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, Integer.toString(jobExecutionPlan.getCurrentGeneration()));
     jobMetadata.put(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, Boolean.toString(false));
-    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_EDGE_ID_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD,
+        ConfigUtils.getString(jobSpec.getConfig(), ConfigurationKeys.FLOW_EDGE_ID_KEY, ""));
 
     return jobMetadata;
   }
