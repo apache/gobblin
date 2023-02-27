@@ -317,9 +317,9 @@ public class GobblinServiceJobSchedulerTest {
     serviceLauncher.start();
 
     FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"), "flowName0", "group1",
-        ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, ConfigValueFactory.fromAnyRef("true")));
+        ConfigFactory.empty(), true);
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"), "flowName1", "group1",
-        ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, ConfigValueFactory.fromAnyRef("true")));
+        ConfigFactory.empty(), true);
 
     Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
     SpecCompiler mockSpecCompiler = Mockito.mock(SpecCompiler.class);

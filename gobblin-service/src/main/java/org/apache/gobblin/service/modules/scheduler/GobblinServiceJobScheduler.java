@@ -401,11 +401,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return new AddSpecResponse<>(response);
     }
 
-    // Check quota limits against run immediately flows or adhoc flows before saving the schedule
+    // Check quota limits against adhoc flows before saving the schedule
     // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
-    Boolean isRunImmediatelyOrAdhoc = !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) || PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
-    if (!this.warmStandbyEnabled && isRunImmediatelyOrAdhoc) {
-      // This block should be reachable only for the first execution for the adhoc flows (flows that either do not have a schedule or have runImmediately=true.
+    if (!this.warmStandbyEnabled && !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      // This block should be reachable only for the execution for the adhoc flows
+      // For flow that has scheduler but run-immediately set to be true, we won't check the quota as we will use a different execution id later
       if (quotaManager.isPresent()) {
         // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
         try {
@@ -420,13 +420,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
     Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.MODIFICATION_TIME_KEY, "0"));
     String uriString = flowSpec.getUri().toString();
+    Boolean isRunImmediately = PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
     // If the modification time is 0 (which means the original API was used to retrieve spec or warm standby mode is not
     // enabled), spec not in scheduler, or have a modification time associated with it assume it's the most recent
     if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
         && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
       // For run-immediately flows with a schedule the modified_time would remain the same
       if (this.lastUpdatedTimeForFlowSpec.get(uriString) > modificationTime
-          || (this.lastUpdatedTimeForFlowSpec.get(uriString).equals(modificationTime) && !isRunImmediatelyOrAdhoc)) {
+          || (this.lastUpdatedTimeForFlowSpec.get(uriString).equals(modificationTime) && !isRunImmediately)) {
         _log.warn("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
             addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
         return new AddSpecResponse(response);
