@@ -426,7 +426,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
         && this.lastUpdatedTimeForFlowSpec.containsKey(uriString)) {
       // For run-immediately flows with a schedule the modified_time would remain the same
-      if (this.lastUpdatedTimeForFlowSpec.get(uriString) > modificationTime
+      if (this.lastUpdatedTimeForFlowSpec.get(uriString).compareTo(modificationTime) > 0
           || (this.lastUpdatedTimeForFlowSpec.get(uriString).equals(modificationTime) && !isRunImmediately)) {
         _log.warn("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
             addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
@@ -445,6 +445,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName, addedSpec, je);
         this.scheduledFlowSpecs.remove(addedSpec.getUri().toString());
+        this.lastUpdatedTimeForFlowSpec.remove(flowSpecUri.toString());
         return null;
       }
       if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
@@ -470,6 +471,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     if (this.scheduledFlowSpecs.containsKey(specURI.toString())) {
       _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
       this.scheduledFlowSpecs.remove(specURI.toString());
+      this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
     } else {
       throw new JobException(String.format(
@@ -615,6 +617,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           }
           GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
+          GobblinServiceJobScheduler.this.lastUpdatedTimeForFlowSpec.remove(specUri.toString());
         }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
