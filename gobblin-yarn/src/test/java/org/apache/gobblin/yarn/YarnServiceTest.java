@@ -52,7 +52,7 @@ import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 

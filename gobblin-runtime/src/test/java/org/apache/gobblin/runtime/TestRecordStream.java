@@ -64,8 +64,8 @@ import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 import io.reactivex.Flowable;
 import lombok.AllArgsConstructor;

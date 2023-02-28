@@ -57,6 +57,7 @@ subprojects {
         }
       }
       all*.exclude group: 'org.apache.calcite', module: 'calcite-avatica' // replaced by org.apache.calcite.avatica:avatica-core
+      all*.exclude group: 'org.mockito', module: 'mockito-all'
       //exclude this jar in test class path because we are using log4j implementation to test
       testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
     }

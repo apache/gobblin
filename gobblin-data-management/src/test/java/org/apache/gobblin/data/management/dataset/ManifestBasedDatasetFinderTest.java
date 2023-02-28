@@ -36,7 +36,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.ArgumentMatchers.*;
 
 
 public class ManifestBasedDatasetFinderTest {

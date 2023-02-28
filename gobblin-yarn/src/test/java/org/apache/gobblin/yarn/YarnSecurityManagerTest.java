@@ -59,7 +59,7 @@ import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 
 
 /**

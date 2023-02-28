@@ -17,7 +17,7 @@
 package org.apache.gobblin.runtime.api;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 

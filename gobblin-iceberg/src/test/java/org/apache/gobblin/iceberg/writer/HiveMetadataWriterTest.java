@@ -85,7 +85,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.function.CheckedExceptionFunction;
 import org.mockito.Mockito;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 
 
 public class HiveMetadataWriterTest extends HiveMetastoreTest {

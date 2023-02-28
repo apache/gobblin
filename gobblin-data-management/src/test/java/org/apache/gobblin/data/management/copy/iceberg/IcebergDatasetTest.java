@@ -62,7 +62,7 @@ import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.IcebergDataset} */
