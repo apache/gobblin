@@ -93,6 +93,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
+    Long lastFlowModifiedTime = jobState.contains(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD) ? jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD) : null;
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {
@@ -110,6 +111,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setFlowGroup(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
         .setFlowGraphEdgeId(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
         .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
+        .setLastFlowModificationTime(lastFlowModifiedTime)
         .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
         .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
         .setExecutorId(jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
@@ -120,9 +122,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setJobPlanningPhaseEndTime(jobPlanningPhaseEndTime)
         .setIssues(issueList)
         .setJobStatus(status)
-        .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
-        // TODO: Set this value when flowSpec stores its modification time
-        .setLastFlowModificationTime(0);
+        .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null));
     return builder.build();
   }
 

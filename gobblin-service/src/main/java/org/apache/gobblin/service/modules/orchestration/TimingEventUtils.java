@@ -66,6 +66,8 @@ class TimingEventUtils {
     jobMetadata.put(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, Boolean.toString(false));
     jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD,
         ConfigUtils.getString(jobSpec.getConfig(), ConfigurationKeys.FLOW_EDGE_ID_KEY, ""));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, Long.toString(
+        ConfigUtils.getLong(jobSpec.getConfig(), FlowSpec.MODIFICATION_TIME_KEY, 0L)));
 
     return jobMetadata;
   }

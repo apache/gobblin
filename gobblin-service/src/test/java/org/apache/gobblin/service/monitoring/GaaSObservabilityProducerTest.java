@@ -69,10 +69,11 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(AzkabanProjectConfig.USER_TO_PROXY, "azkabanUser");
     gteEventMetadata.put(TimingEvent.METADATA_MESSAGE, "hostName");
-    gteEventMetadata.put(TimingEvent.METADATA_START_TIME, "20");
-    gteEventMetadata.put(TimingEvent.METADATA_END_TIME, "100");
+    gteEventMetadata.put(TimingEvent.JOB_START_TIME, "20");
+    gteEventMetadata.put(TimingEvent.JOB_END_TIME, "100");
     gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
     gteEventMetadata.put(TimingEvent.JOB_ORCHESTRATED_TIME, "1");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, "20");
 
     Properties jobStatusProps = new Properties();
     jobStatusProps.putAll(gteEventMetadata);
@@ -94,7 +95,9 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
     Assert.assertEquals(event.getExecutionUserUrn(), "azkabanUser");
     Assert.assertEquals(event.getJobOrchestratedTime(), Long.valueOf(1));
+    Assert.assertEquals(event.getLastFlowModificationTime(), Long.valueOf(20));
     Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
+    Assert.assertEquals(event.getJobEndTime(), Long.valueOf(100));
 
     AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
