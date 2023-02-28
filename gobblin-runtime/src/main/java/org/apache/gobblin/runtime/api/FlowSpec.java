@@ -136,6 +136,10 @@ public class FlowSpec implements Configurable, Spec {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage));
   }
 
+  public void clearCompilationErrors() {
+    this.compilationErrors.clear();
+  }
+
   @EqualsAndHashCode
   public static class CompilationError {
     public int errorPriority;
