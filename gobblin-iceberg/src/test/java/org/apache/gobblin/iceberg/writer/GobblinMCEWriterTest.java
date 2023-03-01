@@ -81,14 +81,14 @@ public class GobblinMCEWriterTest {
 
   @Mock
   private HiveTable mockTable;
-  private MockedStatic<GobblinConstructorUtils> _mockConstructorUtils;
-  private MockedStatic<FileSystem> _mockedFileSystem;
+  private MockedStatic<GobblinConstructorUtils> mockConstructorUtils;
+  private MockedStatic<FileSystem> mockedFileSystem;
 
   @AfterMethod
   public void clean() throws Exception {
     gobblinMCEWriter.close();
-    _mockConstructorUtils.close();
-    _mockedFileSystem.close();
+    mockConstructorUtils.close();
+    mockedFileSystem.close();
   }
 
   @BeforeMethod
@@ -119,16 +119,16 @@ public class GobblinMCEWriterTest {
         .writeEnvelope(
             any(RecordEnvelope.class), anyMap(), anyMap(), any(HiveSpec.class));
 
-    _mockConstructorUtils = Mockito.mockStatic(GobblinConstructorUtils.class);
-    _mockConstructorUtils.when(() -> GobblinConstructorUtils.invokeConstructor(
+    mockConstructorUtils = Mockito.mockStatic(GobblinConstructorUtils.class);
+    mockConstructorUtils.when(() -> GobblinConstructorUtils.invokeConstructor(
             eq(MetadataWriter.class), eq(mockWriter.getClass().getName()), any(State.class)))
         .thenReturn(mockWriter);
     when(GobblinConstructorUtils.invokeConstructor(
         eq(MetadataWriter.class), eq(exceptionWriter.getClass().getName()), any(State.class)))
         .thenReturn(exceptionWriter);
 
-    _mockedFileSystem = Mockito.mockStatic(FileSystem.class);
-    _mockedFileSystem.when(() -> FileSystem.get(any()))
+    mockedFileSystem = Mockito.mockStatic(FileSystem.class);
+    mockedFileSystem.when(() -> FileSystem.get(any()))
         .thenReturn(fs);
 
     when(mockTable.getDbName()).thenReturn(dbName);
