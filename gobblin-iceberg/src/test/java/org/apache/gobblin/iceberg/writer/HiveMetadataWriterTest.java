@@ -340,7 +340,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     gmce.setOperationType(OperationType.drop_files);
     gmce.setOldFilePrefixes(null);
     hiveWriter.write(gmce, null, null, spec, "someTopicPartition");
-    Mockito.verifyZeroInteractions(mockRegister);
+    Mockito.verifyNoInteractions(mockRegister);
   }
 
   /**

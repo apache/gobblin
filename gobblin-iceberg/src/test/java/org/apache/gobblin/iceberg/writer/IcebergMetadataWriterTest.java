@@ -177,7 +177,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
 
     gobblinMCEWriter.eventSubmitter = Mockito.mock(EventSubmitter.class);
-    Mockito.doAnswer(invocation -> eventsSent.add(invocation.getArgumentAt(0, GobblinEventBuilder.class)))
+    Mockito.doAnswer(invocation -> eventsSent.add(invocation.getArgument(0, GobblinEventBuilder.class)))
         .when(gobblinMCEWriter.eventSubmitter).submit(Mockito.any(GobblinEventBuilder.class));
   }
 

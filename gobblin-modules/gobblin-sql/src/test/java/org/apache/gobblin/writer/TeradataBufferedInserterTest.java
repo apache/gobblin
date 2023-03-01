@@ -17,29 +17,26 @@
 
 package org.apache.gobblin.writer;
 
+import com.mockrunner.mock.jdbc.MockParameterMetaData;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.List;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
+import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
+import org.apache.gobblin.writer.commands.TeradataBufferedInserter;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
+
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.List;
-
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-
-import com.mockrunner.mock.jdbc.MockParameterMetaData;
-
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-import org.apache.gobblin.writer.commands.JdbcBufferedInserter;
-import org.apache.gobblin.writer.commands.TeradataBufferedInserter;
 
 
 @Test(groups = { "gobblin.writer" }, singleThreaded = true)
@@ -75,7 +72,7 @@ public class TeradataBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(pstmt, times(107)).addBatch();
     verify(pstmt, times((int) Math.ceil((double) entryCount / batchSize))).executeBatch();
     verify(pstmt, times(entryCount)).clearParameters();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 

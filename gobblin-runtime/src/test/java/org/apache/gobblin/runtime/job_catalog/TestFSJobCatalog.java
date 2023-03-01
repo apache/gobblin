@@ -41,6 +41,8 @@ import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 import org.testng.Assert;
 
+import static org.mockito.ArgumentMatchers.any;
+
 
 /**
  * Test interaction between (Mutable)FsJobCatalog and its listeners.
@@ -83,7 +85,7 @@ public class TestFSJobCatalog {
         specs.put(spec.getUri(), spec);
         return null;
       }
-    }).when(l).onAddJob(Mockito.any(JobSpec.class));
+    }).when(l).onAddJob(any(JobSpec.class));
     Mockito.doAnswer(new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation)
@@ -92,7 +94,7 @@ public class TestFSJobCatalog {
         specs.put(spec.getUri(), spec);
         return null;
       }
-    }).when(l).onUpdateJob(Mockito.any(JobSpec.class));
+    }).when(l).onUpdateJob(any(JobSpec.class));
 
     Mockito.doAnswer(new Answer<Void>() {
       @Override
@@ -102,7 +104,7 @@ public class TestFSJobCatalog {
         specs.remove(uri);
         return null;
       }
-    }).when(l).onDeleteJob(Mockito.any(URI.class), Mockito.anyString());
+    }).when(l).onDeleteJob(any(URI.class), any());
 
     JobSpec js1_1 = JobSpec.builder("test_job1").withVersion("1").build();
     JobSpec js1_2 = JobSpec.builder("test_job1").withVersion("2").build();

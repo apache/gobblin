@@ -40,7 +40,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     GoogleWebmasterClient client = Mockito.mock(GoogleWebmasterClient.class);
     List<String> retVal = Arrays.asList("abc", "def");
 
-    Mockito.when(client.getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class),
+    Mockito.when(client.getPages(eq(_property), any(), any(), eq("ALL"), any(Integer.class),
         any(List.class), any(List.class), eq(0))).thenReturn(retVal);
 
     WorkUnitState workUnitState = new WorkUnitState();
@@ -56,7 +56,7 @@ public class GoogleWebmasterDataFetcherImplTest {
 
     Assert.assertTrue(CollectionUtils.isEqualCollection(retVal, pageStrings));
     Mockito.verify(client, Mockito.times(1))
-        .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
+        .getPages(eq(_property), any(), any(), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0));
   }
 
@@ -67,7 +67,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     for (int i = 0; i < 10; ++i) {
       allPages.add(Integer.toString(i));
     }
-    Mockito.when(client.getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class),
+    Mockito.when(client.getPages(eq(_property), any(), any(), eq("ALL"), any(Integer.class),
         any(List.class), any(List.class), eq(0))).thenReturn(allPages);
 
     WorkUnitState workUnitState = new WorkUnitState();
@@ -83,7 +83,7 @@ public class GoogleWebmasterDataFetcherImplTest {
 
     Assert.assertTrue(CollectionUtils.isEqualCollection(pageStrings, allPages));
     Mockito.verify(client, Mockito.times(2))
-        .getPages(eq(_property), any(String.class), any(String.class), eq("ALL"), any(Integer.class), any(List.class),
+        .getPages(eq(_property), any(), any(), eq("ALL"), any(Integer.class), any(List.class),
             any(List.class), eq(0));
   }
 
@@ -99,16 +99,16 @@ public class GoogleWebmasterDataFetcherImplTest {
     }
 
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(0))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(0))).thenReturn(list5000);
     GoogleWebmasterDataFetcherImpl dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client, workUnitState);
     Assert.assertEquals(dataFetcher.getPagesSize("start_date", "end_date", "country", null, null), 5000);
 
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(5000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(5000))).thenReturn(list5000);
     Assert.assertEquals(dataFetcher.getPagesSize("start_date", "end_date", "country", null, null), 10000);
 
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(10000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(10000))).thenReturn(list5000);
     Assert.assertEquals(dataFetcher.getPagesSize("start_date", "end_date", "country", null, null), 15000);
   }
 
@@ -124,7 +124,7 @@ public class GoogleWebmasterDataFetcherImplTest {
     }
 
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(0))).thenReturn(list2);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(0))).thenReturn(list2);
     GoogleWebmasterDataFetcherImpl dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client, workUnitState);
     int size = dataFetcher.getPagesSize("start_date", "end_date", "country", null, null);
     Assert.assertEquals(size, 2);
@@ -142,24 +142,24 @@ public class GoogleWebmasterDataFetcherImplTest {
     }
 
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(0))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(0))).thenReturn(list5000);
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(5000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(5000))).thenReturn(list5000);
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(10000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(10000))).thenReturn(list5000);
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(15000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(15000))).thenReturn(list5000);
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(20000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(20000))).thenReturn(list5000);
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(25000))).thenReturn(list5000);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(25000))).thenReturn(list5000);
 
     List<String> list2 = new ArrayList<>();
     for (int i = 0; i < 2; ++i) {
       list2.add(null);
     }
     Mockito.when(client.getPages(any(String.class), any(String.class), any(String.class), any(String.class),
-        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(List.class), any(List.class), eq(30000))).thenReturn(list2);
+        eq(GoogleWebmasterClient.API_ROW_LIMIT), any(), any(), eq(30000))).thenReturn(list2);
 
     GoogleWebmasterDataFetcherImpl dataFetcher = new GoogleWebmasterDataFetcherImpl(_property, client, workUnitState);
     int size = dataFetcher.getPagesSize("start_date", "end_date", "country", null, null);

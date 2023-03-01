@@ -20,15 +20,18 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcEntryData;
-import org.apache.gobblin.writer.commands.JdbcWriterCommands;
-
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @Test(groups = {"gobblin.writer"})
 public class JdbcWriterTest {
@@ -49,7 +52,7 @@ public class JdbcWriterTest {
       Assert.assertEquals(writer.recordsWritten(), writeCount);
     }
 
-    verify(writerCommands, times(writeCount)).insert(anyString(), anyString(), any(JdbcEntryData.class));
+    verify(writerCommands, times(writeCount)).insert(anyString(), anyString(), any());
     verify(conn, times(1)).commit();
     verify(conn, never()).rollback();
     verify(writerCommands, times(1)).flush();
@@ -62,7 +65,7 @@ public class JdbcWriterTest {
     final String table = "users";
     JdbcWriterCommands writerCommands = mock(JdbcWriterCommands.class);
     Connection conn = mock(Connection.class);
-    doThrow(RuntimeException.class).when(writerCommands).insert(anyString(), anyString(), any(JdbcEntryData.class));
+    doThrow(RuntimeException.class).when(writerCommands).insert(anyString(), anyString(), any());
     JdbcWriter writer = new JdbcWriter(writerCommands, new State(), database, table, conn);
 
     try {
@@ -73,7 +76,7 @@ public class JdbcWriterTest {
     }
     writer.close();
 
-    verify(writerCommands, times(1)).insert(anyString(), anyString(), any(JdbcEntryData.class));
+    verify(writerCommands, times(1)).insert(anyString(), anyString(), any());
     verify(conn, times(1)).rollback();
     verify(conn, never()).commit();
     verify(conn, times(1)).close();

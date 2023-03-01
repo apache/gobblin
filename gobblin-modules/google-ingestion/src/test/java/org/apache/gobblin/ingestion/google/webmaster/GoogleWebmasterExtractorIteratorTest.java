@@ -39,7 +39,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 
 
-class CollectionEquals extends ArgumentMatcher<Collection> {
+class CollectionEquals implements ArgumentMatcher<Collection> {
 
   private final Collection _expected;
 
@@ -48,8 +48,8 @@ class CollectionEquals extends ArgumentMatcher<Collection> {
   }
 
   @Override
-  public boolean matches(Object actual) {
-    return CollectionUtils.isEqualCollection((Collection) actual, _expected);
+  public boolean matches(Collection actual) {
+    return CollectionUtils.isEqualCollection(actual, _expected);
   }
 }
 

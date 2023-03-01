@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import io.reactivex.Flowable;
 import java.io.Flushable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,15 +28,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
+import lombok.AllArgsConstructor;
 import org.apache.gobblin.ack.Ackable;
 import org.apache.gobblin.ack.BasicAckableForTesting;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -45,7 +40,6 @@ import org.apache.gobblin.fork.IdentityForkOperator;
 import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.publisher.TaskPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
@@ -63,12 +57,17 @@ import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
-import io.reactivex.Flowable;
-import lombok.AllArgsConstructor;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -280,7 +279,7 @@ public class TestRecordStream {
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
     when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
-    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
+    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any()))
         .thenReturn(mockTaskPublisher);
 
     // Create a mock TaskStateTracker
@@ -341,7 +340,7 @@ public class TestRecordStream {
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
     when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
-    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class)))
+    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any()))
         .thenReturn(mockTaskPublisher);
 
     // Create a mock TaskStateTracker

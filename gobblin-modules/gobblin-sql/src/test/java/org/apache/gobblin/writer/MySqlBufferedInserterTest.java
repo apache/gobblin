@@ -31,11 +31,16 @@ import org.apache.gobblin.writer.commands.MySqlBufferedInserter;
 
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.matches;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)
 public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
@@ -63,7 +68,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 
@@ -90,7 +95,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("REPLACE INTO .*"));
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 
@@ -121,7 +126,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
     verify(pstmt, times(expectedExecuteCount)).clearParameters();
     verify(pstmt, times(expectedExecuteCount)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 

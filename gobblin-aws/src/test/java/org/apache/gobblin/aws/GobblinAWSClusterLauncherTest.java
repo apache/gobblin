@@ -187,7 +187,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
             TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER, zkConnectionString);
 
     // Gobblin AWS Cluster Launcher to test
-    this.gobblinAwsClusterLauncher = new GobblinAWSClusterLauncher(this.config);
+    this.gobblinAwsClusterLauncher = new TestGobblinAWSClusterLauncher(this.config);
   }
 
   @Test
