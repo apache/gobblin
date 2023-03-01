@@ -56,8 +56,6 @@ dependencies {
     testCompile project(path: ':gobblin-modules:gobblin-kafka-common', configuration: 'tests')
     testCompile externalDependency.testng
     testCompile externalDependency.mockito
-    // Added to mock static methods for GobblinMCEWriterTest
-    testCompile externalDependency.powermock
 }
 
 configurations {

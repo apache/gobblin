@@ -29,26 +29,14 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import static org.mockito.Mockito.times;
+import static org.testng.Assert.assertEquals;
 
 
-/**
- * Test class uses PowerMockito and Testng
- * References:
- * https://github.com/powermock/powermock/issues/434
- * https://www.igorkromin.net/index.php/2018/10/04/how-to-fix-powermock-exception-linkageerror-loader-constraint-violation/
- * https://github.com/powermock/powermock/wiki/MockFinal
- */
-@PrepareForTest(Stopwatch.class)
-@PowerMockIgnore("javax.management.*")
-public class HelixInstancePurgerWithMetricsTest extends PowerMockTestCase {
+public class HelixInstancePurgerWithMetricsTest {
 
   @Mock EventSubmitter eventSubmitter;
   @Mock Stopwatch stopwatch;
@@ -62,7 +50,7 @@ public class HelixInstancePurgerWithMetricsTest extends PowerMockTestCase {
 
   @BeforeMethod
   private void init() {
-    MockitoAnnotations.initMocks(this);
+    MockitoAnnotations.openMocks(this);
     sut = new HelixInstancePurgerWithMetrics(eventSubmitter, PURGE_STATUS_POLLING_RATE_MS);
   }
 

@@ -17,31 +17,6 @@
 
 package org.apache.gobblin.aws;
 
-import java.io.IOException;
-import java.net.URL;
-import java.util.List;
-import java.util.concurrent.TimeoutException;
-
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.test.TestingServer;
-import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
-import org.apache.helix.InstanceType;
-import org.apache.helix.model.Message;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockTestCase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
 import com.amazonaws.services.autoscaling.model.Tag;
 import com.amazonaws.services.autoscaling.model.TagDescription;
@@ -55,7 +30,12 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.test.TestingServer;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixConstants;
 import org.apache.gobblin.cluster.HelixMessageSubTypes;
@@ -64,6 +44,19 @@ import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
 import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.helix.HelixManager;
+import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.InstanceType;
+import org.apache.helix.model.Message;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 
 /**
@@ -72,9 +65,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  * @author Abhishek Tiwari
  */
 @Test(groups = { "gobblin.aws" })
-@PrepareForTest({ AWSSdkClient.class, GobblinAWSClusterLauncher.class})
-@PowerMockIgnore({"javax.*", "org.apache.helix.*", "org.apache.curator.*", "org.apache.zookeeper.*", "org.w3c.*", "org.xml.*"})
-public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements HelixMessageTestBase  {
+public class GobblinAWSClusterLauncherTest implements HelixMessageTestBase  {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinAWSClusterLauncherTest.class);
 
   private CuratorFramework curatorFramework;
@@ -115,9 +106,7 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   public void setUp() throws Exception {
 
     // Mock AWS SDK calls
-    MockitoAnnotations.initMocks(this);
-
-    PowerMockito.whenNew(AWSSdkClient.class).withAnyArguments().thenReturn(awsSdkClient);
+    MockitoAnnotations.openMocks(this);
 
     Mockito.doNothing()
         .when(awsSdkClient)
@@ -263,6 +252,16 @@ public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements 
   public void assertMessageReception(Message message) {
     Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
+  }
+
+  class TestGobblinAWSClusterLauncher extends GobblinAWSClusterLauncher {
+    public TestGobblinAWSClusterLauncher(Config config) throws IOException {
+      super(config);
+    }
+
+    protected AWSSdkClient createAWSSdkClient() {
+      return awsSdkClient;
+    }
   }
 
   static class GetControllerMessageNumFunc implements Function<Void, Integer> {

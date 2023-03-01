@@ -25,43 +25,37 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
-import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
-import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
-import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockObjectFactory;
-import org.powermock.modules.testng.PowerMockTestCase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.IObjectFactory;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.ObjectFactory;
-import org.testng.annotations.Test;
-
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
+import org.mockito.MockedStatic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.powermock.api.mockito.PowerMockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 
 /**
  * Tests for {@link YarnService}.
  */
-@PrepareForTest({AMRMClientAsync.class, RegisterApplicationMasterResponse.class})
-@PowerMockIgnore({"javax.management.*"})
-public class YarnServiceTest extends PowerMockTestCase{
+public class YarnServiceTest {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
   private TestYarnService yarnService;
   private Config config;
@@ -75,10 +69,10 @@ public class YarnServiceTest extends PowerMockTestCase{
 
   @BeforeClass
   public void setUp() throws Exception {
-    mockAMRMClient = Mockito.mock(AMRMClientAsync.class);
-    mockRegisterApplicationMasterResponse = Mockito.mock(RegisterApplicationMasterResponse.class);
-    mockResource = Mockito.mock(Resource.class);
-    mockFs = Mockito.mock(FileSystem.class);
+    mockAMRMClient = mock(AMRMClientAsync.class);
+    mockRegisterApplicationMasterResponse = mock(RegisterApplicationMasterResponse.class);
+    mockResource = mock(Resource.class);
+    mockFs = mock(FileSystem.class);
 
     URL url = YarnServiceTest.class.getClassLoader()
         .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
@@ -86,12 +80,13 @@ public class YarnServiceTest extends PowerMockTestCase{
 
     this.config = ConfigFactory.parseURL(url).resolve();
 
-    PowerMockito.mockStatic(AMRMClientAsync.class);
-    PowerMockito.mockStatic(AMRMClientAsyncImpl.class);
+    MockedStatic<AMRMClientAsync> amrmClientAsyncMockStatic = mockStatic(AMRMClientAsync.class);
+    MockedStatic<AMRMClientAsyncImpl> amrmClientAsyncImplMockStatic = mockStatic(AMRMClientAsyncImpl.class);
 
-    when(AMRMClientAsync.createAMRMClientAsync(anyInt(), any(AMRMClientAsync.CallbackHandler.class)))
+    amrmClientAsyncMockStatic.when(() -> AMRMClientAsync.createAMRMClientAsync(anyInt(), any(AMRMClientAsync.CallbackHandler.class)))
         .thenReturn(mockAMRMClient);
     doNothing().when(mockAMRMClient).init(any(YarnConfiguration.class));
+
     when(mockAMRMClient.registerApplicationMaster(anyString(), anyInt(), anyString()))
         .thenReturn(mockRegisterApplicationMasterResponse);
     when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability())
@@ -125,13 +120,13 @@ public class YarnServiceTest extends PowerMockTestCase{
     }
 
     private static HelixManager getMockHelixManager(Config config) {
-      HelixManager helixManager = Mockito.mock(HelixManager.class);
-      Mockito.when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-      Mockito.when(helixManager.getMetadataStoreConnectionString()).thenReturn("stub");
+      HelixManager helixManager = mock(HelixManager.class);
+      when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+      when(helixManager.getMetadataStoreConnectionString()).thenReturn("stub");
       return helixManager;
     }
 
-    private static HelixAdmin getMockHelixAdmin() { return Mockito.mock(HelixAdmin.class); }
+    private static HelixAdmin getMockHelixAdmin() { return mock(HelixAdmin.class); }
 
     protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
         throws IOException {
@@ -141,10 +136,5 @@ public class YarnServiceTest extends PowerMockTestCase{
 
     @Override
     protected ByteBuffer getSecurityTokens() throws IOException { return mock(ByteBuffer.class); }
-  }
-
-  @ObjectFactory
-  public IObjectFactory getObjectFactory() {
-    return new PowerMockObjectFactory();
   }
 }
