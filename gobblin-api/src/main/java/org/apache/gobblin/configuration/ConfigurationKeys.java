@@ -130,6 +130,7 @@ public class ConfigurationKeys {
    */
   public static final String FLOW_NAME_KEY = "flow.name";
   public static final String FLOW_GROUP_KEY = "flow.group";
+  public static final String FLOW_EDGE_ID_KEY = "flow.edgeId";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
   public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
@@ -139,6 +140,7 @@ public class ConfigurationKeys {
   public static final String FLOW_EXPLAIN_KEY = "flow.explain";
   public static final String FLOW_UNSCHEDULE_KEY = "flow.unschedule";
   public static final String FLOW_OWNING_GROUP_KEY = "flow.owningGroup";
+  public static final String FLOW_SPEC_EXECUTOR = "flow.edge.specExecutors";
 
   /**
    * Common topology configuration properties.

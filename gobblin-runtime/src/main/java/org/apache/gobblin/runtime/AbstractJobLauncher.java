@@ -431,8 +431,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
     boolean isWorkUnitsEmpty = false;
-    TimingEvent workUnitsCreationTimer =
-        this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
     try {
       MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
       MDC.put(ConfigurationKeys.JOB_KEY_KEY, this.jobContext.getJobKey());
@@ -463,6 +461,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             ((SourceDecorator<?, ?>) source).getEventBus().register(this);
           }
         }
+        TimingEvent workUnitsCreationTimer =
+            this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_CREATION);
         WorkUnitStream workUnitStream;
         if (source instanceof WorkUnitStreamSource) {
           workUnitStream = ((WorkUnitStreamSource) source).getWorkunitStream(jobState);

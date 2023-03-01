@@ -77,6 +77,7 @@ public class JobExecutionPlanDagFactoryTest {
     properties = new Properties();
     properties.put("specStore.fs.dir", "/tmp/testSpecStoreDir");
     properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, "testSpecExecutorInstanceUri");
     Config specExecutorConfig = ConfigUtils.propertiesToConfig(properties);
     this.specExecutor = new InMemorySpecExecutor(specExecutorConfig);
   }
@@ -89,7 +90,8 @@ public class JobExecutionPlanDagFactoryTest {
       Config config = jobTemplate.getRawTemplateConfig()
           .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef("testFlowName"))
           .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("testFlowGroup"))
-          .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
+          .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(System.currentTimeMillis()))
+          .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef("source:destination:edgeName1"));
 
       String jobSpecUri = Files.getNameWithoutExtension(new Path(jobTemplate.getUri()).getName());
       jobExecutionPlans.add(new JobExecutionPlan(JobSpec.builder(jobSpecUri).withConfig(config).
@@ -111,6 +113,10 @@ public class JobExecutionPlanDagFactoryTest {
     Assert.assertEquals(endNodeName, "job4");
     templateUri = new Path(dag.getEndNodes().get(0).getValue().getJobSpec().getTemplateURI().get()).getName();
     Assert.assertEquals(templateUri, "job4.job");
+    String flowEdgeId = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
+    Assert.assertEquals(flowEdgeId, "source:destination:edgeName1");
+    String specExecutorId = dag.getStartNodes().get(0).getValue().getSpecExecutor().getUri().toString();
+    Assert.assertEquals(specExecutorId, "testSpecExecutorInstanceUri");
 
     Dag.DagNode<JobExecutionPlan> startNode = dag.getStartNodes().get(0);
     List<Dag.DagNode<JobExecutionPlan>> nextNodes = dag.getChildren(startNode);
@@ -227,7 +233,28 @@ public class JobExecutionPlanDagFactoryTest {
     Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlan));
 
     Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY).length(), 142);
+  }
 
+  @Test
+  public void testCreateJobSpecAdditionalProps() throws Exception {
+    long currentTime = System.currentTimeMillis();
+    Config flowConfig = ConfigBuilder.create().addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flowName")
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "flowGroup")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?")
+        .addPrimitive(FlowSpec.MODIFICATION_TIME_KEY, currentTime).build();
+
+    Config jobConfig = ConfigBuilder.create()
+        .addPrimitive(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "source:destination:edgeName1")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+
+    FlowSpec flowSpec = FlowSpec.builder("testFlowSpec").withConfig(flowConfig).build();
+    JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
+        ConfigValueFactory.fromAnyRef("testUri")), new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty());
+
+    Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlan));
+
+    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getLong(FlowSpec.MODIFICATION_TIME_KEY), currentTime);
+    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EDGE_ID_KEY), "source:destination:edgeName1");
   }
 
 }

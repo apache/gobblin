@@ -87,6 +87,24 @@
       "compliance": "NONE"
     },
     {
+      "name": "jobPlanningPhaseStartTime",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Start time of the workunit planning phase in millis since Epoch, null if the job was never run or fails to reach this phase",
+      "compliance": "NONE"
+    },
+    {
+      "name": "jobPlanningPhaseEndTime",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "End time of the workunit planning phase in millis since Epoch, null if the job was never run or fails to reach this phase",
+      "compliance": "NONE"
+    },
+    {
       "name": "executionUserUrn",
       "type": [
         "null",
