@@ -17,7 +17,11 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import org.apache.iceberg.catalog.Catalog;
+import java.util.Map;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
 
@@ -28,52 +32,29 @@ import lombok.extern.slf4j.Slf4j;
  * Hive-Metastore-based {@link IcebergCatalog}.
  */
 @Slf4j
-public class IcebergHiveCatalog implements IcebergCatalog {
 
-  /**
-   * Ensures pairing between {@link IcebergCatalog} and its implementation type i.e. {@link HiveCatalog} in this case.
-   * Unfortunately, {@link org.apache.iceberg.BaseMetastoreCatalog}.newTableOps is protected.
-   * Hence, it necessitates this abstraction to define and access {@link IcebergTable}
-   */
-  public static class HiveSpecifier implements CatalogSpecifier {
-
-    public static final String HIVE_CATALOG_NAME = "hive";
-    public static final String HIVE_CATALOG_URI = "uri";
-    @Override
-    public Class<? extends Catalog> getCatalogClass() {
-      return HiveCatalog.class;
-    }
-
-    @Override
-    public Class<? extends IcebergCatalog> getIcebergCatalogClass() {
-      return IcebergHiveCatalog.class;
-    }
-
-    @Override
-    public String getCatalogName() {
-      return HIVE_CATALOG_NAME;
-    }
-  }
-
+public class IcebergHiveCatalog extends BaseIcebergCatalog {
+  public static final String HIVE_CATALOG_NAME = "HiveCatalog";
   // NOTE: specifically necessitates `HiveCatalog`, as `BaseMetastoreCatalog.newTableOps` is `protected`!
-  private final HiveCatalog hc;
+  private HiveCatalog hc;
 
-  public IcebergHiveCatalog(Catalog catalog) {
-    if (catalog instanceof HiveCatalog) {
-      hc = (HiveCatalog) catalog;
-    } else {
-      throw new IllegalArgumentException(String.format("Incorrect Catalog Provided: Got %s instead of HiveCatalog", catalog.getClass().getName()));
-    }
+  public IcebergHiveCatalog() {
+    super(HIVE_CATALOG_NAME, HiveCatalog.class);
   }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) {
-    TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, hc.newTableOps(tableId));
+  public void initialize(Map<String, String> properties, Configuration configuration) {
+    hc = (HiveCatalog) createCompanionCatalog(properties, configuration);
   }
 
   @Override
   public String getCatalogUri() {
-    return hc.getConf().get(HiveSpecifier.HIVE_CATALOG_URI, "");
+    return hc.getConf().get(CatalogProperties.URI, "");
   }
+
+  @Override
+  protected TableOperations createTableOperations(TableIdentifier tableId) {
+    return hc.newTableOps(tableId);
+  }
+
 }

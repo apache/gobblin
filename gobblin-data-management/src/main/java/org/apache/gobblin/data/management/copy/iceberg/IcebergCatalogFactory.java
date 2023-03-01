@@ -19,11 +19,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.util.Map;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogUtil;
-import org.apache.iceberg.catalog.Catalog;
-
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -31,10 +27,12 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * Provides an {@link IcebergCatalog}.
  */
 public class IcebergCatalogFactory {
-  public static IcebergCatalog create(IcebergCatalog.CatalogSpecifier specifier, Map<String, String> properties, Configuration configuration) throws IOException {
+  public static IcebergCatalog create(String icebergCatalogType, Map<String, String> properties, Configuration configuration) throws IOException {
     try {
-      Catalog catalog = CatalogUtil.loadCatalog(specifier.getCatalogClass().getName(), specifier.getCatalogName(), properties, configuration);
-      return GobblinConstructorUtils.invokeLongestConstructor(specifier.getIcebergCatalogClass(), catalog);
+      Class<?> icebergCatalogClass = Class.forName(icebergCatalogType);
+      IcebergCatalog icebergCatalog = (IcebergCatalog) GobblinConstructorUtils.invokeConstructor(icebergCatalogClass, icebergCatalogType);
+      icebergCatalog.initialize(properties, configuration);
+      return icebergCatalog;
     } catch (ReflectiveOperationException ex) {
       throw new IOException(ex);
     }

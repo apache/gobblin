@@ -17,7 +17,8 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import org.apache.iceberg.catalog.Catalog;
+import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 
 
 /**
@@ -26,16 +27,5 @@ import org.apache.iceberg.catalog.Catalog;
 public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName);
   String getCatalogUri();
-
-  /**
-   * Adding a sub interface to help us provide an association between {@link Catalog} and {@link IcebergCatalog}.
-   * This helps us resolve to the Catalog to its concrete implementation class
-   * Primarily needed to access `newTableOps` method which only certain {@link Catalog} derived classes open for public access
-   */
-  interface CatalogSpecifier {
-    Class<? extends Catalog> getCatalogClass();
-    Class<? extends IcebergCatalog> getIcebergCatalogClass();
-    String getCatalogName();
-  }
-
+  void initialize(Map<String, String> properties, Configuration configuration);
 }
