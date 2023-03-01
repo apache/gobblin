@@ -27,10 +27,10 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * Provides an {@link IcebergCatalog}.
  */
 public class IcebergCatalogFactory {
-  public static IcebergCatalog create(String icebergCatalogType, Map<String, String> properties, Configuration configuration) throws IOException {
+  public static IcebergCatalog create(String icebergCatalogClassName, Map<String, String> properties, Configuration configuration) throws IOException {
     try {
-      Class<?> icebergCatalogClass = Class.forName(icebergCatalogType);
-      IcebergCatalog icebergCatalog = (IcebergCatalog) GobblinConstructorUtils.invokeConstructor(icebergCatalogClass, icebergCatalogType);
+      Class<?> icebergCatalogClass = Class.forName(icebergCatalogClassName);
+      IcebergCatalog icebergCatalog = (IcebergCatalog) GobblinConstructorUtils.invokeConstructor(icebergCatalogClass, icebergCatalogClassName);
       icebergCatalog.initialize(properties, configuration);
       return icebergCatalog;
     } catch (ReflectiveOperationException ex) {

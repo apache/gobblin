@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +32,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
-
-import com.google.api.client.util.Maps;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -108,14 +107,14 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   }
 
   protected IcebergCatalog createIcebergCatalog(Properties properties) throws IOException, ClassNotFoundException {
-    Map<String, String> catalogProperties = Maps.newHashMap();
+    Map<String, String> catalogProperties = new HashMap<>();
     String catalogUri = properties.getProperty(ICEBERG_SRC_CATALOG_URI_KEY);
     Preconditions.checkNotNull(catalogUri, "Catalog Table Service URI is required");
     catalogProperties.put(CatalogProperties.URI, catalogUri);
     // introducing an optional property for catalogs requiring cluster specific properties
     Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
-    String icebergCatalogType = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
-    return IcebergCatalogFactory.create(icebergCatalogType, catalogProperties, configuration);
+    String icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
+    return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }
 }
