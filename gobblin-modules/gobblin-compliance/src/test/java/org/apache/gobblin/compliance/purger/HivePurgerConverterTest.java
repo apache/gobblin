@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.anyList;
 
 
 @Test

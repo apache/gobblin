@@ -16,11 +16,6 @@
  */
 package org.apache.gobblin.runtime.std;
 
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
@@ -34,6 +29,11 @@ import org.apache.gobblin.runtime.api.JobExecutionState;
 import org.apache.gobblin.runtime.api.JobExecutionStateListener;
 import org.apache.gobblin.runtime.api.JobLifecycleListener;
 import org.apache.gobblin.runtime.api.JobSpec;
+
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for {@link FilteredJobLifecycleListener}

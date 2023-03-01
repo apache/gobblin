@@ -19,9 +19,6 @@ package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,7 +26,10 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
-import static org.mockito.ArgumentMatchers.any;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
+
 import static org.mockito.Mockito.*;
 
 

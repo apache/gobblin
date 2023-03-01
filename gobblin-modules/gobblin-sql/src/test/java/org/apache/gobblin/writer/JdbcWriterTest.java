@@ -20,18 +20,14 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.writer.commands.JdbcWriterCommands;
+
+import static org.mockito.Mockito.*;
 
 @Test(groups = {"gobblin.writer"})
 public class JdbcWriterTest {

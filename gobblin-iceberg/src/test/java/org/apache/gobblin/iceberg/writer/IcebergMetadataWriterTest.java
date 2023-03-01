@@ -64,8 +64,8 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
-import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.hive.writer.MetadataWriter;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
 import org.apache.gobblin.metadata.DataOrigin;
@@ -83,6 +83,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
+
 import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 public class IcebergMetadataWriterTest extends HiveMetastoreTest {

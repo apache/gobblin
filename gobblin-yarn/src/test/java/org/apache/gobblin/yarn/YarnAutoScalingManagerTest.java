@@ -18,11 +18,10 @@
 package org.apache.gobblin.yarn;
 
 import java.io.IOException;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixProperty;
@@ -42,7 +41,9 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 
-import static org.mockito.ArgumentMatchers.*;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 

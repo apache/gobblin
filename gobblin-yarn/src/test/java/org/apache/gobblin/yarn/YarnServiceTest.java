@@ -17,15 +17,12 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.eventbus.EventBus;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
@@ -43,13 +40,13 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
+import com.google.common.eventbus.EventBus;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+
+import static org.mockito.Mockito.*;
 
 
 /**

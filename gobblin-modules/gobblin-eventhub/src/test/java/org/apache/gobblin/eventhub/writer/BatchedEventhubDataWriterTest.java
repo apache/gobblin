@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import org.apache.gobblin.writer.*;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
@@ -32,7 +31,9 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.isA;
+import org.apache.gobblin.writer.WriteCallback;
+import org.apache.gobblin.writer.WriteResponse;
+
 import static org.mockito.Mockito.*;
 
 

@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.iceberg.writer;
 
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,7 +26,22 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Sets;
+
 import lombok.SneakyThrows;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -42,22 +56,8 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 
 public class GobblinMCEWriterTest {

@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.runtime.job_catalog;
 
-import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import java.io.File;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -31,17 +29,18 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobCatalogListener;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
-import org.testng.Assert;
-
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 
 
 /**

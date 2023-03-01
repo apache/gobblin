@@ -41,7 +41,7 @@ import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

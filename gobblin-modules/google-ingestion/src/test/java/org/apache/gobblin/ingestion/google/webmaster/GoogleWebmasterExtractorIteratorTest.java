@@ -35,8 +35,8 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
 
 
 class CollectionEquals implements ArgumentMatcher<Collection> {

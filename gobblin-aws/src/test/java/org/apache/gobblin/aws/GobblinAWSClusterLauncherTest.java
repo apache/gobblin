@@ -17,33 +17,13 @@
 
 package org.apache.gobblin.aws;
 
-import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
-import com.amazonaws.services.autoscaling.model.Tag;
-import com.amazonaws.services.autoscaling.model.TagDescription;
-import com.amazonaws.services.ec2.model.AvailabilityZone;
-import com.amazonaws.services.ec2.model.Instance;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinHelixConstants;
-import org.apache.gobblin.cluster.HelixMessageSubTypes;
-import org.apache.gobblin.cluster.HelixMessageTestBase;
-import org.apache.gobblin.cluster.HelixUtils;
-import org.apache.gobblin.cluster.TestHelper;
-import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
-import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -57,6 +37,29 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.amazonaws.services.autoscaling.model.AutoScalingGroup;
+import com.amazonaws.services.autoscaling.model.Tag;
+import com.amazonaws.services.autoscaling.model.TagDescription;
+import com.amazonaws.services.ec2.model.AvailabilityZone;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.HelixMessageSubTypes;
+import org.apache.gobblin.cluster.HelixMessageTestBase;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**

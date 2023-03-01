@@ -31,15 +31,7 @@ import org.apache.gobblin.writer.commands.MySqlBufferedInserter;
 
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.matches;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)

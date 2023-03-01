@@ -22,20 +22,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
-import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Iterables;
 
-import static org.mockito.ArgumentMatchers.any;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

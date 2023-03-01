@@ -16,11 +16,6 @@
  */
 package org.apache.gobblin.runtime.api;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-
 import java.util.Properties;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
@@ -41,6 +36,11 @@ import org.apache.gobblin.runtime.JobState.RunningState;
 import org.apache.gobblin.runtime.std.JobExecutionUpdatable;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ExecutorsUtils;
+
+import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for {@link JobExecutionState}

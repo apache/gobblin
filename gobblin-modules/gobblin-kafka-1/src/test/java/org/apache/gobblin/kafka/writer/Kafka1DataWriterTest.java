@@ -17,9 +17,21 @@
 
 package org.apache.gobblin.kafka.writer;
 
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
+import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
+import org.testng.annotations.Test;
+
 import kafka.message.MessageAndMetadata;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.generic.GenericRecord;
+
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
@@ -30,18 +42,7 @@ import org.apache.gobblin.kafka.serialize.SerializationException;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
-import org.testng.Assert;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
-import org.testng.annotations.Test;
 
-import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.util.Properties;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-
-import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.*;
 
 

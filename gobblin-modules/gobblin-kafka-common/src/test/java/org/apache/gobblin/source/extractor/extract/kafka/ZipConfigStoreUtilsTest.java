@@ -26,12 +26,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import org.apache.gobblin.config.client.ConfigClient;
-import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
-import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
-import org.apache.gobblin.config.store.zip.SimpleLocalIvyConfigStoreFactory;
-import org.apache.gobblin.config.store.zip.ZipFileConfigStore;
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -42,13 +36,20 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.zip.SimpleLocalIvyConfigStoreFactory;
+import org.apache.gobblin.config.store.zip.ZipFileConfigStore;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+
 import static org.apache.gobblin.configuration.ConfigurationKeys.CONFIG_MANAGEMENT_STORE_ENABLED;
 import static org.apache.gobblin.configuration.ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_COMMONPATH;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_FILTER;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_TAGS_BLACKLIST;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_TAGS_WHITELIST;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.anyList;
 
 
 /**

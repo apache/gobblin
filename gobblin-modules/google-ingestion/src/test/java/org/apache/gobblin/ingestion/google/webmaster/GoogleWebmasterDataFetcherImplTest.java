@@ -27,7 +27,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 
 @Test(groups = {"gobblin.source.extractor.extract.google.webmaster"})

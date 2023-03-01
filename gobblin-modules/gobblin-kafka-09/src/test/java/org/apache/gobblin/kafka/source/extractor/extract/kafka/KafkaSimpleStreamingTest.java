@@ -43,14 +43,14 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DataRecordException;
-import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingExtractor;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSimpleStreamingSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.writer.WatermarkStorage;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
