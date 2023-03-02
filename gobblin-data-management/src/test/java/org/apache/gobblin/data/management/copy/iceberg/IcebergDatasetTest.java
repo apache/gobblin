@@ -188,7 +188,7 @@ public class IcebergDatasetTest {
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, SRC_CATALOG_URI, new Properties(), sourceFs);
+    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destFsBuilder.build();
@@ -348,7 +348,7 @@ public class IcebergDatasetTest {
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
     IcebergDataset icebergDataset =
-        new IcebergDataset(testDbName, testTblName, icebergTable, SRC_CATALOG_URI, new Properties(), sourceFs);
+        new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     destFsBuilder.addPaths(existingDestPaths);
@@ -426,7 +426,7 @@ public class IcebergDatasetTest {
   protected static class TrickIcebergDataset extends IcebergDataset {
     public TrickIcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties,
         FileSystem sourceFs) {
-      super(db, table, icebergTbl, SRC_CATALOG_URI, properties, sourceFs);
+      super(db, table, icebergTbl, properties, sourceFs);
     }
 
     @Override // as the `static` is not mock-able

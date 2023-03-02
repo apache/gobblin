@@ -18,13 +18,11 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.util.Map;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
-
 import lombok.extern.slf4j.Slf4j;
 
 

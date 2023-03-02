@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -70,24 +69,18 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   protected final FileSystem sourceFs;
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
-  private final Optional<URI> sourceCatalogURI;
-  private final Optional<URI> targetCatalogURI;
-
   /** Target metastore URI */
   public static final String ICEBERG_TARGET_CATALOG_URI_KEY =
       IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
   /** Target database name */
   public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
 
-  public IcebergDataset(String db, String table, IcebergTable icebergTbl, String srcCatalogUri, Properties properties, FileSystem sourceFs) {
+  public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem sourceFs) {
     this.dbName = db;
     this.inputTableName = table;
     this.icebergTable = icebergTbl;
     this.properties = properties;
     this.sourceFs = sourceFs;
-    this.sourceCatalogURI = Optional.of(URI.create(srcCatalogUri));
-    //TODO: Use dest-side IcebergCatalog's getCatalogUri() method to get target catalog URI; as opposed to fetching from properties
-    this.targetCatalogURI = getAsOptionalURI(this.properties, ICEBERG_TARGET_CATALOG_URI_KEY);
   }
 
   @Override
@@ -313,15 +306,11 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return fileStatus.getPath().getFileSystem(hadoopConfig);
   }
 
-  protected static Optional<URI> getAsOptionalURI(Properties props, String key) {
-    return Optional.ofNullable(props.getProperty(key)).map(URI::create);
-  }
-
   protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
-    return this.icebergTable.getDatasetDescriptor(sourceCatalogURI, sourceFs);
+    return this.icebergTable.getDatasetDescriptor(sourceFs);
   }
 
   protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
-    return this.icebergTable.getDatasetDescriptor(targetCatalogURI, targetFs);
+    return this.icebergTable.getDatasetDescriptor(targetFs);
   }
 }

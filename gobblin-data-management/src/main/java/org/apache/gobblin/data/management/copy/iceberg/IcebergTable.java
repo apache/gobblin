@@ -70,6 +70,7 @@ public class IcebergTable {
 
   private final TableIdentifier tableId;
   private final TableOperations tableOps;
+  private final String catalogUri;
 
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
@@ -184,10 +185,10 @@ public class IcebergTable {
       manifestPathsIterable.close();
     }
   }
-  protected DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
+  protected DatasetDescriptor getDatasetDescriptor(FileSystem fs) {
     DatasetDescriptor descriptor = new DatasetDescriptor(
         DatasetConstants.PLATFORM_ICEBERG,
-        catalogMetastoreURI.orElse(null),
+        URI.create(this.catalogUri),
         this.tableId.name()
     );
     descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());

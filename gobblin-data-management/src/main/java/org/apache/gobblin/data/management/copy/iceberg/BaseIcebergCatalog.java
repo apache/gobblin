@@ -41,7 +41,7 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   @Override
   public IcebergTable openTable(String dbName, String tableName) {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, createTableOperations(tableId));
+    return new IcebergTable(tableId, createTableOperations(tableId), this.getCatalogUri());
   }
 
   protected Catalog createCompanionCatalog(Map<String, String> properties, Configuration configuration) {
