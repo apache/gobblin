@@ -62,7 +62,7 @@ import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.IcebergDataset} */
@@ -492,11 +492,11 @@ public class IcebergDatasetTest {
       FileSystem fs = Mockito.mock(FileSystem.class);
       Mockito.when(fs.getUri()).thenReturn(fsURI);
       Mockito.when(fs.makeQualified(any(Path.class)))
-          .thenAnswer(invocation -> invocation.getArgumentAt(0, Path.class).makeQualified(fsURI, new Path("/")));
+          .thenAnswer(invocation -> invocation.getArgument(0, Path.class).makeQualified(fsURI, new Path("/")));
 
       if (!this.optPathsWithFileStatuses.isPresent()) {
         Mockito.when(fs.getFileStatus(any(Path.class)))
-            .thenAnswer(invocation -> createEmptyFileStatus(invocation.getArgumentAt(0, Path.class).toString()));
+            .thenAnswer(invocation -> createEmptyFileStatus(invocation.getArgument(0, Path.class).toString()));
       } else {
         // WARNING: order is critical--specific paths *after* `any(Path)`; in addition, since mocking further
         // an already-mocked instance, `.doReturn/.when` is needed (vs. `.when/.thenReturn`)

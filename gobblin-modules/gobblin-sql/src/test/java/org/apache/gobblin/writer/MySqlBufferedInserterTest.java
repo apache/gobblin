@@ -31,11 +31,8 @@ import org.apache.gobblin.writer.commands.MySqlBufferedInserter;
 
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_INSERT_BATCH_SIZE;
 import static org.apache.gobblin.writer.commands.JdbcBufferedInserter.WRITER_JDBC_MAX_PARAM_SIZE;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.*;
+
 
 @Test(groups = {"gobblin.writer"}, singleThreaded=true)
 public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
@@ -63,7 +60,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 
@@ -90,7 +87,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("REPLACE INTO .*"));
     verify(pstmt, times(11)).clearParameters();
     verify(pstmt, times(11)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 
@@ -121,7 +118,7 @@ public class MySqlBufferedInserterTest extends JdbcBufferedInserterTestBase {
     verify(conn, times(2)).prepareStatement(matches("INSERT INTO .*"));
     verify(pstmt, times(expectedExecuteCount)).clearParameters();
     verify(pstmt, times(expectedExecuteCount)).execute();
-    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), anyObject());
+    verify(pstmt, times(colNums * entryCount)).setObject(anyInt(), any());
     reset(pstmt);
   }
 

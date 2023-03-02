@@ -22,9 +22,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-
 import java.util.Map;
 import java.util.function.Function;
+
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
@@ -33,7 +33,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,6 +44,7 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.thrift.TException;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -63,6 +63,7 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
@@ -83,9 +84,8 @@ import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.function.CheckedExceptionFunction;
-import org.mockito.Mockito;
 
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.eq;
 
 
 public class HiveMetadataWriterTest extends HiveMetastoreTest {
@@ -340,7 +340,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     gmce.setOperationType(OperationType.drop_files);
     gmce.setOldFilePrefixes(null);
     hiveWriter.write(gmce, null, null, spec, "someTopicPartition");
-    Mockito.verifyZeroInteractions(mockRegister);
+    Mockito.verifyNoInteractions(mockRegister);
   }
 
   /**

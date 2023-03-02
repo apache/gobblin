@@ -35,11 +35,11 @@ import com.google.api.services.webmasters.model.ApiDimensionFilter;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
 
 
-class CollectionEquals extends ArgumentMatcher<Collection> {
+class CollectionEquals implements ArgumentMatcher<Collection> {
 
   private final Collection _expected;
 
@@ -48,8 +48,8 @@ class CollectionEquals extends ArgumentMatcher<Collection> {
   }
 
   @Override
-  public boolean matches(Object actual) {
-    return CollectionUtils.isEqualCollection((Collection) actual, _expected);
+  public boolean matches(Collection actual) {
+    return CollectionUtils.isEqualCollection(actual, _expected);
   }
 }
 

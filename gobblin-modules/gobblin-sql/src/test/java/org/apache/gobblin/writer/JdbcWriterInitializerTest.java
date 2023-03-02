@@ -142,7 +142,7 @@ public class JdbcWriterInitializerTest {
     DatabaseMetaData metadata = mock(DatabaseMetaData.class);
     when(this.conn.getMetaData()).thenReturn(metadata);
     ResultSet rs = mock(ResultSet.class);
-    when(metadata.getTables(anyString(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
+    when(metadata.getTables(any(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
     when(rs.next()).thenReturn(Boolean.FALSE);
 
     this.initializer.initialize();

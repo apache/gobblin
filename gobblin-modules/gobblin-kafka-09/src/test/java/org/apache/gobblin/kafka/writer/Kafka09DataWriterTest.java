@@ -36,18 +36,13 @@ import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
-//import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
 import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
 import org.apache.gobblin.kafka.serialize.LiAvroSerializer;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
 
-import static org.mockito.Matchers.isA;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 
 @Slf4j
