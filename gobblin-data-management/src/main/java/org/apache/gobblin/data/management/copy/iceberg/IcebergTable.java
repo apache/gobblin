@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
+import java.net.URI;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.Snapshot;
@@ -41,6 +43,9 @@ import org.apache.iceberg.io.FileIO;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 
 import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
@@ -178,5 +183,14 @@ public class IcebergTable {
     } finally {
       manifestPathsIterable.close();
     }
+  }
+  protected DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
+    DatasetDescriptor descriptor = new DatasetDescriptor(
+        DatasetConstants.PLATFORM_ICEBERG,
+        catalogMetastoreURI.orElse(null),
+        this.tableId.name()
+    );
+    descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
+    return descriptor;
   }
 }

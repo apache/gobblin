@@ -56,5 +56,4 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   protected TableOperations createTableOperations(TableIdentifier tableId) {
     return hc.newTableOps(tableId);
   }
-
 }

@@ -320,20 +320,10 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
-    return getDatasetDescriptor(sourceCatalogURI, sourceFs);
+    return this.icebergTable.getDatasetDescriptor(sourceCatalogURI, sourceFs);
   }
 
   protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
-    return getDatasetDescriptor(targetCatalogURI, targetFs);
-  }
-
-  private DatasetDescriptor getDatasetDescriptor(Optional<URI> catalogMetastoreURI, FileSystem fs) {
-    DatasetDescriptor descriptor = new DatasetDescriptor(
-        DatasetConstants.PLATFORM_ICEBERG,
-        catalogMetastoreURI.orElse(null),
-        this.getFileSetId()
-    );
-    descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
-    return descriptor;
+    return this.icebergTable.getDatasetDescriptor(targetCatalogURI, targetFs);
   }
 }
