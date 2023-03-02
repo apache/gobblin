@@ -101,6 +101,7 @@ public class IcebergDatasetTest {
 
   private final String testDbName = "test_db_name";
   private final String testTblName = "test_tbl_name";
+  public static final String SRC_CATALOG_URI = "abc://the.source.org/catalog";
   private final Properties copyConfigProperties = new Properties();
 
   @BeforeClass

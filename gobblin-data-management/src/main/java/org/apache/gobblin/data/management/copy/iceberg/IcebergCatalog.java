@@ -17,10 +17,15 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
+
 
 /**
  * Any catalog from which to access {@link IcebergTable}s.
  */
 public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName);
+  String getCatalogUri();
+  void initialize(Map<String, String> properties, Configuration configuration);
 }
