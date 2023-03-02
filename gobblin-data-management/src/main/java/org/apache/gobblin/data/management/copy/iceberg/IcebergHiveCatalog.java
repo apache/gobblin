@@ -47,7 +47,7 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
 
   @Override
   public String getCatalogUri() {
-    return hc.getConf().get(CatalogProperties.URI, "");
+    return hc.getConf().get(CatalogProperties.URI, "<<not set>>");
   }
 
   @Override
