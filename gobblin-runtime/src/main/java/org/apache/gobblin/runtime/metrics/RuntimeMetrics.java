@@ -55,14 +55,19 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_MYSQL_QUOTA_MANAGER_TIME_TO_CHECK_QUOTA = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + "gobblin.mysql.quota.manager.time.to.check.quota";
 
   // The following metrics are used to identify the bottlenecks for initializing the job scheduler
-  public static final String GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.getSpecSpeedDuringStartupAvgMillis";
+  public static final String GOBBLIN_JOB_SCHEDULER_AVERAGE_GET_SPEC_SPEED_WHILE_LOADING_ALL_SPECS_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.getSpecSpeedDuringStartupAvgNanos";
   public static final String GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.loadSpecBatchSize";
-  public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToInitializeSchedulerMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToObtainSpecUrisMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_INDIVIDUAL_GET_SPEC_SPEED_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.individualGetSpecSpeedMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_ADD_SPEC_TIME_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.totalAddSpecTimeMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_FLOW_COMPILATION_TIME_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.specCompilationTimeMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_SCHEDULE_ONE_JOB_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToScheduleOneJobMillis";
+  public static final String
+      GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToInitializeSchedulerNanos";
+  public static final String
+      GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToObtainSpecUrisNanos";
+  public static final String
+      GOBBLIN_JOB_SCHEDULER_INDIVIDUAL_GET_SPEC_SPEED_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.individualGetSpecSpeedNanos";
+  public static final String GOBBLIN_JOB_SCHEDULER_ADD_SPEC_TIME_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.totalAddSpecTimeNanos";
+  public static final String
+      GOBBLIN_JOB_SCHEDULER_FLOW_COMPILATION_TIME_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.specCompilationTimeNanos";
+  public static final String
+      GOBBLIN_JOB_SCHEDULER_TIME_TO_SCHEDULE_ONE_JOB_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToScheduleOneJobNanos";
   // Metadata keys
   public static final String TOPIC = "topic";
   public static final String GROUP_ID = "groupId";
