@@ -59,11 +59,9 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.loadSpecBatchSize";
   public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToInitializeSchedulerMillis";
   public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToObtainSpecUrisMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_TAG_SPEC_URIS_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToObtainTagSpecUrisMillis";
   public static final String GOBBLIN_JOB_SCHEDULER_INDIVIDUAL_GET_SPEC_SPEED_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.individualGetSpecSpeedMillis";
   public static final String GOBBLIN_JOB_SCHEDULER_ADD_SPEC_TIME_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.totalAddSpecTimeMillis";
   public static final String GOBBLIN_JOB_SCHEDULER_FLOW_COMPILATION_TIME_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.specCompilationTimeMillis";
-  public static final String GOBBLIN_JOB_SCHEDULER_TIME_FOR_CHECKS_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeForChecksMillis";
   public static final String GOBBLIN_JOB_SCHEDULER_TIME_TO_SCHEDULE_ONE_JOB_MILLIS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.timeToScheduleOneJobMillis";
   // Metadata keys
   public static final String TOPIC = "topic";
