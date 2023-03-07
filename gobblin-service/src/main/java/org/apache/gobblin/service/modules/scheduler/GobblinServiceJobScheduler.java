@@ -19,14 +19,20 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TimeZone;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
+import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
 import org.quartz.JobDataMap;
@@ -108,6 +114,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   protected final Map<String, Long> lastUpdatedTimeForFlowSpec;
   protected volatile int loadSpecsBatchSize = -1;
+  protected int thresholdToSkipSchedulingFlowsAfter;
   @Getter
   private volatile boolean isActive;
   private String serviceName;
@@ -120,6 +127,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private volatile Long eachScheduleJobValue = -1L;
   private volatile Long totalGetSpecTimeValue = -1L;
   private volatile Long totalAddSpecTimeValue = -1L;
+  private volatile int numJobsScheduledDuringStartupValue = -1;
   private final ContextAwareGauge getSpecsPerSpecRateNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS, () -> this.perSpecGetRateValue);;
   private final ContextAwareGauge batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
   private final ContextAwareGauge timeToInitalizeSchedulerNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_NANOS, () -> this.timeToInitializeSchedulerValue);
@@ -130,6 +138,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private final ContextAwareGauge eachScheduleJobNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_SCHEDULE_JOB_NANOS, () -> eachScheduleJobValue);
   private final ContextAwareGauge totalGetSpecTimeNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_GET_SPEC_TIME_NANOS, () -> totalGetSpecTimeValue);
   private final ContextAwareGauge totalAddSpecTimeNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_ADD_SPEC_TIME_NANOS, () -> totalAddSpecTimeValue);
+  private final ContextAwareGauge numJobsScheduledDuringStartup = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_NUM_JOBS_SCHEDULED_DURING_STARTUP, () -> numJobsScheduledDuringStartupValue);
   private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
@@ -166,6 +175,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
     this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
+    this.thresholdToSkipSchedulingFlowsAfter = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
@@ -184,6 +194,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       metricContext.register(this.eachScheduleJobNanos);
       metricContext.register(this.totalGetSpecTimeNanos);
       metricContext.register(this.totalAddSpecTimeNanos);
+      metricContext.register(this.numJobsScheduledDuringStartup);
     }
   }
 
@@ -251,6 +262,43 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   /**
+   * Given a cron expression calculates the time for next run in days from current time, rounding up to the nearest day.
+   * @param cronExpression in format yyyy-MM-dd HH:mm:ss
+   * @return num days until next run, max integer in the case it cannot be calculated
+   */
+  public static int nextRunInDays(String cronExpression) {
+    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+    CronExpression cron = null;
+    Calendar cal = Calendar.getInstance();
+    double numMillisInADay = 86400000;
+    try {
+      cron = new CronExpression(cronExpression);
+      cron.setTimeZone(TimeZone.getTimeZone("UTC"));
+      Date now = new Date();
+      Date nextValidTimeAfter = cron.getNextValidTimeAfter(now);
+      cal.setTime(nextValidTimeAfter);
+      long diff = cal.getTimeInMillis() - System.currentTimeMillis();
+      double diffInDays = diff / numMillisInADay;
+      return (int) Math.round(diffInDays);
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    return -1;
+  }
+
+  /**
+   * Returns true if next run for the given cron schedule is sooner than the threshold to skip scheduling after, false
+   * otherwise. If the cron expression cannot be parsed and the next run cannot be calculated returns true to schedule.
+   * @param cronExpression in format yyyy-MM-dd HH:mm:ss
+   * @param thresholdToSkipScheduling represents number of days
+   */
+  public static boolean isNextRunWithinRangeToSchedule(String cronExpression, int thresholdToSkipScheduling) {
+    int days = nextRunInDays(cronExpression);
+    return days < thresholdToSkipScheduling;
+  }
+
+  /**
    * Load all {@link FlowSpec}s from {@link FlowCatalog} as one of the initialization step,
    * and make schedulers be aware of that.
    *
@@ -258,7 +306,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    */
   private void scheduleSpecsFromCatalog() {
     int numSpecs = this.flowCatalog.get().getSize();
-    _log.info("Scheduling specs from catalog: {} flows to schedule", numSpecs);
+    int actualNumFlowsScheduled = 0;
+    _log.info("Scheduling specs from catalog: {} flows in the catalog, will skip scheduling flows with next run after "
+        + "{} days", numSpecs, this.thresholdToSkipSchedulingFlowsAfter);
     long startTime = System.nanoTime();
     long totalGetTime = 0;
     long totalAddSpecTime = 0;
@@ -298,13 +348,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
       while (batchOfSpecsIterator.hasNext()) {
         Spec spec = batchOfSpecsIterator.next();
-        try {
-          addSpecHelperMethod(spec);
-          urisLeftToSchedule.remove(spec.getUri());
-          totalAddSpecTime += this.eachCompleteAddSpecValue; // this is updated by each call to onAddSpec
-        } catch (Exception e) {
-          // If there is an uncaught error thrown during compilation, log it and continue adding flows
-          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+        FlowSpec flowSpec = (FlowSpec) spec;
+        String cronExpression = flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY);
+        // Empty string cron expressions should be scheduled by default
+        if (isNextRunWithinRangeToSchedule(cronExpression, this.thresholdToSkipSchedulingFlowsAfter)) {
+          try {
+            addSpecHelperMethod(spec);
+            urisLeftToSchedule.remove(spec.getUri());
+            totalAddSpecTime += this.eachCompleteAddSpecValue; // this is updated by each call to onAddSpec
+            actualNumFlowsScheduled += 1;
+          } catch (Exception e) {
+            // If there is an uncaught error thrown during compilation, log it and continue adding flows
+            _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+          }
         }
       }
       startOffset += this.loadSpecsBatchSize;
@@ -329,6 +385,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           totalGetTime += this.individualGetSpecSpeedValue;
           addSpecHelperMethod(spec);
           totalAddSpecTime += this.eachCompleteAddSpecValue; // this is updated by each call to onAddSpec
+          actualNumFlowsScheduled += 1;
         } catch (Exception e) {
           // If there is an uncaught error thrown during compilation, log it and continue adding flows
           _log.error("Could not schedule spec uri {} from flowCatalog due to ", uri, e);
@@ -338,6 +395,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     this.totalGetSpecTimeValue = totalGetTime;
     this.totalAddSpecTimeValue = totalAddSpecTime;
+    this.numJobsScheduledDuringStartupValue = actualNumFlowsScheduled;
     this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     this.timeToInitializeSchedulerValue = System.nanoTime() - startTime;
   }

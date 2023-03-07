@@ -91,6 +91,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_JOB_RETRIGGERING_ENABLED = "true";
   public static final String LOAD_SPEC_BATCH_SIZE = "load.spec.batch.size";
   public static final int DEFAULT_LOAD_SPEC_BATCH_SIZE = 500;
+  public static final String SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS = "skip.scheduling.flows.after.num.days";
+  public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 100;
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";
