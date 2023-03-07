@@ -23,8 +23,13 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
@@ -43,9 +48,12 @@ import org.testng.annotations.Test;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME;
+import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME;
 import static org.mockito.Mockito.*;
 
 
@@ -54,7 +62,6 @@ import static org.mockito.Mockito.*;
  */
 public class YarnServiceTest {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
-  private TestYarnService yarnService;
   private Config config;
   private YarnConfiguration clusterConf = new YarnConfiguration();
   private final EventBus eventBus = new EventBus("YarnServiceTest");
@@ -88,10 +95,6 @@ public class YarnServiceTest {
         .thenReturn(mockRegisterApplicationMasterResponse);
     when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability())
         .thenReturn(mockResource);
-
-    // Create the test yarn service, but don't start yet
-    this.yarnService = new TestYarnService(this.config, "testApp", "appId",
-        this.clusterConf, mockFs, this.eventBus);
   }
 
   /**
@@ -100,14 +103,50 @@ public class YarnServiceTest {
    */
   @Test(groups = {"gobblin.yarn"})
   public void testYarnStartUpFirst() throws Exception{
+    // Create the test yarn service, but don't start yet
+    YarnService yarnService = new TestYarnService(this.config, "testApp", "appId",
+        this.clusterConf, mockFs, this.eventBus);
+
     // Not allowed to request target number of containers since yarnService hasn't started up yet.
-    Assert.assertFalse(this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
+    Assert.assertFalse(yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
 
     // Start the yarn service
-    this.yarnService.startUp();
+    yarnService.startUp();
 
     // Allowed to request target number of containers after yarnService is started up.
-    Assert.assertTrue(this.yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
+    Assert.assertTrue(yarnService.requestTargetNumberOfContainers(new YarnContainerRequestBundle(), Collections.EMPTY_SET));
+  }
+
+  @Test(groups = {"gobblin.yarn"})
+  public void testYarnContainerStartupCommand() throws Exception{
+    final int resourceMemoryMB = 2048;
+    final int jvmMemoryOverheadMB = 10;
+    final double jvmXmxRatio = 0.8;
+    final int expectedJavaHeapSizeMB = (int)(resourceMemoryMB * jvmXmxRatio) - jvmMemoryOverheadMB;
+
+    final String helixInstance = "helixInstance1";
+    final String helixTag = "helixTag";
+
+    Config modifiedConfig = this.config
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
+    TestYarnService yarnService = new TestYarnService(modifiedConfig, "testApp2", "appId2",
+            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
+
+    ContainerId containerId = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
+        0), 0);
+    Resource resource = Resource.newInstance(resourceMemoryMB, 1);
+    Container container = Container.newInstance(containerId, null, null, resource, null, null);
+    YarnService.ContainerInfo containerInfo =
+        yarnService.new ContainerInfo(container, helixInstance, helixTag);
+
+    String command = containerInfo.getStartupCommand();
+
+    LOG.info(command);
+    Assert.assertTrue(command.contains("-Xmx" + expectedJavaHeapSizeMB +"M"));
+    Assert.assertTrue(command.contains(String.format("--%s %s", HELIX_INSTANCE_NAME_OPTION_NAME, helixInstance)));
+    Assert.assertTrue(command.contains(String.format("--%s %s", HELIX_INSTANCE_TAGS_OPTION_NAME, helixTag)));
+    Assert.assertTrue(command.endsWith("1><LOG_DIR>/GobblinYarnTaskRunner.stdout 2><LOG_DIR>/GobblinYarnTaskRunner.stderr"));
   }
 
   static class TestYarnService extends YarnService {
