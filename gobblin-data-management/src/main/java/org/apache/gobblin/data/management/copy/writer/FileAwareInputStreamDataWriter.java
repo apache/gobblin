@@ -511,9 +511,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
       List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
-      if (group != null || owner != null) {
-        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
-        fs.setOwner(path, owner, group);
+      try {
+        if (group != null || owner != null) {
+          log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
+          fs.setOwner(path, owner, group);
+        }
+      } catch (IOException ioe) {
+        log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
       }
       if (!aclEntries.isEmpty()) {
         fs.setAcl(path, aclEntries);
