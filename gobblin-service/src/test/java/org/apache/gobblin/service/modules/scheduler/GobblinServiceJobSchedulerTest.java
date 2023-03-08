@@ -82,6 +82,20 @@ public class GobblinServiceJobSchedulerTest {
   public void setUp() {
     this.quotaConfig = ConfigFactory.empty().withValue(AbstractUserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1"));
   }
+
+  @Test
+  public void testIsNextRunWithinRangeToSchedule() throws Throwable {
+    int thresholdToSkipScheduling = 100;
+    Assert.assertFalse(GobblinServiceJobScheduler.isNextRunWithinRangeToSchedule("0 0 0 ? 1 1 2050", thresholdToSkipScheduling));
+    Assert.assertFalse(GobblinServiceJobScheduler.isNextRunWithinRangeToSchedule("0 0 0 ? 1 1 2030", thresholdToSkipScheduling));
+    // Schedule at 3:20am every day should pass
+    Assert.assertTrue(GobblinServiceJobScheduler.isNextRunWithinRangeToSchedule("0 20 3 * * ?", thresholdToSkipScheduling));
+    // Schedule every sun, mon 4am should pass
+    Assert.assertTrue(GobblinServiceJobScheduler.isNextRunWithinRangeToSchedule("0 * 4 ? * 1,2", thresholdToSkipScheduling));
+    // For adhoc flows schedule is empty string
+    Assert.assertTrue(GobblinServiceJobScheduler.isNextRunWithinRangeToSchedule("", thresholdToSkipScheduling));
+  }
+
   /**
    * Test whenever JobScheduler is calling setActive, the FlowSpec is loading into scheduledFlowSpecs (eventually)
    */

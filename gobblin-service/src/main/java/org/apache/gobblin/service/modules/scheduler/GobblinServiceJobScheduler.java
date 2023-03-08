@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.scheduler;
 import java.io.IOException;
 import java.net.URI;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -263,14 +262,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
   /**
    * Given a cron expression calculates the time for next run in days from current time, rounding up to the nearest day.
-   * @param cronExpression in format yyyy-MM-dd HH:mm:ss
+   * @param cronExpression
    * @return num days until next run, max integer in the case it cannot be calculated
    */
   public static int nextRunInDays(String cronExpression) {
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
     CronExpression cron = null;
-    Calendar cal = Calendar.getInstance();
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     double numMillisInADay = 86400000;
     try {
       cron = new CronExpression(cronExpression);
@@ -290,7 +287,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /**
    * Returns true if next run for the given cron schedule is sooner than the threshold to skip scheduling after, false
    * otherwise. If the cron expression cannot be parsed and the next run cannot be calculated returns true to schedule.
-   * @param cronExpression in format yyyy-MM-dd HH:mm:ss
+   * @param cronExpression
    * @param thresholdToSkipScheduling represents number of days
    */
   public static boolean isNextRunWithinRangeToSchedule(String cronExpression, int thresholdToSkipScheduling) {
