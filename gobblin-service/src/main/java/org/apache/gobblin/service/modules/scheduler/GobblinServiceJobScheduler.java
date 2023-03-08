@@ -247,16 +247,23 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
-  /** Helps modify spec before adding to scheduler for adhoc flows */
+  /** Check that a spec should be scheduled and if it is, modify the spec of an adhoc flow before adding to scheduler*/
   private void addSpecHelperMethod(Spec spec) {
-    // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-    if (spec instanceof FlowSpec && PropertiesUtils
-        .getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-            "false")) {
-      Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-      onAddSpec(modifiedSpec);
+    // Adhoc flows will not have any job schedule key, but we should schedule them
+    FlowSpec flowSpec = (FlowSpec) spec;
+    if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)
+        || isNextRunWithinRangeToSchedule(flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY),
+        this.thresholdToSkipSchedulingFlowsAfter)) {
+      // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+      if (spec instanceof FlowSpec && PropertiesUtils.getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(),
+          ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+        Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+        onAddSpec(modifiedSpec);
+      } else {
+        onAddSpec(spec);
+      }
     } else {
-      onAddSpec(spec);
+      _log.info("Not scheduling spec {} during startup as next job to schedule is outside of threshold.", spec);
     }
   }
 
@@ -345,20 +352,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
       while (batchOfSpecsIterator.hasNext()) {
         Spec spec = batchOfSpecsIterator.next();
-        FlowSpec flowSpec = (FlowSpec) spec;
-        String cronExpression = flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY);
-        // Empty string cron expressions should be scheduled by default
-        if (isNextRunWithinRangeToSchedule(cronExpression, this.thresholdToSkipSchedulingFlowsAfter)) {
-          try {
-            addSpecHelperMethod(spec);
-            urisLeftToSchedule.remove(spec.getUri());
-            totalAddSpecTime += this.eachCompleteAddSpecValue; // this is updated by each call to onAddSpec
-            actualNumFlowsScheduled += 1;
-          } catch (Exception e) {
-            // If there is an uncaught error thrown during compilation, log it and continue adding flows
-            _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
-          }
+        try {
+          addSpecHelperMethod(spec);
+          totalAddSpecTime += this.eachCompleteAddSpecValue; // this is updated by each call to onAddSpec
+          actualNumFlowsScheduled += 1;
+        } catch (Exception e) {
+          // If there is an uncaught error thrown during compilation, log it and continue adding flows
+          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
         }
+        urisLeftToSchedule.remove(spec.getUri());
       }
       startOffset += this.loadSpecsBatchSize;
       totalGetTime += batchGetEndTime - batchGetStartTime;
