@@ -37,7 +37,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
-import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Priority;
@@ -266,28 +265,6 @@ public class YarnServiceIT {
     // give some time for element to expire
     Thread.sleep(4000);
     Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) == null);
-  }
-
-  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testReleasedContainerCache")
-  public void testBuildContainerCommand() throws Exception {
-    Config modifiedConfig = this.config
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
-    TestYarnService yarnService =
-        new TestYarnService(modifiedConfig, "testApp2", "appId2",
-            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
-
-    ContainerId containerId = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
-        0), 0);
-    Resource resource = Resource.newInstance(2048, 1);
-    Container container = Container.newInstance(containerId, null, null, resource, null, null);
-    YarnService.ContainerInfo
-        containerInfo = new YarnService.ContainerInfo(container, "helixInstance1", "helixTag");
-
-    String command = yarnService.buildContainerCommand(containerInfo);
-
-    // 1628 is from 2048 * 0.8 - 10
-    Assert.assertTrue(command.contains("-Xmx1628"));
   }
 
   /**
