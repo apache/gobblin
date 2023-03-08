@@ -36,11 +36,15 @@ import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
+  public static final String GET_DAG_ACTION_MAX_RETRIES = "get.dagAction.max.retries";
+  public static final int DEFAULT_GET_DAG_ACTION_MAX_RETRIES = 3;
+  private static final long GET_DAG_ACTION_INITIAL_WAIT_AFTER_FAILURE = 1000L;
 
 
   protected final DataSource dataSource;
@@ -58,6 +62,8 @@ public class MysqlDagActionStore implements DagActionStore {
       + "dag_action varchar(100) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id))";
 
+  private final int getDagActionMaxRetries;
+
   @Inject
   public MysqlDagActionStore(Config config) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -67,9 +73,10 @@ public class MysqlDagActionStore implements DagActionStore {
     }
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
+    this.getDagActionMaxRetries = ConfigUtils.getInt(config, GET_DAG_ACTION_MAX_RETRIES, DEFAULT_GET_DAG_ACTION_MAX_RETRIES);
 
     this.dataSource = MysqlDataSourceFactory.get(config,
-        SharedResourcesBrokerFactory.getImplicitBroker());;
+        SharedResourcesBrokerFactory.getImplicitBroker());
     try (Connection connection = dataSource.getConnection();
         PreparedStatement createStatement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, tableName))) {
       createStatement.executeUpdate();
@@ -136,8 +143,7 @@ public class MysqlDagActionStore implements DagActionStore {
     }
   }
 
-  @Override
-  public DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId)
+  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, ExponentialBackoff exponentialBackoff)
       throws IOException, SQLException {
     ResultSet rs = null;
     try (Connection connection = this.dataSource.getConnection();
@@ -149,9 +155,14 @@ public class MysqlDagActionStore implements DagActionStore {
       rs = getStatement.executeQuery();
       if (rs.next()) {
         return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), DagActionValue.valueOf(rs.getString(4)));
+      } else {
+        if (exponentialBackoff.awaitNextRetryIfAvailable()) {
+          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, exponentialBackoff);
+        } else {
+          return null;
+        }
       }
-      return null;
-    } catch (SQLException e) {
+    } catch (SQLException | InterruptedException e) {
       throw new IOException(String.format("Failure get dag action from table %s of flow with flow group:%s, flow name:%s and flow execution id:%s",
           tableName, flowGroup, flowName, flowExecutionId), e);
     } finally {
@@ -159,6 +170,14 @@ public class MysqlDagActionStore implements DagActionStore {
         rs.close();
       }
     }
+
+  }
+
+  @Override
+  public DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId)
+      throws IOException, SQLException {
+    ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().initialDelay(GET_DAG_ACTION_INITIAL_WAIT_AFTER_FAILURE).maxRetries(this.getDagActionMaxRetries).build();
+    return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, exponentialBackoff);
   }
 
   @Override
