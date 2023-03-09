@@ -113,7 +113,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   protected final Map<String, Long> lastUpdatedTimeForFlowSpec;
   protected volatile int loadSpecsBatchSize = -1;
-  protected int thresholdToSkipSchedulingFlowsAfter;
+  protected int skipSchedulingFlowsAfterNumDays;
   @Getter
   private volatile boolean isActive;
   private String serviceName;
@@ -127,7 +127,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private volatile Long totalGetSpecTimeValue = -1L;
   private volatile Long totalAddSpecTimeValue = -1L;
   private volatile int numJobsScheduledDuringStartupValue = -1;
-  private final ContextAwareGauge getSpecsPerSpecRateNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS, () -> this.perSpecGetRateValue);;
+  private final ContextAwareGauge getSpecsPerSpecRateNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS, () -> this.perSpecGetRateValue);
   private final ContextAwareGauge batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
   private final ContextAwareGauge timeToInitalizeSchedulerNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_NANOS, () -> this.timeToInitializeSchedulerValue);
   private final ContextAwareGauge timeToObtainSpecUrisNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_NANOS, () -> timeToObtainSpecUrisValue);
@@ -174,7 +174,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
     this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
-    this.thresholdToSkipSchedulingFlowsAfter = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
+    this.skipSchedulingFlowsAfterNumDays = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
@@ -250,56 +250,45 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** Check that a spec should be scheduled and if it is, modify the spec of an adhoc flow before adding to scheduler*/
   private void addSpecHelperMethod(Spec spec) {
     // Adhoc flows will not have any job schedule key, but we should schedule them
-    FlowSpec flowSpec = (FlowSpec) spec;
-    if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)
-        || isNextRunWithinRangeToSchedule(flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY),
-        this.thresholdToSkipSchedulingFlowsAfter)) {
-      // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
-      if (spec instanceof FlowSpec && PropertiesUtils.getPropAsBoolean(((FlowSpec) spec).getConfigAsProperties(),
-          ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-        Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-        onAddSpec(modifiedSpec);
-      } else {
-        onAddSpec(spec);
+    if (spec instanceof FlowSpec) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY) || isWithinRange(
+          flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY), this.skipSchedulingFlowsAfterNumDays)) {
+        // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change if the property is set to true
+        if (PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+          Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+          onAddSpec(modifiedSpec);
+        } else {
+          onAddSpec(spec);
+        }
       }
-    } else {
-      _log.info("Not scheduling spec {} during startup as next job to schedule is outside of threshold.", spec);
+    }else {
+      _log.debug("Not scheduling spec {} during startup as next job to schedule is outside of threshold.", spec);
     }
-  }
-
-  /**
-   * Given a cron expression calculates the time for next run in days from current time, rounding up to the nearest day.
-   * @param cronExpression
-   * @return num days until next run, max integer in the case it cannot be calculated
-   */
-  public static int nextRunInDays(String cronExpression) {
-    CronExpression cron = null;
-    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
-    double numMillisInADay = 86400000;
-    try {
-      cron = new CronExpression(cronExpression);
-      cron.setTimeZone(TimeZone.getTimeZone("UTC"));
-      Date now = new Date();
-      Date nextValidTimeAfter = cron.getNextValidTimeAfter(now);
-      cal.setTime(nextValidTimeAfter);
-      long diff = cal.getTimeInMillis() - System.currentTimeMillis();
-      double diffInDays = diff / numMillisInADay;
-      return (int) Math.round(diffInDays);
-    } catch (ParseException e) {
-      e.printStackTrace();
-    }
-    return -1;
   }
 
   /**
    * Returns true if next run for the given cron schedule is sooner than the threshold to skip scheduling after, false
    * otherwise. If the cron expression cannot be parsed and the next run cannot be calculated returns true to schedule.
    * @param cronExpression
-   * @param thresholdToSkipScheduling represents number of days
+   * @return num days until next run, max integer in the case it cannot be calculated
    */
-  public static boolean isNextRunWithinRangeToSchedule(String cronExpression, int thresholdToSkipScheduling) {
-    int days = nextRunInDays(cronExpression);
-    return days < thresholdToSkipScheduling;
+  @VisibleForTesting
+  public static boolean isWithinRange(String cronExpression, int maxNumDaysToScheduleWithin) {
+    CronExpression cron = null;
+    Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+    double numMillisInADay = 86400000;
+    try {
+      cron = new CronExpression(cronExpression);
+      cron.setTimeZone(TimeZone.getTimeZone("UTC"));
+      Date nextValidTimeAfter = cron.getNextValidTimeAfter(new Date());
+      cal.setTime(nextValidTimeAfter);
+      long diff = cal.getTimeInMillis() - System.currentTimeMillis();
+      return (int) Math.round(diff / numMillisInADay) < maxNumDaysToScheduleWithin;
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    return true;
   }
 
   /**
@@ -309,11 +298,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    // TODO: clean up metrics after bottleneck is determined for startup to only keep most important ones
     int numSpecs = this.flowCatalog.get().getSize();
     int actualNumFlowsScheduled = 0;
     _log.info("Scheduling specs from catalog: {} flows in the catalog, will skip scheduling flows with next run after "
-        + "{} days", numSpecs, this.thresholdToSkipSchedulingFlowsAfter);
+        + "{} days", numSpecs, this.skipSchedulingFlowsAfterNumDays);
     long startTime = System.nanoTime();
     long totalGetTime = 0;
     long totalAddSpecTime = 0;
@@ -366,12 +354,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       startOffset += this.loadSpecsBatchSize;
       totalGetTime += batchGetEndTime - batchGetStartTime;
       // Don't skew the average get spec time value with the last batch that may be very small
-      if (batchOfSpecs.size() == this.loadSpecsBatchSize) {
+      if (startOffset == 0 || batchOfSpecs.size() >=  Math.round(0.75 * this.loadSpecsBatchSize)) {
         perSpecGetRateValue = (batchGetEndTime - batchGetStartTime) / batchOfSpecs.size();
       }
     }
-    // Reset value after its last value to get an accurate reading
-    perSpecGetRateValue = -1L;
 
     // Ensure we did not miss any specs due to ordering changing (deletions/insertions) while loading
     Iterator<URI> urisLeft = urisLeftToSchedule.iterator();
@@ -391,6 +377,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           _log.error("Could not schedule spec uri {} from flowCatalog due to ", uri, e);
         }
     }
+    // Reset value after its last value to get an accurate reading
+    this.perSpecGetRateValue = -1L;
     this.individualGetSpecSpeedValue = -1L;
 
     this.totalGetSpecTimeValue = totalGetTime;
