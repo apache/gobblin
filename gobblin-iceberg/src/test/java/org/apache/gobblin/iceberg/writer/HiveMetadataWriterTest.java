@@ -46,8 +46,8 @@ import org.apache.iceberg.hive.TestHiveMetastore;
 import org.apache.thrift.TException;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
@@ -118,14 +118,14 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
   IMetaStoreClient client;
   private static TestHiveMetastore testHiveMetastore;
 
-  @AfterClass
+  @AfterSuite
   public void clean() throws Exception {
-    //Finally stop the metaStore
-    stopMetastore();
     gobblinMCEWriter.close();
     FileUtils.forceDeleteOnExit(tmpDir);
+    //Finally stop the metaStore
+    stopMetastore();
   }
-  @BeforeClass
+  @BeforeSuite
   public void setUp() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
     startMetastore();
