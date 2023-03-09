@@ -309,6 +309,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
+    // TODO: clean up metrics after bottleneck is determined for startup to only keep most important ones
     int numSpecs = this.flowCatalog.get().getSize();
     int actualNumFlowsScheduled = 0;
     _log.info("Scheduling specs from catalog: {} flows in the catalog, will skip scheduling flows with next run after "
