@@ -123,7 +123,7 @@ public class FlowCatalogTest {
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
     if (!isAdhoc) {
-      properties.put("job.schedule", "0 0 0 ? * * 2050");
+      properties.put("job.schedule", "0 2 3 ? * 2-6");
     }
     Config defaults = ConfigUtils.propertiesToConfig(properties);
     Config config = additionalConfigs.withFallback(defaults);
