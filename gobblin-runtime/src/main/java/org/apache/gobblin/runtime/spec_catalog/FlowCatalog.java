@@ -30,6 +30,7 @@ import java.util.Properties;
 
 import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.util.ExponentialBackoff;
 import org.slf4j.Logger;
@@ -83,8 +84,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
   public static final String FLOWSPEC_SERDE_CLASS_KEY = "flowSpec.serde.class";
   public static final String DEFAULT_FLOWSPEC_SERDE_CLASS = JavaSpecSerDe.class.getCanonicalName();
-  public static final String FLOWCATALOG_GET_SPEC_MAX_RETRIES = "flowCatalog.get.spec.max.retries";
-  public static final int DEFAULT_FLOWCATALOG_GET_SPEC_MAX_RETRIES = 3;
   private static final long FLOWCATALOG_GET_SPEC_INITIAL_WAIT_AFTER_FAILURE = 1000L;
 
   protected final SpecCatalogListenersList listeners;
@@ -132,7 +131,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.isWarmStandbyEnabled = isWarmStandbyEnabled;
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
-    this.maxRetriesWhenGetSpec = ConfigUtils.getInt(config, FLOWCATALOG_GET_SPEC_MAX_RETRIES, DEFAULT_FLOWCATALOG_GET_SPEC_MAX_RETRIES);
+    this.maxRetriesWhenGetSpec = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
 
     try {
       Config newConfig = config;

@@ -30,6 +30,7 @@ import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
@@ -38,12 +39,10 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExponentialBackoff;
 
-
+@Slf4j
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
-  public static final String GET_DAG_ACTION_MAX_RETRIES = "get.dagAction.max.retries";
-  public static final int DEFAULT_GET_DAG_ACTION_MAX_RETRIES = 3;
   private static final long GET_DAG_ACTION_INITIAL_WAIT_AFTER_FAILURE = 1000L;
 
 
@@ -73,7 +72,7 @@ public class MysqlDagActionStore implements DagActionStore {
     }
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-    this.getDagActionMaxRetries = ConfigUtils.getInt(config, GET_DAG_ACTION_MAX_RETRIES, DEFAULT_GET_DAG_ACTION_MAX_RETRIES);
+    this.getDagActionMaxRetries = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
 
     this.dataSource = MysqlDataSourceFactory.get(config,
         SharedResourcesBrokerFactory.getImplicitBroker());
@@ -159,6 +158,7 @@ public class MysqlDagActionStore implements DagActionStore {
         if (exponentialBackoff.awaitNextRetryIfAvailable()) {
           return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, exponentialBackoff);
         } else {
+          log.warn(String.format("Can not find dag action with flowGroup: %s, flowName: %s, flowExecutionId: %s",flowGroup, flowName, flowExecutionId));
           return null;
         }
       }
