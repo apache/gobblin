@@ -17,14 +17,17 @@
 
 package org.apache.gobblin.iceberg.predicates;
 
-import com.google.common.base.Optional;
-import gobblin.configuration.State;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.google.common.base.Optional;
+
+import gobblin.configuration.State;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveTable;
@@ -37,8 +40,8 @@ import org.apache.gobblin.util.function.CheckedExceptionPredicate;
  */
 @Slf4j
 public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implements CheckedExceptionPredicate<T, IOException> {
-  private HiveRegister hiveRegister;
-  private Pattern pattern;
+  private final HiveRegister hiveRegister;
+  private final Pattern pattern;
 
   public static final String PREFIX = DatasetHiveSchemaContainsNonOptionalUnion.class.getName();
   /**

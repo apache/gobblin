@@ -17,19 +17,23 @@
 
 package org.apache.gobblin.data.management.dataset;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.function.CheckedExceptionPredicate;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -65,7 +69,7 @@ public class DatasetsFinderFilteringDecorator<T extends Dataset> implements Data
   @Override
   public List<T> findDatasets() throws IOException {
     List<T> datasets = datasetFinder.findDatasets();
-    List<T> allowedDatasets = null;
+    List<T> allowedDatasets = Collections.emptyList();
     try {
       allowedDatasets = datasets.parallelStream()
           .filter(dataset -> allowDatasetPredicates.stream()
@@ -93,7 +97,7 @@ public class DatasetsFinderFilteringDecorator<T extends Dataset> implements Data
     try {
       for (String className : PropertiesUtils.getPropAsList(props, key)) {
         predicates.add((CheckedExceptionPredicate<T, IOException>)
-            GobblinConstructorUtils.invokeLongestConstructor(Class.forName(className), props));
+            ConstructorUtils.invokeConstructor(Class.forName(className), props));
       }
 
       return predicates;
