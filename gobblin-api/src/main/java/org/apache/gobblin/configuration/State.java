@@ -21,6 +21,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -62,16 +63,21 @@ public class State implements WritableShim {
   @Getter
   private Properties specProperties;
 
+  // This in-mem state will be used to share partition completion information across different MetadataWriter impls
+  public Map<String, Set<String>> tableToCompletedPartitions;
+
   private final JsonParser jsonParser = new JsonParser();
 
   public State() {
     this.specProperties = new Properties();
     this.commonProperties = new Properties();
+    this.tableToCompletedPartitions = Maps.newHashMap();
   }
 
   public State(Properties properties) {
     this.specProperties = properties;
     this.commonProperties = new Properties();
+    this.tableToCompletedPartitions = Maps.newHashMap();
   }
 
   public State(State otherState) {
@@ -83,6 +89,7 @@ public class State implements WritableShim {
         this.specProperties.remove(key);
       }
     }
+    this.tableToCompletedPartitions = Maps.newHashMap();
   }
 
   /**

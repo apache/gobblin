@@ -65,3 +65,9 @@ configurations {
 }
 
 ext.classification="library"
+
+test {
+    filter {
+        includeTestsMatching "org.apache.gobblin.iceberg.writer.*"
+    }
+}
