@@ -80,6 +80,8 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
+  public static final String MYSQL_GET_MAX_RETRIES = "mysql.get.max.retries";
+  public static final int DEFAULT_MYSQL_GET_MAX_RETRIES = 3;
 
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 

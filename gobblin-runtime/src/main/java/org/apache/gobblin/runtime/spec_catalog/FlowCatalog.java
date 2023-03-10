@@ -30,7 +30,9 @@ import java.util.Properties;
 
 import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.util.ExponentialBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,12 +84,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
   public static final String FLOWSPEC_SERDE_CLASS_KEY = "flowSpec.serde.class";
   public static final String DEFAULT_FLOWSPEC_SERDE_CLASS = JavaSpecSerDe.class.getCanonicalName();
+  private static final long FLOWCATALOG_GET_SPEC_INITIAL_WAIT_AFTER_FAILURE = 1000L;
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
   protected final boolean isWarmStandbyEnabled;
+  protected final int maxRetriesWhenGetSpec;
   @Getter
   protected final SpecStore specStore;
   // a map which keeps a handle of condition variables for each spec being added to the flow catalog
@@ -127,6 +131,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.isWarmStandbyEnabled = isWarmStandbyEnabled;
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+    this.maxRetriesWhenGetSpec = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
 
     try {
       Config newConfig = config;
@@ -340,11 +345,27 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    */
   public Spec getSpecWrapper(URI uri) {
     Spec spec = null;
+    ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().maxRetries(this.maxRetriesWhenGetSpec).initialDelay(
+        FLOWCATALOG_GET_SPEC_INITIAL_WAIT_AFTER_FAILURE).build();
+    try {
+      spec = getSpecHelper(uri, exponentialBackoff);
+    } catch (InterruptedException e) {
+      log.error(String.format("Failed to get %s in SpecStore", uri), e);
+    }
+    return spec;
+  }
+
+  private Spec getSpecHelper(URI uri, ExponentialBackoff exponentialBackoff)
+      throws InterruptedException {
+    Spec spec= null;
     try {
       spec = getSpecs(uri);
     } catch (SpecNotFoundException snfe) {
-      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog"
-          + ", suspecting current modification on SpecStore", uri), snfe);
+      if (exponentialBackoff.awaitNextRetryIfAvailable()) {
+        return getSpecHelper(uri, exponentialBackoff);
+      } else {
+        log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog" + ", suspecting current modification on SpecStore", uri), snfe);
+      }
     }
     return spec;
   }
