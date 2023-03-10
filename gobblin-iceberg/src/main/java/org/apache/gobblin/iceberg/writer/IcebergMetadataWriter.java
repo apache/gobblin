@@ -23,18 +23,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -954,8 +943,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
                   auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
             completionWatermark = timestampMillis;
             // Also persist this into State object to share this with other MetadataWriters
-            this.state.tableToCompletedPartitions.putIfAbsent(tableName, Sets.newHashSet());
-            this.state.tableToCompletedPartitions.get(tableName).add(timestampDT.format(HOURLY_DATEPARTITION_FORMAT));
+            // we enforce ourselves to always use lower-cased table name here
+            String tableNameLowerCased = tableName.toLowerCase(Locale.ROOT);
+            this.state.tableToCompletedPartitions.putIfAbsent(tableNameLowerCased, Sets.newHashSet());
+            this.state.tableToCompletedPartitions.get(tableNameLowerCased).add(timestampDT.format(HOURLY_DATEPARTITION_FORMAT));
             break;
           }
         } else {
