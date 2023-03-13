@@ -46,16 +46,20 @@ import org.apache.hadoop.fs.Path;
 public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
+  private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
+  private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem fs;
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
+  private final String commonFilesParent;
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
     this.manifestPath = manifestPath;
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
+    this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
   }
 
   @Override
@@ -87,14 +91,14 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         if (this.fs.exists(fileToCopy)) {
           boolean existOnTarget = targetFs.exists(fileToCopy);
           FileStatus srcFile = this.fs.getFileStatus(fileToCopy);
-          if (!existOnTarget || shouldCopy(this.fs, srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
+          if (!existOnTarget || shouldCopy(this.fs, targetFs, srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
             CopyableFile copyableFile =
                 CopyableFile.fromOriginAndDestination(this.fs, srcFile, fileToCopy, configuration)
                     .fileSet(datasetURN())
                     .datasetOutputPath(fileToCopy.toString())
                     .ancestorsOwnerAndPermission(CopyableFile
                         .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, fileToCopy.getParent(),
-                            new Path("/"), configuration))
+                            new Path(this.commonFilesParent), configuration))
                     .build();
             copyableFile.setFsDatasets(this.fs, targetFs);
             copyEntities.add(copyableFile);
@@ -130,12 +134,12 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean shouldCopy(FileSystem srcFs, FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration)
+  private static boolean shouldCopy(FileSystem srcFs, FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration)
       throws IOException {
     if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
       // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
       OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, fileInSource, copyConfiguration);
-      return !replicatedPermission.hasSameOwnerAndPermission(fileInTarget);
+      return !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
     }
     return fileInSource.getModificationTime() > fileInTarget.getModificationTime();
   }
