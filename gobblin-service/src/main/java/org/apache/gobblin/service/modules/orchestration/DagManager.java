@@ -687,7 +687,6 @@ public class DagManager extends AbstractIdleService {
         Future future = dagNodeToCancel.getValue().getJobFuture().get();
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
-        sendCancellationEvent(dagNodeToCancel.getValue());
       }
       if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
         props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
@@ -773,7 +772,7 @@ public class DagManager extends AbstractIdleService {
 
           boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
 
-          ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
+          ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus, node);
 
           JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
@@ -806,7 +805,7 @@ public class DagManager extends AbstractIdleService {
 
           if (jobStatus != null && jobStatus.isShouldRetry()) {
             log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
-                jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+                node.getValue().getCurrentAttempts(), node.getValue().getMaxAttempts());
             this.jobToDag.get(node).setFlowEvent(null);
             submitJob(node);
           }
@@ -864,16 +863,28 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, JobStatus jobStatus) {
+    /**
+     * Return the job execution status based on the job status and SLA status.
+     * Sends the cancellation event if the job is cancelled and exceeds its max attempts.
+     * @param slaKilled
+     * @param killOrphanFlow
+     * @param jobStatus
+     * @param dagNode
+     * @return
+     */
+    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, JobStatus jobStatus, DagNode<JobExecutionPlan> dagNode) {
       if (slaKilled || killOrphanFlow) {
-        return CANCELLED;
-      } else {
-        if (jobStatus == null) {
-          return PENDING;
-        } else {
-          return valueOf(jobStatus.getEventName());
+        if (dagNode.getValue().getCurrentAttempts() < dagNode.getValue().getMaxAttempts()) {
+          jobStatus.setShouldRetry(true);
+          return PENDING_RETRY;
         }
+        sendCancellationEvent(dagNode.getValue());
+        return CANCELLED;
       }
+      if (jobStatus == null) {
+        return PENDING;
+      }
+      return valueOf(jobStatus.getEventName());
     }
 
     /**

@@ -19,7 +19,10 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +53,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
@@ -262,6 +266,25 @@ public class DagManagerFlowTest {
         assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
   }
 
+  @Test
+  void slaConfigCheck() throws Exception {
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
+
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("8"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+  }
+
   @Test()
   void testOrphanFlowKill() throws Exception {
     Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
@@ -301,23 +324,53 @@ public class DagManagerFlowTest {
         assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
   }
 
-  @Test
-  void slaConfigCheck() throws Exception {
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+  @Test()
+  void testOrphanFlowKillWithRetries() throws Exception {
+    Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
+    Config retryConfig = ConfigBuilder.create().addPrimitive(JobExecutionPlan.JOB_MAX_ATTEMPTS, 3).build();
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("7", flowExecutionId, "FINISH_RUNNING", 1, "testUser",
+        retryConfig);
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
+    int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
+    // change config to set a small sla
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+        .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME, ConfigValueFactory.fromAnyRef("3"))
+        .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
 
-    jobConfig = jobConfig
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("8"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
-    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+    // mock add spec
+    dagManager.addDag(dag, true, true);
+
+    // check existence of dag in dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
+
+    List<Iterator<JobStatus>> jobStatuses = new ArrayList<>();
+    for (int i = 0; i < 4; i++) {
+      jobStatuses.add(DagManagerTest.getMockJobStatus("flow7", "group7", flowExecutionId,
+          "group7", "job0", String.valueOf(ExecutionStatus.ORCHESTRATED)));
+    }
+
+    Mockito.when(dagManager.getJobStatusRetriever().getJobStatusesForFlowExecution("flow7", "group7",
+        flowExecutionId, "job0", "group7"))
+        .thenReturn(jobStatuses.get(0))
+        .thenReturn(jobStatuses.get(1))
+        .thenReturn(jobStatuses.get(2));
+
+    // check existence of dag in dagToJobs map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
+
+    // Validate that the job is retried 3 times
+    AssertWithBackoff.create().maxSleepMs(10000).backoffFactor(1).
+        assertEquals(input -> dag.getStartNodes().get(0).getValue().getCurrentAttempts(), 3, ERROR_MESSAGE);
+
+    // check removal of dag from dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(10000).backoffFactor(1).
+        assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
   }
 }
 
