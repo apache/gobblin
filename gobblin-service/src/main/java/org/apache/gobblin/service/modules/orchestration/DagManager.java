@@ -760,7 +760,7 @@ public class DagManager extends AbstractIdleService {
     /**
      * Proceed the execution of each dag node based on job status.
      */
-    private void pollAndAdvanceDag() throws IOException, ExecutionException, InterruptedException {
+    private void pollAndAdvanceDag() {
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
@@ -809,7 +809,7 @@ public class DagManager extends AbstractIdleService {
             this.jobToDag.get(node).setFlowEvent(null);
             submitJob(node);
           }
-        } catch (Exception e) {
+        } catch (ExecutionException | IOException | InterruptedException | RuntimeException e) {
           // Error occurred while processing dag, continue processing other dags assigned to this thread
           log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
               DagManagerUtils.getFullyQualifiedDagName(node)), e);
