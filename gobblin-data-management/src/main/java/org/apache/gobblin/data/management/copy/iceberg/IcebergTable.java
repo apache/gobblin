@@ -26,10 +26,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
@@ -43,6 +39,10 @@ import org.apache.iceberg.io.FileIO;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -193,5 +193,10 @@ public class IcebergTable {
     );
     descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     return descriptor;
+  }
+  /** Registers {@link IcebergTable} after publishing data.
+   * @param dstMetadata is null if target {@link IcebergTable} is absent */
+  protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
+    this.tableOps.commit(srcMetadata, dstMetadata);
   }
 }

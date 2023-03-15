@@ -123,7 +123,7 @@ ext.externalDependency = [
     "guiceMultibindings": "com.google.inject.extensions:guice-multibindings:4.0",
     "guiceServlet": "com.google.inject.extensions:guice-servlet:4.0",
     "derby": "org.apache.derby:derby:10.12.1.1",
-    "mockito": "org.mockito:mockito-core:4.11.0",
+    "mockito": "org.mockito:mockito-inline:4.11.0",
     "salesforceWsc": "com.force.api:force-wsc:" + salesforceVersion,
     "salesforcePartner": "com.force.api:force-partner-api:" + salesforceVersion,
     "scala": "org.scala-lang:scala-library:2.11.8",

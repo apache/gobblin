@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -61,8 +62,10 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mockConstruction;
 
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.IcebergDataset} */
@@ -98,6 +101,10 @@ public class IcebergDatasetTest {
       new MockIcebergTable.SnapshotPaths(Optional.empty(), MANIFEST_LIST_PATH_1, Arrays.asList(
           new IcebergSnapshotInfo.ManifestFileInfo(MANIFEST_PATH_1,
               Arrays.asList(MANIFEST_DATA_PATH_1A, MANIFEST_DATA_PATH_1B))));
+  private static final MockIcebergTable.SnapshotPaths SNAPSHOT_PATHS_2 =
+      new MockIcebergTable.SnapshotPaths(Optional.empty(), Strings.EMPTY, Arrays.asList(
+          new IcebergSnapshotInfo.ManifestFileInfo(Strings.EMPTY,
+              Arrays.asList(Strings.EMPTY))));
 
   private final String testDbName = "test_db_name";
   private final String testTblName = "test_tbl_name";
@@ -188,12 +195,11 @@ public class IcebergDatasetTest {
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, null, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destFsBuilder.build();
     Mockito.doThrow(new IOException("Ha - not so fast!")).when(destFs).getFileStatus(new Path(SNAPSHOT_PATHS_0.manifestListPath));
-
     CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
     icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration);
   }
@@ -228,8 +234,9 @@ public class IcebergDatasetTest {
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergTable targetTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_2));
     IcebergDataset icebergDataset =
-        new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+        new TrickIcebergDataset(testDbName, testTblName, icebergTable, targetTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -237,6 +244,9 @@ public class IcebergDatasetTest {
     CopyConfiguration copyConfiguration =
         CopyConfiguration.builder(destFs, copyConfigProperties).preserve(PreserveAttributes.fromMnemonicString(""))
             .copyContext(new CopyContext()).build();
+   try (MockedConstruction<PostPublishStep> mockedPostPublishStep = mockConstruction(PostPublishStep.class)) {
+     PostPublishStep step = new PostPublishStep(icebergDataset.getFileSetId(), Maps.newHashMap(), new IcebergRegisterStep(icebergTable, targetTable), 0);
+   }
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
     verifyCopyEntities(copyEntities, expectedPaths);
   }
@@ -253,8 +263,9 @@ public class IcebergDatasetTest {
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
+    IcebergTable targetTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_2));
     IcebergDataset icebergDataset =
-        new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+        new TrickIcebergDataset(testDbName, testTblName, icebergTable, targetTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -262,6 +273,9 @@ public class IcebergDatasetTest {
     CopyConfiguration copyConfiguration =
         CopyConfiguration.builder(destFs, copyConfigProperties).preserve(PreserveAttributes.fromMnemonicString(""))
             .copyContext(new CopyContext()).build();
+    try (MockedConstruction<PostPublishStep> mockedPostPublishStep = mockConstruction(PostPublishStep.class)) {
+      PostPublishStep step = new PostPublishStep(icebergDataset.getFileSetId(), Maps.newHashMap(), new IcebergRegisterStep(icebergTable, targetTable), 0);
+    }
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
     verifyCopyEntities(copyEntities, expectedPaths);
   }
@@ -283,7 +297,8 @@ public class IcebergDatasetTest {
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
-    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+    IcebergTable targetTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_2));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, targetTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -293,7 +308,9 @@ public class IcebergDatasetTest {
             // preserving attributes for owner, group and permissions respectively
             .preserve(PreserveAttributes.fromMnemonicString("ugp"))
             .copyContext(new CopyContext()).build();
-
+    try (MockedConstruction<PostPublishStep> mockedPostPublishStep = mockConstruction(PostPublishStep.class)) {
+      PostPublishStep step = new PostPublishStep(icebergDataset.getFileSetId(), Maps.newHashMap(), new IcebergRegisterStep(icebergTable, targetTable), 0);
+    }
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
     verifyFsOwnershipAndPermissionPreservation(copyEntities, sourceBuilder.getPathsAndFileStatuses());
   }
@@ -311,7 +328,8 @@ public class IcebergDatasetTest {
     FileSystem sourceFs = sourceBuilder.build();
 
     IcebergTable icebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
-    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+    IcebergTable targetTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_2));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, icebergTable, targetTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -321,7 +339,9 @@ public class IcebergDatasetTest {
             // without preserving attributes for owner, group and permissions
             .preserve(PreserveAttributes.fromMnemonicString(""))
             .copyContext(new CopyContext()).build();
-
+    try (MockedConstruction<PostPublishStep> mockedPostPublishStep = mockConstruction(PostPublishStep.class)) {
+      PostPublishStep step = new PostPublishStep(icebergDataset.getFileSetId(), Maps.newHashMap(), new IcebergRegisterStep(icebergTable, targetTable), 0);
+    }
     Collection<CopyEntity> copyEntities = icebergDataset.generateCopyEntities(destFs, copyConfiguration);
     verifyFsOwnershipAndPermissionPreservation(copyEntities, expectedPathsAndFileStatuses);
   }
@@ -348,7 +368,7 @@ public class IcebergDatasetTest {
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
     IcebergDataset icebergDataset =
-        new IcebergDataset(testDbName, testTblName, icebergTable, new Properties(), sourceFs);
+        new IcebergDataset(testDbName, testTblName, icebergTable, null, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     destFsBuilder.addPaths(existingDestPaths);
@@ -382,23 +402,36 @@ public class IcebergDatasetTest {
     List<String> actual = new ArrayList<>();
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
-      String filepath = CopyEntityDeserializer.getFilePathAsStringFromJson(json);
-      actual.add(filepath);
+      if (isCopyableFile(json)) {
+        String filepath = CopyEntityDeserializer.getFilePathAsStringFromJson(json);
+        actual.add(filepath);
+      }
     }
     Assert.assertEquals(actual.size(), expected.size(), "Set" + actual.toString() + " vs Set" + expected.toString());
     Assert.assertEqualsNoOrder(actual.toArray(), expected.toArray());
   }
 
+  private static boolean isCopyableFile(String json) {
+    String objectType = new Gson().fromJson(json, JsonObject.class)
+        .getAsJsonPrimitive("object-type")
+        .getAsString();
+    return objectType.equals("org.apache.gobblin.data.management.copy.CopyableFile");
+  }
+
   private static void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities, Map<Path, FileStatus> expectedPathsAndFileStatuses) {
     for (CopyEntity copyEntity : copyEntities) {
       String copyEntityJson = copyEntity.toString();
-      List<CopyEntityDeserializer.FileOwnerAndPermissions> ancestorFileOwnerAndPermissionsList = CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
-      CopyEntityDeserializer.FileOwnerAndPermissions destinationFileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
-      Path filePath = new Path(CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson));
-      FileStatus fileStatus = expectedPathsAndFileStatuses.get(filePath);
-      verifyFileStatus(destinationFileOwnerAndPermissions, fileStatus);
-      // providing path's parent to verify ancestor owner and permissions
-      verifyAncestorPermissions(ancestorFileOwnerAndPermissionsList, filePath.getParent(), expectedPathsAndFileStatuses);
+      if (isCopyableFile(copyEntityJson)) {
+        List<CopyEntityDeserializer.FileOwnerAndPermissions> ancestorFileOwnerAndPermissionsList =
+            CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
+        CopyEntityDeserializer.FileOwnerAndPermissions destinationFileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
+        Path filePath = new Path(CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson));
+        FileStatus fileStatus = expectedPathsAndFileStatuses.get(filePath);
+        verifyFileStatus(destinationFileOwnerAndPermissions, fileStatus);
+        // providing path's parent to verify ancestor owner and permissions
+        verifyAncestorPermissions(ancestorFileOwnerAndPermissionsList, filePath.getParent(),
+            expectedPathsAndFileStatuses);
+      }
     }
   }
 
@@ -424,9 +457,9 @@ public class IcebergDatasetTest {
    *  Without this, so to lose the mock, we'd be unable to set up any source paths as existing.
    */
   protected static class TrickIcebergDataset extends IcebergDataset {
-    public TrickIcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties,
+    public TrickIcebergDataset(String db, String table, IcebergTable icebergTbl, IcebergTable targetIcebergTbl, Properties properties,
         FileSystem sourceFs) {
-      super(db, table, icebergTbl, properties, sourceFs);
+      super(db, table, icebergTbl, targetIcebergTbl, properties, sourceFs);
     }
 
     @Override // as the `static` is not mock-able
@@ -578,7 +611,8 @@ public class IcebergDatasetTest {
 
     public static String getFilePathAsStringFromJson(String json) {
       String filepath = new Gson().fromJson(json, JsonObject.class)
-              .getAsJsonObject("object-data").getAsJsonObject("origin")
+              .getAsJsonObject("object-data")
+              .getAsJsonObject("origin")
               .getAsJsonObject("object-data").getAsJsonObject("path").getAsJsonObject("object-data")
               .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
       return filepath;
