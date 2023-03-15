@@ -45,6 +45,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -371,6 +372,9 @@ public class DagManagerFlowTest {
     // check removal of dag from dagToSLA map
     AssertWithBackoff.create().maxSleepMs(10000).backoffFactor(1).
         assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
+    // Validate that the dag is marked as a cancelled job after retrying 3 times
+    Assert.assertEquals(dag.getFlowEvent(), TimingEvent.FlowTimings.FLOW_CANCELLED);
   }
 }
 
