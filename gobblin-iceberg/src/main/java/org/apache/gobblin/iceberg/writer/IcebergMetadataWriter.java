@@ -957,7 +957,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
             // Also persist the watermark into State object to share this with other MetadataWriters
             // we enforce ourselves to always use lower-cased table name here
             String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(catalogDbTableNameLowerCased + ".watermark", completionWatermark);
+            this.state.setProp(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased), completionWatermark);
             break;
           }
         } else {
