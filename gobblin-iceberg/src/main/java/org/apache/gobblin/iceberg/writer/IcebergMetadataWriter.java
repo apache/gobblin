@@ -924,13 +924,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
    *  break
    * Using a {@link TimeIterator} that operates over a range of time in 1 unit
    * given the start, end and granularity
-   * @param tableName
+   * @param catalogDbTableName
    * @param topicName
    * @param timestamps a sorted set of timestamps in decreasing order
    * @param previousWatermark previous completion watermark for the table
    * @return updated completion watermark
    */
-  private long computeCompletenessWatermark(String tableName, String topicName, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
+  private long computeCompletenessWatermark(String catalogDbTableName, String topicName, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
     log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", topicName, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
@@ -956,8 +956,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
             completionWatermark = timestampMillis;
             // Also persist the watermark into State object to share this with other MetadataWriters
             // we enforce ourselves to always use lower-cased table name here
-            String tableNameLowerCased = tableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(tableNameLowerCased + ".watermark", completionWatermark);
+            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
+            this.state.setProp(catalogDbTableNameLowerCased + ".watermark", completionWatermark);
             break;
           }
         } else {
