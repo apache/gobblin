@@ -125,6 +125,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private Map<String, List<HiveRegistrationUnit.Column>> partitionKeysMap;
   private Closer closer = Closer.create();
   protected final AtomicLong recordCount = new AtomicLong(0L);
+  private final Set<String> currentErrorDatasets = new HashSet<>();
   @Setter
   private int maxErrorDataset;
   protected EventSubmitter eventSubmitter;
@@ -392,13 +393,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       lastException.addedPartitionValues.addAll(((HiveMetadataWriterWithPartitionInfoException) e).addedPartitionValues);
       lastException.droppedPartitionValues.addAll(((HiveMetadataWriterWithPartitionInfoException) e).droppedPartitionValues);
     }
+    this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
     if (!exceptionMatches(e, this.nonTransientExceptionMessages)) {
-      this.datasetErrorMap.put(tableStatus.datasetPath, tableErrorMap);
+      currentErrorDatasets.add(tableStatus.datasetPath);
       log.error(String.format("Meet exception when flush table %s", tableString), e);
     } else {
       log.error(String.format("Detected known non-transient failure for table %s", tableString), e);
     }
-    if (datasetErrorMap.size() > maxErrorDataset) {
+    if (currentErrorDatasets.size() > maxErrorDataset) {
       //Fail the job if the error size exceeds some number
       throw new IOException(String.format("Container fails to flush for more than %s dataset, last exception we met is: ", maxErrorDataset), e);
     }
