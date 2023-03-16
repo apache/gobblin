@@ -430,7 +430,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testIcebergTable");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
-    Assert.assertTrue(imw.state.tableToCompletedPartitions.get(table.name().toLowerCase(Locale.ROOT)).contains("2021-09-16-10"));
+    // 1631811600000L correspond to 2020-09-16-10 in PT
+    Assert.assertEquals(imw.state.getPropAsLong(table.name().toLowerCase(Locale.ROOT) + ".watermark"), 1631811600000L);
 
     Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -479,7 +480,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
-    Assert.assertTrue(imw.state.tableToCompletedPartitions.get(table.name().toLowerCase(Locale.ROOT)).contains("2021-09-16-11"));
+    // watermark 1631815200000L correspond to 2021-09-16-11 in PT
+    Assert.assertEquals(imw.state.getPropAsLong(table.name().toLowerCase(Locale.ROOT) + ".watermark"), 1631815200000L);
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile2.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
