@@ -425,7 +425,7 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
-  @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
+  @Test (dependsOnMethods = "testProcessMessageForFlowPendingResume")
   public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
 
