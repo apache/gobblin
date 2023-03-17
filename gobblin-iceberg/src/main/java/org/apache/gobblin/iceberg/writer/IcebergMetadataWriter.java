@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -893,12 +894,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
    */
   private void checkAndUpdateCompletenessWatermark(TableMetadata tableMetadata, String topic, SortedSet<ZonedDateTime> timestamps,
       Map<String, String> props) {
+    String tableName = tableMetadata.table.get().name();
     if (topic == null) {
       log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
-          TOPIC_NAME_KEY, tableMetadata.table.get().name()));
+          TOPIC_NAME_KEY, tableName));
     }
     long newCompletenessWatermark =
-        computeCompletenessWatermark(topic, timestamps, tableMetadata.completionWatermark);
+        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.completionWatermark);
     if (newCompletenessWatermark > tableMetadata.completionWatermark) {
       log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY, tableMetadata.table.get().name(),
           newCompletenessWatermark));
@@ -922,13 +924,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
    *  break
    * Using a {@link TimeIterator} that operates over a range of time in 1 unit
    * given the start, end and granularity
-   * @param table
+   * @param catalogDbTableName
+   * @param topicName
    * @param timestamps a sorted set of timestamps in decreasing order
    * @param previousWatermark previous completion watermark for the table
    * @return updated completion watermark
    */
-  private long computeCompletenessWatermark(String table, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
-    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", table, timestamps, previousWatermark));
+  private long computeCompletenessWatermark(String catalogDbTableName, String topicName, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
+    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", topicName, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
     try {
@@ -947,9 +950,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (timestampDT.isAfter(prevWatermarkDT)
             && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
-          if (auditCountVerifier.get().isComplete(table,
-              TimeIterator.dec(timestampDT, granularity, 1).toInstant().toEpochMilli(), timestampMillis)) {
+          ZonedDateTime auditCountCheckLowerBoundDT = TimeIterator.dec(timestampDT, granularity, 1);
+          if (auditCountVerifier.get().isComplete(topicName,
+                  auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
             completionWatermark = timestampMillis;
+            // Also persist the watermark into State object to share this with other MetadataWriters
+            // we enforce ourselves to always use lower-cased table name here
+            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
+            this.state.setProp(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased), completionWatermark);
             break;
           }
         } else {
