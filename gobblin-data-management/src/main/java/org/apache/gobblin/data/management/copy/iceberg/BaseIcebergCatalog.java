@@ -17,7 +17,9 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.IOException;
 import java.util.Map;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.TableOperations;
@@ -39,7 +41,7 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) {
+  public IcebergTable openTable(String dbName, String tableName) throws IOException {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
     return new IcebergTable(tableId, createTableOperations(tableId), this.getCatalogUri());
   }
@@ -48,5 +50,5 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
     return CatalogUtil.loadCatalog(this.companionCatalogClass.getName(), this.catalogName, properties, configuration);
   }
 
-  protected abstract TableOperations createTableOperations(TableIdentifier tableId);
+  protected abstract TableOperations createTableOperations(TableIdentifier tableId) throws IOException;
 }

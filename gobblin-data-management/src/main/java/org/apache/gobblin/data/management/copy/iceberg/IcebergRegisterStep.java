@@ -35,7 +35,7 @@ import org.apache.gobblin.commit.CommitStep;
 public class IcebergRegisterStep implements CommitStep {
 
   private final IcebergTable srcIcebergTable;
-  private final IcebergTable existingTargetIcebergTable;
+  private final IcebergTable existingDestinationIcebergTable;
 
   @Override
   public boolean isCompleted() throws IOException {
@@ -44,12 +44,12 @@ public class IcebergRegisterStep implements CommitStep {
 
   @Override
   public void execute() throws IOException {
-    TableMetadata targetMetadata = null;
+    TableMetadata destinationMetadata = null;
     try {
-      targetMetadata = this.existingTargetIcebergTable.accessTableMetadata();
+      destinationMetadata = this.existingDestinationIcebergTable.accessTableMetadata();
     } catch (IcebergTable.TableNotFoundException tnfe) {
-      log.warn("Target TableMetadata doesn't exist because : {}" , tnfe);
+      log.warn("Destination TableMetadata doesn't exist because : {}" , tnfe);
     }
-    this.srcIcebergTable.registerIcebergTable(this.srcIcebergTable.accessTableMetadata(), targetMetadata);
+    this.existingDestinationIcebergTable.registerIcebergTable(this.srcIcebergTable.accessTableMetadata(), destinationMetadata);
   }
 }

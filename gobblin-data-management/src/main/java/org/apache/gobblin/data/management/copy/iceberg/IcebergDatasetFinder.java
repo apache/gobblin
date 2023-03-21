@@ -50,18 +50,18 @@ import org.apache.gobblin.util.HadoopUtils;
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
   public static final String ICEBERG_CLUSTER_KEY = "cluster";
-  public static final String ICEBERG_SRC_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
-  public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
+  public static final String ICEBERG_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
+  public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
   public static final String ICEBERG_SRC_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".source.cluster.name";
-  public static final String ICEBERG_TARGET_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
-  public static final String ICEBERG_TARGET_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".target.cluster.name";
+  public static final String ICEBERG_DST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
+  public static final String ICEBERG_DST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".target.cluster.name";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
   public enum CatalogLocation {
     SOURCE,
-    TARGET
+    DESTINATION
   }
 
   protected final FileSystem sourceFs;
@@ -85,11 +85,11 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     String tblName = properties.getProperty(ICEBERG_TABLE_NAME);
 
     IcebergCatalog sourceIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.SOURCE);
-    IcebergCatalog targetIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.TARGET);
+    IcebergCatalog destinationIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.DESTINATION);
     /* Each Iceberg dataset maps to an Iceberg table
      * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
      */
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, targetIcebergCatalog, properties, sourceFs));
+    matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, destinationIcebergCatalog, properties, sourceFs));
     log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
         matchingDatasets, dbName, tblName);
     return matchingDatasets;
@@ -105,10 +105,15 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     return findDatasets().iterator();
   }
 
-  protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog targetIcebergCatalog, Properties properties, FileSystem fs) {
+  /**
+   * Requires both source and destination catalogs to connect to their respective {@link IcebergTable}
+   * Note: the destination side {@link IcebergTable} should be present before initiating replication
+   * @return {@link IcebergDataset} with its corresponding source and destination {@link IcebergTable}
+   */
+  protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
-    IcebergTable existingTargetIcebergTable = targetIcebergCatalog.openTable(dbName, tblName);
-    return new IcebergDataset(dbName, tblName, srcIcebergTable, existingTargetIcebergTable, properties, fs);
+    IcebergTable existingDestinationIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
+    return new IcebergDataset(dbName, tblName, srcIcebergTable, existingDestinationIcebergTable, properties, fs);
   }
 
   protected IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
@@ -123,16 +128,16 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
         // introducing an optional property for catalogs requiring cluster specific properties
         Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
         break;
-      case TARGET:
-        catalogUri = properties.getProperty(ICEBERG_TARGET_CATALOG_URI_KEY);
-        Preconditions.checkNotNull(catalogUri, "Target Catalog Table Service URI is required");
+      case DESTINATION:
+        catalogUri = properties.getProperty(ICEBERG_DST_CATALOG_URI_KEY);
+        Preconditions.checkNotNull(catalogUri, "Destination Catalog Table Service URI is required");
         // introducing an optional property for catalogs requiring cluster specific properties
-        Optional.ofNullable(properties.getProperty(ICEBERG_TARGET_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+        Optional.ofNullable(properties.getProperty(ICEBERG_DST_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
         break;
       default:
         throw new UnsupportedOperationException("Incorrect desired location: %s provided for creating Iceberg Catalog" + location);
     }
-    icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
+    icebergCatalogClassName = properties.getProperty(ICEBERG_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
     catalogProperties.put(CatalogProperties.URI, catalogUri);
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }
