@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.catalog.TableIdentifier;
 
 
 /**
@@ -30,4 +31,5 @@ public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName) throws IOException;
   String getCatalogUri();
   void initialize(Map<String, String> properties, Configuration configuration);
+  boolean tableAlreadyExists(TableIdentifier tableIdentifier);
 }

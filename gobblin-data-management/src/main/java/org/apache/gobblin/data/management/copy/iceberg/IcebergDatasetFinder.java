@@ -50,12 +50,13 @@ import org.apache.gobblin.util.HadoopUtils;
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
   public static final String ICEBERG_CLUSTER_KEY = "cluster";
-  public static final String ICEBERG_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
+  public static final String ICEBERG_SRC_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
   public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
   public static final String ICEBERG_SRC_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".source.cluster.name";
-  public static final String ICEBERG_DST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
-  public static final String ICEBERG_DST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".target.cluster.name";
+  public static final String ICEBERG_DEST_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".target.catalog.class";
+  public static final String ICEBERG_DEST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
+  public static final String ICEBERG_DEST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".target.cluster.name";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
@@ -112,8 +113,8 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
    */
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
-    IcebergTable existingDestinationIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
-    return new IcebergDataset(dbName, tblName, srcIcebergTable, existingDestinationIcebergTable, properties, fs);
+    IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
+    return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);
   }
 
   protected IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
@@ -127,17 +128,18 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
         Preconditions.checkNotNull(catalogUri, "Source Catalog Table Service URI is required");
         // introducing an optional property for catalogs requiring cluster specific properties
         Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+        icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
         break;
       case DESTINATION:
-        catalogUri = properties.getProperty(ICEBERG_DST_CATALOG_URI_KEY);
+        catalogUri = properties.getProperty(ICEBERG_DEST_CATALOG_URI_KEY);
         Preconditions.checkNotNull(catalogUri, "Destination Catalog Table Service URI is required");
         // introducing an optional property for catalogs requiring cluster specific properties
-        Optional.ofNullable(properties.getProperty(ICEBERG_DST_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+        Optional.ofNullable(properties.getProperty(ICEBERG_DEST_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
+        icebergCatalogClassName = properties.getProperty(ICEBERG_DEST_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
         break;
       default:
         throw new UnsupportedOperationException("Incorrect desired location: %s provided for creating Iceberg Catalog" + location);
     }
-    icebergCatalogClassName = properties.getProperty(ICEBERG_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
     catalogProperties.put(CatalogProperties.URI, catalogUri);
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }

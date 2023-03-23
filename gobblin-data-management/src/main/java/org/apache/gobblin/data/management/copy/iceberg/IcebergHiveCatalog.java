@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
@@ -54,10 +53,12 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   }
 
   @Override
-  protected TableOperations createTableOperations(TableIdentifier tableId) throws IOException {
-    if (!hc.tableExists(tableId)) {
-      throw new IcebergTable.TableNotFoundException(tableId);
-    }
+  protected TableOperations createTableOperations(TableIdentifier tableId) {
     return hc.newTableOps(tableId);
+  }
+
+  @Override
+  public boolean tableAlreadyExists(TableIdentifier tableId) {
+    return hc.tableExists(tableId);
   }
 }
