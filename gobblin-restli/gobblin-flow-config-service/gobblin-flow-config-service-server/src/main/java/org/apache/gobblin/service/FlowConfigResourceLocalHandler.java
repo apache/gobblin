@@ -200,7 +200,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
 
-  private boolean isUnscheduleRequest(FlowConfig flowConfig) {
+  protected final boolean isUnscheduleRequest(FlowConfig flowConfig) {
     return Boolean.parseBoolean(flowConfig.getProperties().getOrDefault(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "false"));
   }
 

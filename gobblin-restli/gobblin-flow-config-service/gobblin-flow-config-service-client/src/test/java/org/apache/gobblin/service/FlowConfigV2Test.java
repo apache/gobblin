@@ -20,10 +20,12 @@ package org.apache.gobblin.service;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.mortbay.jetty.HttpStatus;
+import org.mockito.ArgumentMatchers;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -31,6 +33,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
@@ -52,6 +55,7 @@ import lombok.Setter;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -70,6 +74,7 @@ public class FlowConfigV2Test {
   private TestRequesterService _requesterService;
   private GroupOwnershipService groupOwnershipService;
   private File groupConfigFile;
+  private Set<String> _compilationFailureFlowPaths = Sets.newHashSet();
 
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigV2Test/";
   private static final String TEST_GROUP_NAME = "testGroup1";
@@ -82,6 +87,8 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
   private static final String TEST_FLOW_NAME_8 = "testFlow8";
   private static final String TEST_FLOW_NAME_9 = "testFlow9";
+  private static final String TEST_FLOW_NAME_10 = "testFlow10";
+  private static final String TEST_FLOW_NAME_11 = "testFlow11";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -103,7 +110,11 @@ public class FlowConfigV2Test {
     final FlowCatalog flowCatalog = new FlowCatalog(config);
     final SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
     when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    // NOTE: more general `ArgumentMatchers` (indicating compilation unsuccessful) must precede the specific
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(null));
+    when(mockListener.onAddSpec(ArgumentMatchers.argThat((FlowSpec flowSpec) -> {
+      return !_compilationFailureFlowPaths.contains(flowSpec.getUri().getPath());
+    }))).thenReturn(new AddSpecResponse(""));
     flowCatalog.addListener(mockListener);
     flowCatalog.startAsync();
     flowCatalog.awaitRunning();
@@ -169,6 +180,31 @@ public class FlowConfigV2Test {
   }
 
   @Test
+  public void testCreateRejectedWhenFailsCompilation() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_10);
+    _requesterService.setRequester(TEST_REQUESTER);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put("param2", "value2");
+    flowProperties.put("param3", "value3");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_10))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+
+    // inform mock that this flow should fail compilation
+    _compilationFailureFlowPaths.add(String.format("/%s/%s", TEST_GROUP_NAME, TEST_FLOW_NAME_10));
+    try {
+      _client.createFlowConfig(flowConfig);
+      Assert.fail("create seemingly accepted (despite anticipated flow compilation failure)");
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_400_Bad_Request);
+      Assert.assertTrue(e.getMessage().contains("Flow was not compiled successfully."));
+    }
+  }
+
+  @Test
   public void testPartialUpdate() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_3);
     _requesterService.setRequester(TEST_REQUESTER);
@@ -202,7 +238,7 @@ public class FlowConfigV2Test {
   }
 
   @Test (expectedExceptions = RestLiResponseException.class)
-  public void testBadPartialUpdate() throws Exception {
+  public void testPartialUpdateNotPossibleWithoutCreateFirst() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
     String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
@@ -210,8 +246,51 @@ public class FlowConfigV2Test {
     DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
     PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
 
-    // Throws exception since local handlers don't support partial update
+    // Throws exception since flow was not created first, prior to partial update
     _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
+  }
+
+  @Test
+  public void testPartialUpdateRejectedWhenFailsCompilation() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_11);
+    _requesterService.setRequester(TEST_REQUESTER);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put("param2", "value2");
+    flowProperties.put("param3", "value3");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_11))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+
+    // Set some initial config
+    _client.createFlowConfig(flowConfig);
+
+    // Change param2 to value4, delete param3, add param5=value5
+    String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
+        + "\"properties\":{\"$set\":{\"param2\":\"value4\",\"param5\":\"value5\"},\"$delete\":[\"param3\"]}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
+    PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
+
+    // inform mock that this flow should hereafter fail compilation
+    _compilationFailureFlowPaths.add(String.format("/%s/%s", TEST_GROUP_NAME, TEST_FLOW_NAME_11));
+    try {
+      _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
+      Assert.fail("update seemingly accepted (despite anticipated flow compilation failure)");
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_400_Bad_Request);
+      Assert.assertTrue(e.getMessage().contains("Flow was not compiled successfully."));
+    }
+
+    // verify that prior state of flow config still retained: that updates had no effect
+    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertTrue(!retrievedFlowConfig.getSchedule().isRunImmediately());
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1");
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2");
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param3"), "value3");
+    Assert.assertFalse(retrievedFlowConfig.getProperties().containsKey("param5"));
   }
 
   @Test
