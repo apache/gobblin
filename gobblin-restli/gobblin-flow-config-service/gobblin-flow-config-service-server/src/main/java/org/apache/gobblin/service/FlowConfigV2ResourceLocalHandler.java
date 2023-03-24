@@ -154,6 +154,53 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
     return "Could not form JSON in FlowConfigV2ResourceLocalHandler";
   }
+
+  /**
+   * Update flowConfig locally and trigger all listeners iff @param triggerListener is set to true
+   */
+  @Override
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long modifiedWatermark) {
+    log.info("[GAAS-REST] Update called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
+
+    if (!flowId.getFlowGroup().equals(flowConfig.getId().getFlowGroup()) || !flowId.getFlowName().equals(flowConfig.getId().getFlowName())) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
+          "flowName and flowGroup cannot be changed in update", null);
+    }
+
+    FlowConfig originalFlowConfig = getFlowConfig(flowId);
+
+    if (!flowConfig.getProperties().containsKey(RequesterService.REQUESTER_LIST)) {
+      // Carry forward the requester list property if it is not being updated since it was added at time of creation
+      flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST));
+    }
+
+    if (isUnscheduleRequest(flowConfig)) {
+      // flow config is not changed if it is just a request to un-schedule
+      originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
+      flowConfig = originalFlowConfig;
+    }
+
+    FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
+    Map<String, AddSpecResponse> responseMap;
+    try {
+      responseMap = this.flowCatalog.update(flowSpec, triggerListener, modifiedWatermark);
+    } catch (QuotaExceededException e) {
+      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+    } catch (Throwable e) {
+      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+      log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowId.getFlowGroup(), flowId.getFlowName()), e);
+      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+    }
+
+    if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
+      return new UpdateResponse(HttpStatus.S_200_OK);
+    } else {
+      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
+    }
+  }
+
+
+
   /**
    * Note: this method is only implemented for testing, normally partial update would be called in
    * GobblinServiceFlowConfigResourceHandler.partialUpdateFlowConfig
