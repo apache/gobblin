@@ -19,13 +19,21 @@ package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
 import com.codahale.metrics.MetricRegistry;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -50,6 +58,7 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -188,19 +197,27 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
       flowConfig = originalFlowConfig;
     }
+
+    FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
+    Map<String, AddSpecResponse> responseMap;
     try {
-      this.flowCatalog.update(createFlowSpecForConfig(flowConfig), triggerListener, modifiedWatermark);
+      responseMap = this.flowCatalog.update(flowSpec, triggerListener, modifiedWatermark);
     } catch (QuotaExceededException e) {
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch (Throwable e) {
       // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
-      log.warn(String.format("Failed to add flow configuration %s.%sto catalog due to", flowId.getFlowGroup(), flowId.getFlowName()), e);
+      log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowId.getFlowGroup(), flowId.getFlowName()), e);
       throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
     }
-    return new UpdateResponse(HttpStatus.S_200_OK);
+
+    if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
+      return new UpdateResponse(HttpStatus.S_200_OK);
+    } else {
+      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
+    }
   }
 
-  protected final boolean isUnscheduleRequest(FlowConfig flowConfig) {
+  private boolean isUnscheduleRequest(FlowConfig flowConfig) {
     return Boolean.parseBoolean(flowConfig.getProperties().getOrDefault(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "false"));
   }
 
@@ -304,5 +321,44 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
     }
+  }
+
+  protected String getErrorMessage(FlowSpec flowSpec) {
+    StringBuilder message = new StringBuilder("Flow was not compiled successfully.");
+    Map<String, ArrayList<String>> allErrors = new HashMap<>();
+
+    if (!flowSpec.getCompilationErrors().isEmpty()) {
+      message.append(" Compilation errors encountered (Sorted by relevance): ");
+      FlowSpec.CompilationError[] errors = flowSpec.getCompilationErrors().stream().distinct().toArray(FlowSpec.CompilationError[]::new);
+      Arrays.sort(errors, Comparator.comparingInt(c -> ((FlowSpec.CompilationError)c).errorPriority));
+      int errorIdSingleHop = 1;
+      int errorIdMultiHop = 1;
+
+      ArrayList<String> singleHopErrors = new ArrayList<>();
+      ArrayList<String> multiHopErrors = new ArrayList<>();
+
+      for (FlowSpec.CompilationError error: errors) {
+        if (error.errorPriority == 0) {
+          singleHopErrors.add(String.format("ERROR %s of single-step data movement: ", errorIdSingleHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          errorIdSingleHop++;
+        } else {
+          multiHopErrors.add(String.format("ERROR %s of multi-step data movement: ", errorIdMultiHop) + error.errorMessage.replace("\n", " ").replace("\t", ""));
+          errorIdMultiHop++;
+        }
+      }
+
+      allErrors.put("singleHopErrors", singleHopErrors);
+      allErrors.put("multiHopErrors", multiHopErrors);
+    }
+
+    allErrors.put("message", new ArrayList<>(Collections.singletonList(message.toString())));
+    ObjectMapper mapper = new ObjectMapper();
+
+    try {
+      return mapper.writeValueAsString(allErrors);
+    } catch (JsonProcessingException e) {
+      log.error(String.format("FlowSpec {} errored on Json processing", flowSpec.toString()), e);
+    }
+    return "Could not form JSON in " + getClass().getSimpleName();
   }
 }
