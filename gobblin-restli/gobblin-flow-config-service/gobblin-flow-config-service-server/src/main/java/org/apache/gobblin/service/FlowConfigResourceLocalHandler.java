@@ -357,7 +357,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     try {
       return mapper.writeValueAsString(allErrors);
     } catch (JsonProcessingException e) {
-      log.error(String.format("FlowSpec {} errored on Json processing", flowSpec.toString()), e);
+      log.error(String.format("FlowSpec %s errored on Json processing", flowSpec.toString()), e);
     }
     return "Could not form JSON in " + getClass().getSimpleName();
   }
