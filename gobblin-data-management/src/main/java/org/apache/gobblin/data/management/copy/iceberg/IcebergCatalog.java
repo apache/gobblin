@@ -28,7 +28,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
  * Any catalog from which to access {@link IcebergTable}s.
  */
 public interface IcebergCatalog {
-  IcebergTable openTable(String dbName, String tableName) throws IOException;
+  IcebergTable openTable(String dbName, String tableName);
   String getCatalogUri();
   void initialize(Map<String, String> properties, Configuration configuration);
   boolean tableAlreadyExists(TableIdentifier tableIdentifier);

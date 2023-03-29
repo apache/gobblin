@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
 import lombok.RequiredArgsConstructor;
@@ -54,9 +55,9 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
   public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
   public static final String ICEBERG_SRC_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".source.cluster.name";
-  public static final String ICEBERG_DEST_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".target.catalog.class";
-  public static final String ICEBERG_DEST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
-  public static final String ICEBERG_DEST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".target.cluster.name";
+  public static final String ICEBERG_DEST_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".destination.catalog.class";
+  public static final String ICEBERG_DEST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.destination.catalog.uri";
+  public static final String ICEBERG_DEST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".destination.cluster.name";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
@@ -92,7 +93,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
      */
     matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, destinationIcebergCatalog, properties, sourceFs));
     log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
-        matchingDatasets, dbName, tblName);
+        matchingDatasets, dbName, tblName); // until future support added to specify multiple icebergs, count expected always to be one
     return matchingDatasets;
   }
 
@@ -114,6 +115,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
+    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(TableIdentifier.of(dbName, tblName)), "Missing Destination Iceberg Table!");
     return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);
   }
 

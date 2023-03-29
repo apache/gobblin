@@ -41,7 +41,7 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) throws IOException {
+  public IcebergTable openTable(String dbName, String tableName) {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
     return new IcebergTable(tableId, createTableOperations(tableId), this.getCatalogUri());
   }
@@ -50,5 +50,5 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
     return CatalogUtil.loadCatalog(this.companionCatalogClass.getName(), this.catalogName, properties, configuration);
   }
 
-  protected abstract TableOperations createTableOperations(TableIdentifier tableId) throws IOException;
+  protected abstract TableOperations createTableOperations(TableIdentifier tableId);
 }
