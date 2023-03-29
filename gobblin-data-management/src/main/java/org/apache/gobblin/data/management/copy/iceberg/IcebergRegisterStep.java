@@ -29,7 +29,6 @@ import org.apache.gobblin.commit.CommitStep;
 /**
  * {@link CommitStep} to perform Iceberg registration.
  */
-
 @Slf4j
 @AllArgsConstructor
 public class IcebergRegisterStep implements CommitStep {

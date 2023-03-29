@@ -195,8 +195,10 @@ public class IcebergTable {
     return descriptor;
   }
   /** Registers {@link IcebergTable} after publishing data.
-   * @param dstMetadata is null if target {@link IcebergTable} is absent */
+   * @param dstMetadata is null if destination {@link IcebergTable} is absent, in which case registration is skipped */
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
-    this.tableOps.commit(srcMetadata, dstMetadata);
+    if (dstMetadata != null) {
+      this.tableOps.commit(srcMetadata, dstMetadata);
+    }
   }
 }

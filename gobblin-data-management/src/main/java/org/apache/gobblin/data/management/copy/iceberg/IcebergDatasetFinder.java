@@ -87,9 +87,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
     IcebergCatalog sourceIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.SOURCE);
     IcebergCatalog destinationIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.DESTINATION);
-    /* Each Iceberg dataset maps to an Iceberg table
-     * TODO: The user provided database and table names needs to be pre-checked and verified against the existence of a valid Iceberg table
-     */
+    /* Each Iceberg dataset maps to an Iceberg table */
     matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, destinationIcebergCatalog, properties, sourceFs));
     log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
         matchingDatasets, dbName, tblName); // until future support added to specify multiple icebergs, count expected always to be one
@@ -113,6 +111,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
    */
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
+    Preconditions.checkArgument(sourceIcebergCatalog.tableAlreadyExists(srcIcebergTable), String.format("Missing Source Iceberg Table: {%s}.{%s}", dbName, tblName));
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", dbName, tblName));
     return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);

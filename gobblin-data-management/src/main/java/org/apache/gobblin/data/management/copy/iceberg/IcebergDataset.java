@@ -154,7 +154,6 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
-
     }
     copyEntities.add(createPostPublishStep(this.srcIcebergTable, this.destIcebergTable));
     log.info("~{}.{}~ generated {} copy entities", dbName, inputTableName, copyEntities.size());
