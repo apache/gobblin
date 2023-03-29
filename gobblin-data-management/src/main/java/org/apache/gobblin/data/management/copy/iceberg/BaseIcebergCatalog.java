@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;

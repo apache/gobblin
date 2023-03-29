@@ -67,7 +67,7 @@ public class IcebergTable {
       this.tableId = tableId;
     }
   }
-
+  @Getter
   private final TableIdentifier tableId;
   private final TableOperations tableOps;
   private final String catalogUri;

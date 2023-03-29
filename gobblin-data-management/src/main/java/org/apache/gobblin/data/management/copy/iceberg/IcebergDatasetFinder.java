@@ -31,7 +31,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
 import lombok.RequiredArgsConstructor;
@@ -115,7 +114,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
-    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(TableIdentifier.of(dbName, tblName)), "Missing Destination Iceberg Table!");
+    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", dbName, tblName));
     return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);
   }
 

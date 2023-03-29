@@ -17,11 +17,9 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.catalog.TableIdentifier;
 
 
 /**
@@ -31,5 +29,5 @@ public interface IcebergCatalog {
   IcebergTable openTable(String dbName, String tableName);
   String getCatalogUri();
   void initialize(Map<String, String> properties, Configuration configuration);
-  boolean tableAlreadyExists(TableIdentifier tableIdentifier);
+  boolean tableAlreadyExists(IcebergTable icebergTable);
 }

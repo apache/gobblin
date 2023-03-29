@@ -20,7 +20,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogProperties;
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
@@ -49,7 +49,7 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
 
   @Override
   public String getCatalogUri() {
-    return hc.getConf().get(CatalogProperties.URI, "<<not set>>");
+    return hc.getConf().get(HiveConf.ConfVars.METASTOREURIS.varname, "<<not set>>");
   }
 
   @Override
@@ -58,7 +58,7 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   }
 
   @Override
-  public boolean tableAlreadyExists(TableIdentifier tableId) {
-    return hc.tableExists(tableId);
+  public boolean tableAlreadyExists(IcebergTable icebergTable) {
+    return hc.tableExists(icebergTable.getTableId());
   }
 }
