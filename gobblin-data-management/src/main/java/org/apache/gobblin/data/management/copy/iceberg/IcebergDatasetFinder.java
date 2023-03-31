@@ -107,13 +107,13 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   /**
    * Requires both source and destination catalogs to connect to their respective {@link IcebergTable}
    * Note: the destination side {@link IcebergTable} should be present before initiating replication
-   * TODO: Rethink strategy to enforce dest iceberg table
    * @return {@link IcebergDataset} with its corresponding source and destination {@link IcebergTable}
    */
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(dbName, tblName);
     Preconditions.checkArgument(sourceIcebergCatalog.tableAlreadyExists(srcIcebergTable), String.format("Missing Source Iceberg Table: {%s}.{%s}", dbName, tblName));
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(dbName, tblName);
+    // TODO: Rethink strategy to enforce dest iceberg table
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", dbName, tblName));
     return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);
   }
