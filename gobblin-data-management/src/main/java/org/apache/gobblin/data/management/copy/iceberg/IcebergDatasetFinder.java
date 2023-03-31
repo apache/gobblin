@@ -107,6 +107,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   /**
    * Requires both source and destination catalogs to connect to their respective {@link IcebergTable}
    * Note: the destination side {@link IcebergTable} should be present before initiating replication
+   * TODO: Rethink strategy to enforce dest iceberg table
    * @return {@link IcebergDataset} with its corresponding source and destination {@link IcebergTable}
    */
   protected IcebergDataset createIcebergDataset(String dbName, String tblName, IcebergCatalog sourceIcebergCatalog, IcebergCatalog destinationIcebergCatalog, Properties properties, FileSystem fs) throws IOException {
@@ -125,14 +126,14 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     switch (location) {
       case SOURCE:
         catalogUri = properties.getProperty(ICEBERG_SRC_CATALOG_URI_KEY);
-        Preconditions.checkNotNull(catalogUri, "Source Catalog Table Service URI is required");
+        Preconditions.checkNotNull(catalogUri, "Provided: {%s} Source Catalog Table Service URI is required", catalogUri);
         // introducing an optional property for catalogs requiring cluster specific properties
         Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
         icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
         break;
       case DESTINATION:
         catalogUri = properties.getProperty(ICEBERG_DEST_CATALOG_URI_KEY);
-        Preconditions.checkNotNull(catalogUri, "Destination Catalog Table Service URI is required");
+        Preconditions.checkNotNull(catalogUri, "Provided: {%s} Destination Catalog Table Service URI is required", catalogUri);
         // introducing an optional property for catalogs requiring cluster specific properties
         Optional.ofNullable(properties.getProperty(ICEBERG_DEST_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
         icebergCatalogClassName = properties.getProperty(ICEBERG_DEST_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
