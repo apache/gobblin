@@ -48,6 +48,7 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.prioritization.PrioritizedCopyableDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -64,21 +65,21 @@ import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 public class IcebergDataset implements PrioritizedCopyableDataset {
   private final String dbName;
   private final String inputTableName;
-  private final IcebergTable icebergTable;
+  private final IcebergTable srcIcebergTable;
+  /** Presumed destination {@link IcebergTable} exists */
+  private final IcebergTable destIcebergTable;
   protected final Properties properties;
   protected final FileSystem sourceFs;
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
-  /** Target metastore URI */
-  public static final String ICEBERG_TARGET_CATALOG_URI_KEY =
-      IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.catalog.uri";
-  /** Target database name */
-  public static final String TARGET_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.target.database";
+  /** Destination database name */
+  public static final String DESTINATION_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.destination.database";
 
-  public IcebergDataset(String db, String table, IcebergTable icebergTbl, Properties properties, FileSystem sourceFs) {
+  public IcebergDataset(String db, String table, IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem sourceFs) {
     this.dbName = db;
     this.inputTableName = table;
-    this.icebergTable = icebergTbl;
+    this.srcIcebergTable = srcIcebergTable;
+    this.destIcebergTable = destIcebergTable;
     this.properties = properties;
     this.sourceFs = sourceFs;
   }
@@ -154,6 +155,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
+    copyEntities.add(createPostPublishStep(this.srcIcebergTable, this.destIcebergTable));
     log.info("~{}.{}~ generated {} copy entities", dbName, inputTableName, copyEntities.size());
     return copyEntities;
   }
@@ -163,7 +165,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
    * @return a map of path, file status for each file that needs to be copied
    */
   protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
-    IcebergTable icebergTable = this.getIcebergTable();
+    IcebergTable icebergTable = this.getSrcIcebergTable();
     /** @return whether `pathStr` is present on `targetFs`, caching results while tunneling checked exceptions outward */
     Function<String, Boolean> isPresentOnTarget = CheckedExceptionFunction.wrapToTunneled(pathStr ->
       // omit considering timestamp (or other markers of freshness), as files should be immutable
@@ -307,10 +309,15 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   protected DatasetDescriptor getSourceDataset(FileSystem sourceFs) {
-    return this.icebergTable.getDatasetDescriptor(sourceFs);
+    return this.srcIcebergTable.getDatasetDescriptor(sourceFs);
   }
 
   protected DatasetDescriptor getDestinationDataset(FileSystem targetFs) {
-    return this.icebergTable.getDatasetDescriptor(targetFs);
+    return this.destIcebergTable.getDatasetDescriptor(targetFs);
+  }
+
+  private PostPublishStep createPostPublishStep(IcebergTable srcIcebergTable, IcebergTable dstIcebergTable) {
+    IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(srcIcebergTable, dstIcebergTable);
+    return new PostPublishStep(getFileSetId(), Maps.newHashMap(), icebergRegisterStep, 0);
   }
 }
