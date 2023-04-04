@@ -46,6 +46,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String JOB_START = "JobStartTimer";
     public static final String JOB_RUN = "JobRunTimer";
     public static final String JOB_COMMIT = "JobCommitTimer";
+    public static final String JOB_SUMMARY = "JobSummaryTimer";
     public static final String JOB_CLEANUP = "JobCleanupTimer";
     public static final String JOB_CANCEL = "JobCancelTimer";
     public static final String JOB_COMPLETE = "JobCompleteTimer";

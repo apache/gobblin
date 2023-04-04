@@ -92,6 +92,7 @@ import org.apache.gobblin.runtime.metrics.GobblinJobMetricReporter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.InfiniteSource;
@@ -728,6 +729,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   protected void postProcessJobState(JobState jobState) {
     postProcessTaskStates(jobState.getTaskStates());
+    if (!GobblinMetrics.isEnabled(this.jobProps)) {
+      return;
+    }
+    List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
+    Map<String, JobState.DatasetState> datasetStates = this.jobContext.getDatasetStatesByUrns();
+    // Only process successful datasets unless configuration to process failed datasets is set
+    for (JobState.DatasetState datasetState : datasetStates.values()) {
+      if (datasetState.getState() == JobState.RunningState.COMMITTED
+        || (datasetState.getState() == JobState.RunningState.FAILED && this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS)) {
+        long totalBytesWritten = 0;
+        long totalRecordsWritten = 0;
+        for (TaskState taskState : datasetState.getTaskStates()) {
+          if (taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED
+              && taskState.contains(ConfigurationKeys.WRITER_BYTES_WRITTEN)
+              && taskState.contains(ConfigurationKeys.WRITER_RECORDS_WRITTEN)) {
+            totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN);
+            totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN);
+          }
+        }
+        LOG.info("Reporting that " + totalRecordsWritten + " records and " + totalBytesWritten + " bytes were written for " + datasetState.getDatasetUrn());
+        datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten));
+      } else if (datasetState.getState() == JobState.RunningState.FAILED) {
+        // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
+        if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+          LOG.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
+          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0));
+        }
+      }
+    }
+    TimingEvent jobSummaryTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
+    jobSummaryTimer.addMetadata("datasetTaskSummaries", GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
+    jobSummaryTimer.stop();
   }
 
   @Override

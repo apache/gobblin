@@ -188,6 +188,38 @@
           }
         }
       ]
-    }]
+    },
+    {
+      "name": "datasetsWritten",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "DatasetMetric",
+            "doc": "DatasetMetric contains bytes and records written by Gobblin writers for the dataset URN.",
+            "fields": [
+              {
+                "name": "datasetUrn",
+                "type": "string",
+                "doc": "URN of the dataset"
+              },
+              {
+                "name": "bytesWritten",
+                "type": "long",
+                "doc": "Number of bytes written for the dataset"
+              },
+              {
+                "name": "recordsWritten",
+                "type": "long",
+                "doc": "Number of records written for the dataset"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
 }
 
