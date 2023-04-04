@@ -741,7 +741,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         long totalBytesWritten = 0;
         long totalRecordsWritten = 0;
         for (TaskState taskState : datasetState.getTaskStates()) {
-          if (taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED
+          if ((taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED
+                || PropertiesUtils.getPropAsBoolean(jobProps, ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false"))
               && taskState.contains(ConfigurationKeys.WRITER_BYTES_WRITTEN)
               && taskState.contains(ConfigurationKeys.WRITER_RECORDS_WRITTEN)) {
             totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN);
@@ -759,7 +760,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
     }
     TimingEvent jobSummaryTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
-    jobSummaryTimer.addMetadata("datasetTaskSummaries", GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
+    jobSummaryTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
     jobSummaryTimer.stop();
   }
 
