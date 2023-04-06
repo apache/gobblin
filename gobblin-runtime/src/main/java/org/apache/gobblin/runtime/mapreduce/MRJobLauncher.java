@@ -168,6 +168,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Path jarsDir;
   /** A location to store jars that should not be shared between different jobs. */
   private final Path unsharedJarsDir;
+  private final DistributedClasspathManager classpathManager;
+
   private final Path jobInputPath;
   private final Path jobOutputPath;
 
@@ -230,8 +232,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.unsharedJarsDir = new Path(this.mrJobDir, JARS_DIR_NAME);
     this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
         this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : this.unsharedJarsDir;
-    this.fs.mkdirs(this.mrJobDir);
+    this.classpathManager = new DistributedClasspathManager(this.fs, jarsDir);
 
+    this.fs.mkdirs(this.mrJobDir);
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
     this.jobOutputPath = new Path(this.mrJobDir, OUTPUT_DIR_NAME);
     Path outputTaskStateDir = new Path(this.jobOutputPath, this.jobContext.getJobId());
@@ -419,12 +422,18 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     // Add framework jars to the classpath for the mappers/reducer
     if (this.jobProps.containsKey(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY)) {
-      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY), conf);
+      classpathManager.addToDistributedClasspath(this.job,
+          this.jobProps.getProperty(ConfigurationKeys.FRAMEWORK_JAR_FILES_KEY),
+          unsharedJarsDir,
+          jarFileMaximumRetry);
     }
 
     // Add job-specific jars to the classpath for the mappers
     if (this.jobProps.containsKey(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-      addJars(jarFileDir, this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY), conf);
+      classpathManager.addToDistributedClasspath(this.job,
+          this.jobProps.getProperty(ConfigurationKeys.JOB_JAR_FILES_KEY),
+          unsharedJarsDir,
+          jarFileMaximumRetry);
     }
 
     // Add other files (if any) the job depends on to DistributedCache
@@ -518,55 +527,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     DistributedCache.addCacheFile(jobStateFilePath.toUri(), job.getConfiguration());
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_DISTRIBUTED_CACHE_NAME, jobStateFilePath.getName());
-  }
-
-  /**
-   * Add framework or job-specific jars to the classpath through DistributedCache
-   * so the mappers can use them.
-   */
-  @SuppressWarnings("deprecation")
-  private void addJars(Path jarFileDir, String jarFileList, Configuration conf) throws IOException {
-    LocalFileSystem lfs = FileSystem.getLocal(conf);
-    for (String jarFile : SPLITTER.split(jarFileList)) {
-      Path srcJarFile = new Path(jarFile);
-      FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
-
-      for (FileStatus status : fileStatusList) {
-        // For each FileStatus there are chances it could fail in copying at the first attempt, due to file-existence
-        // or file-copy is ongoing by other job instance since all Gobblin jobs share the same jar file directory.
-        // the retryCount is to avoid cases (if any) where retry is going too far and causes job hanging.
-        int retryCount = 0;
-        boolean shouldFileBeAddedIntoDC = true;
-        Path destJarFile = calculateDestJarFile(status, jarFileDir);
-        // Adding destJarFile into HDFS until it exists and the size of file on targetPath matches the one on local path.
-        while (!this.fs.exists(destJarFile) || fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
-          try {
-            if (this.fs.exists(destJarFile) && fs.getFileStatus(destJarFile).getLen() != status.getLen()) {
-              Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
-              throw new IOException("Waiting for file to complete on uploading ... ");
-            }
-            // Set the first parameter as false for not deleting sourceFile
-            // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
-            // If the file is preExisted but overwrite flag set to false, then an IOException if thrown.
-            this.fs.copyFromLocalFile(false, false, status.getPath(), destJarFile);
-          } catch (IOException | InterruptedException e) {
-            LOG.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
-            retryCount += 1;
-            if (retryCount >= this.jarFileMaximumRetry) {
-              LOG.error("The jar file:" + destJarFile + "failed in being copied into hdfs", e);
-              // If retry reaches upper limit, skip copying this file.
-              shouldFileBeAddedIntoDC = false;
-              break;
-            }
-          }
-        }
-        if (shouldFileBeAddedIntoDC) {
-          // Then add the jar file on HDFS to the classpath
-          LOG.info(String.format("Adding %s to classpath", destJarFile));
-          DistributedCache.addFileToClassPath(destJarFile, conf, this.fs);
-        }
-      }
-    }
   }
 
   /**
