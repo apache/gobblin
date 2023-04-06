@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.google.common.util.concurrent.Futures;
-import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
+import com.microsoft.azure.eventhubs.impl.SharedAccessSignatureTokenProvider;
 
 import lombok.extern.slf4j.Slf4j;
 
