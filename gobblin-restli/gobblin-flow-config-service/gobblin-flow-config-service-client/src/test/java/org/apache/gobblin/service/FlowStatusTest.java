@@ -29,7 +29,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
@@ -67,7 +66,7 @@ public class FlowStatusTest {
     @Override
     public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId, String jobGroup, String jobName) {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
 
     @Override

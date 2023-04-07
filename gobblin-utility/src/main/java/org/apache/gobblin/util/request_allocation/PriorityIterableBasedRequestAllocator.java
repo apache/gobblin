@@ -17,19 +17,20 @@
 
 package org.apache.gobblin.util.request_allocation;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-
-import lombok.AccessLevel;
-import lombok.Getter;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
+
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -96,7 +97,7 @@ public abstract class PriorityIterableBasedRequestAllocator<T extends Request<T>
       } catch (InterruptedException ie) {
         log.error("Request allocation was interrupted.");
         return new AllocatedRequestsIteratorBase<>(
-            Iterators.<AllocatedRequestsIteratorBase.RequestWithResourceRequirement<T>>emptyIterator(), resourcePool);
+            Collections.emptyIterator(), resourcePool);
       }
     }
 

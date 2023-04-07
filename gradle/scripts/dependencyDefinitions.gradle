@@ -49,6 +49,7 @@ ext.externalDependency = [
     "commonsPool": "org.apache.commons:commons-pool2:2.4.2",
     "datanucleusCore": "org.datanucleus:datanucleus-core:3.2.10",
     "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.9",
+    "errorProne": "com.google.errorprone:error_prone_annotations:2.0.15",
     "eventhub": "com.microsoft.azure:azure-eventhubs:0.9.0",
     "guava": "com.google.guava:guava:20.0",
     "groovy": "org.codehaus.groovy:groovy:2.4.8",
