@@ -62,8 +62,10 @@ public class GaaSObservabilityProducerTest {
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
     List<DatasetTaskSummary> summaries = new ArrayList<>();
-    summaries.add(new DatasetTaskSummary("/testFolder", 100, 1000));
-    summaries.add(new DatasetTaskSummary("/testFolder2", 1000, 10000));
+    DatasetTaskSummary dataset1 = new DatasetTaskSummary("/testFolder", 100, 1000, true);
+    DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false);
+    summaries.add(dataset1);
+    summaries.add(dataset2);
 
     MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
@@ -106,12 +108,14 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
     Assert.assertEquals(event.getJobEndTime(), Long.valueOf(100));
     Assert.assertEquals(event.getDatasetsWritten().size(), 2);
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), "/testFolder");
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getRecordsWritten(), Long.valueOf(100));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(1000));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), "/testFolder2");
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getRecordsWritten(), Long.valueOf(1000));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(10000));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetCommitSucceeded(), Boolean.valueOf(dataset1.isDatasetCommitSucceeded()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetCommitSucceeded(), Boolean.valueOf(dataset2.isDatasetCommitSucceeded()));
 
     AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()

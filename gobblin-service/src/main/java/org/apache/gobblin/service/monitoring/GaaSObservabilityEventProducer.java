@@ -102,8 +102,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
         GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
-    List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(summary ->
-        new DatasetMetric(summary.getDatasetUrn(), summary.getBytesWritten(), summary.getRecordsWritten())).collect(Collectors.toList()) : null;
+    List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(
+       DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
 
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;

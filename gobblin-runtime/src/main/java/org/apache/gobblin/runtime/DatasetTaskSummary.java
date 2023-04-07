@@ -17,30 +17,26 @@
 
 package org.apache.gobblin.runtime;
 
+import lombok.Data;
+
+import org.apache.gobblin.metrics.DatasetMetric;
+
+
 /**
  * A class returned by {@link org.apache.gobblin.runtime.SafeDatasetCommit} to provide metrics for the dataset
  * that can be reported as a single event in the commit phase.
  */
+@Data
 public class DatasetTaskSummary {
   private final String datasetUrn;
   private final long recordsWritten;
   private final long bytesWritten;
+  private final boolean datasetCommitSucceeded;
 
-  public DatasetTaskSummary(String datasetUrn, long recordsWritten, long bytesWritten) {
-    this.datasetUrn = datasetUrn;
-    this.recordsWritten = recordsWritten;
-    this.bytesWritten = bytesWritten;
-  }
-
-  public String getDatasetUrn() {
-    return datasetUrn;
-  }
-
-  public long getRecordsWritten() {
-    return recordsWritten;
-  }
-
-  public long getBytesWritten() {
-    return bytesWritten;
+  /**
+   * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
+   */
+  public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
+    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isDatasetCommitSucceeded());
   }
 }

@@ -208,12 +208,17 @@
               {
                 "name": "bytesWritten",
                 "type": "long",
-                "doc": "Number of bytes written for the dataset"
+                "doc": "Number of bytes written for the dataset, can be -1 if unsupported by the writer (e.g. jdbc writer)"
               },
               {
-                "name": "recordsWritten",
+                "name": "entitiesWritten",
                 "type": "long",
-                "doc": "Number of records written for the dataset"
+                "doc": "Number of entities written for the dataset by the Gobblin writer"
+              },
+              {
+                "name": "datasetCommitSucceeded",
+                "type": "boolean",
+                "doc": "Whether the dataset was successfully committed by Gobblin and fully successful, useful when users configure pipelines to allow for partial failures or non-atomic writes"
               }
             ]
           }

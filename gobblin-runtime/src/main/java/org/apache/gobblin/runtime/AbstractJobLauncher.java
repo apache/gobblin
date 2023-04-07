@@ -735,27 +735,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
     Map<String, JobState.DatasetState> datasetStates = this.jobContext.getDatasetStatesByUrns();
     // Only process successful datasets unless configuration to process failed datasets is set
+    boolean processFailedTasks = PropertiesUtils.getPropAsBoolean(this.jobProps, ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
     for (JobState.DatasetState datasetState : datasetStates.values()) {
       if (datasetState.getState() == JobState.RunningState.COMMITTED
         || (datasetState.getState() == JobState.RunningState.FAILED && this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS)) {
         long totalBytesWritten = 0;
         long totalRecordsWritten = 0;
         for (TaskState taskState : datasetState.getTaskStates()) {
-          if ((taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED
-                || PropertiesUtils.getPropAsBoolean(jobProps, ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false"))
-              && taskState.contains(ConfigurationKeys.WRITER_BYTES_WRITTEN)
-              && taskState.contains(ConfigurationKeys.WRITER_RECORDS_WRITTEN)) {
-            totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN);
-            totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN);
+          // Certain writers may omit these metrics e.g. CompactionLauncherWriter
+          if ((taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED || processFailedTasks)) {
+            totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN, 0);
+            totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN, 0);
           }
         }
-        LOG.info("Reporting that " + totalRecordsWritten + " records and " + totalBytesWritten + " bytes were written for " + datasetState.getDatasetUrn());
-        datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten));
+        LOG.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten));
+        datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
+            datasetState.getState() == JobState.RunningState.COMMITTED));
       } else if (datasetState.getState() == JobState.RunningState.FAILED) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
           LOG.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
-          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0));
+          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0, false));
         }
       }
     }
