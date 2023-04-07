@@ -1029,7 +1029,8 @@ public class DagManager extends AbstractIdleService {
         addSpecFuture.get();
 
         jobMetadata.put(TimingEvent.METADATA_MESSAGE, producer.getExecutionLink(addSpecFuture, specExecutorUri));
-
+        // Add serialized job properties as part of the orchestrated job event metadata
+        jobMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, dagNode.getValue().toString());
         if (jobOrchestrationTimer != null) {
           jobOrchestrationTimer.stop(jobMetadata);
         }

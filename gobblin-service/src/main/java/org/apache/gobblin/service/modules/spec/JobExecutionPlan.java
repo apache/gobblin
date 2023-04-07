@@ -60,6 +60,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
 @EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
+  public static final String JOB_PROPS_KEY = "job.props";
   private static final int MAX_JOB_NAME_LENGTH = 255;
 
   private final JobSpec jobSpec;
