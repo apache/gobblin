@@ -28,6 +28,7 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
@@ -88,7 +89,7 @@ public class HiveSerDeWrapper {
     }
   }
 
-  private Optional<SerDe> serDe = Optional.absent();
+  private Optional<AbstractSerDe> serDe = Optional.absent();
   private final String serDeClassName;
   private final String inputFormatClassName;
   private final String outputFormatClassName;
@@ -107,10 +108,10 @@ public class HiveSerDeWrapper {
    * Get the {@link SerDe} instance associated with this {@link HiveSerDeWrapper}.
    * This method performs lazy initialization.
    */
-  public SerDe getSerDe() throws IOException {
+  public AbstractSerDe getSerDe() throws IOException {
     if (!this.serDe.isPresent()) {
       try {
-        this.serDe = Optional.of(SerDe.class.cast(Class.forName(this.serDeClassName).newInstance()));
+        this.serDe = Optional.of(AbstractSerDe.class.cast(Class.forName(this.serDeClassName).newInstance()));
       } catch (Throwable t) {
         throw new IOException("Failed to instantiate SerDe " + this.serDeClassName, t);
       }
