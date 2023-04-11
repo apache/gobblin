@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -58,6 +59,7 @@ import org.apache.gobblin.util.guid.Guid;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(callSuper = true)
+@Slf4j
 public class CopyableFile extends CopyEntity implements File {
   private static final byte[] EMPTY_CHECKSUM = new byte[0];
 
@@ -375,6 +377,38 @@ public class CopyableFile extends CopyEntity implements File {
     return ownerAndPermissions;
   }
 
+  /**
+   * Compute the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
+   * the {@link PreserveAttributes} rules for fromPath and every ancestor up to but excluding toPath.
+   *
+   * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
+   * @throws IOException if toPath is not an ancestor of fromPath.
+   */
+  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(FileSystem sourceFs, Path fromPath,
+      Path toPath, CopyConfiguration copyConfiguration, Map<String, OwnerAndPermission> permissionMap) throws IOException {
+
+    if (!PathUtils.isAncestor(toPath, fromPath)) {
+      throw new IOException(String.format("toPath %s must be an ancestor of fromPath %s.", toPath, fromPath));
+    }
+
+    List<OwnerAndPermission> ownerAndPermissions = Lists.newArrayList();
+    Path currentPath = fromPath;
+
+    while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
+     // long startTime = System.currentTimeMillis();
+      if (!permissionMap.containsKey(currentPath.toString())) {
+        permissionMap.put(currentPath.toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
+        //log.info(String.format("Time to put acl in map %s: %s", currentPath, System.currentTimeMillis() - startTime));
+       // startTime = System.currentTimeMillis();
+      }
+      ownerAndPermissions.add(permissionMap.get(currentPath.toString()));
+     // log.info(String.format("Time to get acl in map %s: %s", currentPath, System.currentTimeMillis() - startTime));
+      currentPath = currentPath.getParent();
+    }
+
+    return ownerAndPermissions;
+  }
+
   public static Map<String, OwnerAndPermission> resolveReplicatedAncestorOwnerAndPermissionsRecursively(FileSystem sourceFs, Path fromPath,
       Path toPath, CopyConfiguration copyConfiguration) throws IOException {
     Preconditions.checkArgument(sourceFs.getFileStatus(fromPath).isDirectory(), "Source path must be a directory.");
@@ -406,7 +440,9 @@ public class CopyableFile extends CopyEntity implements File {
   }
 
   private static List<AclEntry> getAclEntries(FileSystem srcFs, Path path) throws IOException {
+    //long start = System.currentTimeMillis();
     AclStatus aclStatus = srcFs.getAclStatus(path);
+   // log.info(String.format("$$$ get Alc: %s", System.currentTimeMillis() - start) );
     return aclStatus.getEntries();
   }
 
