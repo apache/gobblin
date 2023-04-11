@@ -23,21 +23,14 @@ import com.google.common.collect.Maps;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -85,74 +78,38 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
     CopyManifest.CopyableUnitIterator manifests = null;
-    List<CopyEntity> copyEntities = Collections.synchronizedList(Lists.newArrayList());
-    List<FileStatus> toDelete = Collections.synchronizedList(Lists.newArrayList());
+    List<CopyEntity> copyEntities = Lists.newArrayList();
+    List<FileStatus> toDelete = Lists.newArrayList();
     //todo: put permission preserve logic here?
-    ExecutorService queueExecutor = null;
     try {
-      queueExecutor = Executors.newFixedThreadPool(20, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
-      long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
-      List<Future> pendingTask = new ArrayList<>();
-      Map<String, OwnerAndPermission> permissionMap = new ConcurrentHashMap<>();
       while (manifests.hasNext()) {
+        //todo: We can use fileSet to partition the data in case of some softbound issue
+        //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
         CopyManifest.CopyableUnit file = manifests.next();
-        Future future = queueExecutor.submit(new Runnable() {
-          @Override
-          public void run() {
-            try{
-            //todo: We can use fileSet to partition the data in case of some softbound issue
-            //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-            Path fileToCopy = new Path(file.fileName);
-            //long startTime_2 = System.currentTimeMillis();
-            if (fs.exists(fileToCopy)) {
-              //log.info(String.format("check file exist: %s", System.currentTimeMillis()-startTime_2));
-              boolean existOnTarget = false;
-              try {
-                existOnTarget = targetFs.exists(fileToCopy);
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-              //long startTime_1 = System.currentTimeMillis();
-              FileStatus srcFile = fs.getFileStatus(fileToCopy);
-              //log.info(String.format("get file status: %s", System.currentTimeMillis()-startTime_1));
-              OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
-              if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
-                //long startTime = System.currentTimeMillis();
-                CopyableFile.Builder copyableFileBuilder =
-                    CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
-                        .fileSet(datasetURN())
-                        .datasetOutputPath(fileToCopy.toString())
-                        .ancestorsOwnerAndPermission(CopyableFile
-                            .resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
-                                new Path(commonFilesParent), configuration, permissionMap))
-                        .destinationOwnerAndPermission(replicatedPermission);
-                //log.info(String.format("resolve ancestor time for %s: %s", fileToCopy.getParent(), System.currentTimeMillis() - startTime));
-                CopyableFile copyableFile = copyableFileBuilder.build();
-                copyableFile.setFsDatasets(fs, targetFs);
-                copyEntities.add(copyableFile);
-                if (existOnTarget && srcFile.isFile()) {
-                  // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
-                  // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
-                  toDelete.add(targetFs.getFileStatus(fileToCopy));
-                }
-              }
-            } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
+        Path fileToCopy = new Path(file.fileName);
+        if (this.fs.exists(fileToCopy)) {
+          boolean existOnTarget = targetFs.exists(fileToCopy);
+          FileStatus srcFile = this.fs.getFileStatus(fileToCopy);
+          if (!existOnTarget || shouldCopy(this.fs, targetFs, srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
+            CopyableFile copyableFile =
+                CopyableFile.fromOriginAndDestination(this.fs, srcFile, fileToCopy, configuration)
+                    .fileSet(datasetURN())
+                    .datasetOutputPath(fileToCopy.toString())
+                    .ancestorsOwnerAndPermission(CopyableFile
+                        .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, fileToCopy.getParent(),
+                            new Path(this.commonFilesParent), configuration))
+                    .build();
+            copyableFile.setFsDatasets(this.fs, targetFs);
+            copyEntities.add(copyableFile);
+            if (existOnTarget && srcFile.isFile()) {
+              // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
+              // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
               toDelete.add(targetFs.getFileStatus(fileToCopy));
             }
-          } catch (IOException e) {
-            log.error("meet exception:", e);
           }
-        }}
-        );
-        pendingTask.add(future);
-      }
-      int i = 0;
-      for (Future f: pendingTask) {
-        f.get();
-        i++;
-        if (i % 100 == 0) {
-          log.info(String.format("calculated %s files",i));
+        } else if (this.deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
+          toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
       if (!toDelete.isEmpty()) {
@@ -160,7 +117,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
-      log.info(String.format("Calculate workunits take %s milliseconds", System.currentTimeMillis() - startTime));
     } catch (JsonIOException| JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
@@ -174,17 +130,15 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       if (manifests != null) {
         manifests.close();
       }
-      if(queueExecutor != null) {
-        queueExecutor.shutdownNow();
-      }
     }
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean shouldCopy(FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, OwnerAndPermission replicatedPermission)
+  private static boolean shouldCopy(FileSystem srcFs, FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration)
       throws IOException {
     if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
       // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
+      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, fileInSource, copyConfiguration);
       return !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
     }
     return fileInSource.getModificationTime() > fileInTarget.getModificationTime();
