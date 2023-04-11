@@ -213,12 +213,12 @@ public class GobblinMCEWriterTest {
     Set<String> transientExceptions = Sets.newHashSet("Filesystem closed", "Hive timeout", "RejectedExecutionException");
     IOException transientException = new IOException("test1 Filesystem closed test");
     IOException wrapperException = new IOException("wrapper exception", transientException);
-    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(transientException, transientExceptions));
-    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(wrapperException, transientExceptions));
+    Assert.assertTrue(GobblinMCEWriter.exceptionMatches(transientException, transientExceptions));
+    Assert.assertTrue(GobblinMCEWriter.exceptionMatches(wrapperException, transientExceptions));
     IOException nonTransientException = new IOException("Write failed due to bad schema");
-    Assert.assertFalse(GobblinMCEWriter.isExceptionTransient(nonTransientException, transientExceptions));
+    Assert.assertFalse(GobblinMCEWriter.exceptionMatches(nonTransientException, transientExceptions));
     RejectedExecutionException rejectedExecutionException = new RejectedExecutionException("");
-    Assert.assertTrue(GobblinMCEWriter.isExceptionTransient(rejectedExecutionException, transientExceptions));
+    Assert.assertTrue(GobblinMCEWriter.exceptionMatches(rejectedExecutionException, transientExceptions));
   }
 
   @DataProvider(name="AllowMockMetadataWriter")
