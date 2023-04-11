@@ -46,7 +46,6 @@ import org.apache.gobblin.metadata.IntegerLongPair;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.PartitionedDataWriter;
@@ -149,14 +148,6 @@ public abstract class GobblinMCEProducer implements Closeable {
     if (state.contains(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME)) {
       regProperties.put(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME,
           state.getProp(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME));
-    }
-    if (state.contains(HiveRegistrationPolicyBase.HIVE_TABLE_NAME)) {
-      regProperties.put(HiveRegistrationPolicyBase.HIVE_TABLE_NAME,
-          state.getProp(HiveRegistrationPolicyBase.HIVE_TABLE_NAME));
-    }
-    if (state.contains(KafkaSource.TOPIC_NAME)) {
-      regProperties.put(KafkaSource.TOPIC_NAME,
-          state.getProp(KafkaSource.TOPIC_NAME));
     }
     if (state.contains(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES)) {
       regProperties.put(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES,
