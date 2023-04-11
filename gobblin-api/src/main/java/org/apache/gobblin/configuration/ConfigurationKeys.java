@@ -688,10 +688,12 @@ public class ConfigurationKeys {
   /** Specifies a static location in HDFS to upload jars to. Useful for sharing jars across different Gobblin runs.*/
   public static final String MR_JARS_DIR = "mr.jars.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
+  public static final String MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY = "mr.job.map.failure.is.fatal";
   public static final String MR_TARGET_MAPPER_SIZE = "mr.target.mapper.size";
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
+  public static final boolean DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL = false;
   public static final String DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = "false";
 
   /**
