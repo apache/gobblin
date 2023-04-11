@@ -198,7 +198,8 @@ public class IcebergTable {
    * @param dstMetadata is null if destination {@link IcebergTable} is absent, in which case registration is skipped */
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
     if (dstMetadata != null) {
-      this.tableOps.commit(srcMetadata, dstMetadata);
+      // commit (baseMetadata -> destination metadata, updatedMetadata -> source metadata)
+      this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
 }
