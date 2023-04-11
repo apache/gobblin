@@ -176,7 +176,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
   @Override
   public void close() throws IOException {
     try {
-      if (this.finishCleanSignal.isPresent()) {
+      if (this.finishCleanSignal != null && this.finishCleanSignal.isPresent()) {
         this.finishCleanSignal.get().await();
       }
       if (!this.throwables.isEmpty()) {
