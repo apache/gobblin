@@ -58,7 +58,7 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
   private final GobblinYarnAppLauncher gobblinYarnAppLauncher;
 
   @Getter
-  private final YarnConfiguration yarnConfiguration;
+  protected final YarnConfiguration yarnConfiguration;
 
   public AzkabanGobblinYarnAppLauncher(String jobId, Properties gobblinProps)
       throws IOException {
@@ -75,7 +75,12 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
     gobblinConfig = gobblinConfig.withValue(GobblinYarnAppLauncher.GOBBLIN_YARN_APP_LAUNCHER_MODE,
         ConfigValueFactory.fromAnyRef(GobblinYarnAppLauncher.AZKABAN_APP_LAUNCHER_MODE_KEY));
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
+    this.gobblinYarnAppLauncher = getYarnAppLauncher(gobblinConfig);
+  }
+
+  protected GobblinYarnAppLauncher getYarnAppLauncher(Config gobblinConfig)
+      throws IOException {
+    return new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
   }
 
   /**
