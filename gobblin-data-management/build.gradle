@@ -34,13 +34,11 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.jodaTime
   compile externalDependency.metricsCore
-  compile externalDependency.mockito
   compile externalDependency.commonsCodec
   compile externalDependency.commonsCompress
   compile externalDependency.commonsIo
   compile externalDependency.gson
   compile externalDependency.commonsCodec
-  compile externalDependency.mockito
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng
@@ -61,6 +59,7 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
   testCompile externalDependency.hiveJdbc
+  testCompile externalDependency.mockito
 
   testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
   testCompile project(":gobblin-modules:gobblin-crypto") // for GPG

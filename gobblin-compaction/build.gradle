@@ -36,7 +36,6 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath
-  compile externalDependency.mockito
   compile externalDependency.testng
 
   runtimeOnly externalDependency.hadoopCommon
@@ -58,6 +57,7 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.calciteAvatica
+  testCompile externalDependency.mockito
 }
 
 

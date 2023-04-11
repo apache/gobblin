@@ -64,6 +64,7 @@ dependencies {
   testCompile project(":gobblin-example")
 
   testCompile externalDependency.testng
+  testCompile externalDependency.mockito
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest

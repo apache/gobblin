@@ -60,6 +60,7 @@ dependencies {
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
   testCompile externalDependency.assertj
+  testCompile externalDependency.mockito
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
