@@ -111,11 +111,11 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
     Assert.assertEquals(event.getDatasetsWritten().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
     Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetCommitSucceeded(), Boolean.valueOf(dataset1.isDatasetCommitSucceeded()));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
     Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
     Assert.assertEquals(event.getDatasetsWritten().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
     Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetCommitSucceeded(), Boolean.valueOf(dataset2.isDatasetCommitSucceeded()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
 
     AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
