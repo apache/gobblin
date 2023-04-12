@@ -782,6 +782,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     return partitionVal;
   }
 
+  /**
+   * We will firstly try to use datasetOffsetRange to get the topic name, as the pattern for datasetOffsetRange key should be ({topicName}-{partitionNumber})
+   * In case there is no datasetOffsetRange, we fall back to the table property that we set previously for "topic.name"
+   * @return kafka topic name for this table
+   */
   protected String getTopicName(TableIdentifier tid, TableMetadata tableMetadata) {
     if (tableMetadata.dataOffsetRange.isPresent()) {
       String topicPartitionString = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
