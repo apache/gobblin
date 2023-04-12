@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
-import com.google.common.collect.Lists;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -28,15 +28,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.util.Id;
-import org.apache.gobblin.util.JobLauncherUtils;
+
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixException;
@@ -57,7 +49,20 @@ import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
 
-import static org.apache.helix.task.TaskState.*;
+import com.google.common.collect.Lists;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.JobLauncherUtils;
+
+import static org.apache.helix.task.TaskState.STOPPED;
 
 
 /**
@@ -112,22 +117,11 @@ public class HelixUtils {
     return namePrefix + "_" + instanceId;
   }
 
-  // We have switched from Helix JobQueue to WorkFlow based job execution.
-  @Deprecated
-  public static void submitJobToQueue(
-      JobConfig.Builder jobConfigBuilder,
-      String queueName,
-      String jobName,
-      TaskDriver helixTaskDriver,
-      HelixManager helixManager,
-      long jobQueueDeleteTimeoutSeconds) throws Exception {
-    submitJobToWorkFlow(jobConfigBuilder, queueName, jobName, helixTaskDriver, helixManager, jobQueueDeleteTimeoutSeconds);
-  }
-
   static void waitJobInitialization(
       HelixManager helixManager,
       String workFlowName,
-      String jobName) throws Exception {
+      String jobName,
+      Duration timeout) throws Exception {
     WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
 
     // If the helix job is deleted from some other thread or a completely external process,
@@ -136,11 +130,11 @@ public class HelixUtils {
     // 2) it did get initialized but deleted soon after, in which case we should stop waiting
     // To overcome this issue, we wait here till workflowContext gets initialized
     long start = System.currentTimeMillis();
-    long timeoutMillis = TimeUnit.MINUTES.toMillis(5L);
     while (workflowContext == null || workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) == null) {
-      if (System.currentTimeMillis() - start > timeoutMillis) {
-        log.error("Job cannot be initialized within {} milliseconds, considered as an error", timeoutMillis);
-        throw new JobException("Job cannot be initialized within {} milliseconds, considered as an error");
+      if (System.currentTimeMillis() - start > timeout.toMillis()) {
+        log.error("Job cannot be initialized within {} milliseconds, considered as an error", timeout.toMillis());
+        throw new JobException(String.format("Job cannot be initialized within %s milliseconds, considered as an error",
+            timeout.toMillis()));
       }
       workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       Thread.sleep(TimeUnit.SECONDS.toMillis(1L));
@@ -235,7 +229,8 @@ public class HelixUtils {
       String jobName,
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
-      long workFlowExpiryTime) throws Exception {
+      long workFlowExpiryTime,
+      Duration timeout) throws Exception {
 
     WorkflowConfig workFlowConfig = new WorkflowConfig.Builder().setExpiry(workFlowExpiryTime, TimeUnit.SECONDS).build();
     // Create a work flow for each job with the name being the queue name
@@ -244,7 +239,7 @@ public class HelixUtils {
     helixTaskDriver.start(workFlow);
     log.info("Created a work flow {}", workFlowName);
 
-    waitJobInitialization(helixManager, workFlowName, jobName);
+    waitJobInitialization(helixManager, workFlowName, jobName, timeout);
   }
 
   static void waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,

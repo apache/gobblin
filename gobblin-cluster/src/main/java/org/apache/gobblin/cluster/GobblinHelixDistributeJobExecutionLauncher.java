@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,6 +97,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   private final long helixJobStopTimeoutSeconds;
 
+  private final long helixWorkflowSubmissionTimeoutSeconds;
+
   private boolean jobSubmitted;
 
   // A conditional variable for which the condition is satisfied if a cancellation is requested
@@ -135,6 +138,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(this.combinedConfigs,
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
+    this.helixWorkflowSubmissionTimeoutSeconds = ConfigUtils.getLong(this.combinedConfigs,
+        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS);
   }
 
   @Override
@@ -252,7 +258,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         jobId,
         taskDriver,
         this.planningJobHelixManager,
-        this.workFlowExpiryTimeSeconds);
+        this.workFlowExpiryTimeSeconds,
+        Duration.ofSeconds(this.helixWorkflowSubmissionTimeoutSeconds));
     this.jobSubmitted = true;
   }
 

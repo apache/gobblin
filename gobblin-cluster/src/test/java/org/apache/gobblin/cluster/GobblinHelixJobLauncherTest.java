@@ -286,6 +286,19 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertEquals(testListener.getCompletes().get() == 1, true);
   }
 
+  public void testTimeout() throws Exception {
+    final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
+
+    final Properties props = generateJobProperties(this.baseConfig, "testTimeoutTest", "_12345");
+    props.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS, "0");
+    final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
+        new GobblinHelixJobLauncher(props, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
+
+    // using launchJobImpl because we do not want to swallow the exception
+    Assert.assertThrows(JobException.class, () -> gobblinHelixJobLauncher.launchJobImpl(null));
+  }
+
   @Test(enabled = false, dependsOnMethods = {"testLaunchJob", "testLaunchMultipleJobs"})
   public void testJobCleanup() throws Exception {
     final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
