@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Ordering;
 import com.typesafe.config.ConfigFactory;
 
@@ -99,7 +98,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public Iterator<JobStatus> getLatestJobStatusByFlowNameAndGroup(String flowName, String flowGroup) {
     long latestExecutionId = getLatestExecutionIdForFlow(flowName, flowGroup);
 
-    return latestExecutionId == -1L ? Iterators.emptyIterator()
+    return latestExecutionId == -1L ? Collections.emptyIterator()
         : getJobStatusesForFlowExecution(flowName, flowGroup, latestExecutionId);
   }
 

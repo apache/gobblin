@@ -42,7 +42,6 @@ import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -458,7 +457,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       setFilePermissions(copyableFile);
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
-          copyableFile.getAncestorsOwnerAndPermission() == null ? Iterators.emptyIterator()
+          copyableFile.getAncestorsOwnerAndPermission() == null ? Collections.emptyIterator()
               : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
       ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);

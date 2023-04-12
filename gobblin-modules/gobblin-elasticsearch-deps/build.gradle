@@ -33,7 +33,7 @@ tasks.remove(tasks.uploadShadow)
 dependencies {
   compile "org.elasticsearch.client:transport:5.6.8"
   compile "org.elasticsearch.client:elasticsearch-rest-high-level-client:5.6.8"
-  compile "com.google.guava:guava:18.0"
+  compile externalDependency.guava
 }
 
 

@@ -131,7 +131,7 @@ else
     $FWDIR_LIB/gobblin-api-$GOBBLIN_VERSION.jar
     $FWDIR_LIB/gobblin-compaction-$GOBBLIN_VERSION.jar
     $FWDIR_LIB/gobblin-utility-$GOBBLIN_VERSION.jar
-    $FWDIR_LIB/guava-15.0.jar
+    $FWDIR_LIB/guava-20.0.jar
   )
   LIBJARS=$(join , "${LIBJARS[@]}")
 

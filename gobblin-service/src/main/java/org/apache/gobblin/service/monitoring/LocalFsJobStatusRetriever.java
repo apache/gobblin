@@ -21,11 +21,11 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
@@ -97,7 +97,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.PENDING.name()).build();
     } else {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
 
     jobStatuses.add(jobStatus);

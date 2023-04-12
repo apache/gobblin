@@ -49,6 +49,7 @@ dependencies {
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
   compile externalDependency.groovy
+  compile externalDependency.errorProne
 
   runtimeOnly externalDependency.hadoopCommon
   runtimeOnly externalDependency.hadoopClientCore

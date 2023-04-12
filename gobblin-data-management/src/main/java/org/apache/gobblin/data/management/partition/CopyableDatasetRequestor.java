@@ -90,7 +90,7 @@ public class CopyableDatasetRequestor implements PushDownRequestor<FileSet<CopyE
         throw new RuntimeException(String.format("Could not get FileSets for dataset %s", this.dataset.datasetURN()), exc);
       }
       log.error(String.format("Could not get FileSets for dataset %s. Skipping.", this.dataset.datasetURN()), exc);
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
   }
 
