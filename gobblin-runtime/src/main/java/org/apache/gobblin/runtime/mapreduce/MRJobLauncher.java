@@ -212,7 +212,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobConfigurationUtils.putPropertiesIntoConfiguration(this.jobProps, this.conf);
 
     // Let the job and all mappers finish even if some mappers fail
-    this.conf.set("mapreduce.map.failures.maxpercent", "100"); // For Hadoop 2.x
+    this.conf.set("mapreduce.map.failures.maxpercent", isMapperFailureFatalEnabled(this.jobProps) ? "0" : "100"); // For Hadoop 2.x
 
     // Do not cancel delegation tokens after job has completed (HADOOP-7002)
     this.conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
@@ -502,6 +502,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static boolean isCustomizedProgressReportEnabled(Properties properties) {
     return properties.containsKey(ENABLED_CUSTOMIZED_PROGRESS)
         && Boolean.parseBoolean(properties.getProperty(ENABLED_CUSTOMIZED_PROGRESS));
+  }
+
+  static boolean isMapperFailureFatalEnabled(Properties properties) {
+    return (
+        properties.containsKey(ConfigurationKeys.MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY)
+        && Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY)))
+        || ConfigurationKeys.DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL;
   }
 
   @VisibleForTesting
