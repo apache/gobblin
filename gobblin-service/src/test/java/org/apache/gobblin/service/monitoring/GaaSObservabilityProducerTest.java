@@ -18,12 +18,13 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 import org.testng.Assert;
 
 import com.google.common.collect.Maps;
@@ -35,11 +36,13 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 
@@ -58,6 +61,12 @@ public class GaaSObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
+    List<DatasetTaskSummary> summaries = new ArrayList<>();
+    DatasetTaskSummary dataset1 = new DatasetTaskSummary("/testFolder", 100, 1000, true);
+    DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false);
+    summaries.add(dataset1);
+    summaries.add(dataset2);
+
     MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
@@ -74,7 +83,7 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
     gteEventMetadata.put(TimingEvent.JOB_ORCHESTRATED_TIME, "1");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, "20");
-
+    gteEventMetadata.put(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(summaries));
     Properties jobStatusProps = new Properties();
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
@@ -98,6 +107,15 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getLastFlowModificationTime(), Long.valueOf(20));
     Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
     Assert.assertEquals(event.getJobEndTime(), Long.valueOf(100));
+    Assert.assertEquals(event.getDatasetsWritten().size(), 2);
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsWritten().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
 
     AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()

@@ -188,6 +188,43 @@
           }
         }
       ]
-    }]
+    },
+    {
+      "name": "datasetsWritten",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "DatasetMetric",
+            "doc": "DatasetMetric contains bytes and records written by Gobblin writers for the dataset URN.",
+            "fields": [
+              {
+                "name": "datasetUrn",
+                "type": "string",
+                "doc": "URN of the dataset"
+              },
+              {
+                "name": "bytesWritten",
+                "type": "long",
+                "doc": "Number of bytes written for the dataset, can be -1 if unsupported by the writer (e.g. jdbc writer)"
+              },
+              {
+                "name": "entitiesWritten",
+                "type": "long",
+                "doc": "Number of entities written (e.g. files or records) for the dataset by the Gobblin writer"
+              },
+              {
+                "name": "successfullyCommitted",
+                "type": "boolean",
+                "doc": "Whether the dataset was successfully committed by Gobblin and fully successful, useful when users configure pipelines to allow for partial failures or non-atomic writes"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
 }
 

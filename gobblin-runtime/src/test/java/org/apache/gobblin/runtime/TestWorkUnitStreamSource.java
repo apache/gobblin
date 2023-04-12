@@ -31,6 +31,8 @@ import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.runtime.api.JobExecutionDriver;
@@ -42,8 +44,6 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.task.EventBusPublishingTaskFactory;
 import org.apache.gobblin.writer.test.TestingEventBuses;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j

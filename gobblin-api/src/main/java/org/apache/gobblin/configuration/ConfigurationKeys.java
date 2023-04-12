@@ -438,6 +438,7 @@ public class ConfigurationKeys {
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
   public static final String WRITER_EARLIEST_TIMESTAMP = WRITER_PREFIX + ".earliest.timestamp";
   public static final String WRITER_AVERAGE_TIMESTAMP = WRITER_PREFIX + ".average.timestamp";
+  public static final String WRITER_COUNT_METRICS_FROM_FAILED_TASKS = WRITER_PREFIX + ".jobTaskSummary.countMetricsFromFailedTasks";
 
   /**
    * Configuration properties used by the quality checker.

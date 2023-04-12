@@ -18,7 +18,10 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -30,12 +33,16 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 
 import com.google.common.io.Closer;
+import com.google.gson.reflect.TypeToken;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.test.MetricsAssert;
 import org.apache.gobblin.runtime.JobState.DatasetState;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.test.TestExtractor;
@@ -63,26 +70,36 @@ public class JobLauncherTestHelper {
     this.datasetStateStore = datasetStateStore;
   }
 
+  /**
+   * Runs a job with the given job properties.
+   * The job will go through the planning, writing, and commit stage of the Gobblin Job
+   * @param jobProps
+   * @return
+   * @throws Exception
+   */
   public JobContext runTest(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
 
     JobContext jobContext = null;
+    MetricsAssert metricsAssert = null;
     Closer closer = Closer.create();
     try {
       JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
-      jobLauncher.launchJob(null);
       jobContext = ((AbstractJobLauncher) jobLauncher).getJobContext();
+      metricsAssert = new MetricsAssert(jobContext.getJobMetricsOptional().get().getMetricContext());
+      jobLauncher.launchJob(null);
     } finally {
       closer.close();
     }
-
+    List<GobblinTrackingEvent> events = metricsAssert.getEvents();
+    Assert.assertTrue(events.stream().anyMatch(e -> e.getName().equals("JobStartTimer")));
     Assert.assertTrue(jobContext.getJobMetricsOptional().isPresent());
     String jobMetricContextTags = jobContext.getJobMetricsOptional().get().getMetricContext().getTags().toString();
     Assert.assertTrue(jobMetricContextTags.contains(ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME),
         ClusterNameTags.CLUSTER_IDENTIFIER_TAG_NAME + " tag missing in job metric context tags.");
-
+    Assert.assertTrue(events.stream().anyMatch(e -> e.getName().equals("JobCommitTimer")));
     List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
     DatasetState datasetState = datasetStateList.get(0);
 
@@ -90,7 +107,7 @@ public class JobLauncherTestHelper {
     Assert.assertEquals(datasetState.getJobFailures(), 0);
 
     int skippedWorkunits = 0;
-
+    int totalRecords = 0;
     for (TaskState taskState : datasetState.getTaskStates()) {
       if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY, Boolean.FALSE.toString()))
           && taskState.getWorkingState() == WorkUnitState.WorkingState.SKIPPED) {
@@ -101,6 +118,7 @@ public class JobLauncherTestHelper {
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
           TestExtractor.TOTAL_RECORDS);
+      totalRecords += TestExtractor.TOTAL_RECORDS;
 
       // if the addition of the task timestamp is configured then validate that the file name has the expected format
       if (Boolean.valueOf(taskState.getProp(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, "false"))) {
@@ -122,6 +140,15 @@ public class JobLauncherTestHelper {
         Assert.assertTrue(Long.valueOf(m.group(2)) < currentTime);
       }
     }
+    Optional<GobblinTrackingEvent>
+        summaryEvent = events.stream().filter(e -> e.getName().equals("JobSummaryTimer")).findFirst();
+    Assert.assertNotNull(summaryEvent);
+    Assert.assertTrue(summaryEvent.get().getMetadata().containsKey("datasetTaskSummaries"));
+    Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
+    List<DatasetTaskSummary> datasetTaskSummaries =
+        GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(summaryEvent.get().getMetadata().get("datasetTaskSummaries"), datasetTaskSummaryType);
+    Assert.assertEquals(datasetTaskSummaries.size(), 1);
+    Assert.assertEquals(datasetTaskSummaries.get(0).getRecordsWritten(), totalRecords);
 
     if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY,
         Boolean.FALSE.toString()))) {

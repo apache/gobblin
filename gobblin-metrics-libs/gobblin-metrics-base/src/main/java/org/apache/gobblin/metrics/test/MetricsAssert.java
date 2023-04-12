@@ -20,10 +20,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import javax.annotation.Nonnull;
-
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+
+import javax.annotation.Nonnull;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -106,4 +107,7 @@ public class MetricsAssert implements Function<Notification, Void> {
     };
   }
 
+  public ImmutableList<GobblinTrackingEvent> getEvents() {
+    return ImmutableList.copyOf(_events);
+  }
 }

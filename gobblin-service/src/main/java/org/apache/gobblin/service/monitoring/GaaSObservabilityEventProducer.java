@@ -19,16 +19,20 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.gson.reflect.TypeToken;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.DatasetMetric;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
 import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
@@ -36,9 +40,11 @@ import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 
@@ -93,6 +99,12 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
+    Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
+    List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
+        GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
+    List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(
+       DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
+
     GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
     List<Issue> issueList = null;
     try {
@@ -121,7 +133,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setJobPlanningPhaseEndTime(jobPlanningPhaseEndTime)
         .setIssues(issueList)
         .setJobStatus(status)
-        .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null));
+        .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
+        .setDatasetsWritten(datasetMetrics);
     return builder.build();
   }
 
