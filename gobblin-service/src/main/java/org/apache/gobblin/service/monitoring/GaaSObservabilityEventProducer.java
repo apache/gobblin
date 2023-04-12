@@ -136,7 +136,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setIssues(issueList)
         .setJobStatus(status)
         .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
-        .setDatasetsWritten(datasetMetrics);
+        .setDatasetsWritten(datasetMetrics)
         .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
         .setJobProperties(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, null));
     return builder.build();
