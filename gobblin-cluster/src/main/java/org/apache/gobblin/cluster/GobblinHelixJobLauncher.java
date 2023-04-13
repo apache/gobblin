@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -131,6 +133,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final Config jobConfig;
   private final long workFlowExpiryTimeSeconds;
   private final long helixJobStopTimeoutSeconds;
+  private final long helixWorkflowSubmissionTimeoutSeconds;
   private Map<String, TaskConfig> workUnitToHelixConfig;
   private Retryer<Boolean> taskRetryer;
 
@@ -162,6 +165,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.helixJobStopTimeoutSeconds =
         ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
             GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
+
+    this.helixWorkflowSubmissionTimeoutSeconds = ConfigUtils.getLong(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -434,7 +441,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
     HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
-        this.helixTaskDriver, this.helixManager, this.workFlowExpiryTimeSeconds);
+        this.helixTaskDriver, this.helixManager,
+        Duration.ofSeconds(this.workFlowExpiryTimeSeconds),
+        Duration.ofSeconds(this.helixWorkflowSubmissionTimeoutSeconds));
   }
 
   public void launchJob(@Nullable JobListener jobListener) throws JobException {
@@ -447,11 +456,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       if (this.runningMap.replace(this.jobContext.getJobName(), false, true)) {
         LOGGER.info("Job {} will be executed, add into running map.", this.jobContext.getJobId());
         isLaunched = true;
-        super.launchJob(jobListener);
+        launchJobImpl(jobListener);
       } else {
         LOGGER.warn("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
       }
-      // TODO: Better error handling
+
+      // TODO: Better error handling. The current impl swallows exceptions for jobs that were started by this method call.
+      // One potential way to improve the error handling is to make this error swallowing conifgurable
     } catch (Throwable t) {
       errorInJobLaunching = t;
     } finally {
@@ -465,6 +476,29 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         }
       }
     }
+  }
+
+
+  /**
+   * This method looks silly at first glance but exists for a reason.
+   *
+   * The method {@link GobblinHelixJobLauncher#launchJob(JobListener)} contains boiler plate for handling exceptions and
+   * mutating the runningMap to communicate state back to the {@link GobblinHelixJobScheduler}. The boiler plate swallows
+   * exceptions when launching the job because many use cases require that 1 job failure should not affect other jobs by causing the
+   * entire process to fail through an uncaught exception.
+   *
+   * This method is useful for unit testing edge cases where we expect {@link JobException}s during the underlying launch operation.
+   * It would be nice to not swallow exceptions, but the implications of doing that will require careful refactoring since
+   * the class {@link GobblinHelixJobLauncher} and {@link GobblinHelixJobScheduler} are shared for 2 quite different cases
+   * between GaaS and streaming. GaaS typically requiring many short lifetime workflows (where a failure is tolerated) and
+   * streaming requiring a small number of long running workflows (where failure to submit is unexpected and is not
+   * tolerated)
+   *
+   * @throws JobException
+   */
+  @VisibleForTesting
+  void launchJobImpl(@Nullable JobListener jobListener) throws JobException {
+    super.launchJob(jobListener);
   }
 
   private TaskConfig getTaskConfig(WorkUnit workUnit, ParallelRunner stateSerDeRunner) throws IOException {
