@@ -199,7 +199,7 @@ public class IcebergTable {
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
     if (dstMetadata != null) {
       // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
-      this.tableOps.commit(dstMetadata, srcMetadata);
+      this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(dstMetadata.properties()));
     }
   }
 }

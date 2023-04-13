@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.catalog.TableIdentifier;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
