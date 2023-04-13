@@ -20,6 +20,7 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 
 import org.apache.avro.Schema;
+import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.base.Preconditions;
@@ -54,7 +55,7 @@ public class HiveWritableHdfsDataWriterBuilder<S> extends FsDataWriterBuilder<S,
 
     if (!properties.contains(WRITER_WRITABLE_CLASS) || !properties.contains(WRITER_OUTPUT_FORMAT_CLASS)) {
       HiveSerDeWrapper serializer = HiveSerDeWrapper.getSerializer(properties);
-      properties.setProp(WRITER_WRITABLE_CLASS, serializer.getSerDe().getSerializedClass().getName());
+      properties.setProp(WRITER_WRITABLE_CLASS, ((Serializer) serializer.getSerDe()).getSerializedClass().getName());
       properties.setProp(WRITER_OUTPUT_FORMAT_CLASS, serializer.getOutputFormatClassName());
     }
 
