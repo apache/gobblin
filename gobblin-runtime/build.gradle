@@ -80,7 +80,6 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.metricsJmx
-  compile externalDependency.mockito
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
   compile externalDependency.slf4j
@@ -101,6 +100,7 @@ dependencies {
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
   testCompile externalDependency.jmh
+  testCompile externalDependency.mockito
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
