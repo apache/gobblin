@@ -441,7 +441,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
     HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
-        this.helixTaskDriver, this.helixManager, this.workFlowExpiryTimeSeconds,
+        this.helixTaskDriver, this.helixManager,
+        Duration.ofSeconds(this.workFlowExpiryTimeSeconds),
         Duration.ofSeconds(this.helixWorkflowSubmissionTimeoutSeconds));
   }
 
@@ -459,7 +460,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       } else {
         LOGGER.warn("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
       }
-      // TODO: Better error handling. The current impl swallows exceptions for jobs that were started by this method call
+
+      // TODO: Better error handling. The current impl swallows exceptions for jobs that were started by this method call.
+      // One potential way to improve the error handling is to make this error swallowing conifgurable
     } catch (Throwable t) {
       errorInJobLaunching = t;
     } finally {

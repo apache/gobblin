@@ -258,7 +258,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         jobId,
         taskDriver,
         this.planningJobHelixManager,
-        this.workFlowExpiryTimeSeconds,
+        Duration.ofSeconds(this.workFlowExpiryTimeSeconds),
         Duration.ofSeconds(this.helixWorkflowSubmissionTimeoutSeconds));
     this.jobSubmitted = true;
   }

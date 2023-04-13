@@ -229,17 +229,17 @@ public class HelixUtils {
       String jobName,
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
-      long workFlowExpiryTime,
-      Duration timeout) throws Exception {
+      Duration workFlowExpiryTime,
+      Duration submissionTimeout) throws Exception {
 
-    WorkflowConfig workFlowConfig = new WorkflowConfig.Builder().setExpiry(workFlowExpiryTime, TimeUnit.SECONDS).build();
+    WorkflowConfig workFlowConfig = new WorkflowConfig.Builder().setExpiry(workFlowExpiryTime.getSeconds(), TimeUnit.SECONDS).build();
     // Create a work flow for each job with the name being the queue name
     Workflow workFlow = new Workflow.Builder(workFlowName).setWorkflowConfig(workFlowConfig).addJob(jobName, jobConfigBuilder).build();
     // start the workflow
     helixTaskDriver.start(workFlow);
     log.info("Created a work flow {}", workFlowName);
 
-    waitJobInitialization(helixManager, workFlowName, jobName, timeout);
+    waitJobInitialization(helixManager, workFlowName, jobName, submissionTimeout);
   }
 
   static void waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,
