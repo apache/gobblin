@@ -40,7 +40,10 @@ public class GobblinYarnConfigurationKeys {
   public static final int DEFAULT_RELEASED_CONTAINERS_CACHE_EXPIRY_SECS = 300;
   public static final String APP_VIEW_ACL = GOBBLIN_YARN_PREFIX + "appViewAcl";
   public static final String DEFAULT_APP_VIEW_ACL = "*";
-  public static final String YARN_RESOURCE_MANAGER_ADDRESS = "yarn.resourcemanager.address";
+
+  public static final String YARN_RESOURCE_MANAGER_PREFIX = "yarn.resourcemanager.";
+  public static final String YARN_RESOURCE_MANAGER_ADDRESS = YARN_RESOURCE_MANAGER_PREFIX + "address";
+  public static final String YARN_RESOURCE_MANAGER_IDS = YARN_RESOURCE_MANAGER_PREFIX + "ids";
   public static final String OTHER_YARN_RESOURCE_MANAGER_ADDRESSES= "other.yarn.resourcemanager.addresses";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
