@@ -155,6 +155,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
+    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
     copyEntities.add(createPostPublishStep(this.dbName, this.inputTableName, this.properties));
     log.info("~{}.{}~ generated {} copy entities", dbName, inputTableName, copyEntities.size());
     return copyEntities;

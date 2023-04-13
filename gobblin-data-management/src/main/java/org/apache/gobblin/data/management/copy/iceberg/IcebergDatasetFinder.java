@@ -58,7 +58,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
    * This is used with a prefix: "{@link IcebergDatasetFinder#ICEBERG_DATASET_PREFIX}" + "." + "(source or destination)" + "." + "{@link IcebergDatasetFinder#ICEBERG_CATALOG_KEY}" + "..."
    * It is an open-ended pattern used to pass arbitrary catalog specific properties
    */
-  public static final String ICEBERG_CATALOG_CLASS = ICEBERG_CATALOG_KEY + "class";
+  public static final String ICEBERG_CATALOG_CLASS_KEY = "class";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
@@ -130,8 +130,9 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   protected static IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
     String prefix = location.getConfigPrefix();
     Map<String, String> catalogProperties = buildMapFromPrefixChildren(properties, prefix);
+    // TODO: Filter properties specific to Hadoop
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
-    String icebergCatalogClassName = catalogProperties.getOrDefault(ICEBERG_CATALOG_CLASS, DEFAULT_ICEBERG_CATALOG_CLASS);
+    String icebergCatalogClassName = catalogProperties.getOrDefault(ICEBERG_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }
 
