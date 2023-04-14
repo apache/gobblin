@@ -333,7 +333,7 @@ public class YarnService extends AbstractIdleService {
       // Record that this container was explicitly released so that a new one is not spawned to replace it
       // Put the container id in the releasedContainerCache before releasing it so that handleContainerCompletion()
       // can check for the container id and skip spawning a replacement container.
-      // Note that this is best effort since these are asynchronous operations and a container may abort concurrently
+      // Note that this is the best effort since these are asynchronous operations and a container may abort concurrently
       // with the release call. So in some cases a replacement container may have already been spawned before
       // the container is put into the black list.
       this.releasedContainerCache.put(container.getId(), "");
@@ -453,7 +453,7 @@ public class YarnService extends AbstractIdleService {
   /**
    * Request an allocation of containers. If numTargetContainers is larger than the max of current and expected number
    * of containers then additional containers are requested.
-   *
+   * <p>
    * If numTargetContainers is less than the current number of allocated containers then release free containers.
    * Shrinking is relative to the number of currently allocated containers since it takes time for containers
    * to be allocated and assigned work and we want to avoid releasing a container prematurely before it is assigned
@@ -709,7 +709,7 @@ public class YarnService extends AbstractIdleService {
    * Handle the completion of a container. A new container will be requested to replace the one
    * that just exited. Depending on the exit status and if container host affinity is enabled,
    * the new container may or may not try to be started on the same node.
-   *
+   * <p>
    * A container completes in either of the following conditions: 1) some error happens in the
    * container and caused the container to exit, 2) the container gets killed due to some reason,
    * for example, if it runs over the allowed amount of virtual or physical memory, 3) the gets
@@ -860,11 +860,11 @@ public class YarnService extends AbstractIdleService {
    * Get the number of matching container requests for the specified resource memory and cores.
    * Due to YARN-1902 and YARN-660, this API is not 100% accurate. {@link AMRMClientCallbackHandler#onContainersAllocated(List)}
    * contains logic for best effort clean up of requests, and the resource tend to match the allocated container. So in practice the count is pretty accurate.
-   *
+   * <p>
    * This API call gets the count of container requests for containers that are > resource if there is no request with the exact same resource
    * The RM can return containers that are larger (because of normalization etc).
    * Container may be larger by memory or cpu (e.g. container (1000M, 3cpu) can fit request (1000M, 1cpu) or request (500M, 3cpu).
-   *
+   * <p>
    * Thankfully since each helix tag / resource has a different priority, matching requests for one helix tag / resource
    * have complete isolation from another helix tag / resource
    */

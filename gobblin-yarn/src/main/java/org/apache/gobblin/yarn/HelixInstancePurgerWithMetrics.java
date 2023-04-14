@@ -42,9 +42,9 @@ public class HelixInstancePurgerWithMetrics {
 
 
   /**
-   * Blocking call for purging all offline helix instances. Provides boiler plate code for providing periodic updates
+   * Blocking call for purging all offline helix instances. Provides boilerplate code for providing periodic updates
    * and sending a GTE if it's an unexpected amount of time.
-   *
+   * <p>
    * All previous helix instances should be purged on startup. Gobblin task runners are stateless from helix
    * perspective because all important state is persisted separately in Workunit State Store or Watermark store.
    */

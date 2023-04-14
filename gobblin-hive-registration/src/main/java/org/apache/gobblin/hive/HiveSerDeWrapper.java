@@ -19,6 +19,7 @@ package org.apache.gobblin.hive;
 
 import java.io.IOException;
 
+import org.apache.hadoop.hive.ql.exec.vector.VectorizedSerde;
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
@@ -28,6 +29,7 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat;
 import org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
@@ -39,6 +41,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.Either;
 
 
 /**
@@ -88,7 +91,7 @@ public class HiveSerDeWrapper {
     }
   }
 
-  private Optional<SerDe> serDe = Optional.absent();
+  private Optional<Either<AbstractSerDe, VectorizedSerde>> serDe = Optional.absent();
   private final String serDeClassName;
   private final String inputFormatClassName;
   private final String outputFormatClassName;
@@ -107,15 +110,21 @@ public class HiveSerDeWrapper {
    * Get the {@link SerDe} instance associated with this {@link HiveSerDeWrapper}.
    * This method performs lazy initialization.
    */
-  public SerDe getSerDe() throws IOException {
+  public Object getSerDe() throws IOException {
     if (!this.serDe.isPresent()) {
       try {
-        this.serDe = Optional.of(SerDe.class.cast(Class.forName(this.serDeClassName).newInstance()));
+        Object serde = Class.forName(this.serDeClassName).newInstance();
+        if (serde instanceof OrcSerde) {
+          this.serDe = Optional.of(Either.right(VectorizedSerde.class.cast(serde)));
+        } else {
+          this.serDe = Optional.of(Either.left(AbstractSerDe.class.cast(serde)));
+        }
       } catch (Throwable t) {
         throw new IOException("Failed to instantiate SerDe " + this.serDeClassName, t);
       }
     }
-    return this.serDe.get();
+
+    return this.serDe.get().get();
   }
 
   /**

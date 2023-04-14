@@ -23,8 +23,10 @@ import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.IOConstants;
+import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
@@ -69,8 +71,8 @@ import org.apache.gobblin.util.HadoopUtils;
 @Slf4j
 public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Writable, Writable> {
 
-  private SerDe serializer;
-  private SerDe deserializer;
+  private Serializer serializer;
+  private Deserializer deserializer;
 
   @Override
   public HiveSerDeConverter init(WorkUnitState state) {
@@ -78,8 +80,8 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
     Configuration conf = HadoopUtils.getConfFromState(state);
 
     try {
-      this.serializer = HiveSerDeWrapper.getSerializer(state).getSerDe();
-      this.deserializer = HiveSerDeWrapper.getDeserializer(state).getSerDe();
+      this.serializer = (Serializer) HiveSerDeWrapper.getSerializer(state).getSerDe();
+      this.deserializer = (Deserializer) HiveSerDeWrapper.getDeserializer(state).getSerDe();
       this.deserializer.initialize(conf, state.getProperties());
       setColumnsIfPossible(state);
       this.serializer.initialize(conf, state.getProperties());
