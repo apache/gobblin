@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.iceberg.TableMetadata;
 
@@ -33,8 +34,9 @@ import org.apache.gobblin.commit.CommitStep;
 @AllArgsConstructor
 public class IcebergRegisterStep implements CommitStep {
 
-  private final IcebergTable srcIcebergTable;
-  private final IcebergTable destIcebergTable;
+  private final String dbName;
+  private final String tblName;
+  private final Properties properties;
 
   @Override
   public boolean isCompleted() throws IOException {
@@ -43,12 +45,20 @@ public class IcebergRegisterStep implements CommitStep {
 
   @Override
   public void execute() throws IOException {
+    IcebergTable srcIcebergTable = IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.SOURCE)
+        .openTable(this.dbName, this.tblName);
+    IcebergTable destIcebergTable = IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION)
+        .openTable(this.dbName, this.tblName);
     TableMetadata destinationMetadata = null;
     try {
-      destinationMetadata = this.destIcebergTable.accessTableMetadata();
+      destinationMetadata = destIcebergTable.accessTableMetadata();
     } catch (IcebergTable.TableNotFoundException tnfe) {
       log.warn("Destination TableMetadata doesn't exist because: " , tnfe);
     }
-    this.destIcebergTable.registerIcebergTable(this.srcIcebergTable.accessTableMetadata(), destinationMetadata);
+    destIcebergTable.registerIcebergTable(srcIcebergTable.accessTableMetadata(), destinationMetadata);
+  }
+  @Override
+  public String toString() {
+    return String.format("Registering Iceberg Table: {%s}.{%s} ", this.dbName, this.tblName);
   }
 }

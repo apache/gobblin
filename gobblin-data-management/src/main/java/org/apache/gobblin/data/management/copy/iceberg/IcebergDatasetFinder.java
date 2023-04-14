@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
@@ -33,9 +32,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.util.HadoopUtils;
@@ -49,20 +52,26 @@ import org.apache.gobblin.util.HadoopUtils;
 @RequiredArgsConstructor
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
-  public static final String ICEBERG_CLUSTER_KEY = "cluster";
-  public static final String ICEBERG_SRC_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.class";
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
-  public static final String ICEBERG_SRC_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".source.catalog.uri";
-  public static final String ICEBERG_SRC_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".source.cluster.name";
-  public static final String ICEBERG_DEST_CATALOG_CLASS_KEY = ICEBERG_DATASET_PREFIX + ".destination.catalog.class";
-  public static final String ICEBERG_DEST_CATALOG_URI_KEY = ICEBERG_DATASET_PREFIX + ".copy.destination.catalog.uri";
-  public static final String ICEBERG_DEST_CLUSTER_NAME = ICEBERG_DATASET_PREFIX + ".destination.cluster.name";
+  public static final String ICEBERG_CATALOG_KEY = "catalog";
+  /**
+   * This is used with a prefix: "{@link IcebergDatasetFinder#ICEBERG_DATASET_PREFIX}" + "." + "(source or destination)" + "." + "{@link IcebergDatasetFinder#ICEBERG_CATALOG_KEY}" + "..."
+   * It is an open-ended pattern used to pass arbitrary catalog specific properties
+   */
+  public static final String ICEBERG_CATALOG_CLASS_KEY = "class";
   public static final String ICEBERG_DB_NAME = ICEBERG_DATASET_PREFIX + ".database.name";
   public static final String ICEBERG_TABLE_NAME = ICEBERG_DATASET_PREFIX + ".table.name";
 
   public enum CatalogLocation {
     SOURCE,
-    DESTINATION
+    DESTINATION;
+
+    /**
+     * Provides prefix for configs based on the catalog location to filter catalog specific properties
+     */
+    public String getConfigPrefix() {
+      return ICEBERG_DATASET_PREFIX + "." + this.toString().toLowerCase() + "." + ICEBERG_CATALOG_KEY + ".";
+    }
   }
 
   protected final FileSystem sourceFs;
@@ -88,7 +97,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     IcebergCatalog sourceIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.SOURCE);
     IcebergCatalog destinationIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.DESTINATION);
     /* Each Iceberg dataset maps to an Iceberg table */
-    matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, destinationIcebergCatalog, properties, sourceFs));
+    matchingDatasets.add(createIcebergDataset(dbName, tblName, sourceIcebergCatalog, destinationIcebergCatalog, this.properties, this.sourceFs));
     log.info("Found {} matching datasets: {} for the database name: {} and table name: {}", matchingDatasets.size(),
         matchingDatasets, dbName, tblName); // until future support added to specify multiple icebergs, count expected always to be one
     return matchingDatasets;
@@ -118,30 +127,26 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     return new IcebergDataset(dbName, tblName, srcIcebergTable, destIcebergTable, properties, fs);
   }
 
-  protected IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
-    Map<String, String> catalogProperties = new HashMap<>();
+  protected static IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
+    String prefix = location.getConfigPrefix();
+    Map<String, String> catalogProperties = buildMapFromPrefixChildren(properties, prefix);
+    // TODO: Filter properties specific to Hadoop
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
-    String catalogUri;
-    String icebergCatalogClassName;
-    switch (location) {
-      case SOURCE:
-        catalogUri = properties.getProperty(ICEBERG_SRC_CATALOG_URI_KEY);
-        Preconditions.checkNotNull(catalogUri, "Provide: {%s} as Source Catalog Table Service URI is required", ICEBERG_SRC_CATALOG_URI_KEY);
-        // introducing an optional property for catalogs requiring cluster specific properties
-        Optional.ofNullable(properties.getProperty(ICEBERG_SRC_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
-        icebergCatalogClassName = properties.getProperty(ICEBERG_SRC_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
-        break;
-      case DESTINATION:
-        catalogUri = properties.getProperty(ICEBERG_DEST_CATALOG_URI_KEY);
-        Preconditions.checkNotNull(catalogUri, "Provide: {%s} as Destination Catalog Table Service URI is required", ICEBERG_DEST_CATALOG_URI_KEY);
-        // introducing an optional property for catalogs requiring cluster specific properties
-        Optional.ofNullable(properties.getProperty(ICEBERG_DEST_CLUSTER_NAME)).ifPresent(value -> catalogProperties.put(ICEBERG_CLUSTER_KEY, value));
-        icebergCatalogClassName = properties.getProperty(ICEBERG_DEST_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
-        break;
-      default:
-        throw new UnsupportedOperationException("Incorrect desired location: %s provided for creating Iceberg Catalog" + location);
-    }
-    catalogProperties.put(CatalogProperties.URI, catalogUri);
+    String icebergCatalogClassName = catalogProperties.getOrDefault(ICEBERG_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
+  }
+
+  /**
+   * Filters the properties based on a prefix using {@link ConfigBuilder#loadProps(Properties, String)} and creates a {@link Map}
+   */
+  protected static Map<String, String> buildMapFromPrefixChildren(Properties properties, String configPrefix) {
+    Map<String, String> catalogProperties = new HashMap<>();
+    Config config = ConfigBuilder.create().loadProps(properties, configPrefix).build();
+    for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
+      catalogProperties.put(entry.getKey(), entry.getValue().unwrapped().toString());
+    }
+    String catalogUri = config.getString(CatalogProperties.URI);
+    Preconditions.checkNotNull(catalogUri, "Provide: {%s} as Catalog Table Service URI is required", configPrefix + "." + CatalogProperties.URI);
+    return catalogProperties;
   }
 }

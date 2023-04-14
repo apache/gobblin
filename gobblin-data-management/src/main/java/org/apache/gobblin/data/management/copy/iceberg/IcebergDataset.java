@@ -73,7 +73,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
   /** Destination database name */
-  public static final String DESTINATION_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".copy.destination.database";
+  public static final String DESTINATION_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".destination.database";
 
   public IcebergDataset(String db, String table, IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem sourceFs) {
     this.dbName = db;
@@ -155,7 +155,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
-    copyEntities.add(createPostPublishStep(this.srcIcebergTable, this.destIcebergTable));
+    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
+    copyEntities.add(createPostPublishStep(this.dbName, this.inputTableName, this.properties));
     log.info("~{}.{}~ generated {} copy entities", dbName, inputTableName, copyEntities.size());
     return copyEntities;
   }
@@ -316,8 +317,8 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return this.destIcebergTable.getDatasetDescriptor(targetFs);
   }
 
-  private PostPublishStep createPostPublishStep(IcebergTable srcIcebergTable, IcebergTable dstIcebergTable) {
-    IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(srcIcebergTable, dstIcebergTable);
+  private PostPublishStep createPostPublishStep(String dbName, String inputTableName, Properties properties) {
+    IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(dbName, inputTableName, properties);
     return new PostPublishStep(getFileSetId(), Maps.newHashMap(), icebergRegisterStep, 0);
   }
 }
