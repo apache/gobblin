@@ -199,6 +199,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         InstanceType.CONTROLLER, zkConnectionString);
 
     this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+    this.gobblinYarnAppLauncher.initializeYarnClients(this.config);
 
     this.configManagedHelix = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
@@ -213,6 +214,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         InstanceType.PARTICIPANT, zkConnectionString);
 
     this.gobblinYarnAppLauncherManagedHelix = new GobblinYarnAppLauncher(this.configManagedHelix, clusterConf);
+    this.gobblinYarnAppLauncherManagedHelix.initializeYarnClients(this.configManagedHelix);
   }
 
   @Test
