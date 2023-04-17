@@ -237,9 +237,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
       String monthSuffix = new SimpleDateFormat("yyyy-MM").format(System.currentTimeMillis());
       cleanUpOldJarsDirIfRequired(this.fs, jarsBaseDir);
       this.jarsDir = new Path(jarsBaseDir, monthSuffix);
+    } else if (this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR)) {
+      this.jarsDir = new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR));
     } else {
-      this.jarsDir = this.jobProps.containsKey(ConfigurationKeys.MR_JARS_DIR) ? new Path(
-          this.jobProps.getProperty(ConfigurationKeys.MR_JARS_DIR)) : this.unsharedJarsDir;
+      this.jarsDir = this.unsharedJarsDir;
     }
 
     this.fs.mkdirs(this.mrJobDir);
