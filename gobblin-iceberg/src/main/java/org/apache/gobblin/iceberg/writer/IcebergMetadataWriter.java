@@ -798,21 +798,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   /**
-   * We will firstly try to use datasetOffsetRange to get the topic name, as the pattern for datasetOffsetRange key should be ({topicName}-{partitionNumber})
-   * In case there is no datasetOffsetRange, we fall back to the table property that we set previously for "topic.name"
-   * @return kafka topic name for this table
-   */
-  protected String getTopicName(TableIdentifier tid, TableMetadata tableMetadata) {
-    if (tableMetadata.dataOffsetRange.isPresent()) {
-      String topicPartitionString = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
-      //In case the topic name is not the table name or the topic name contains '-'
-      return topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
-    }
-    return tableMetadata.newProperties.or(
-        Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties()))).get(TOPIC_NAME_KEY);
-  }
-
-  /**
    * For flush of each table, we do the following logic:
    * 1. Commit the appendFiles if it exist
    * 2. Update the new table property: high watermark of GMCE, data offset range, schema versions
@@ -870,12 +855,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
         props.put(String.format(GMCE_LOW_WATERMARK_KEY, tableTopicPartitionMap.get(tid)),
             tableMetadata.lowWatermark.get().toString());
         //Set whether to delete metadata files after commit
-        props.put(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, Boolean.toString(
-            conf.getBoolean(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED,
-                TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED_DEFAULT)));
-        props.put(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, Integer.toString(
-            conf.getInt(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX,
-                TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)));
+        if (conf.getBoolean(ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY, DEFAULT_ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY)) {
+          props.put(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, Boolean.toString(
+              conf.getBoolean(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED_DEFAULT)));
+          props.put(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, Integer.toString(
+              conf.getInt(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)));
+        }
         //Update schema(commit)
         updateSchema(tableMetadata, props, topicName);
         //Update properties
