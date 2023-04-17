@@ -80,7 +80,9 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   protected GobblinYarnAppLauncher getYarnAppLauncher(Config gobblinConfig)
       throws IOException {
-    return new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
+    GobblinYarnAppLauncher gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
+    gobblinYarnAppLauncher.initializeYarnClients(gobblinConfig);
+    return gobblinYarnAppLauncher;
   }
 
   /**

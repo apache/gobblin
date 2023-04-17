@@ -157,6 +157,10 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  *   this count exceeds the maximum number allowed, it will initiate a shutdown.
  * </p>
  *
+ * <p>
+ *   Users of {@link GobblinYarnAppLauncher} need to call {@link #initializeYarnClients} which a child class can override.
+ * </p>
+ *
  * @author Yinan Li
  */
 public class GobblinYarnAppLauncher {
@@ -260,7 +264,6 @@ public class GobblinYarnAppLauncher {
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.originalYarnRMAddress = this.yarnConfiguration.get(GobblinYarnConfigurationKeys.YARN_RESOURCE_MANAGER_ADDRESS);
-    createPotentialYarnClients(config, this.potentialYarnClients);
 
     this.fs = GobblinClusterUtils.buildFileSystem(config, this.yarnConfiguration);
     this.closer.register(this.fs);
@@ -323,14 +326,14 @@ public class GobblinYarnAppLauncher {
     }
   }
 
-  protected void createPotentialYarnClients(Config config, Map<String, YarnClient> potentialYarnClients) {
+  public void initializeYarnClients(Config config) {
     Set<String> potentialRMAddresses = new HashSet<>(ConfigUtils.getStringList(config, GobblinYarnConfigurationKeys.OTHER_YARN_RESOURCE_MANAGER_ADDRESSES));
     potentialRMAddresses.add(originalYarnRMAddress);
     for (String rmAddress : potentialRMAddresses) {
       YarnClient tmpYarnClient = YarnClient.createYarnClient();
       this.yarnConfiguration.set(GobblinYarnConfigurationKeys.YARN_RESOURCE_MANAGER_ADDRESS, rmAddress);
       tmpYarnClient.init(new YarnConfiguration(this.yarnConfiguration));
-      potentialYarnClients.put(rmAddress, tmpYarnClient);
+      this.potentialYarnClients.put(rmAddress, tmpYarnClient);
     }
   }
 
@@ -1069,6 +1072,8 @@ public class GobblinYarnAppLauncher {
   public static void main(String[] args) throws Exception {
     final GobblinYarnAppLauncher gobblinYarnAppLauncher =
         new GobblinYarnAppLauncher(ConfigFactory.load(), new YarnConfiguration());
+    gobblinYarnAppLauncher.initializeYarnClients(ConfigFactory.load());
+
     Runtime.getRuntime().addShutdownHook(new Thread() {
 
       @Override
