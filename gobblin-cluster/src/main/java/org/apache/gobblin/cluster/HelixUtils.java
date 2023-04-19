@@ -119,10 +119,10 @@ public class HelixUtils {
 
   static void waitJobInitialization(
       HelixManager helixManager,
-      String workFlowName,
+      String workflowName,
       String jobName,
       Duration timeout) throws Exception {
-    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workflowName);
 
     // If the helix job is deleted from some other thread or a completely external process,
     // method waitJobCompletion() needs to differentiate between the cases where
@@ -130,18 +130,20 @@ public class HelixUtils {
     // 2) it did get initialized but deleted soon after, in which case we should stop waiting
     // To overcome this issue, we wait here till workflowContext gets initialized
     long start = System.currentTimeMillis();
-    while (workflowContext == null || workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) == null) {
+    while (workflowContext == null || workflowContext.getJobState(TaskUtil.getNamespacedJobName(workflowName, jobName)) == null) {
       if (System.currentTimeMillis() - start > timeout.toMillis()) {
-        log.error("Job cannot be initialized within {} milliseconds, considered as an error", timeout.toMillis());
-        throw new JobException(String.format("Job cannot be initialized within %s milliseconds, considered as an error",
-            timeout.toMillis()));
+        String errorDescription = String.format("Job cannot be initialized within %s milliseconds, considered as an error. "
+                + "workflowName=%s, jobName=%s, timeSubmittedEpoch=%s", timeout.toMillis(), workflowName, jobName, start);
+        log.error(errorDescription);
+        throw new JobException(errorDescription);
       }
-      workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+      workflowContext = TaskDriver.getWorkflowContext(helixManager, workflowName);
       Thread.sleep(TimeUnit.SECONDS.toMillis(1L));
-      log.info("Waiting for work flow initialization.");
+      log.info("Waiting for workflow initialization. workflowName={}, jobName={}, timeSubmittedEpoch={}, timeoutSeconds={}",
+          workflowName, jobName, start, timeout.getSeconds());
     }
 
-    log.info("Work flow {} initialized", workFlowName);
+    log.info("Workflow {} initialized. timeToInitMs={}", workflowName, System.currentTimeMillis() - start);
   }
 
   /**
@@ -233,11 +235,11 @@ public class HelixUtils {
       Duration submissionTimeout) throws Exception {
 
     WorkflowConfig workFlowConfig = new WorkflowConfig.Builder().setExpiry(workFlowExpiryTime.getSeconds(), TimeUnit.SECONDS).build();
-    // Create a work flow for each job with the name being the queue name
+    // Create a workflow for each Gobblin job using the Gobblin job name as the workflow name
     Workflow workFlow = new Workflow.Builder(workFlowName).setWorkflowConfig(workFlowConfig).addJob(jobName, jobConfigBuilder).build();
     // start the workflow
     helixTaskDriver.start(workFlow);
-    log.info("Created a work flow {}", workFlowName);
+    log.info("Created a workflow {}", workFlowName);
 
     waitJobInitialization(helixManager, workFlowName, jobName, submissionTimeout);
   }
