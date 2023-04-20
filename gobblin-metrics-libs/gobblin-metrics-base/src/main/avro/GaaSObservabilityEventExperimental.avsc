@@ -136,6 +136,7 @@
         "null",
         "string"
       ],
+      "default": null,
       "doc": "The instance of GaaS that is sending the event (if multiple GaaS instances are running)"
     },
     {
@@ -144,6 +145,7 @@
         "null",
         "string"
       ],
+      "default": null,
       "doc": "The job properties GaaS sends to the job executor. This is a JSON string of the job properties"
     },
     {
@@ -239,7 +241,8 @@
             ]
           }
         }
-      ]
+      ],
+      "default": null
     }
   ]
 }
