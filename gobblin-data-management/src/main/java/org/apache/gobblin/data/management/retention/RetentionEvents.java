@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.retention;
 
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 
+
 /**
  * Holds event names and constants used in events submitted by a retention job.
  */
@@ -34,6 +35,12 @@ class RetentionEvents {
      */
     static final String FAILURE_CONTEXT_METADATA_KEY = "failureContext";
   }
+
+  static class RetentionJobSummary {
+    static final String EVENT_NAME = "RetentionJobSummary";
+    static final String DATASET_VERSIONS_CLEANED_METADATA_KEY = "datasetsMarkedForCleaning";
+  }
+
   static final String NAMESPACE = "gobblin.data.management.retention";
   static final String DATASET_URN_METADATA_KEY = "datasetUrn";
 }

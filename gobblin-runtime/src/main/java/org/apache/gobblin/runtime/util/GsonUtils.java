@@ -38,4 +38,8 @@ public final class GsonUtils {
     Converters.registerAll(gsonBuilder);
     return gsonBuilder.create();
   }
+
+  public static GsonBuilder gsonBuilderWithSerializationSupport() {
+    return Converters.registerAll(new GsonBuilder());
+  }
 }

@@ -23,11 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Singular;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 
@@ -36,6 +31,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Singular;
 
 import org.apache.gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
 import org.apache.gobblin.data.management.policy.SelectNothingPolicy;
@@ -255,15 +255,16 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
    *
    */
   @Override
-  public void clean() throws IOException {
+  public int clean() throws IOException {
 
     if (this.isDatasetBlacklisted) {
       this.log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
-      return;
+      return 0;
     }
 
     boolean atLeastOneFailureSeen = false;
 
+    int totalVersionsDeleted = 0;
     for (VersionFinderAndPolicy<T> versionFinderAndPolicy : getVersionFindersAndPolicies()) {
 
       VersionSelectionPolicy<T> selectionPolicy = versionFinderAndPolicy.getVersionSelectionPolicy();
@@ -277,7 +278,6 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
           versionFinder.getClass().getName(), selectionPolicy));
 
       List<T> versions = Lists.newArrayList(versionFinder.findDatasetVersions(this));
-
       if (versions.isEmpty()) {
         this.log.warn("No dataset version can be found. Ignoring.");
         continue;
@@ -286,7 +286,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       Collections.sort(versions, Collections.reverseOrder());
 
       Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-
+      totalVersionsDeleted += deletableVersions.size();
       cleanImpl(deletableVersions);
 
       List<DatasetVersion> allVersions = Lists.newArrayList();
@@ -308,6 +308,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
       throw new RuntimeException(String.format(
           "At least one failure happened while processing %s. Look for previous logs for failures", datasetRoot()));
     }
+    return totalVersionsDeleted;
   }
 
   protected void cleanImpl(Collection<T> deletableVersions) throws IOException {

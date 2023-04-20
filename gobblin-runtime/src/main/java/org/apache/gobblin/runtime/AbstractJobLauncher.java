@@ -329,7 +329,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * @return {@link JobContext} of the job
    */
-  JobContext getJobContext() {
+  public JobContext getJobContext() {
     return this.jobContext;
   }
 
@@ -748,9 +748,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN, 0);
           }
         }
-        LOG.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten));
-        datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
-            datasetState.getState() == JobState.RunningState.COMMITTED));
+        // Certain job types will not populate any data e.g. Retention, we will ignore those jobs as they do not follow the normal Gobblin writer/task semantics
+        if (datasetState.getDatasetUrn().isEmpty() && totalBytesWritten == 0 && totalRecordsWritten == 0) {
+          continue;
+        }
+        LOG.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(),
+            totalRecordsWritten, totalBytesWritten));
+        datasetTaskSummaries.add(
+            new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
+                datasetState.getState() == JobState.RunningState.COMMITTED));
       } else if (datasetState.getState() == JobState.RunningState.FAILED) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
@@ -759,9 +765,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       }
     }
-    TimingEvent jobSummaryTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
-    jobSummaryTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
-    jobSummaryTimer.stop();
+    if (!datasetTaskSummaries.isEmpty()) {
+      TimingEvent jobSummaryTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
+      String serializedTaskSummaries = GsonUtils.gsonBuilderWithSerializationSupport().disableHtmlEscaping().create().toJson(datasetTaskSummaries);
+      jobSummaryTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, serializedTaskSummaries);
+      jobSummaryTimer.stop();
+    }
   }
 
   @Override

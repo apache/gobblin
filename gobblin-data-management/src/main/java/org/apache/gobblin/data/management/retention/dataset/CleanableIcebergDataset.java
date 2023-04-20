@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.data.management.retention.dataset;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,6 +26,18 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
@@ -39,11 +47,6 @@ import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.iceberg.GobblinMCEProducer;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -75,15 +78,15 @@ public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends
   }
 
   @Override
-  public void clean() throws IOException {
+  public int clean() throws IOException {
 
     if (this.isDatasetBlacklisted) {
       this.log.info("Dataset blacklisted. Cleanup skipped for " + datasetRoot());
-      return;
+      return 0;
     }
 
     boolean atLeastOneFailureSeen = false;
-
+    int totalVersionsDeleted = 0;
     for (VersionFinderAndPolicy<T> versionFinderAndPolicy : getVersionFindersAndPolicies()) {
       Config retentionConfig = versionFinderAndPolicy.getConfig();
       Preconditions.checkArgument(retentionConfig != null,
@@ -108,7 +111,7 @@ public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends
       Collections.sort(versions, Collections.reverseOrder());
 
       Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-
+      totalVersionsDeleted += deletableVersions.size();
       cleanImpl(deletableVersions, retentionConfig);
     }
 
@@ -125,6 +128,7 @@ public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends
       log.error("interrupted while sleep");
       throw new IOException(e);
     }
+    return totalVersionsDeleted;
   }
 
   /**

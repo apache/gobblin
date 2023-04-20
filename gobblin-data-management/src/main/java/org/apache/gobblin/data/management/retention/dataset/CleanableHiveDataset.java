@@ -120,13 +120,13 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
    * </p>
    */
   @Override
-  public void clean() throws IOException {
+  public int clean() throws IOException {
 
     List versions = Lists.newArrayList(this.hiveDatasetVersionFinder.findDatasetVersions(this));
 
     if (versions.isEmpty()) {
       log.warn(String.format("No dataset version can be found. Ignoring %s", this.getTable().getCompleteName()));
-      return;
+      return 0;
     }
 
     Collections.sort(versions, Collections.reverseOrder());
@@ -159,6 +159,7 @@ public class CleanableHiveDataset extends HiveDataset implements CleanableDatase
     if (!exceptions.isEmpty()) {
       throw new RuntimeException(String.format("Deletion failed for %s partitions", exceptions.size()));
     }
+    return deletableVersions.size();
   }
 
   @Override

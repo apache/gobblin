@@ -14,29 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.gobblin.runtime;
+package org.apache.gobblin.data.management.retention.version;
 
 import lombok.Data;
 
-import org.apache.gobblin.metrics.DatasetMetric;
-
 
 /**
- * Aggregates information from {@link TaskState} to provide metrics for the dataset
- * that can be reported as a single event in the commit phase.
+ * Aggregates information from {@link org.apache.gobblin.data.management.retention.DatasetCleaner} to
+ * track the number of versions selected for deletion for a dataset.
  */
 @Data
-public class DatasetTaskSummary {
+public class DatasetRetentionSummary {
   private final String datasetUrn;
-  private final long recordsWritten;
-  private final long bytesWritten;
-  private final boolean successfullyCommitted;
-
-  /**
-   * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
-   */
-  public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
-    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted());
-  }
+  private final int versionsSelectedForDeletion;
+  private final boolean successfullyDeleted;
 }

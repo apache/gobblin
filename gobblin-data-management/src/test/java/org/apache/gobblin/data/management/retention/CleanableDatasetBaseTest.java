@@ -30,8 +30,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import static org.mockito.Mockito.*;
-
 import org.apache.gobblin.data.management.retention.dataset.CleanableDatasetBase;
 import org.apache.gobblin.data.management.retention.policy.RetentionPolicy;
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
@@ -40,6 +38,8 @@ import org.apache.gobblin.data.management.retention.version.finder.DatasetVersio
 import org.apache.gobblin.data.management.retention.version.finder.VersionFinder;
 import org.apache.gobblin.data.management.trash.TestTrash;
 import org.apache.gobblin.data.management.trash.Trash;
+
+import static org.mockito.Mockito.*;
 
 
 public class CleanableDatasetBaseTest {
@@ -62,8 +62,9 @@ public class CleanableDatasetBaseTest {
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
 
-    dataset.clean();
+    int versionsDeleted = dataset.clean();
 
+    Assert.assertEquals(versionsDeleted, 2);
     Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
     Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
@@ -89,8 +90,8 @@ public class CleanableDatasetBaseTest {
     when(dataset.versionFinder.findDatasetVersions(dataset)).
         thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
 
-    dataset.clean();
-
+    int versionsDeleted = dataset.clean();
+    Assert.assertEquals(versionsDeleted, 2);
     Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
     Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
@@ -148,8 +149,8 @@ public class CleanableDatasetBaseTest {
 
     when(fs.listStatus(any(Path.class))).thenReturn(new FileStatus[]{});
 
-    dataset.clean();
-
+    int versionsDeleted = dataset.clean();
+    Assert.assertEquals(versionsDeleted, 2);
     Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
     Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));

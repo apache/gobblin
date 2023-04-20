@@ -17,21 +17,21 @@
 
 package org.apache.gobblin.data.management.dataset;
 
-import lombok.RequiredArgsConstructor;
-
 import java.io.IOException;
 import java.util.Collection;
 
-import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.ImmutableList;
 
+import lombok.RequiredArgsConstructor;
+
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 
 
 /**
@@ -42,8 +42,9 @@ public class DummyDataset implements CopyableDataset, CleanableDataset, FileSyst
 
   private final Path datasetRoot;
 
-  @Override public void clean() throws IOException {
+  @Override public int clean() throws IOException {
     // Do nothing
+    return 0;
   }
 
   @Override public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs,

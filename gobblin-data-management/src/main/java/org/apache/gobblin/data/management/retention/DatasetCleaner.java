@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -47,6 +48,7 @@ import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 import org.apache.gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
+import org.apache.gobblin.data.management.retention.version.DatasetRetentionSummary;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.instrumented.Instrumentable;
@@ -56,6 +58,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.util.AzkabanTags;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -88,6 +91,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
   private Optional<Meter> datasetsCleanSuccessMeter = Optional.absent();
   private Optional<Meter> datasetsCleanFailureMeter = Optional.absent();
   private Optional<CountDownLatch> finishCleanSignal;
+  private final ConcurrentHashMap<String, DatasetRetentionSummary> datasetRetentionSummaries = new ConcurrentHashMap<>();
   private final List<Throwable> throwables;
 
   public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
@@ -141,21 +145,24 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     List<Dataset> dataSets = this.datasetFinder.findDatasets();
     this.finishCleanSignal = Optional.of(new CountDownLatch(dataSets.size()));
     for (final Dataset dataset : dataSets) {
-      ListenableFuture<Void> future = this.service.submit(new Callable<Void>() {
+      ListenableFuture<Integer> future = this.service.submit(new Callable<Integer>(){
         @Override
-        public Void call() throws Exception {
+        public Integer call() throws Exception {
           if (dataset instanceof CleanableDataset) {
-            ((CleanableDataset) dataset).clean();
+            int versionsDeleted = ((CleanableDataset) dataset).clean();
+            return versionsDeleted;
           }
-          return null;
+          return 0;
         }
       });
-      Futures.addCallback(future, new FutureCallback<Void>() {
+      Futures.addCallback(future, new FutureCallback<Integer>() {
         @Override
         public void onFailure(Throwable throwable) {
           DatasetCleaner.this.finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
           DatasetCleaner.this.throwables.add(throwable);
+          DatasetRetentionSummary summary = new DatasetRetentionSummary(dataset.datasetURN(), 0, false);
+          DatasetCleaner.this.datasetRetentionSummaries.put(dataset.datasetURN(), summary);
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanFailureMeter);
           DatasetCleaner.this.eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
               ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY,
@@ -164,9 +171,11 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         }
 
         @Override
-        public void onSuccess(Void arg0) {
+        public void onSuccess(Integer datasetsDeleted) {
           DatasetCleaner.this.finishCleanSignal.get().countDown();
-          LOG.info("Successfully cleaned: " + dataset.datasetURN());
+          DatasetRetentionSummary summary = new DatasetRetentionSummary(dataset.datasetURN(), datasetsDeleted, true);
+          DatasetCleaner.this.datasetRetentionSummaries.put(dataset.datasetURN(), summary);
+          LOG.info("Successfully cleaned: {} with {} versions marked for deletion", dataset.datasetURN(), datasetsDeleted);
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanSuccessMeter);
         }
       });
@@ -187,8 +196,12 @@ public class DatasetCleaner implements Instrumentable, Closeable {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new IOException("Not all datasets finish cleanning", e);
+      throw new IOException("Not all datasets finished cleaning", e);
     } finally {
+      // Submit a job summary event
+      String serializedSummary = GsonUtils.gsonBuilderWithSerializationSupport().disableHtmlEscaping().create().toJson(this.datasetRetentionSummaries.values());
+      this.eventSubmitter.submit(RetentionEvents.RetentionJobSummary.EVENT_NAME,
+          ImmutableMap.of(RetentionEvents.RetentionJobSummary.DATASET_VERSIONS_CLEANED_METADATA_KEY, serializedSummary));
       ExecutorsUtils.shutdownExecutorService(this.service, Optional.of(LOG));
       this.closer.close();
     }
