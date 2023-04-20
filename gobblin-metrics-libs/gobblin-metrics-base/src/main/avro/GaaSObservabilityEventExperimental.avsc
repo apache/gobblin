@@ -131,6 +131,22 @@
       "compliance": "NONE"
     },
     {
+      "name": "gaasId",
+      "type": [
+        "null",
+        "string"
+      ],
+      "doc": "The instance of GaaS that is sending the event (if multiple GaaS instances are running)"
+    },
+    {
+      "name":"jobProperties",
+      "type": [
+        "null",
+        "string"
+      ],
+      "doc": "The job properties GaaS sends to the job executor. This is a JSON string of the job properties"
+    },
+    {
       "name": "issues",
       "type": [
         "null",
