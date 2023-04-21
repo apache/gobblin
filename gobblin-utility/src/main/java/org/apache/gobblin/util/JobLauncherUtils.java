@@ -74,8 +74,8 @@ public class JobLauncherUtils {
    * @param jobName job name
    * @return new job ID
    */
-  public static String newJobId(String jobName, long flowId) {
-    return Id.Job.create(jobName, flowId).toString();
+  public static String newJobId(String jobName, long executionId) {
+    return Id.Job.create(jobName, executionId).toString();
   }
 
   /**
