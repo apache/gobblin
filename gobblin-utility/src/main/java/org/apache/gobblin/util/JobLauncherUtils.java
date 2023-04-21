@@ -69,6 +69,16 @@ public class JobLauncherUtils {
   }
 
   /**
+   * Create a new job ID from a flow execution ID.
+   *
+   * @param jobName job name
+   * @return new job ID
+   */
+  public static String newJobId(String jobName, long flowId) {
+    return Id.Job.create(jobName, flowId).toString();
+  }
+
+  /**
    * Create a new task ID for the job with the given job ID.
    *
    * @param jobId job ID
