@@ -40,6 +40,7 @@ import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskPartitionState;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
@@ -222,8 +223,22 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           if (jobContext != null) {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
-            inUseInstances.addAll(jobContext.getPartitionSet().stream().map(jobContext::getAssignedParticipant)
-                .filter(Objects::nonNull).collect(Collectors.toSet()));
+            inUseInstances.addAll(jobContext.getPartitionSet().stream().map(i -> {
+              if(jobContext.getPartitionState(i) == null) {
+                return jobContext.getAssignedParticipant(i);
+              }
+              if (!jobContext.getPartitionState(i).equals(
+                  TaskPartitionState.ERROR) && !jobContext.getPartitionState(i).equals(
+                  TaskPartitionState.DROPPED)) {
+                return jobContext.getAssignedParticipant(i);
+              } else {
+                // adding log here now for debugging
+                //todo: if this happens frequently, we should reset to status to retriable or at least report the error earlier
+                log.info("Helix task {} is in {} state which is unexpected, please watch out to see if this get recovered", jobContext.getTaskIdForPartition(i), jobContext.getPartitionState(i));
+                return null;
+              }
+            }).filter(Objects::nonNull).collect(Collectors.toSet()));
+
 
             numPartitions = jobContext.getPartitionSet().size();
             // Job level config for helix instance tags takes precedence over other tag configurations
