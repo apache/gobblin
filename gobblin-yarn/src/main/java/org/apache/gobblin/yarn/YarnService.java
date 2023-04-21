@@ -200,6 +200,8 @@ public class YarnService extends AbstractIdleService {
   private final boolean isPurgingOfflineHelixInstancesEnabled;
   private final long helixPurgeLaggingThresholdMs;
   private final long helixPurgeStatusPollingRateMs;
+  private final ConcurrentMap<ContainerId, Long> containerIdleSince = Maps.newConcurrentMap();
+  private final ConcurrentMap<ContainerId, String> removedContainerID = Maps.newConcurrentMap();
 
   private volatile YarnContainerRequestBundle yarnContainerRequest;
   private final AtomicInteger priorityNumGenerator = new AtomicInteger(0);
@@ -473,6 +475,17 @@ public class YarnService extends AbstractIdleService {
       return false;
     }
 
+    //Correct the containerMap first as there is cases that handleContainerCompletion() is called before onContainersAllocated()
+    for (ContainerId removedId :this.removedContainerID.keySet()) {
+      ContainerInfo containerInfo = this.containerMap.remove(removedId);
+      if (containerInfo != null) {
+        String helixTag = containerInfo.getHelixTag();
+        allocatedContainerCountMap.putIfAbsent(helixTag, new AtomicInteger(0));
+        this.allocatedContainerCountMap.get(helixTag).decrementAndGet();
+        this.removedContainerID.remove(removedId);
+      }
+    }
+
     int numTargetContainers = yarnContainerRequestBundle.getTotalContainers();
     // YARN can allocate more than the requested number of containers, compute additional allocations and deallocations
     // based on the max of the requested and actual allocated counts
@@ -501,12 +514,29 @@ public class YarnService extends AbstractIdleService {
       }
     }
 
+    //We go through all the containers we have now and check whether the assigned participant is still alive, if not, we should put them in idle container Map
+    //And we will release the container if the assigned participant still offline after a given time
+
+    List<Container> containersToRelease = new ArrayList<>();
+    for (Map.Entry<ContainerId, ContainerInfo> entry : this.containerMap.entrySet()) {
+      ContainerInfo containerInfo = entry.getValue();
+      if (!HelixUtils.isInstanceLive(helixManager, containerInfo.getHelixParticipantId())) {
+        containerIdleSince.putIfAbsent(entry.getKey(), System.currentTimeMillis());
+        if (System.currentTimeMillis() - containerIdleSince.get(entry.getKey()) >= TimeUnit.MINUTES.toMillis(10)) {
+          LOGGER.info("Releasing Container {} because the assigned participant {} has been in-active for more than 10 minutes",
+              entry.getKey(), containerInfo.getHelixParticipantId());
+          containersToRelease.add(containerInfo.getContainer());
+        }
+      } else {
+        containerIdleSince.remove(entry.getKey());
+      }
+    }
+
     // If the total desired is lower than the currently allocated amount then release free containers.
     // This is based on the currently allocated amount since containers may still be in the process of being allocated
     // and assigned work. Resizing based on numRequestedContainers at this point may release a container right before
     // or soon after it is assigned work.
-    if (numTargetContainers < totalAllocatedContainers) {
-      List<Container> containersToRelease = new ArrayList<>();
+    if (containersToRelease.isEmpty() && numTargetContainers < totalAllocatedContainers) {
       int numToShutdown = totalAllocatedContainers - numTargetContainers;
 
       LOGGER.info("Shrinking number of containers by {} because numTargetContainers < totalAllocatedContainers ({} < {})",
@@ -525,7 +555,9 @@ public class YarnService extends AbstractIdleService {
       }
 
       LOGGER.info("Shutting down {} containers. containersToRelease={}", containersToRelease.size(), containersToRelease);
+    }
 
+    if (!containersToRelease.isEmpty()) {
       this.eventBus.post(new ContainerReleaseRequest(containersToRelease));
     }
     this.yarnContainerRequest = yarnContainerRequestBundle;
@@ -721,9 +753,16 @@ public class YarnService extends AbstractIdleService {
     //Get the Helix instance name for the completed container. Because callbacks are processed asynchronously, we might
     //encounter situations where handleContainerCompletion() is called before onContainersAllocated(), resulting in the
     //containerId missing from the containersMap.
+    // We use removedContainerID to remember these containers and remove them from containerMap later when we call requestTargetNumberOfContainers method
+    if (completedContainerInfo == null) {
+      removedContainerID.putIfAbsent(containerStatus.getContainerId(), "");
+    }
     String completedInstanceName = completedContainerInfo == null?  UNKNOWN_HELIX_INSTANCE : completedContainerInfo.getHelixParticipantId();
+
     String helixTag = completedContainerInfo == null ? helixInstanceTags : completedContainerInfo.getHelixTag();
-    allocatedContainerCountMap.get(helixTag).decrementAndGet();
+    if (completedContainerInfo != null) {
+      allocatedContainerCountMap.get(helixTag).decrementAndGet();
+    }
 
     LOGGER.info(String.format("Container %s running Helix instance %s with tag %s has completed with exit status %d",
         containerStatus.getContainerId(), completedInstanceName, helixTag, containerStatus.getExitStatus()));
