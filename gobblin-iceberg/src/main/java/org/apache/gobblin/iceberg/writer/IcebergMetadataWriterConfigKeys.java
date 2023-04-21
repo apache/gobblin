@@ -41,6 +41,8 @@ public class IcebergMetadataWriterConfigKeys {
   public static final String ICEBERG_NEW_PARTITION_WHITELIST = "iceberg.new.partition.whitelist";
   public static final String ICEBERG_NEW_PARTITION_BLACKLIST = "iceberg.new.partition.blacklist";
   public static final String STATE_COMPLETION_WATERMARK_KEY_OF_TABLE = "completion.watermark.%s";
+  public static final String ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY = "iceberg.enable.custom.metadata.retention.policy";
+  public static final boolean DEFAULT_ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY = true;
 
 
 }

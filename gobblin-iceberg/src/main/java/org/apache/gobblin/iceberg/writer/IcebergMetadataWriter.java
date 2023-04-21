@@ -855,12 +855,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
         props.put(String.format(GMCE_LOW_WATERMARK_KEY, tableTopicPartitionMap.get(tid)),
             tableMetadata.lowWatermark.get().toString());
         //Set whether to delete metadata files after commit
-        props.put(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, Boolean.toString(
-            conf.getBoolean(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED,
-                TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED_DEFAULT)));
-        props.put(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, Integer.toString(
-            conf.getInt(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX,
-                TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)));
+        if (conf.getBoolean(ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY, DEFAULT_ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY)) {
+          props.put(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, Boolean.toString(
+              conf.getBoolean(TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED, TableProperties.METADATA_DELETE_AFTER_COMMIT_ENABLED_DEFAULT)));
+          props.put(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, Integer.toString(
+              conf.getInt(TableProperties.METADATA_PREVIOUS_VERSIONS_MAX, TableProperties.METADATA_PREVIOUS_VERSIONS_MAX_DEFAULT)));
+        }
         //Update schema(commit)
         updateSchema(tableMetadata, props, topicName);
         //Update properties
