@@ -53,6 +53,8 @@ import org.apache.hadoop.fs.Path;
 public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
+  private static final String PLANNING_THREADS_POOL_SIZE= ManifestBasedDatasetFinder.CONFIG_PREFIX + ".planning.threads.pool.size";
+  private static final String DEFAULT_PLANNING_THREADS_POLL_SIZE = "10";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem fs;
@@ -60,6 +62,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
+  private final int planningThreadsPoolSize;
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
@@ -67,6 +70,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
+    this.planningThreadsPoolSize = Integer.parseInt(properties.getProperty(PLANNING_THREADS_POOL_SIZE, DEFAULT_PLANNING_THREADS_POLL_SIZE));
   }
 
   @Override
@@ -90,7 +94,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     //todo: put permission preserve logic here?
     ExecutorService queueExecutor = null;
     try {
-      queueExecutor = Executors.newFixedThreadPool(20, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
+      queueExecutor = Executors.newFixedThreadPool(planningThreadsPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("ManifestBasedDatasetPlanningThread-%d")));
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
       List<Future> pendingTask = new ArrayList<>();
@@ -104,21 +108,16 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             //todo: We can use fileSet to partition the data in case of some softbound issue
             //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
             Path fileToCopy = new Path(file.fileName);
-            //long startTime_2 = System.currentTimeMillis();
             if (fs.exists(fileToCopy)) {
-              //log.info(String.format("check file exist: %s", System.currentTimeMillis()-startTime_2));
               boolean existOnTarget = false;
               try {
                 existOnTarget = targetFs.exists(fileToCopy);
               } catch (IOException e) {
                 e.printStackTrace();
               }
-              //long startTime_1 = System.currentTimeMillis();
               FileStatus srcFile = fs.getFileStatus(fileToCopy);
-              //log.info(String.format("get file status: %s", System.currentTimeMillis()-startTime_1));
               OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
               if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
-                //long startTime = System.currentTimeMillis();
                 CopyableFile.Builder copyableFileBuilder =
                     CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
                         .fileSet(datasetURN())
@@ -127,7 +126,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
                             .resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
                                 new Path(commonFilesParent), configuration, permissionMap))
                         .destinationOwnerAndPermission(replicatedPermission);
-                //log.info(String.format("resolve ancestor time for %s: %s", fileToCopy.getParent(), System.currentTimeMillis() - startTime));
                 CopyableFile copyableFile = copyableFileBuilder.build();
                 copyableFile.setFsDatasets(fs, targetFs);
                 copyEntities.add(copyableFile);
@@ -147,13 +145,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         );
         pendingTask.add(future);
       }
-      int i = 0;
       for (Future f: pendingTask) {
         f.get();
-        i++;
-        if (i % 100 == 0) {
-          log.info(String.format("calculated %s files",i));
-        }
       }
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir

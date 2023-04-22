@@ -380,6 +380,7 @@ public class CopyableFile extends CopyEntity implements File {
   /**
    * Compute the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
    * the {@link PreserveAttributes} rules for fromPath and every ancestor up to but excluding toPath.
+   * Use permissionMap as a cache to reduce the call to hdfs
    *
    * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
    * @throws IOException if toPath is not an ancestor of fromPath.
@@ -395,14 +396,10 @@ public class CopyableFile extends CopyEntity implements File {
     Path currentPath = fromPath;
 
     while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
-     // long startTime = System.currentTimeMillis();
       if (!permissionMap.containsKey(currentPath.toString())) {
         permissionMap.put(currentPath.toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
-        //log.info(String.format("Time to put acl in map %s: %s", currentPath, System.currentTimeMillis() - startTime));
-       // startTime = System.currentTimeMillis();
       }
       ownerAndPermissions.add(permissionMap.get(currentPath.toString()));
-     // log.info(String.format("Time to get acl in map %s: %s", currentPath, System.currentTimeMillis() - startTime));
       currentPath = currentPath.getParent();
     }
 
@@ -440,9 +437,7 @@ public class CopyableFile extends CopyEntity implements File {
   }
 
   private static List<AclEntry> getAclEntries(FileSystem srcFs, Path path) throws IOException {
-    //long start = System.currentTimeMillis();
     AclStatus aclStatus = srcFs.getAclStatus(path);
-   // log.info(String.format("$$$ get Alc: %s", System.currentTimeMillis() - start) );
     return aclStatus.getEntries();
   }
 
