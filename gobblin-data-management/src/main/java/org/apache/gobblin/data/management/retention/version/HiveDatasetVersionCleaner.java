@@ -87,10 +87,10 @@ public class HiveDatasetVersionCleaner extends VersionCleaner {
     try (AutoReturnableObject<IMetaStoreClient> client = cleanableHiveDataset.getClientPool().getClient()) {
       Partition partition = hiveDatasetVersion.getPartition();
       try {
-        if (cleanableHiveDataset.isShouldDeleteData()) {
-          cleanableHiveDataset.getFsCleanableHelper().clean(hiveDatasetVersion, possiblyEmptyDirectories);
-        }
         if (!cleanableHiveDataset.isSimulate()) {
+          if (cleanableHiveDataset.isShouldDeleteData()) {
+            cleanableHiveDataset.getFsCleanableHelper().clean(hiveDatasetVersion, possiblyEmptyDirectories);
+          }
           client.get().dropPartition(partition.getTable().getDbName(), partition.getTable().getTableName(), partition.getValues(), false);
           log.info("Successfully dropped partition " + partition.getCompleteName());
         } else {
