@@ -87,21 +87,25 @@ public class HiveDatasetVersionCleaner extends VersionCleaner {
     try (AutoReturnableObject<IMetaStoreClient> client = cleanableHiveDataset.getClientPool().getClient()) {
       Partition partition = hiveDatasetVersion.getPartition();
       try {
+        if (cleanableHiveDataset.isShouldDeleteData()) {
+          cleanableHiveDataset.getFsCleanableHelper().clean(hiveDatasetVersion, possiblyEmptyDirectories);
+        }
         if (!cleanableHiveDataset.isSimulate()) {
           client.get().dropPartition(partition.getTable().getDbName(), partition.getTable().getTableName(), partition.getValues(), false);
           log.info("Successfully dropped partition " + partition.getCompleteName());
         } else {
           log.info("Simulating drop partition " + partition.getCompleteName());
         }
-        if (cleanableHiveDataset.isShouldDeleteData()) {
-          cleanableHiveDataset.getFsCleanableHelper().clean(hiveDatasetVersion, possiblyEmptyDirectories);
-        }
       } catch (TException | IOException e) {
         log.warn(String.format("Failed to completely delete partition %s.", partition.getCompleteName()), e);
         throw new IOException(e);
       }
+    } try {
+      cleanableHiveDataset.getFsCleanableHelper().cleanEmptyDirectories(possiblyEmptyDirectories, cleanableHiveDataset);
+    } catch (IOException ex) {
+      log.warn(String.format("Failed to delete at least one or more empty directories from total:{%s} with root path %s", possiblyEmptyDirectories.size(), cleanableHiveDataset.datasetRoot()), ex);
+      throw new IOException(ex);
     }
-    cleanableHiveDataset.getFsCleanableHelper().cleanEmptyDirectories(possiblyEmptyDirectories, cleanableHiveDataset);
   }
 
   @Override
