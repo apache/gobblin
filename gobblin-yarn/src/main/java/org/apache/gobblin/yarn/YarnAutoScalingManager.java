@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.base.Strings;
 import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -30,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 
 import org.apache.commons.compress.utils.Sets;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
@@ -49,12 +49,14 @@ import org.apache.helix.task.WorkflowContext;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
@@ -241,7 +243,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
               }
             }).filter(Objects::nonNull).collect(Collectors.toSet()));
 
-
             numPartitions = jobContext.getPartitionSet().size();
             // Job level config for helix instance tags takes precedence over other tag configurations
             if (jobConfig != null) {
@@ -261,6 +262,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           // per partition. Scale the result by a constant overprovision factor.
           int containerCount = (int) Math.ceil(((double)numPartitions / this.partitionsPerContainer) * this.overProvisionFactor);
           yarnContainerRequestBundle.add(jobTag, containerCount, resource);
+          log.info("jobName={}, jobTag={}, numPartitions={}, targetNumContainers={}",
+              jobName, jobTag, numPartitions, containerCount);
         }
       }
       // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
