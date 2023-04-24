@@ -61,6 +61,7 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 import static org.apache.helix.task.TaskState.STOPPED;
 
@@ -159,7 +160,8 @@ public class HelixUtils {
     if (jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)) {
       jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
     } else {
-      jobId = JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobProps));
+      jobId = JobLauncherUtils.newJobId(JobState.getJobNameFromProps(jobProps),
+          PropertiesUtils.getPropAsLong(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
       jobProps.put(ConfigurationKeys.JOB_ID_KEY, jobId);
     }
 
