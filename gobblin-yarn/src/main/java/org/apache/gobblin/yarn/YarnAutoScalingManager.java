@@ -31,6 +31,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.commons.compress.utils.Sets;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
@@ -69,6 +70,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_PREFIX = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "autoScaling.";
   private final String AUTO_SCALING_POLLING_INTERVAL_SECS =
       AUTO_SCALING_PREFIX + "pollingIntervalSeconds";
+  private static final int THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING = 20;
   private final int DEFAULT_AUTO_SCALING_POLLING_INTERVAL_SECS = 60;
   // Only one container will be requested for each N partitions of work
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
@@ -95,6 +97,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final double overProvisionFactor;
   private final SlidingWindowReservoir slidingFixedSizeWindow;
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
+  private static final HashSet<TaskPartitionState>
+      UNUSUAL_HELIX_TASK_STATES = Sets.newHashSet(TaskPartitionState.ERROR, TaskPartitionState.DROPPED);
 
   public YarnAutoScalingManager(GobblinApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
@@ -224,12 +228,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
             inUseInstances.addAll(jobContext.getPartitionSet().stream().map(i -> {
-              if(jobContext.getPartitionState(i) == null) {
-                return jobContext.getAssignedParticipant(i);
+              if (jobContext.getPartitionNumAttempts(i) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
+                log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better", jobContext.getTaskIdForPartition(i), jobContext.getPartitionNumAttempts(i));
               }
-              if (!jobContext.getPartitionState(i).equals(
-                  TaskPartitionState.ERROR) && !jobContext.getPartitionState(i).equals(
-                  TaskPartitionState.DROPPED)) {
+              if (!UNUSUAL_HELIX_TASK_STATES.contains(jobContext.getPartitionState(i))) {
                 return jobContext.getAssignedParticipant(i);
               } else {
                 // adding log here now for debugging
