@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 
 
 import org.apache.commons.compress.utils.Sets;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
