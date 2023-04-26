@@ -18,26 +18,22 @@
 package org.apache.gobblin.data.management.copy;
 
 import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -53,8 +49,6 @@ import org.apache.hadoop.fs.Path;
 public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
-  private static final String PLANNING_THREADS_POOL_SIZE= ManifestBasedDatasetFinder.CONFIG_PREFIX + ".planning.threads.pool.size";
-  private static final String DEFAULT_PLANNING_THREADS_POLL_SIZE = "10";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem fs;
@@ -62,7 +56,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
-  private final int planningThreadsPoolSize;
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
@@ -70,7 +63,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
-    this.planningThreadsPoolSize = Integer.parseInt(properties.getProperty(PLANNING_THREADS_POOL_SIZE, DEFAULT_PLANNING_THREADS_POLL_SIZE));
   }
 
   @Override
@@ -92,68 +84,49 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     List<CopyEntity> copyEntities = Collections.synchronizedList(Lists.newArrayList());
     List<FileStatus> toDelete = Collections.synchronizedList(Lists.newArrayList());
     //todo: put permission preserve logic here?
-    ExecutorService queueExecutor = null;
     try {
-      queueExecutor = Executors.newFixedThreadPool(planningThreadsPoolSize, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("ManifestBasedDatasetPlanningThread-%d")));
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
-      List<Future> pendingTask = new ArrayList<>();
-      Map<String, OwnerAndPermission> permissionMap = new ConcurrentHashMap<>();
+      Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.SECONDS).build();
+      int numFiles = 0;
       while (manifests.hasNext()) {
+        numFiles++;
         CopyManifest.CopyableUnit file = manifests.next();
-        Future future = queueExecutor.submit(new Runnable() {
-          @Override
-          public void run() {
-            try{
-            //todo: We can use fileSet to partition the data in case of some softbound issue
-            //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-            Path fileToCopy = new Path(file.fileName);
-            if (fs.exists(fileToCopy)) {
-              boolean existOnTarget = false;
-              try {
-                existOnTarget = targetFs.exists(fileToCopy);
-              } catch (IOException e) {
-                e.printStackTrace();
-              }
-              FileStatus srcFile = fs.getFileStatus(fileToCopy);
-              OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
-              if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
-                CopyableFile.Builder copyableFileBuilder =
-                    CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
-                        .fileSet(datasetURN())
-                        .datasetOutputPath(fileToCopy.toString())
-                        .ancestorsOwnerAndPermission(CopyableFile
-                            .resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
-                                new Path(commonFilesParent), configuration, permissionMap))
-                        .destinationOwnerAndPermission(replicatedPermission);
-                CopyableFile copyableFile = copyableFileBuilder.build();
-                copyableFile.setFsDatasets(fs, targetFs);
-                copyEntities.add(copyableFile);
-                if (existOnTarget && srcFile.isFile()) {
-                  // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
-                  // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
-                  toDelete.add(targetFs.getFileStatus(fileToCopy));
-                }
-              }
-            } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
+        //todo: We can use fileSet to partition the data in case of some softbound issue
+        //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
+        Path fileToCopy = new Path(file.fileName);
+        if (fs.exists(fileToCopy)) {
+          boolean existOnTarget = targetFs.exists(fileToCopy);
+          FileStatus srcFile = fs.getFileStatus(fileToCopy);
+          OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
+          if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
+            CopyableFile.Builder copyableFileBuilder =
+                CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
+                    .fileSet(datasetURN())
+                    .datasetOutputPath(fileToCopy.toString())
+                    .ancestorsOwnerAndPermission(
+                        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
+                            new Path(commonFilesParent), configuration, permissionMap))
+                    .destinationOwnerAndPermission(replicatedPermission);
+            CopyableFile copyableFile = copyableFileBuilder.build();
+            copyableFile.setFsDatasets(fs, targetFs);
+            copyEntities.add(copyableFile);
+            if (existOnTarget && srcFile.isFile()) {
+              // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
+              // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
               toDelete.add(targetFs.getFileStatus(fileToCopy));
             }
-          } catch (IOException e) {
-            log.error("meet exception:", e);
           }
-        }}
-        );
-        pendingTask.add(future);
-      }
-      for (Future f: pendingTask) {
-        f.get();
+        } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)) {
+          toDelete.add(targetFs.getFileStatus(fileToCopy));
+        }
       }
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
-      log.info(String.format("Calculate workunits take %s milliseconds", System.currentTimeMillis() - startTime));
+      log.info(String.format("Workunits calculation take %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
     } catch (JsonIOException| JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
@@ -166,9 +139,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     } finally {
       if (manifests != null) {
         manifests.close();
-      }
-      if(queueExecutor != null) {
-        queueExecutor.shutdownNow();
       }
     }
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();

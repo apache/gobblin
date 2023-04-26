@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.cache.Cache;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
@@ -386,7 +388,8 @@ public class CopyableFile extends CopyEntity implements File {
    * @throws IOException if toPath is not an ancestor of fromPath.
    */
   public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(FileSystem sourceFs, Path fromPath,
-      Path toPath, CopyConfiguration copyConfiguration, Map<String, OwnerAndPermission> permissionMap) throws IOException {
+      Path toPath, CopyConfiguration copyConfiguration, Cache<String, OwnerAndPermission> permissionMap)
+      throws IOException, ExecutionException {
 
     if (!PathUtils.isAncestor(toPath, fromPath)) {
       throw new IOException(String.format("toPath %s must be an ancestor of fromPath %s.", toPath, fromPath));
@@ -396,10 +399,9 @@ public class CopyableFile extends CopyEntity implements File {
     Path currentPath = fromPath;
 
     while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
-      if (!permissionMap.containsKey(currentPath.toString())) {
-        permissionMap.put(currentPath.toString(), resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
-      }
-      ownerAndPermissions.add(permissionMap.get(currentPath.toString()));
+      Path finalCurrentPath = currentPath;
+      ownerAndPermissions.add(permissionMap.get(finalCurrentPath.toString(), () -> resolveReplicatedOwnerAndPermission(sourceFs,
+          finalCurrentPath, copyConfiguration)));
       currentPath = currentPath.getParent();
     }
 
