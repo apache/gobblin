@@ -196,6 +196,21 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           .keySet().stream().filter(x -> filterString.isEmpty() || x.contains(filterString)).collect(Collectors.toSet());
     }
 
+    private String getInuseParticipantForHelixPartition(JobContext jobContext, int partition) {
+      if (jobContext.getPartitionNumAttempts(partition) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
+        log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better",
+            jobContext.getTaskIdForPartition(partition), jobContext.getPartitionNumAttempts(partition));
+      }
+      if (!UNUSUAL_HELIX_TASK_STATES.contains(jobContext.getPartitionState(partition))) {
+        return jobContext.getAssignedParticipant(partition);
+      }
+      // adding log here now for debugging
+      //todo: if this happens frequently, we should reset to status to retriable or at least report the error earlier
+      log.info("Helix task {} is in {} state which is unexpected, please watch out to see if this get recovered",
+          jobContext.getTaskIdForPartition(partition), jobContext.getPartitionState(partition));
+      return null;
+    }
+
     /**
      * Iterate through the workflows configured in Helix to figure out the number of required partitions
      * and request the {@link YarnService} to scale to the desired number of containers.
@@ -229,19 +244,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           if (jobContext != null) {
             log.debug("JobContext {} num partitions {}", jobContext, jobContext.getPartitionSet().size());
 
-            inUseInstances.addAll(jobContext.getPartitionSet().stream().map(i -> {
-              if (jobContext.getPartitionNumAttempts(i) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
-                log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better", jobContext.getTaskIdForPartition(i), jobContext.getPartitionNumAttempts(i));
-              }
-              if (!UNUSUAL_HELIX_TASK_STATES.contains(jobContext.getPartitionState(i))) {
-                return jobContext.getAssignedParticipant(i);
-              } else {
-                // adding log here now for debugging
-                //todo: if this happens frequently, we should reset to status to retriable or at least report the error earlier
-                log.info("Helix task {} is in {} state which is unexpected, please watch out to see if this get recovered", jobContext.getTaskIdForPartition(i), jobContext.getPartitionState(i));
-                return null;
-              }
-            }).filter(Objects::nonNull).collect(Collectors.toSet()));
+            inUseInstances.addAll(jobContext.getPartitionSet().stream()
+                .map(i -> getInuseParticipantForHelixPartition(jobContext, i))
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
 
             numPartitions = jobContext.getPartitionSet().size();
             // Job level config for helix instance tags takes precedence over other tag configurations
