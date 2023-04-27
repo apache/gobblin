@@ -26,7 +26,6 @@ import junit.framework.Assert;
 
 import org.apache.gobblin.configuration.State;
 
-
 public class HiveTableTest {
 
   @Test
@@ -48,7 +47,6 @@ public class HiveTableTest {
     builder.withStorageProps(storageProps);
 
     HiveTable hiveTable = builder.build();
-
 
     Assert.assertEquals(hiveTable.getLastAccessTime().get().longValue(), lastAccessTime.longValue());
     Assert.assertEquals(hiveTable.getLocation().get(), "/tmp");
