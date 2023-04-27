@@ -81,8 +81,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
     CopyManifest.CopyableUnitIterator manifests = null;
-    List<CopyEntity> copyEntities = Collections.synchronizedList(Lists.newArrayList());
-    List<FileStatus> toDelete = Collections.synchronizedList(Lists.newArrayList());
+    List<CopyEntity> copyEntities = Lists.newArrayList();
+    List<FileStatus> toDelete = Lists.newArrayList();
     //todo: put permission preserve logic here?
     try {
       long startTime = System.currentTimeMillis();
@@ -126,7 +126,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
-      log.info(String.format("Workunits calculation take %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
+      log.info(String.format("Workunits calculation took %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
     } catch (JsonIOException| JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
