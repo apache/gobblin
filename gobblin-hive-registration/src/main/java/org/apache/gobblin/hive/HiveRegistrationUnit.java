@@ -125,14 +125,13 @@ public class HiveRegistrationUnit {
   protected static <T> Optional<T> populateField(State state, String key, TypeToken<T> token) {
     if (state.contains(key)) {
       Optional<T> fieldValue;
-
-      if (new TypeToken<Boolean>() {}.getRawType().isAssignableFrom(token.getClass())) {
+      if (new TypeToken<Boolean>(){}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsBoolean(key));
-      } else if (new TypeToken<Integer>() {}.getRawType().isAssignableFrom(token.getClass())) {
+      } else if (new TypeToken<Integer>(){}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsInt(key));
-      } else if (new TypeToken<Long>() {}.getRawType().isAssignableFrom(token.getClass())) {
+      } else if (new TypeToken<Long>(){}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsLong(key));
-      } else if (new TypeToken<List<String>>() {}.getRawType().isAssignableFrom(token.getClass())) {
+      } else if (new TypeToken<List<String>>(){}.isSupertypeOf(token)) {
         fieldValue = (Optional<T>) Optional.of(state.getPropAsList(key));
       } else {
         fieldValue = (Optional<T>) Optional.of(state.getProp(key));
