@@ -188,4 +188,26 @@ public class AvroFlattenerTest {
   }
 
 
+  /**
+   * Test flattening for non-null default within an Option within another Record
+   * Record R1 {
+   *  fields: {
+   *    Union [ null,
+   *            Record 2 {
+   *              field: type
+   *              default: type
+   *            }
+   *          ]
+   *    }
+   * }
+   */
+  @Test
+  public void testNonNullDefaultWithinOptionWithinRecord () throws IOException {
+
+    Schema originalSchema = readSchemaFromJsonFile("nonNullDefaultWithinOptionWithinRecord_original.json");
+    Schema expectedSchema = readSchemaFromJsonFile("nonNullDefaultWithinOptionWithinRecord_flattened.json");
+    Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false).toString(), expectedSchema.toString());
+  }
+
+
 }
