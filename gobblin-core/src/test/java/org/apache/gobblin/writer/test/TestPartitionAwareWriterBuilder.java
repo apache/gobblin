@@ -37,9 +37,16 @@ import lombok.Data;
 public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBuilder<String, String> {
 
   public final Queue<Action> actions = Queues.newArrayDeque();
+  private boolean testTimeout;
 
   public enum Actions {
     BUILD, WRITE, COMMIT, CLEANUP, CLOSE
+  }
+  public TestPartitionAwareWriterBuilder() {
+    this(false);
+  }
+  public TestPartitionAwareWriterBuilder(boolean testTimeout) {
+    this.testTimeout = testTimeout;
   }
 
   @Override
@@ -50,6 +57,13 @@ public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBui
   @Override
   public DataWriter build()
       throws IOException {
+    if (testTimeout) {
+      try {
+        Thread.sleep(10*1000);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
     String partition = this.partition.get().get(TestPartitioner.PARTITION).toString();
     this.actions.add(new Action(Actions.BUILD, partition, null));
     if (partition.matches(".*\\d+.*")) {

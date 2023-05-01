@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.writer;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import java.io.IOException;
 import java.util.List;
 
@@ -167,11 +168,24 @@ public class PartitionedWriterTest {
   }
 
   @Test
+  public void testTimeoutWhenCreatingWriter() throws IOException {
+    State state = new State();
+    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
+    state.setProp(PartitionedDataWriter.PARTITIONED_WRITER_CACHE_TTL_SECONDS, 6);
+    TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder(true);
+
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
+
+    String record1 = "abc";
+    Assert.expectThrows(UncheckedExecutionException.class, () -> writer.writeEnvelope(new RecordEnvelope(record1)));
+  }
+
+  @Test
   public void testPartitionWriterCacheRemovalListener()
       throws IOException, InterruptedException {
     State state = new State();
     state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
-    state.setProp(PartitionedDataWriter.PARTITIONED_WRITER_CACHE_TTL_SECONDS, 1);
+    state.setProp(PartitionedDataWriter.PARTITIONED_WRITER_CACHE_TTL_SECONDS, 3);
     TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder();
 
     PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
@@ -183,7 +197,7 @@ public class PartitionedWriterTest {
     writer.writeEnvelope(new RecordEnvelope(record2));
 
     //Sleep for more than cache expiration interval
-    Thread.sleep(1500);
+    Thread.sleep(3500);
 
     //Call cache clean up to ensure removal of expired entries.
     writer.getPartitionWriters().cleanUp();
