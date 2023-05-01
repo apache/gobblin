@@ -22,9 +22,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import org.apache.avro.SchemaBuilder;
@@ -115,6 +118,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   @Getter
   @VisibleForTesting
   private long totalBytesFromEvictedWriters;
+  private ExecutorService createWriterPool;
 
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
@@ -125,6 +129,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     this.isSpeculativeAttemptSafe = true;
     this.isWatermarkCapable = true;
     this.baseWriterId = builder.getWriterId();
+    this.createWriterPool = Executors.newSingleThreadExecutor();
     this.closer = Closer.create();
     this.writerBuilder = builder;
     this.controlMessageHandler = new PartitionDataWriterMessageHandler();
@@ -170,9 +175,12 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                     try {
                       log.info(String.format("Adding one more writer to loading cache of existing writer "
                           + "with size = %d", partitionWriters.size()));
-                      return createPartitionWriter(key);
-                    } catch (IOException e) {
+                      Future<DataWriter<D>> future = createWriterPool.submit(() -> createPartitionWriter(key));
+                      return future.get(writeTimeoutInterval, TimeUnit.SECONDS);
+                    } catch (ExecutionException | InterruptedException e) {
                       throw new RuntimeException("Error creating writer", e);
+                    } catch (TimeoutException e) {
+                      throw new RuntimeException(String.format("Failed to create writer due to timeout. The operation timed out after %s seconds.", writeTimeoutInterval), e);
                     }
                   }
                 }, state), state, key);
@@ -326,6 +334,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       serializePartitionInfoToState();
     } finally {
       closeWritersInCache();
+      this.createWriterPool.shutdown();
       this.closer.close();
     }
   }
