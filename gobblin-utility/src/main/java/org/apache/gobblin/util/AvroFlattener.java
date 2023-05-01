@@ -23,13 +23,13 @@ import java.util.List;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
-import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 /***
  * This class provides methods to flatten an Avro Schema to make it more optimal for ORC
@@ -402,6 +402,10 @@ public class AvroFlattener {
           }
           // Wrap the Union, since parent Union is an option
           else {
+            // If the field within the parent Union has a non-null default value, then null should not be the first member
+            if (f.hasDefaultValue() && f.defaultVal() != null) {
+              isNullFirstMember = false;
+            }
             if (isNullFirstMember) {
               flattenedFieldSchema =
                   Schema.createUnion(Arrays.asList(Schema.create(Schema.Type.NULL), flattenedFieldSchema));

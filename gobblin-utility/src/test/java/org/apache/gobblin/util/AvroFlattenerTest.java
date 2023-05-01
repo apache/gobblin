@@ -22,6 +22,8 @@ import org.apache.avro.Schema;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
+
 
 public class AvroFlattenerTest {
 
@@ -185,6 +187,32 @@ public class AvroFlattenerTest {
     Schema expectedSchema = readSchemaFromJsonFile("recordWithinMapWithinMap_flattened.json");
 
     Assert.assertEquals(new AvroFlattener().flatten(originalSchema, false), expectedSchema);
+  }
+
+
+  /**
+   * Test flattening for non-null default within an Option within another Record
+   * Record R1 {
+   *  fields: {
+   *    Union [ null,
+   *            Record 2 {
+   *              field: type
+   *              default: type
+   *            }
+   *          ]
+   *    }
+   * }
+   */
+  @Test
+  public void testNonNullDefaultWithinOptionWithinRecord () throws IOException {
+
+    Schema originalSchema = readSchemaFromJsonFile("nonNullDefaultWithinOptionWithinRecord_original.json");
+    Schema expectedSchema = readSchemaFromJsonFile("nonNullDefaultWithinOptionWithinRecord_flattened.json");
+    Schema flattenedSchema = new AvroFlattener().flatten(originalSchema, false);
+    Assert.assertEquals(AvroCompatibilityHelper.getSpecificDefaultValue(
+        flattenedSchema.getField("parentFieldUnion__unionRecordMemberFieldUnion__superNestedFieldString1")).toString(),
+        "defaultString1");
+    Assert.assertEquals(flattenedSchema.toString(), expectedSchema.toString());
   }
 
 
