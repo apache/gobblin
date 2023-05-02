@@ -127,13 +127,14 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
       case TimingEvent.FlowTimings.FLOW_COMPILED:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPILED.name());
         break;
-      case TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION:
+      case TimingEvent.LauncherTimings.WORK_UNITS_CREATION:
         properties.put(TimingEvent.WORKUNIT_PLAN_START_TIME, properties.getProperty(TimingEvent.METADATA_START_TIME));
         properties.put(TimingEvent.WORKUNIT_PLAN_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
         break;
       case TimingEvent.LauncherTimings.JOB_START:
       case TimingEvent.FlowTimings.FLOW_RUNNING:
       case TimingEvent.LauncherTimings.JOB_SUMMARY:
+      case TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.RUNNING.name());
         break;
       case TimingEvent.LauncherTimings.JOB_PENDING:
