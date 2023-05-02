@@ -50,12 +50,15 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
+  private static final String PERMISSION_CACHE_TTL_SECONDS = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".permission.cache.ttl.seconds";
+  private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem fs;
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
+  private final int permissionCacheTTLSeconds;
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
@@ -63,6 +66,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
+    this.permissionCacheTTLSeconds = Integer.parseInt(properties.getProperty(PERMISSION_CACHE_TTL_SECONDS, DEFAULT_PERMISSION_CACHE_TTL_SECONDS));
   }
 
   @Override
@@ -87,7 +91,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     try {
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
-      Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(30, TimeUnit.SECONDS).build();
+      Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(permissionCacheTTLSeconds, TimeUnit.SECONDS).build();
       int numFiles = 0;
       while (manifests.hasNext()) {
         numFiles++;
