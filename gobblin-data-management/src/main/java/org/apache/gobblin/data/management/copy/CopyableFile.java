@@ -382,7 +382,8 @@ public class CopyableFile extends CopyEntity implements File {
   /**
    * Compute the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
    * the {@link PreserveAttributes} rules for fromPath and every ancestor up to but excluding toPath.
-   * Use permissionMap as a cache to reduce the call to hdfs
+   * Unlike the resolveReplicatedOwnerAndPermissionsRecursively() method, this method utilizes permissionMap as a cache to minimize the number of calls to HDFS.
+   * It is recommended to use this method when recursively calculating permissions for numerous files that share the same ancestor.
    *
    * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
    * @throws IOException if toPath is not an ancestor of fromPath.
