@@ -689,7 +689,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(TimingEvent.METADATA_START_TIME, "2");
     metadata.put(TimingEvent.METADATA_END_TIME, "3");
-    return createGTE(TimingEvent.RunJobTimings.WORK_UNITS_PREPARATION, metadata);
+    return createGTE(TimingEvent.LauncherTimings.WORK_UNITS_CREATION, metadata);
   }
 
 
