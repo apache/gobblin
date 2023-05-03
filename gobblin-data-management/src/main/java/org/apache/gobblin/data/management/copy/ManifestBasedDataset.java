@@ -18,6 +18,8 @@
 package org.apache.gobblin.data.management.copy;
 
 import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonIOException;
@@ -27,6 +29,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
@@ -47,12 +50,15 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
+  private static final String PERMISSION_CACHE_TTL_SECONDS = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".permission.cache.ttl.seconds";
+  private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem fs;
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
+  private final int permissionCacheTTLSeconds;
 
   public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
     this.fs = fs;
@@ -60,6 +66,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
+    this.permissionCacheTTLSeconds = Integer.parseInt(properties.getProperty(PERMISSION_CACHE_TTL_SECONDS, DEFAULT_PERMISSION_CACHE_TTL_SECONDS));
   }
 
   @Override
@@ -82,25 +89,31 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     List<FileStatus> toDelete = Lists.newArrayList();
     //todo: put permission preserve logic here?
     try {
+      long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
+      Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(permissionCacheTTLSeconds, TimeUnit.SECONDS).build();
+      int numFiles = 0;
       while (manifests.hasNext()) {
+        numFiles++;
+        CopyManifest.CopyableUnit file = manifests.next();
         //todo: We can use fileSet to partition the data in case of some softbound issue
         //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-        CopyManifest.CopyableUnit file = manifests.next();
         Path fileToCopy = new Path(file.fileName);
-        if (this.fs.exists(fileToCopy)) {
+        if (fs.exists(fileToCopy)) {
           boolean existOnTarget = targetFs.exists(fileToCopy);
-          FileStatus srcFile = this.fs.getFileStatus(fileToCopy);
-          if (!existOnTarget || shouldCopy(this.fs, targetFs, srcFile, targetFs.getFileStatus(fileToCopy), configuration)) {
-            CopyableFile copyableFile =
-                CopyableFile.fromOriginAndDestination(this.fs, srcFile, fileToCopy, configuration)
+          FileStatus srcFile = fs.getFileStatus(fileToCopy);
+          OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
+          if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
+            CopyableFile.Builder copyableFileBuilder =
+                CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
                     .fileSet(datasetURN())
                     .datasetOutputPath(fileToCopy.toString())
-                    .ancestorsOwnerAndPermission(CopyableFile
-                        .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, fileToCopy.getParent(),
-                            new Path(this.commonFilesParent), configuration))
-                    .build();
-            copyableFile.setFsDatasets(this.fs, targetFs);
+                    .ancestorsOwnerAndPermission(
+                        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
+                            new Path(commonFilesParent), configuration, permissionMap))
+                    .destinationOwnerAndPermission(replicatedPermission);
+            CopyableFile copyableFile = copyableFileBuilder.build();
+            copyableFile.setFsDatasets(fs, targetFs);
             copyEntities.add(copyableFile);
             if (existOnTarget && srcFile.isFile()) {
               // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
@@ -108,7 +121,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
               toDelete.add(targetFs.getFileStatus(fileToCopy));
             }
           }
-        } else if (this.deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)){
+        } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)) {
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
@@ -117,6 +130,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
+      log.info(String.format("Workunits calculation took %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
     } catch (JsonIOException| JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
@@ -134,11 +148,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
   }
 
-  private static boolean shouldCopy(FileSystem srcFs, FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, CopyConfiguration copyConfiguration)
+  private static boolean shouldCopy(FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, OwnerAndPermission replicatedPermission)
       throws IOException {
     if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
       // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
-      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, fileInSource, copyConfiguration);
       return !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
     }
     return fileInSource.getModificationTime() > fileInTarget.getModificationTime();

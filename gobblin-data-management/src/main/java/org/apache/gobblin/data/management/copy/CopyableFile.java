@@ -17,10 +17,13 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.cache.Cache;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import java.util.concurrent.ExecutionException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -58,6 +61,7 @@ import org.apache.gobblin.util.guid.Guid;
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(callSuper = true)
+@Slf4j
 public class CopyableFile extends CopyEntity implements File {
   private static final byte[] EMPTY_CHECKSUM = new byte[0];
 
@@ -369,6 +373,36 @@ public class CopyableFile extends CopyEntity implements File {
 
     while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
       ownerAndPermissions.add(resolveReplicatedOwnerAndPermission(sourceFs, currentPath, copyConfiguration));
+      currentPath = currentPath.getParent();
+    }
+
+    return ownerAndPermissions;
+  }
+
+  /**
+   * Compute the correct {@link OwnerAndPermission} obtained from replicating source owner and permissions and applying
+   * the {@link PreserveAttributes} rules for fromPath and every ancestor up to but excluding toPath.
+   * Unlike the resolveReplicatedOwnerAndPermissionsRecursively() method, this method utilizes permissionMap as a cache to minimize the number of calls to HDFS.
+   * It is recommended to use this method when recursively calculating permissions for numerous files that share the same ancestor.
+   *
+   * @return A list of the computed {@link OwnerAndPermission}s starting from fromPath, up to but excluding toPath.
+   * @throws IOException if toPath is not an ancestor of fromPath.
+   */
+  public static List<OwnerAndPermission> resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(FileSystem sourceFs, Path fromPath,
+      Path toPath, CopyConfiguration copyConfiguration, Cache<String, OwnerAndPermission> permissionMap)
+      throws IOException, ExecutionException {
+
+    if (!PathUtils.isAncestor(toPath, fromPath)) {
+      throw new IOException(String.format("toPath %s must be an ancestor of fromPath %s.", toPath, fromPath));
+    }
+
+    List<OwnerAndPermission> ownerAndPermissions = Lists.newArrayList();
+    Path currentPath = fromPath;
+
+    while (currentPath.getParent() != null && PathUtils.isAncestor(toPath, currentPath.getParent())) {
+      Path finalCurrentPath = currentPath;
+      ownerAndPermissions.add(permissionMap.get(finalCurrentPath.toString(), () -> resolveReplicatedOwnerAndPermission(sourceFs,
+          finalCurrentPath, copyConfiguration)));
       currentPath = currentPath.getParent();
     }
 
