@@ -522,9 +522,10 @@ public class YarnService extends AbstractIdleService {
       ContainerInfo containerInfo = entry.getValue();
       if (!HelixUtils.isInstanceLive(helixManager, containerInfo.getHelixParticipantId())) {
         containerIdleSince.putIfAbsent(entry.getKey(), System.currentTimeMillis());
-        if (System.currentTimeMillis() - containerIdleSince.get(entry.getKey()) >= TimeUnit.MINUTES.toMillis(10)) {
-          LOGGER.info("Releasing Container {} because the assigned participant {} has been in-active for more than 10 minutes",
-              entry.getKey(), containerInfo.getHelixParticipantId());
+        if (System.currentTimeMillis() - containerIdleSince.get(entry.getKey())
+            >= TimeUnit.MINUTES.toMillis(YarnAutoScalingManager.DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES)) {
+          LOGGER.info("Releasing Container {} because the assigned participant {} has been in-active for more than {} minutes",
+              entry.getKey(), containerInfo.getHelixParticipantId(), YarnAutoScalingManager.DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES);
           containersToRelease.add(containerInfo.getContainer());
         }
       } else {
