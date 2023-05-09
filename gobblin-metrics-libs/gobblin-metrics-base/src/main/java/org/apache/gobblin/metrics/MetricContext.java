@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class MetricContext extends MetricRegistry implements ReportableContext, Closeable {
 
   protected final Closer closer;
@@ -208,6 +210,10 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
   public void submitEvent(GobblinTrackingEvent nonReusableEvent) {
     nonReusableEvent.setTimestamp(System.currentTimeMillis());
     injectTagsToEvent(nonReusableEvent);
+    for (Map.Entry entry: nonReusableEvent.getMetadata().entrySet()) {
+      log.info("$$$ key: " + entry.getKey());
+      log.info("$$$value: " + entry.getValue());
+    }
 
     EventNotification notification = new EventNotification(nonReusableEvent);
     sendNotification(notification);

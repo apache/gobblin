@@ -275,10 +275,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
 
   private void submitEventToIndicateContainerTransition() {
     if (this.isInstrumentationEnabled()) {
-      Map<KafkaPartition, Map<String, String>> additionalTags = getAdditionalTagsHelper();
-      Map<KafkaPartition, Map<String, String>> tagsForPartitions =
-          this.statsTracker.generateTagsForPartitions(lowWatermark, highWatermark, nextWatermark, additionalTags);
-      this.statsTracker.emitTrackingEvents(getMetricContext(), tagsForPartitions);
+      this.statsTracker.submitEventToIndicateContainerTransition(getMetricContext());
     }
   }
 
