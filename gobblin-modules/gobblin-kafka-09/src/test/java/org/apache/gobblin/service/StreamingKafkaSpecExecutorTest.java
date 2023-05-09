@@ -29,11 +29,14 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
@@ -41,13 +44,11 @@ import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WriteResponse;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
@@ -63,8 +64,11 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
   private String _kafkaBrokers;
   private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorTest";
   private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
+  String flowSpecUriString = "/flowgroup/flowname/spec";
+  Spec flowSpec = initJobSpecWithFlowExecutionId(flowSpecUriString, "12345");
   String specUriString = "/foo/bar/spec";
   Spec spec = initJobSpec(specUriString);
+
 
   @BeforeSuite
   public void beforeSuite() {
@@ -92,9 +96,8 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
       }
     }
   }
-
-  @Test
-  public void testAddSpec() throws Exception {
+  @BeforeClass
+  public void setup() throws Exception {
     _closer = Closer.create();
     _properties = new Properties();
 
@@ -116,15 +119,19 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     // SEI Producer
     _seip = _closer.register(new SimpleKafkaSpecProducer(config));
 
-    WriteResponse writeResponse = (WriteResponse) _seip.addSpec(spec).get();
-    log.info("WriteResponse: " + writeResponse);
-
     _jobCatalog = new NonObservingFSJobCatalog(config.getConfig("gobblin.cluster"));
     _jobCatalog.startAsync().awaitRunning();
 
     // SEI Consumer
     _seic = _closer.register(new StreamingKafkaSpecConsumer(config, _jobCatalog));
     _seic.startAsync().awaitRunning();
+
+  }
+
+  @Test
+  public void testAddSpec() throws Exception {
+    WriteResponse writeResponse = (WriteResponse) _seip.addSpec(spec).get();
+    log.info("WriteResponse: " + writeResponse);
 
     List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
     Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
@@ -165,8 +172,78 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
+  @Test(dependsOnMethods = "testDeleteSpec")
+  public void testCancelSpec() throws Exception {
+    // Cancel an existing spec that was added
+    _seip.addSpec(spec).get();
+    WriteResponse writeResponse = (WriteResponse) _seip.cancelJob(new URI(specUriString), new Properties()).get();
+    log.info("WriteResponse: " + writeResponse);
+
+    // Wait for the cancellation to be processed
+    Thread.sleep(5000);
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    Assert.assertTrue(consumedEvent.size() == 3, "Consumption did not match production");
+
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(2);
+    log.info(consumedSpecAction.getKey().toString());
+    Assert.assertTrue(consumedEvent.get(0).getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
+    Assert.assertTrue(consumedEvent.get(1).getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.CANCEL), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(specUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
+  }
+
+  @Test (dependsOnMethods = "testCancelSpec")
+  public void testCancelSpecNoop() throws Exception {
+     _seip.addSpec(flowSpec).get();
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "54321"); // Does not match with added jobspec, so should not cancel job
+    WriteResponse writeResponse = (WriteResponse) _seip.cancelJob(new URI(flowSpecUriString), props).get();
+    log.info("WriteResponse: " + writeResponse);
+    // Wait for the cancellation to be processed, but it should ignore the spec as flow execution IDs do not match
+    Thread.sleep(5000);
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    Assert.assertTrue(consumedEvent.size() == 1, "Consumption did not match production");
+
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(flowSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
+  }
+
+  @Test(dependsOnMethods = "testCancelSpecNoop")
+  public void testCancelSpecWithFlowExecutionId() throws Exception {
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "12345");
+    WriteResponse writeResponse = (WriteResponse) _seip.cancelJob(new URI(flowSpecUriString), props).get();
+    log.info("WriteResponse: " + writeResponse);
+
+    // Wait for the cancellation to be processed
+    Thread.sleep(5000);
+    List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
+    Assert.assertTrue(consumedEvent.size() == 2, "Consumption did not match production");
+
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(1);
+    log.info(consumedSpecAction.getKey().toString());
+    Assert.assertTrue(consumedEvent.get(0).getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.CANCEL), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(flowSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
+  }
+
+
   private static JobSpec initJobSpec(String specUri) {
     Properties properties = new Properties();
+    return JobSpec.builder(specUri)
+        .withConfig(ConfigUtils.propertiesToConfig(properties))
+        .withVersion("1")
+        .withDescription("Spec Description")
+        .build();
+  }
+
+  private static JobSpec initJobSpecWithFlowExecutionId(String specUri, String flowExecutionId) {
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
     return JobSpec.builder(specUri)
         .withConfig(ConfigUtils.propertiesToConfig(properties))
         .withVersion("1")

@@ -17,27 +17,30 @@
 
 package org.apache.gobblin.service;
 
-import com.google.common.base.Joiner;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.slf4j.Logger;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import javax.annotation.concurrent.NotThreadSafe;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -53,9 +56,6 @@ import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
-
-import javax.annotation.concurrent.NotThreadSafe;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @NotThreadSafe
@@ -105,19 +105,6 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     return this.metricContext.meter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, getClass().getSimpleName(), suffix));
   }
 
-  private Spec addExecutionIdToJobSpecUri(Spec spec) {
-    JobSpec newSpec = (JobSpec)spec;
-    if (newSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-      try {
-        newSpec.setUri(new URI(Joiner.on("/").
-            join(spec.getUri().toString(), newSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY))));
-      } catch (URISyntaxException e) {
-        log.error("Cannot create job uri to cancel job", e);
-      }
-    }
-    return newSpec;
-  }
-
   private URI getURIWithExecutionId(URI originalURI, Properties props) {
     URI result = originalURI;
     if (props.containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
@@ -133,10 +120,9 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> addSpec(Spec addedSpec) {
-    Spec spec = addExecutionIdToJobSpecUri(addedSpec);
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(spec, SpecExecutor.Verb.ADD);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(addedSpec, SpecExecutor.Verb.ADD);
 
-    log.info("Adding Spec: " + spec + " using Kafka.");
+    log.info("Adding Spec: " + addedSpec + " using Kafka.");
     this.addSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
@@ -144,10 +130,9 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
-    Spec spec = addExecutionIdToJobSpecUri(updatedSpec);
-    AvroJobSpec avroJobSpec = convertToAvroJobSpec(spec, SpecExecutor.Verb.UPDATE);
+    AvroJobSpec avroJobSpec = convertToAvroJobSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
 
-    log.info("Updating Spec: " + spec + " using Kafka.");
+    log.info("Updating Spec: " + updatedSpec + " using Kafka.");
     this.updateSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
@@ -155,13 +140,11 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    URI finalDeletedSpecURI = getURIWithExecutionId(deletedSpecURI, headers);
-
-    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(finalDeletedSpecURI.toString())
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.DELETE.name()))
         .setProperties(Maps.fromProperties(headers)).build();
 
-    log.info("Deleting Spec: " + finalDeletedSpecURI + " using Kafka.");
+    log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
     this.deleteSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
@@ -169,12 +152,11 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
   @Override
   public Future<?> cancelJob(URI deletedSpecURI, Properties properties) {
-    URI finalDeletedSpecURI = getURIWithExecutionId(deletedSpecURI, properties);
-    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(finalDeletedSpecURI.toString())
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
         .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.CANCEL.name()))
         .setProperties(Maps.fromProperties(properties)).build();
 
-    log.info("Cancelling job: " + finalDeletedSpecURI + " using Kafka.");
+    log.info("Cancelling job: " + deletedSpecURI + " using Kafka.");
     this.cancelSpecMeter.mark();
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
