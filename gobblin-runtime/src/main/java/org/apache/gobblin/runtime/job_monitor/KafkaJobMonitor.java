@@ -157,7 +157,8 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
                   this.cancelledSpecs.mark();
                   this.jobCatalog.remove(specUri, true);
                 } else {
-                  log.warn("Could not find job spec {} with flow execution ID {} to cancel", specUri, flowIdToCancel);
+                  log.warn("Job spec {} that has flow execution ID {} could not be cancelled, incoming request expects to cancel flow execution ID {}", specUri,
+                      spec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowIdToCancel);
                 }
               }
             } catch (JobSpecNotFoundException e) {
