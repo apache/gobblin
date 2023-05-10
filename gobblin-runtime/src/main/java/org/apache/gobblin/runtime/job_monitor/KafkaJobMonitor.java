@@ -143,14 +143,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             deleteStateStore(parsedMessage.getUri());
             break;
           case CANCEL:
-            // Validate that the flow execution ID of the running flow matches the one in the incoming job spec
             URI specUri = parsedMessage.getUri();
-            if (!parsedMessage.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-              this.cancelledSpecs.mark();
-              this.jobCatalog.remove(specUri, true);
-            } else {
-              try {
-                JobSpec spec = this.jobCatalog.getJobSpec(specUri);
+            try {
+              JobSpec spec = this.jobCatalog.getJobSpec(specUri);
+              // If incoming job or existing job does not have an associated flow execution ID, default to cancelling the job
+              if (!spec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) || !parsedMessage.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+                this.cancelledSpecs.mark();
+                this.jobCatalog.remove(specUri, true);
+              } else {
+                // Validate that the flow execution ID of the running flow matches the one in the incoming job spec
                 String flowIdToCancel = parsedMessage.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
                 if (spec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY).equals(flowIdToCancel)) {
                   this.cancelledSpecs.mark();
@@ -158,9 +159,9 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
                 } else {
                   log.warn("Could not find job spec {} with flow execution ID {} to cancel", specUri, flowIdToCancel);
                 }
-              } catch (JobSpecNotFoundException e) {
-                log.warn("Could not find job spec {} to cancel in job catalog", specUri);
               }
+            } catch (JobSpecNotFoundException e) {
+              log.warn("Could not find job spec {} to cancel in job catalog", specUri);
             }
             break;
           default:

@@ -194,7 +194,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
   }
 
   @Test (dependsOnMethods = "testCancelSpec")
-  public void testCancelSpecNoop() throws Exception {
+  public void testCancelSpecNoopDefault() throws Exception {
      _seip.addSpec(flowSpec).get();
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "54321"); // Does not match with added jobspec, so should not cancel job
@@ -209,10 +209,21 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(flowSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
+
+    _seip.cancelJob(new URI(flowSpecUriString), new Properties()).get();
+    Thread.sleep(5000);
+    consumedEvent = _seic.changedSpecs().get();
+    Assert.assertTrue(consumedEvent.size() == 2, "Should emit cancellation event if no flow ID provided");
+    consumedSpecAction = consumedEvent.get(1);
+    Assert.assertTrue(consumedEvent.get(0).getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.CANCEL), "Verb did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(flowSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
-  @Test(dependsOnMethods = "testCancelSpecNoop")
+  @Test(dependsOnMethods = "testCancelSpecNoopDefault")
   public void testCancelSpecWithFlowExecutionId() throws Exception {
+    _seip.addSpec(flowSpec).get();
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "12345");
     WriteResponse writeResponse = (WriteResponse) _seip.cancelJob(new URI(flowSpecUriString), props).get();
@@ -221,11 +232,12 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     // Wait for the cancellation to be processed
     Thread.sleep(5000);
     List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
-    Assert.assertTrue(consumedEvent.size() == 2, "Consumption did not match production");
+    Assert.assertTrue(consumedEvent.size() == 3, "Consumption did not match production");
 
-    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(1);
+    Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(2);
     log.info(consumedSpecAction.getKey().toString());
-    Assert.assertTrue(consumedEvent.get(0).getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
+    Assert.assertTrue(consumedEvent.get(0).getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
+    Assert.assertTrue(consumedEvent.get(1).getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.CANCEL), "Verb did not match");
     Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(flowSpecUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
