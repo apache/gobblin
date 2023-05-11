@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -476,7 +477,7 @@ public class YarnService extends AbstractIdleService {
     }
 
     //Correct the containerMap first as there is cases that handleContainerCompletion() is called before onContainersAllocated()
-    for (ContainerId removedId :this.removedContainerID.keySet()) {
+    for (ContainerId removedId : this.removedContainerID.keySet()) {
       ContainerInfo containerInfo = this.containerMap.remove(removedId);
       if (containerInfo != null) {
         String helixTag = containerInfo.getHelixTag();
@@ -514,10 +515,12 @@ public class YarnService extends AbstractIdleService {
       }
     }
 
-    //We go through all the containers we have now and check whether the assigned participant is still alive, if not, we should put them in idle container Map
-    //And we will release the container if the assigned participant still offline after a given time
+    //Iterate through all containers allocated and check whether the corresponding helix instance is still LIVE within the helix cluster.
+    // A container that has a bad connection to zookeeper will be dropped from the Helix cluster if the disconnection is greater than the specified timeout.
+    // In these cases, we want to release the container to get a new container because these containers won't be assigned tasks by Helix
 
     List<Container> containersToRelease = new ArrayList<>();
+    HashSet<ContainerId> idleContainerIdsToRelease = new HashSet<>();
     for (Map.Entry<ContainerId, ContainerInfo> entry : this.containerMap.entrySet()) {
       ContainerInfo containerInfo = entry.getValue();
       if (!HelixUtils.isInstanceLive(helixManager, containerInfo.getHelixParticipantId())) {
@@ -527,6 +530,7 @@ public class YarnService extends AbstractIdleService {
           LOGGER.info("Releasing Container {} because the assigned participant {} has been in-active for more than {} minutes",
               entry.getKey(), containerInfo.getHelixParticipantId(), YarnAutoScalingManager.DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES);
           containersToRelease.add(containerInfo.getContainer());
+          idleContainerIdsToRelease.add(entry.getKey());
         }
       } else {
         containerIdleSince.remove(entry.getKey());
@@ -537,20 +541,20 @@ public class YarnService extends AbstractIdleService {
     // This is based on the currently allocated amount since containers may still be in the process of being allocated
     // and assigned work. Resizing based on numRequestedContainers at this point may release a container right before
     // or soon after it is assigned work.
-    if (containersToRelease.isEmpty() && numTargetContainers < totalAllocatedContainers) {
+    if (numTargetContainers < totalAllocatedContainers - idleContainerIdsToRelease.size()) {
       int numToShutdown = totalAllocatedContainers - numTargetContainers;
 
-      LOGGER.info("Shrinking number of containers by {} because numTargetContainers < totalAllocatedContainers ({} < {})",
-          numToShutdown, numTargetContainers, totalAllocatedContainers);
+      LOGGER.info("Shrinking number of containers by {} because numTargetContainers < totalAllocatedContainers - idleContainersToRelease ({} < {} - {})",
+          totalAllocatedContainers - numTargetContainers - idleContainerIdsToRelease.size(), numTargetContainers, totalAllocatedContainers, idleContainerIdsToRelease.size());
 
       // Look for eligible containers to release. If a container is in use then it is not released.
       for (Map.Entry<ContainerId, ContainerInfo> entry : this.containerMap.entrySet()) {
         ContainerInfo containerInfo = entry.getValue();
-        if (!inUseInstances.contains(containerInfo.getHelixParticipantId())) {
+        if (!inUseInstances.contains(containerInfo.getHelixParticipantId()) && !idleContainerIdsToRelease.contains(entry.getKey())) {
           containersToRelease.add(containerInfo.getContainer());
         }
 
-        if (containersToRelease.size() == numToShutdown) {
+        if (containersToRelease.size() >= numToShutdown) {
           break;
         }
       }
