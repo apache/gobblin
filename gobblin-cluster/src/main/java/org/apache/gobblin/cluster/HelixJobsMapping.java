@@ -36,6 +36,7 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -96,12 +97,14 @@ public class HelixJobsMapping {
 
   public static String createPlanningJobId (Properties jobPlanningProps) {
     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
-        + JobState.getJobNameFromProps(jobPlanningProps));
+            + JobState.getJobNameFromProps(jobPlanningProps),
+        PropertiesUtils.getPropAsLong(jobPlanningProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
   }
 
   public static String createActualJobId (Properties jobProps) {
-    return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
-        + JobState.getJobNameFromProps(jobProps));
+     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
+             + JobState.getJobNameFromProps(jobProps),
+          PropertiesUtils.getPropAsLong(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
   }
 
   @Nullable

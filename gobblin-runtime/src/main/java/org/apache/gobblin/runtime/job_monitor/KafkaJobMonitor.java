@@ -28,11 +28,13 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
+import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -136,14 +138,32 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             break;
           case DELETE:
             this.removedSpecs.mark();
-            URI jobSpecUri = parsedMessage.getUri();
-            this.jobCatalog.remove(jobSpecUri);
+            this.jobCatalog.remove(parsedMessage.getUri());
             // Delete the job state if it is a delete spec request
-            deleteStateStore(jobSpecUri);
+            deleteStateStore(parsedMessage.getUri());
             break;
           case CANCEL:
-            this.cancelledSpecs.mark();
-            this.jobCatalog.remove(parsedMessage.getUri(), true);
+            URI specUri = parsedMessage.getUri();
+            try {
+              JobSpec spec = this.jobCatalog.getJobSpec(specUri);
+              // If incoming job or existing job does not have an associated flow execution ID, default to cancelling the job
+              if (!spec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) || !parsedMessage.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+                this.cancelledSpecs.mark();
+                this.jobCatalog.remove(specUri, true);
+              } else {
+                // Validate that the flow execution ID of the running flow matches the one in the incoming job spec
+                String flowIdToCancel = parsedMessage.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+                if (spec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY).equals(flowIdToCancel)) {
+                  this.cancelledSpecs.mark();
+                  this.jobCatalog.remove(specUri, true);
+                } else {
+                  log.warn("Job spec {} that has flow execution ID {} could not be cancelled, incoming request expects to cancel flow execution ID {}", specUri,
+                      spec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowIdToCancel);
+                }
+              }
+            } catch (JobSpecNotFoundException e) {
+              log.warn("Could not find job spec {} to cancel in job catalog", specUri);
+            }
             break;
           default:
             log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
