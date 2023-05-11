@@ -18,11 +18,13 @@ package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 
 import com.google.common.base.Function;
@@ -56,6 +58,8 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
    * Calls {@link #getDatasetVersion(Partition)} for every {@link Partition} found.
    * <p>
    * Note: If an exception occurs while processing a partition, that partition will be ignored in the returned collection
+   * Also note that if the dataset passed is a view type, we will return an empty list even if the underlying table is
+   * partitioned.
    * </p>
    *
    * @throws IllegalArgumentException if <code>dataset</code> is not a {@link HiveDataset}. Or if {@link HiveDataset#getTable()}
@@ -69,7 +73,13 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
     final HiveDataset hiveDataset = (HiveDataset) dataset;
 
     if (!hiveDataset.getTable().isPartitioned()) {
-      throw new IllegalArgumentException("HiveDatasetVersionFinder is only compatible with partitioned hive tables");
+      if (hiveDataset.getTable().getTableType() == TableType.VIRTUAL_VIEW) {
+        log.warn("Skipping processing a view type dataset: ", ((HiveDataset) dataset).getTable().getTableName());
+        return Collections.emptyList();
+      } else {
+        throw new IllegalArgumentException("HiveDatasetVersionFinder is only compatible with partitioned hive tables. "
+            + "This is a snapshot hive table.");
+      }
     }
 
     try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
