@@ -163,7 +163,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
         this.unexpectedErrors.mark();
       } else if (operation.equals("DELETE")) {
         log.debug("Deleted flow group: {} name: {} executionId {} from DagActionStore", flowGroup, flowName, flowExecutionId);
-      } else {
+      } // TODO: multiActiveScheduler change here to add a case for a new launch flow action. We want to check if it is
+      // an execution that has been "won" by checking pursuant timestamp = null then pass to dag managers. the right one will
+      // actually launch it. if the config is NOT turned on we should do any of this handling or recieve these type of events
+      else {
         log.warn("Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
             operation);
         this.unexpectedErrors.mark();

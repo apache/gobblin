@@ -436,6 +436,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
+  // TODO: multiActiveScheduler change here to use this in old state or with new config do the race to write?
+  // define a new class to handle the nonblocking and race
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {

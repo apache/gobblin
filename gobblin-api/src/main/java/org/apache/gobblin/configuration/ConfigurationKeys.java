@@ -95,6 +95,19 @@ public class ConfigurationKeys {
   public static final int DEFAULT_LOAD_SPEC_BATCH_SIZE = 500;
   public static final String SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS = "skip.scheduling.flows.after.num.days";
   public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 365;
+  // Scheduler lease determination store configuration
+  // TODO: multiActiveScheduler change here update values for the following keys and rename to more meaningful
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
+  public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_URL_KEY = "state.store.db.url";
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_USER_KEY = "state.store.db.user";
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_PASSWORD_KEY = "state.store.db.password";
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY = "state.store.db.table";
+  public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE = "gobblin_job_state";
+  public static final String SCHEDULER_TRIGGER_EVENT_EPSILON_VALUE_MILLIS = "";
+  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_EPSILON_MILLIS = 100;
+  public static final String SCHEDULER_TRIGGER_EVENT_LINGER_VALUE_MILLIS = "";
+  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_LINGER_MILLIS = 1000;
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";

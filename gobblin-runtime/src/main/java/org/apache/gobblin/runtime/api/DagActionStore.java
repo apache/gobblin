@@ -28,6 +28,7 @@ public interface DagActionStore {
   enum DagActionValue {
     KILL,
     RESUME
+    // TODO: multiActiveScheduler change here to add new action value and update constructor
   }
 
   @Getter
