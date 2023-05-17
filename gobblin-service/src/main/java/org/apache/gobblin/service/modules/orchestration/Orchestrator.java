@@ -310,6 +310,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowCompilationTimer.get().stop(flowMetadata);
       }
 
+      /* TODO: multiactiveScheduler change here
+        do all the quota checking and compilation above as normal but before passing to dag manager should go to another
+        function that checks config and either passes to DM directly or ends up going through scheduler lock contention
+      */
+      // CALLS NEW METHOD newAbstraction()...
       if (this.dagManager.isPresent()) {
         try {
           //Send the dag to the DagManager.
@@ -362,6 +367,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  private void newAbstraction() {
+    // TODO: check config
+    // either do old way and pass to DM
+
+    // do lock contention
+    // Is this a new class...? how can I abstract and make modular? or simply a util method?
   }
 
   /**
