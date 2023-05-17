@@ -32,17 +32,12 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
   // TODO: also add to primary key the type of event "launch"
   // initialize table with one entry only if it doesn't exist. these configs
   // another table with epsilon and linger then join the two tables
-  protected static final String CONDITIONALLY_INSERT_TO_OBTAIN_LEASE_STATEMENT = "INSERT INTO %s (flow_group, "
-      + "flow_name, flow_execution_id, trigger_event_timestamp) VALUES (?, ?, ?, ?) WHERE NOT EXISTS ("
-      + "SELECT * FROM %s WHERE flow_group=? AND flow_name=? AND flow_execution_id=? AND ABS(trigger_event_timestamp-?)"
-      + " <= %s)";
-  protected static final String GET_PURSUANT_TIMESTAMP_STATEMENT = "SELECT pursuant_timestamp FROM %s WHERE flow_group=? "
-      + "AND flow_name=? AND flow_execution_id=? AND ABS(trigger_event_timestamp-?)";
   protected static final String ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT = "INSERT INTO %s (flow_group, "
-      + "flow_name, flow_execution_id, trigger_event_timestamp) VALUES (?, ?, ?, ?) WHERE NOT EXISTS ("
-      + "SELECT * FROM %s WHERE flow_group=? AND flow_name=? AND flow_execution_id=? AND ABS(trigger_event_timestamp-?)"
-      + " <= %s); SELECT ROW_COUNT() AS rows_inserted_count, pursuant_timestamp FROM %s WHERE flow_group=? AND flow_name=? AND flow_execution_id=? AND "
-      + "ABS(trigger_event_timestamp-?)";
+      + "flow_name, flow_execution_id, flow_action, trigger_event_timestamp) VALUES (?, ?, ?, ?, ?) WHERE NOT EXISTS ("
+      + "SELECT * FROM %s WHERE flow_group=? AND flow_name=? AND flow_execution_id=? AND flow_action=? AND"
+      + "ABS(trigger_event_timestamp-?) <= %s); SELECT ROW_COUNT() AS rows_inserted_count, pursuant_timestamp FROM %s "
+      + "WHERE flow_group=? AND flow_name=? AND flow_execution_id=? AND flow_action=? AND"
+      + "ABS(trigger_event_timestamp-?) <= %s";
 
   /* TODO: Potentially use the following statement that obtains the lease with the insert, otherwise returns the original
    value, but it's a bit hard to reason about this statement working.
@@ -66,10 +61,10 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %S (" + "flow_group varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "flow_execution_id varchar("
-      + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
+      + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, flow_action varchar(100) NOT NULL, "
       + "trigger_event_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
       + "pursuant_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
-      + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,trigger_event_timestamp)";
+      + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,flow_action,trigger_event_timestamp)";
 
   public MysqlSchedulerLeaseDeterminationStore(Config config) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -97,24 +92,30 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
 
   @Override
   public LeaseAttemptStatus attemptInsertAndGetPursuantTimestamp(String flowGroup, String flowName,
-      String flowExecutionId, Timestamp triggerTimestamp)
+      String flowExecutionId, FlowActionType flowActionType, Timestamp triggerTimestamp)
       throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(
             String.format(ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT, tableName, tableName, epsilon,
-                tableName))) {
+                tableName, epsilon))) {
       int i = 0;
+      // Values to set in new row
       insertStatement.setString(++i, flowGroup);
       insertStatement.setString(++i, flowName);
       insertStatement.setString(++i, flowExecutionId);
+      insertStatement.setString(++i, flowActionType.toString());
       insertStatement.setTimestamp(++i, triggerTimestamp);
+      // Values to check if existing row matches
       insertStatement.setString(++i, flowGroup);
       insertStatement.setString(++i, flowName);
       insertStatement.setString(++i, flowExecutionId);
+      insertStatement.setString(++i, flowActionType.toString());
       insertStatement.setTimestamp(++i, triggerTimestamp);
+      // Values to make select statement to read row
       insertStatement.setString(++i, flowGroup);
       insertStatement.setString(++i, flowName);
       insertStatement.setString(++i, flowExecutionId);
+      insertStatement.setString(++i, flowActionType.toString());
       insertStatement.setTimestamp(++i, triggerTimestamp);
       ResultSet resultSet = insertStatement.executeQuery();
       connection.commit();
@@ -142,7 +143,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
       } else if (pursuantTimestamp.getTime() + linger <= currentTimeMillis) {
         return LeaseAttemptStatus.PREVIOUS_LEASE_EXPIRED;
       }
-      // pursuant + linger > current timestamp
+      // Previous lease owner still has valid lease (pursuant + linger > current timestamp)
         return LeaseAttemptStatus.PREVIOUS_LEASE_VALID;
     } catch (SQLException e) {
       throw new IOException(String.format("Error encountered while trying to obtain lease on trigger flow event for "

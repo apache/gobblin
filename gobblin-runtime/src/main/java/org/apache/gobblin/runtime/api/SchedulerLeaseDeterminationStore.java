@@ -14,8 +14,8 @@ public interface SchedulerLeaseDeterminationStore {
     PREVIOUS_LEASE_VALID
   }
 
-  // Action to take on a particular flow 
-  enum flowActionType {
+  // Action to take on a particular flow
+  enum FlowActionType {
     LAUNCH,
     RETRY,
     CANCEL,
@@ -34,6 +34,6 @@ public interface SchedulerLeaseDeterminationStore {
    * @return LeaseAttemptStatus
    * @throws IOException
    */
-  public LeaseAttemptStatus attemptInsertAndGetPursuantTimestamp(String flowGroup, String flowName, String flowExecutionId,
-      Timestamp triggerTimestamp) throws IOException;
+  public LeaseAttemptStatus attemptInsertAndGetPursuantTimestamp(String flowGroup, String flowName,
+      String flowExecutionId, FlowActionType flowActionType, Timestamp triggerTimestamp) throws IOException;
 }
