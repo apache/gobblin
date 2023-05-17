@@ -6,18 +6,34 @@ import java.sql.Timestamp;
 
 public interface SchedulerLeaseDeterminationStore {
 
+  // Enum is used to reason about the three possible scenarios that can result from an attempt to obtain a lease for a
+  // particular trigger event of a flow
+  enum LeaseAttemptStatus {
+    LEASE_OBTAINED,
+    PREVIOUS_LEASE_EXPIRED,
+    PREVIOUS_LEASE_VALID
+  }
+
+  // Action to take on a particular flow 
+  enum flowActionType {
+    LAUNCH,
+    RETRY,
+    CANCEL,
+    NEXT_HOP
+  }
+
   /**
-   *
+   * This method attempts to insert an entry into store for a particular flow's trigger event if one does not already
+   * exist in the store for the same trigger event. Regardless of the outcome it also reads the pursuant timestamp of
+   * the entry for that trigger event (it could have pre-existed in the table or been newly added by the previous
+   * write). Based on the transaction results, it will return @LeaseAttemptStatus to determine the next action.
    * @param flowGroup
    * @param flowName
    * @param flowExecutionId
-   * @param triggerTimestamp
-   * @return True if obtained lease and completed insert, False otherwise
+   * @param triggerTimestamp is the time this flow is supposed to be launched
+   * @return LeaseAttemptStatus
+   * @throws IOException
    */
-  public boolean attemptLeaseOfLaunchEvent(String flowGroup, String flowName, String flowExecutionId,
+  public LeaseAttemptStatus attemptInsertAndGetPursuantTimestamp(String flowGroup, String flowName, String flowExecutionId,
       Timestamp triggerTimestamp) throws IOException;
-
-  public Timestamp getPursuantTimestamp(String flowGroup, String flowName, String flowExecutionId,
-      Timestamp triggerTimestamp) throws IOException;
-
 }
