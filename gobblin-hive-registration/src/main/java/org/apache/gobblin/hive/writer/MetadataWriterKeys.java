@@ -31,6 +31,7 @@ public class MetadataWriterKeys {
   public static final String GMCE_TOPIC_NAME = "gmceTopicName";
   public static final String GMCE_TOPIC_PARTITION = "gmceTopicPartition";
   public static final String GMCE_HIGH_WATERMARK = "gmceHighWatermark";
+  public static final String TABLE_COMPLETION_WATERMARK = "tableCompletionWatermark";
   public static final String GMCE_LOW_WATERMARK = "gmceLowWatermark";
   public static final String DATASET_HDFS_PATH = "datasetHdfsPath";
   public static final String PARTITION_HDFS_PATH = "partitionHdfsPath";
