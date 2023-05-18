@@ -1012,7 +1012,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
       }
     }
     if (tableMetadata.completenessEnabled) {
-      gobblinTrackingEvent.addMetadata(MetadataWriterKeys.TABLE_COMPLETION_WATERMARK, Long.toString(tableMetadata.completionWatermark));
+      gobblinTrackingEvent.addMetadata(COMPLETION_WATERMARK_KEY, Long.toString(tableMetadata.completionWatermark));
     }
     eventSubmitter.submit(gobblinTrackingEvent);
   }
