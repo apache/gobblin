@@ -246,6 +246,8 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
         state.getPropAsLong(KAFKA_EXTRACTOR_STATS_REPORTING_INTERVAL_MINUTES_KEY,
             DEFAULT_KAFKA_EXTRACTOR_STATS_REPORTING_INTERVAL_MINUTES) * 60 * 1000;
     resetExtractorStatsAndWatermarks(true);
+    //Even though we haven't start ingesting yet, emit event to indicate the container transition.
+    submitEventToIndicateContainerTransition();
 
     //Schedule a thread for reporting Kafka consumer metrics
     this.scheduledExecutorService.scheduleAtFixedRate(() -> {
@@ -269,6 +271,12 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
         this.workUnitState.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, null);
     this.recordCreationTimestampUnit = TimeUnit.valueOf(
         this.workUnitState.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, TimeUnit.MILLISECONDS.name()));
+  }
+
+  private void submitEventToIndicateContainerTransition() {
+    if (this.isInstrumentationEnabled()) {
+      this.statsTracker.submitEventToIndicateContainerTransition(getMetricContext());
+    }
   }
 
   private Map<KafkaPartition, LongWatermark> getTopicPartitionWatermarks(List<KafkaPartition> topicPartitions) {

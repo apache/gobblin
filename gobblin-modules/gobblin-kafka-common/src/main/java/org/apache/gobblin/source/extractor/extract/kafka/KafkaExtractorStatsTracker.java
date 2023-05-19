@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.util.TaskEventMetadataUtils;
 
@@ -56,6 +57,7 @@ public class KafkaExtractorStatsTracker {
 
   private static final String EMPTY_STRING = "";
   private static final String GOBBLIN_KAFKA_NAMESPACE = "gobblin.kafka";
+  private static final String KAFKA_EXTRACTOR_CONTAINER_TRANSITION_EVENT_NAME = "KafkaExtractorContainerTransitionEvent";
   private static final String KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME = "KafkaExtractorTopicMetadata";
   private static final String LOW_WATERMARK = "lowWatermark";
   private static final String ACTUAL_HIGH_WATERMARK = "actualHighWatermark";
@@ -494,6 +496,21 @@ public class KafkaExtractorStatsTracker {
       EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE);
       eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME));
       eventSubmitterBuilder.build().submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
+    }
+  }
+
+  /**
+   * Emit Tracking events reporting the topic partition information this extractor handled to be consumed by a monitoring application.
+   * @param context the current {@link MetricContext}
+   */
+  public void submitEventToIndicateContainerTransition(MetricContext context) {
+    for (int i = 0; i < this.partitions.size(); i++) {
+      KafkaPartition partitionKey = this.partitions.get(i);
+      GobblinEventBuilder gobblinEventBuilder = new GobblinEventBuilder(KAFKA_EXTRACTOR_CONTAINER_TRANSITION_EVENT_NAME, GOBBLIN_KAFKA_NAMESPACE);
+      gobblinEventBuilder.addMetadata(TOPIC, partitionKey.getTopicName());
+      gobblinEventBuilder.addMetadata(PARTITION, Integer.toString(partitionKey.getId()));
+      gobblinEventBuilder.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_CONTAINER_TRANSITION_EVENT_NAME));
+      EventSubmitter.submit(context, gobblinEventBuilder);
     }
   }
 
