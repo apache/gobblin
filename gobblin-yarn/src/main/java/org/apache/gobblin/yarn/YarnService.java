@@ -492,6 +492,14 @@ public class YarnService extends AbstractIdleService {
     // based on the max of the requested and actual allocated counts
     // Represents the number of containers allocated for across all helix tags
     int totalAllocatedContainers = this.containerMap.size();
+    int totalContainersInContainerCountMap = 0;
+    for (AtomicInteger count: allocatedContainerCountMap.values()) {
+      totalContainersInContainerCountMap += count.get();
+    }
+    if (totalContainersInContainerCountMap != totalAllocatedContainers) {
+      LOGGER.warn(String.format("Container number mismatch in containerMap and allocatedContainerCountMap, "
+          + "we have %s containers in containerMap while %s in allocatedContainerCountMap", totalAllocatedContainers, totalContainersInContainerCountMap));
+    }
 
     // Request additional containers if the desired count is higher than the max of the current allocation or previously
     // requested amount. Note that there may be in-flight or additional allocations after numContainers has been computed
