@@ -788,7 +788,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * @return kafka topic name for this table
    */
   protected String getTopicName(TableIdentifier tid, TableMetadata tableMetadata) {
-    if (tableMetadata.dataOffsetRange.isPresent()) {
+    if (tableMetadata.dataOffsetRange.isPresent() && tableMetadata.dataOffsetRange.get().size() != 0) {
       String topicPartitionString = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
       //In case the topic name is not the table name or the topic name contains '-'
       return topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
@@ -1010,6 +1010,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
       if (entry.getKey().startsWith(OFFSET_RANGE_KEY_PREFIX)) {
         gobblinTrackingEvent.addMetadata(entry.getKey(), entry.getValue());
       }
+    }
+    if (tableMetadata.completenessEnabled) {
+      gobblinTrackingEvent.addMetadata(COMPLETION_WATERMARK_KEY, Long.toString(tableMetadata.completionWatermark));
     }
     eventSubmitter.submit(gobblinTrackingEvent);
   }
