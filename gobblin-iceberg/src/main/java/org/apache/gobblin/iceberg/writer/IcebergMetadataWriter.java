@@ -58,6 +58,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.iceberg.AppendFiles;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFiles;
 import org.apache.iceberg.ExpireSnapshots;
@@ -77,7 +78,7 @@ import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
-import org.apache.iceberg.hive.HiveCatalogs;
+import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.types.Types;
 import org.joda.time.DateTime;
 import org.joda.time.format.PeriodFormatter;
@@ -253,7 +254,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   protected void initializeCatalog() {
-    catalog = HiveCatalogs.loadCatalog(conf);
+    catalog = CatalogUtil.loadCatalog(HiveCatalog.class.getName(), "HiveCatalog", new HashMap<>(), conf);
   }
 
   private org.apache.iceberg.Table getIcebergTable(TableIdentifier tid) throws NoSuchTableException {

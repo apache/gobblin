@@ -236,7 +236,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriter.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-2000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 1);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 1);
     // Assert low watermark and high watermark set properly
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "9");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "20");
@@ -256,7 +256,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriter.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 2);
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "20");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "30");
 
@@ -269,7 +269,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriter.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 2);
   }
 
   //Make sure hive test execute later and close the metastore
@@ -290,7 +290,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Iterator<org.apache.iceberg.DataFile>
         result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath_1)).collect().iterator();
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 2);
     Assert.assertTrue(result.hasNext());
     GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(genericGmce,
@@ -313,7 +313,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   public void testChangeProperty() throws IOException {
     Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 3);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 3);
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "30");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "40");
 
@@ -335,7 +335,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     // Assert the offset has been updated
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-4000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 3);
+    Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 3);
     // Assert low watermark and high watermark set properly
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "40");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "45");
