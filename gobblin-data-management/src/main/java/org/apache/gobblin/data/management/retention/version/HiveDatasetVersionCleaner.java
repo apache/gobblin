@@ -88,6 +88,12 @@ public class HiveDatasetVersionCleaner extends VersionCleaner {
       Partition partition = hiveDatasetVersion.getPartition();
       try {
         if (!cleanableHiveDataset.isSimulate()) {
+          // As part of the cleanup process, we want to delete both: hive partition and underlying hdfs files
+          // However, scenarios arise where hive partition is dropped, but hdfs files aren't, leading to dangling files
+          // Thus, we reverse the order of cleaning up hdfs files first and then drop hive partition
+          // In cases where HMS was unresponsive and hive partition couldn't be dropped
+          // re-running hive retention would drop the partition with no hdfs files found to be deleted
+          // or set the flag `isShouldDeleteData` to false
           if (cleanableHiveDataset.isShouldDeleteData()) {
             cleanableHiveDataset.getFsCleanableHelper().clean(hiveDatasetVersion, possiblyEmptyDirectories);
           }
@@ -100,7 +106,8 @@ public class HiveDatasetVersionCleaner extends VersionCleaner {
         log.warn(String.format("Failed to completely delete partition %s.", partition.getCompleteName()), e);
         throw new IOException(e);
       }
-    } try {
+    }
+    try {
       cleanableHiveDataset.getFsCleanableHelper().cleanEmptyDirectories(possiblyEmptyDirectories, cleanableHiveDataset);
     } catch (IOException ex) {
       log.warn(String.format("Failed to delete at least one or more empty directories from total:{%s} with root path %s", possiblyEmptyDirectories.size(), cleanableHiveDataset.datasetRoot()), ex);
