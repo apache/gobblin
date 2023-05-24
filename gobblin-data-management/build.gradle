@@ -45,7 +45,7 @@ dependencies {
   compile externalDependency.junit
   compile externalDependency.jacksonMapperAsl
 
-  testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '1.2.0', classifier: 'tests') {
+  testCompile(externalDependency.icebergHiveMetastoreTest) {
     transitive = false
   }
   testCompile('org.apache.hadoop:hadoop-common:2.6.0')

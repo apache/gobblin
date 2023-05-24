@@ -248,6 +248,7 @@ public class IcebergUtils {
         IcebergUtils.getMapFromIntegerLongPairs(file.getFileMetrics().getColumnSizes(), schemaIdMap),
         IcebergUtils.getMapFromIntegerLongPairs(file.getFileMetrics().getValueCounts(), schemaIdMap),
         IcebergUtils.getMapFromIntegerLongPairs(file.getFileMetrics().getNullValueCounts(), schemaIdMap),
+        // TODO: If required, handle NaN value count File metric conversion in ORC metrics with iceberg upgrade
         IcebergUtils.getMapFromIntegerLongPairs(Lists.newArrayList(), schemaIdMap), // metric value will be null since Nan values are supported from avro version 1.10.*
         IcebergUtils.getMapFromIntegerBytesPairs(file.getFileMetrics().getLowerBounds(), schemaIdMap),
         IcebergUtils.getMapFromIntegerBytesPairs(file.getFileMetrics().getUpperBounds(), schemaIdMap));
