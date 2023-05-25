@@ -520,6 +520,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
     try (Timer.Context context = metricContext.timer(CREATE_TABLE_TIME).time()) {
       icebergTable =
           catalog.createTable(tid, tableSchema, partitionSpec, tableLocation, IcebergUtils.getTableProperties(table));
+      // We should set the avro schema literal when creating the table.
+      icebergTable.updateProperties().set(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), schema).commit();
       log.info("Created table {}, schema: {} partition spec: {}", tid, tableSchema, partitionSpec);
     } catch (AlreadyExistsException e) {
       log.warn("table {} already exist, there may be some other process try to create table concurrently", tid);
