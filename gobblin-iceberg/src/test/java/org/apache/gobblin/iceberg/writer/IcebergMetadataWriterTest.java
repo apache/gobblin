@@ -19,6 +19,9 @@ package org.apache.gobblin.iceberg.writer;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -494,8 +497,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     long watermark = Long.parseLong(table.properties().get(COMPLETION_WATERMARK_KEY));
-    long expectedWatermark = watermark + TimeUnit.HOURS.toMillis(1);
-    File hourlyFile2 = new File(tmpDir, "testDB/testTopic/hourly/2021/09/16/11/data.avro");
+    long expectedWatermark = ZonedDateTime.now(ZoneId.of(DEFAULT_TIME_ZONE)).truncatedTo(ChronoUnit.HOURS).toInstant().toEpochMilli();
+    File hourlyFile2 = new File(tmpDir, "testDB/testIcebergTable/hourly/2021/09/16/11/data.avro");
     gmce.setOldFilePrefixes(null);
     gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
         .setFilePath(hourlyFile2.toString())
