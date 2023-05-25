@@ -495,10 +495,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   @Test(dependsOnMethods={"testWriteAddFileGMCECompleteness"}, groups={"icebergMetadataWriterTest"})
   public void testChangePropertyGMCECompleteness() throws IOException {
 
-    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    long watermark = Long.parseLong(table.properties().get(COMPLETION_WATERMARK_KEY));
-    long expectedWatermark = ZonedDateTime.now(ZoneId.of(DEFAULT_TIME_ZONE)).truncatedTo(ChronoUnit.HOURS).toInstant().toEpochMilli();
-    File hourlyFile2 = new File(tmpDir, "testDB/testIcebergTable/hourly/2021/09/16/11/data.avro");
+    ZonedDateTime expectedCWDt = ZonedDateTime.now(ZoneId.of(DEFAULT_TIME_ZONE)).truncatedTo(ChronoUnit.HOURS);
+    // For quiet topics, watermark should always be beginning of current hour
+    long expectedWatermark = expectedCWDt.toInstant().toEpochMilli();
+    File hourlyFile2 = new File(tmpDir, "testDB/testTopic/hourly/2021/09/16/11/data.avro");
     gmce.setOldFilePrefixes(null);
     gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
         .setFilePath(hourlyFile2.toString())
@@ -514,11 +514,12 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new LongWatermark(65L))));
 
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
-    Mockito.when(verifier.isComplete("testTopic", watermark, expectedWatermark)).thenReturn(true);
+    // For quiet topics always check for previous hour window
+    Mockito.when(verifier.isComplete("testTopic", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark)).thenReturn(true);
     ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
 
-    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-7000");
     Assert.assertEquals(table.spec().fields().get(1).name(), "late");
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
