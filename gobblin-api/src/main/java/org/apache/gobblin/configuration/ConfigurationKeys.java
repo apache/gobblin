@@ -104,10 +104,15 @@ public class ConfigurationKeys {
   public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE = "gobblin_job_state";
-  public static final String SCHEDULER_TRIGGER_EVENT_EPSILON_VALUE_MILLIS = "";
+  // TODO: fix these keys
+  public static final String SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY = "originalTriggerTimestampMillis";
+  public static final String SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY = "triggerTimestampMillis";
+  public static final String SCHEDULER_TRIGGER_EVENT_EPSILON_MILLIS_KEY = "";
   public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_EPSILON_MILLIS = 100;
-  public static final String SCHEDULER_TRIGGER_EVENT_LINGER_VALUE_MILLIS = "";
-  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_LINGER_MILLIS = 1000;
+  public static final String SCHEDULER_TRIGGER_EVENT_LINGER_SEC_KEY = "";
+  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_LINGER_SEC = 30;
+  public static final String SCHEDULER_STAGGERING_UPPER_BOUND_SEC_KEY = "";
+  public static final int DEFAULT_SCHEDULER_STAGGERING_UPPER_BOUND_SEC = 5;
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";

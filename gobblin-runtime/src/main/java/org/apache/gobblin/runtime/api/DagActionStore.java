@@ -27,8 +27,9 @@ import lombok.Getter;
 public interface DagActionStore {
   enum DagActionValue {
     KILL,
-    RESUME
-    // TODO: multiActiveScheduler change here to add new action value and update constructor
+    RESUME,
+    // TODO: multiActiveScheduler change here: should flow actions be same as dag actions and be one enum or have overlap but not all the same?
+    LAUNCH
   }
 
   @Getter
@@ -52,9 +53,10 @@ public interface DagActionStore {
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
+   * @param dagActionValue the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) throws IOException, SQLException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability
@@ -71,21 +73,23 @@ public interface DagActionStore {
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
+   * @param dagActionValue the value of the dag action
    * @throws IOException
    * @return true if we successfully delete one record, return false if the record does not exist
    */
-  boolean deleteDagAction(String flowGroup, String flowName, String flowExecutionId) throws IOException;
+  boolean deleteDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) throws IOException;
 
   /***
    * Retrieve action value by the flow group, flow name and flow execution id from the {@link DagActionStore}.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
+   * @param dagActionValue the value of the dag action
    * @throws IOException Exception in retrieving the {@link DagAction}.
    * @throws SpecNotFoundException If {@link DagAction} being retrieved is not present in store.
    */
-  DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId) throws IOException, SpecNotFoundException,
-                                                                                           SQLException;
+  DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue)
+      throws IOException, SpecNotFoundException, SQLException;
 
   /***
    * Get all {@link DagAction}s from the {@link DagActionStore}.

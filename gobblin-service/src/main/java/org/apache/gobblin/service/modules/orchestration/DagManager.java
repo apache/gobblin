@@ -580,7 +580,7 @@ public class DagManager extends AbstractIdleService {
 
     private void clearUpDagAction(DagId dagId) throws IOException {
       if (this.dagActionStore.isPresent()) {
-        this.dagActionStore.get().deleteDagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId);
+        this.dagActionStore.get().deleteDagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, DagActionStore.DagActionValue.KILL);
       }
     }
 

@@ -3,8 +3,12 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.sql.Timestamp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public interface SchedulerLeaseDeterminationStore {
+  static final Logger LOG = LoggerFactory.getLogger(SchedulerLeaseDeterminationStore.class);
 
   // Enum is used to reason about the three possible scenarios that can result from an attempt to obtain a lease for a
   // particular trigger event of a flow
@@ -30,10 +34,13 @@ public interface SchedulerLeaseDeterminationStore {
    * @param flowGroup
    * @param flowName
    * @param flowExecutionId
-   * @param triggerTimestamp is the time this flow is supposed to be launched
+   * @param triggerTimeMillis is the time this flow is supposed to be launched
    * @return LeaseAttemptStatus
    * @throws IOException
    */
   public LeaseAttemptStatus attemptInsertAndGetPursuantTimestamp(String flowGroup, String flowName,
-      String flowExecutionId, FlowActionType flowActionType, Timestamp triggerTimestamp) throws IOException;
+      String flowExecutionId, FlowActionType flowActionType, long triggerTimeMillis) throws IOException;
+
+  public boolean updatePursuantTimestamp(String flowGroup, String flowName, String flowExecutionId,
+      FlowActionType flowActionType, Timestamp triggerTimestamp) throws IOException;
 }

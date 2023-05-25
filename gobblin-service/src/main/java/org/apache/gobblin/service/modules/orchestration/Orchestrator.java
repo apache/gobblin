@@ -58,6 +58,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.SchedulerLeaseDeterminationStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecProducer;
@@ -103,7 +104,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private FlowStatusGenerator flowStatusGenerator;
 
   private UserQuotaManager quotaManager;
-
+  private boolean isMultiActiveSchedulerEnabled;
+  private SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -111,13 +113,16 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
-      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled) {
+      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-
+    this.isMultiActiveSchedulerEnabled =
+        config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) ?
+        config.getBoolean(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) : false;
+    this.schedulerLeaseAlgoHandler = schedulerLeaseAlgoHandler;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -160,8 +165,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log) {
-    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true);
+      Optional<DagManager> dagManager, Optional<Logger> log, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
+    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, schedulerLeaseAlgoHandler);
   }
 
 
@@ -222,7 +227,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   }
 
-  public void orchestrate(Spec spec) throws Exception {
+  /*
+  New Orchestrate method
+   */
+  public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis) throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
     this.topologyCatalog.get().getInitComplete().await();
 
@@ -310,6 +318,16 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowCompilationTimer.get().stop(flowMetadata);
       }
 
+      // If multi-active scheduler is enabled do not pass onto DagManager
+      if (this.isMultiActiveSchedulerEnabled) {
+        String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+        boolean leaseAttemptSucceeded = schedulerLeaseAlgoHandler.handleNewTriggerEvent(jobProps, flowGroup, flowName,
+            flowExecutionId, SchedulerLeaseDeterminationStore.FlowActionType.LAUNCH, triggerTimestampMillis);
+        _log.info("scheduler attempted lease on flowGroup: %s, flowName: %s, flowExecutionId: %s, LAUNCH event for "
+            + "triggerTimestamp: %s that was " + (leaseAttemptSucceeded ? "" : "NOT") + "successful", flowGroup,
+            flowName, flowExecutionId, triggerTimestampMillis);
+        return;
+      }
       /* TODO: multiactiveScheduler change here
         do all the quota checking and compilation above as normal but before passing to dag manager should go to another
         function that checks config and either passes to DM directly or ends up going through scheduler lock contention
@@ -367,14 +385,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-  }
-
-  private void newAbstraction() {
-    // TODO: check config
-    // either do old way and pass to DM
-
-    // do lock contention
-    // Is this a new class...? how can I abstract and make modular? or simply a util method?
   }
 
   /**

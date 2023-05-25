@@ -62,39 +62,46 @@ public class MysqlDagActionStoreTest {
   @Test
   public void testAddAction() throws Exception {
     this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
-    //Should not be able to add again when previous one exist
+    //Should not be able to add KILL again when previous one exist
     Assert.expectThrows(IOException.class,
-        () -> this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.RESUME));
-    //Should be able to add un-exist one
-    this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
+        () -> this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
+    //Should be able to add a RESUME action for same execution as well as KILL for another execution of the flow
+    this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.RESUME);
+    this.mysqlDagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.KILL);
   }
 
   @Test(dependsOnMethods = "testAddAction")
   public void testExists() throws Exception {
-    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId));
-    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2));
-    Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_3));
+    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
+    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.RESUME));
+    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.KILL));
+    Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_3, DagActionStore.DagActionValue.RESUME));
+    Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_3, DagActionStore.DagActionValue.KILL));
   }
 
   @Test(dependsOnMethods = "testExists")
   public void testGetAction() throws IOException, SQLException {
-    Assert.assertEquals(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL), this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId));
-    Assert.assertEquals(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME), this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId_2));
+    Assert.assertEquals(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL),
+        this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
+    Assert.assertEquals(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.KILL),
+        this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.KILL));
     Collection<DagActionStore.DagAction> dagActions = this.mysqlDagActionStore.getDagActions();
-    Assert.assertEquals(2, dagActions.size());
+    Assert.assertEquals(3, dagActions.size());
     HashSet<DagActionStore.DagAction> set = new HashSet<>();
     set.add(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
+    set.add(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.RESUME));
     set.add(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME));
     Assert.assertEquals(dagActions, set);
   }
 
   @Test(dependsOnMethods = "testGetAction")
   public void testDeleteAction() throws IOException, SQLException {
-   this.mysqlDagActionStore.deleteDagAction(flowGroup, flowName, flowExecutionId);
+   this.mysqlDagActionStore.deleteDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
    Assert.assertEquals(this.mysqlDagActionStore.getDagActions().size(), 1);
-   Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId));
-   Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2));
-   Assert.assertNull( this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId));
+   Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
+    Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME));
+   Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.KILL));
+   Assert.assertNull( this.mysqlDagActionStore.getDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL));
   }
 
 }

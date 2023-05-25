@@ -348,6 +348,7 @@ public class JobScheduler extends AbstractIdleService {
    *                    can be <em>null</em> if no callback is needed.
    * @param additionalJobData additional job data in a {@link Map}
    * @param jobClass Quartz job class
+   * @param triggerTimeMillis optionally include triggerTime
    * @throws JobException when there is anything wrong
    *                      with scheduling the job
    */
@@ -581,7 +582,7 @@ public class JobScheduler extends AbstractIdleService {
   /**
    * Get a {@link org.quartz.Trigger} from the given job configuration properties.
    */
-  private Trigger getTrigger(JobKey jobKey, Properties jobProps) {
+  public Trigger getTrigger(JobKey jobKey, Properties jobProps) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
@@ -600,11 +601,17 @@ public class JobScheduler extends AbstractIdleService {
     @Override
     public void executeImpl(JobExecutionContext context)
         throws JobExecutionException {
-      LOG.info("Starting job " + context.getJobDetail().getKey());
-      JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+      JobDetail jobDetail = context.getJobDetail();
+      LOG.info("Starting job " + jobDetail.getKey());
+      JobDataMap dataMap = jobDetail.getJobDataMap();
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
+      // Obtain trigger timestamp from trigger to pass to jobProps
+      Trigger trigger = context.getTrigger();
+      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(triggerTimestampMillis));
 
       try {
         jobScheduler.runJob(jobProps, jobListener);
