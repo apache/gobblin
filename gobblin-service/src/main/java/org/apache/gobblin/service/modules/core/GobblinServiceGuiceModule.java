@@ -20,7 +20,9 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MysqlSchedulerLeaseDeterminationStore;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.SchedulerLeaseAlgoHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
@@ -147,6 +149,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
         .to(serviceConfig.isWarmStandbyEnabled());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
+        .to(serviceConfig.isMultiActiveSchedulerEnabled());
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
@@ -239,6 +244,11 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
       binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+    }
+
+    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
+      binder.bind(MysqlSchedulerLeaseDeterminationStore.class);
+      binder.bind(SchedulerLeaseAlgoHandler.class);
     }
 
     binder.bind(GobblinServiceManager.class);

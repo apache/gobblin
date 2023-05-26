@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.scheduler;
 
 import java.io.IOException;
 import java.net.URI;
-import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Collection;
@@ -110,6 +109,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Orchestrator orchestrator;
   protected final Boolean warmStandbyEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
+  protected final Boolean multiActiveSchedulerEnabled;
   protected final SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
@@ -166,7 +166,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Config config,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
-      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean warmStandbyEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) throws Exception {
+      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean warmStandbyEnabled, @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean multiActiveSchedulerEnabled,
+      SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -182,6 +183,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.warmStandbyEnabled = warmStandbyEnabled;
     this.quotaManager = quotaManager;
+    this.multiActiveSchedulerEnabled = multiActiveSchedulerEnabled;
     this.schedulerLeaseAlgoHandler = schedulerLeaseAlgoHandler;
     // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
     // of the scheduler. If one metric exists, then the others should as well.
@@ -204,9 +206,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager,
-      SchedulerService schedulerService,  Optional<Logger> log, boolean warmStandbyEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) throws Exception {
+      SchedulerService schedulerService,  Optional<Logger> log, boolean warmStandbyEnabled, boolean multiActiveSchedulerEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
-        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log, schedulerLeaseAlgoHandler), schedulerService, quotaManager, log, warmStandbyEnabled, schedulerLeaseAlgoHandler);
+        new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log, multiActiveSchedulerEnabled, schedulerLeaseAlgoHandler), schedulerService, quotaManager, log, warmStandbyEnabled, multiActiveSchedulerEnabled, schedulerLeaseAlgoHandler);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -440,8 +442,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
-  // TODO: multiActiveScheduler change here to use this in old state or with new config do the race to write?
-  // define a new class to handle the nonblocking and race
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
@@ -450,7 +450,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           jobProps.containsKey(ConfigurationKeys.SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY)
               ? jobProps.getProperty(ConfigurationKeys.SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY, "0L"):
               jobProps.getProperty(ConfigurationKeys.SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY,"0L");
-      this.orchestrator.orchestrate(flowSpec, jobProps, Long.valueOf(triggerTimestampMillis));
+      this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
       throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }

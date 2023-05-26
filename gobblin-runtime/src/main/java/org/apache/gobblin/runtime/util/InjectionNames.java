@@ -26,4 +26,5 @@ public final class InjectionNames {
   public static final String FORCE_LEADER = "forceLeader";
   public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
   public static final String WARM_STANDBY_ENABLED = "statelessRestAPIEnabled";
+  public static final String MULTI_ACTIVE_SCHEDULER_ENABLED = "multiActiveSchedulerEnabled";
 }

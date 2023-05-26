@@ -121,8 +121,9 @@ public class MysqlDagActionStore implements DagActionStore {
       insertStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(String.format("Failure to adding action for table %s of flow with flow group:%s, flow name:%s and flow execution id:%s",
-          tableName, flowGroup, flowName, flowExecutionId, dagActionValue), e);
+      throw new IOException(String.format("Failure to adding action for table %s of flow with flow group: %s, flow name"
+              + ": %s, flow execution id: %s, and dag action: %s", tableName, flowGroup, flowName, flowExecutionId,
+          dagActionValue), e);
     }
   }
 
@@ -139,7 +140,7 @@ public class MysqlDagActionStore implements DagActionStore {
       return result != 0;
     } catch (SQLException e) {
       throw new IOException(String.format("Failure to delete action for table %s of flow with flow group:%s, flow name:%s, flow execution id:%s and dagAction: %s",
-          tableName, flowGroup, flowName, flowExecutionId), e);
+          tableName, flowGroup, flowName, flowExecutionId, dagActionValue), e);
     }
   }
 

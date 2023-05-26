@@ -111,7 +111,7 @@ public class OrchestratorTest {
     this.mockSchedulerLeaseAlgoHandler = mock(SchedulerLeaseAlgoHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator,
-        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger), this.mockSchedulerLeaseAlgoHandler);
+        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger), false, this.mockSchedulerLeaseAlgoHandler);
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

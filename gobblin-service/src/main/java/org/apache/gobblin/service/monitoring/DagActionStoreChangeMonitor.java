@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -90,13 +89,14 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   protected DagManager dagManager;
   protected SpecCompiler specCompiler;
+  protected boolean isMultiActiveSchedulerEnabled;
   protected FlowCatalog flowCatalog;
   protected EventSubmitter eventSubmitter;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagActionStore dagActionStore, DagManager dagManager,
-      int numThreads, FlowCatalog flowCatalog) {
+      int numThreads, boolean isMultiActiveSchedulerEnabled, FlowCatalog flowCatalog) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
@@ -117,6 +117,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
              | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
+    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.flowCatalog = flowCatalog;
     this.eventSubmitter = new EventSubmitter.Builder(this.getMetricContext(), "org.apache.gobblin.service").build();
   }
@@ -170,6 +171,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
         } else if (dagAction.equals(DagActionStore.DagActionValue.LAUNCH)) {
+          // If multi-active scheduler is NOT turned on we should not receive these type of events
+          if (!this.isMultiActiveSchedulerEnabled) {
+            log.warn("Received LAUNCH dagAction while not in multi-active scheduler mode for flow group: {}, flow name:"
+                + "{}, execution id: {}, dagAction: {}", flowGroup, flowName, flowExecutionId, dagAction);
+            this.unexpectedErrors.mark();
+          }
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManager(flowGroup, flowName);
         }else {
@@ -184,10 +191,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
         this.unexpectedErrors.mark();
       } else if (operation.equals("DELETE")) {
         log.debug("Deleted flow group: {} name: {} executionId {} from DagActionStore", flowGroup, flowName, flowExecutionId);
-      } // TODO: multiActiveScheduler change here to add a case for a new launch flow action. We want to check if it is
-      // an execution that has been "won" by checking pursuant timestamp = null then pass to dag managers. the right one will
-      // actually launch it. if the config is NOT turned on we should do any of this handling or recieve these type of events
-      else {
+      } else {
         log.warn("Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
             operation);
         this.unexpectedErrors.mark();

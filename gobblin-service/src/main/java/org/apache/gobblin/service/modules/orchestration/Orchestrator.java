@@ -40,6 +40,7 @@ import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
@@ -65,6 +66,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -113,15 +115,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
-      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
+      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, boolean isMultiActiveSchedulerEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-    this.isMultiActiveSchedulerEnabled =
-        config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) ?
-        config.getBoolean(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) : false;
+    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.schedulerLeaseAlgoHandler = schedulerLeaseAlgoHandler;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
@@ -165,8 +165,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
-    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, schedulerLeaseAlgoHandler);
+      Optional<DagManager> dagManager, Optional<Logger> log, @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean multiActiveSchedulerEnabled,
+      SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
+    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, multiActiveSchedulerEnabled, schedulerLeaseAlgoHandler);
   }
 
 
@@ -227,9 +228,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   }
 
-  /*
-  New Orchestrate method
-   */
   public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis) throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
     this.topologyCatalog.get().getInitComplete().await();

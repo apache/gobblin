@@ -99,7 +99,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
     Timestamp triggerTimestamp = new Timestamp(triggerTimeMillis);
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(
-            String.format(ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT, tableName, tableName, epsilon,
+            String.format(ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT, tableName, tableName, epsilon, tableName,
                 epsilon))) {
       int i = 0;
       // Values to set in new row
@@ -124,13 +124,14 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
       connection.commit();
 
       if (!resultSet.next()) {
+        resultSet.close();
         throw new IOException(String.format("Unexpected error where no result returned while trying to obtain lease. "
                 + "This error indicates that no entry existed for trigger flow event for table %s flow group: %s, flow "
                 + "name: %s flow execution id: %s and trigger timestamp: %s when one should have been inserted",
             tableName, flowGroup, flowName, flowExecutionId, triggerTimestamp));
       }
       // If a row was inserted, then we have obtained the lease
-      int rowsUpdated = resultSet.getInt(0);
+      int rowsUpdated = resultSet.getInt(1);
       if (rowsUpdated == 1) {
         // If the pursuing flow launch has been persisted to the {@link DagActionStore} we have completed lease obtainment
         this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.LAUNCH);
@@ -139,6 +140,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
             // TODO: potentially add metric here to count number of flows scheduled by each scheduler
             LOG.info("Host completed obtaining lease for flow group: %s, flow name: %s flow execution id: %s and "
                 + "trigger timestamp: %s", flowGroup, flowName, flowExecutionId, triggerTimestamp);
+            resultSet.close();
             return LeaseAttemptStatus.LEASE_OBTAINED;
           } else {
             LOG.warn("Unable to update pursuant timestamp after persisting flow launch to DagActionStore for flow "
@@ -151,11 +153,13 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
               triggerTimestamp);
         }
       } else if (rowsUpdated > 1) {
+        resultSet.close();
         throw new IOException(String.format("Expect at most 1 row in table for a given trigger event. %s rows "
             + "exist for the trigger flow event for table %s flow group: %s, flow name: %s flow execution id: %s "
             + "and trigger timestamp: %s.", i, tableName, flowGroup, flowName, flowExecutionId, triggerTimestamp));
       }
-      Timestamp pursuantTimestamp = resultSet.getTimestamp(1);
+      Timestamp pursuantTimestamp = resultSet.getTimestamp(2);
+      resultSet.close();
       long currentTimeMillis = System.currentTimeMillis();
       // Another host has obtained lease and no further steps required
       if (pursuantTimestamp == null) {
@@ -170,7 +174,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
     } catch (SQLException e) {
       throw new IOException(String.format("Error encountered while trying to obtain lease on trigger flow event for "
               + "table %s flow group: %s, flow name: %s flow execution id: %s and trigger timestamp: %s", tableName,
-          flowGroup, flowName, flowExecutionId, triggerTimestamp, e));
+          flowGroup, flowName, flowExecutionId, triggerTimestamp), e);
     }
   }
 
@@ -180,7 +184,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
       throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement updateStatement = connection.prepareStatement(
-            String.format(UPDATE_PURSUANT_TIMESTAMP_STATEMENT, tableName))) {
+            String.format(UPDATE_PURSUANT_TIMESTAMP_STATEMENT, tableName, epsilon))) {
         int i = 0;
         updateStatement.setString(++i, flowGroup);
         updateStatement.setString(++i, flowName);
@@ -197,7 +201,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
     } catch (SQLException e) {
       throw new IOException(String.format("Encountered exception while trying to update pursuant timestamp to null for "
               + "flowGroup: %s flowName: %s flowExecutionId: %s flowAction: %s triggerTimestamp: %s. Exception is %s",
-          flowGroup, flowName, flowExecutionId, flowActionType, triggerTimestamp), e);
+          flowGroup, flowName, flowExecutionId, flowActionType, triggerTimestamp, e));
     }
   }
 }
