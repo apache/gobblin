@@ -23,6 +23,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -832,15 +833,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
           tableMetadata.deleteFiles.get().commit();
         }
         // Check and update completion watermark when there are no files to be registered, typically for quiet topics
-        // The logic is to check the next window from previous completion watermark and update the watermark if there are no audit counts
+        // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
           if (tableMetadata.completionWatermark > DEFAULT_COMPLETION_WATERMARK) {
             log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
             SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
-            ZonedDateTime prevWatermarkDT =
-                Instant.ofEpochMilli(tableMetadata.completionWatermark).atZone(ZoneId.of(this.timeZone));
-            timestamps.add(TimeIterator.inc(prevWatermarkDT, TimeIterator.Granularity.valueOf(this.auditCheckGranularity), 1));
+            ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
+            timestamps.add(dtAtBeginningOfHour);
             checkAndUpdateCompletenessWatermark(tableMetadata, topicName, timestamps, props);
           } else {
             log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
