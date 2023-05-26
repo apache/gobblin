@@ -318,7 +318,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowCompilationTimer.get().stop(flowMetadata);
       }
 
-      // If multi-active scheduler is enabled do not pass onto DagManager
+      // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       if (this.isMultiActiveSchedulerEnabled) {
         String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
         boolean leaseAttemptSucceeded = schedulerLeaseAlgoHandler.handleNewTriggerEvent(jobProps, flowGroup, flowName,
@@ -328,11 +328,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
             flowName, flowExecutionId, triggerTimestampMillis);
         return;
       }
-      /* TODO: multiactiveScheduler change here
-        do all the quota checking and compilation above as normal but before passing to dag manager should go to another
-        function that checks config and either passes to DM directly or ends up going through scheduler lock contention
-      */
-      // CALLS NEW METHOD newAbstraction()...
+
       if (this.dagManager.isPresent()) {
         try {
           //Send the dag to the DagManager.

@@ -23,6 +23,11 @@
     "type" : "string",
     "doc" : "flow execution id for the dag action",
     "compliance" : "NONE"
+  }, {
+    "name" : "dagAction",
+    "type" : "string",
+    "doc" : "type of dag action",
+    "compliance" : "NONE"
   }
   ]
 }

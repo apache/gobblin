@@ -30,8 +30,8 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-class TimingEventUtils {
-  static Map<String, String> getFlowMetadata(FlowSpec flowSpec) {
+public class TimingEventUtils {
+  public static Map<String, String> getFlowMetadata(FlowSpec flowSpec) {
     return getFlowMetadata(flowSpec.getConfig());
   }
 

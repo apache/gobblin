@@ -277,8 +277,9 @@ public class DagManager extends AbstractIdleService {
    * @param dag {@link Dag} to be added
    * @param persist whether to persist the dag to the {@link DagStateStore}
    * @param setStatus if true, set all jobs in the dag to pending
+   * Note this should only be called from the {@link Orchestrator} or {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
    */
-  synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
+  public synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
     if (persist) {
       //Persist the dag
       this.dagStateStore.writeCheckpoint(dag);

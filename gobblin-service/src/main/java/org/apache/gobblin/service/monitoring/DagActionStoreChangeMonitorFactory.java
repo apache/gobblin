@@ -26,6 +26,7 @@ import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -40,12 +41,15 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   private final Config config;
   private DagActionStore dagActionStore;
   private DagManager dagManager;
+  private FlowCatalog flowCatalog;
 
   @Inject
-  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager) {
+  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager,
+      FlowCatalog flowCatalog) {
     this.config = Objects.requireNonNull(config);
     this.dagActionStore = dagActionStore;
     this.dagManager = dagManager;
+    this.flowCatalog = flowCatalog;
   }
 
   private DagActionStoreChangeMonitor createDagActionStoreMonitor()
@@ -56,7 +60,7 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
     String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagActionStore, this.dagManager, numThreads);
+    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagActionStore, this.dagManager, numThreads, flowCatalog);
   }
 
   @Override

@@ -28,7 +28,7 @@ public interface DagActionStore {
   enum DagActionValue {
     KILL,
     RESUME,
-    // TODO: multiActiveScheduler change here: should flow actions be same as dag actions and be one enum or have overlap but not all the same?
+    // TODO: potentially combine this enum with {@link SchedulerLeaseDeterminationStore.FlowActionType}
     LAUNCH
   }
 

@@ -79,6 +79,7 @@ public class OrchestratorTest {
   private SpecCatalogListener mockListener;
   private FlowSpec flowSpec;
   private FlowStatusGenerator mockStatusGenerator;
+  private SchedulerLeaseAlgoHandler mockSchedulerLeaseAlgoHandler;
   private Orchestrator orchestrator;
 
   @BeforeClass
@@ -107,9 +108,10 @@ public class OrchestratorTest {
     this.serviceLauncher.addService(flowCatalog);
     this.mockStatusGenerator = mock(FlowStatusGenerator.class);
 
+    this.mockSchedulerLeaseAlgoHandler = mock(SchedulerLeaseAlgoHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator,
-        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
+        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger), this.mockSchedulerLeaseAlgoHandler);
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

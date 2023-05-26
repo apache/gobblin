@@ -75,7 +75,6 @@ public class SchedulerLeaseAlgoHandler {
         // recursively try obtaining lease again immediately, stops when reaches one of the other cases
         return handleNewTriggerEvent(jobProps, flowGroup, flowName, flowExecutionId, flowActionType, triggerTimeMillis);
       case PREVIOUS_LEASE_VALID:
-        // TODO: potentially return pursuant timestamp here so we can use that instead of current
         scheduleReminderForTriggerEvent(jobProps, flowGroup, flowName, flowExecutionId, flowActionType, triggerTimeMillis);
     }
     return false;
@@ -121,8 +120,7 @@ public class SchedulerLeaseAlgoHandler {
   protected static String createCronFromDelayPeriod(long delayPeriodSeconds) {
     LocalDateTime now = LocalDateTime.now();
     LocalDateTime delaySecondsLater = now.plus(delayPeriodSeconds, ChronoUnit.SECONDS);
-    // TODO: potentially better way of generating cron expression that does not make it US dependent, this may not be an
-    // issue though.
+    // TODO: investigate potentially better way of generating cron expression that does not make it US dependent
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ss mm HH dd MM ? yyyy", Locale.US);
     return delaySecondsLater.format(formatter);
   }

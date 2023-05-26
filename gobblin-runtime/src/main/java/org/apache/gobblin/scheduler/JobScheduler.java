@@ -348,7 +348,6 @@ public class JobScheduler extends AbstractIdleService {
    *                    can be <em>null</em> if no callback is needed.
    * @param additionalJobData additional job data in a {@link Map}
    * @param jobClass Quartz job class
-   * @param triggerTimeMillis optionally include triggerTime
    * @throws JobException when there is anything wrong
    *                      with scheduling the job
    */

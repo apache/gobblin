@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.runtime.api;
 
 import java.io.IOException;
@@ -7,6 +24,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
+import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
@@ -18,20 +36,19 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-/**
- * TODO: multiActiveScheduler change here write doc for this class
- */
 public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDeterminationStore {
   public static final String CONFIG_PREFIX = "MysqlSchedulerLeaseDeterminationStore";
 
   protected final DataSource dataSource;
+  private final DagActionStore dagActionStore;
   private final String tableName;
   private final long epsilon;
   private final long linger;
-  // TODO: define retention eventually on this table
-  // TODO: also add to primary key the type of event "launch"
-  // initialize table with one entry only if it doesn't exist. these configs
-  // another table with epsilon and linger then join the two tables
+  /* TODO:
+     - define retention on this table
+     - initialize table with epsilon and linger if one already doesn't exist using these configs
+     - join with table above to ensure epsilon/linger values are consistent across hosts (in case hosts are deployed with different configs)
+   */
   protected static final String WHERE_CLAUSE_TO_MATCH_ROW = "WHERE flow_group=? AND flow_name=? AND flow_execution_id=? "
       + "AND flow_action=? AND ABS(trigger_event_timestamp-?) <= %s";
   protected static final String ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT = "INSERT INTO %s (flow_group, "
@@ -41,14 +58,6 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
 
   protected static final String UPDATE_PURSUANT_TIMESTAMP_STATEMENT = "UPDATE %s SET pursuant_timestamp = NULL "
       + WHERE_CLAUSE_TO_MATCH_ROW;
-
-  /* TODO: Potentially use the following statement that obtains the lease with the insert, otherwise returns the original
-   value, but it's a bit hard to reason about this statement working.
-  protected static final String ATTEMPT_OBTAINING_LEASE_ELSE_RETURN_EXISTING_ROW_STATEMENT = "SELECT * FROM "
-      + "(SELECT ? AS flow_group, ? AS flow_name, ? AS flow_execution_id, ? AS trigger_event_timestamp) AS new_rows"
-      + "WHERE EXISTS (SELECT * FROM %s WHERE %s.flow_group = new_rows.flow_group AND %s.flow_name = new_rows.flow_name)"
-      + " AND %s.flow_execution_id = new_rows.flow_execution_id AND ABS(trigger_event_timestamp-?) <= %s)";
-  */
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %S (" + "flow_group varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "flow_execution_id varchar("
@@ -57,11 +66,12 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
       + "pursuant_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,flow_action,trigger_event_timestamp)";
 
-  public MysqlSchedulerLeaseDeterminationStore(Config config) throws IOException {
+  @Inject
+  public MysqlSchedulerLeaseDeterminationStore(Config config, DagActionStore dagActionStore) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     } else {
-      throw new IOException("Please specify the config for MysqlDagActionStore");
+      throw new IOException("Please specify the config for MysqlSchedulerLeaseDeterminationStore");
     }
 
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
@@ -79,6 +89,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
     } catch (SQLException e) {
       throw new IOException("Table creation failure for " + tableName, e);
     }
+    this.dagActionStore = dagActionStore;
   }
 
   @Override
@@ -89,7 +100,7 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(
             String.format(ATTEMPT_INSERT_AND_GET_PURSUANT_TIMESTAMP_STATEMENT, tableName, tableName, epsilon,
-                tableName, epsilon))) {
+                epsilon))) {
       int i = 0;
       // Values to set in new row
       insertStatement.setString(++i, flowGroup);
@@ -114,16 +125,30 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
 
       if (!resultSet.next()) {
         throw new IOException(String.format("Unexpected error where no result returned while trying to obtain lease. "
-                + "This error indicates that no row was inserted but also no entry existed for trigger flow event for "
-                + "table %s flow group: %s, flow name: %s flow execution id: %s and trigger timestamp: %s", tableName,
-            flowGroup, flowName, flowExecutionId, triggerTimestamp));
+                + "This error indicates that no entry existed for trigger flow event for table %s flow group: %s, flow "
+                + "name: %s flow execution id: %s and trigger timestamp: %s when one should have been inserted",
+            tableName, flowGroup, flowName, flowExecutionId, triggerTimestamp));
       }
       // If a row was inserted, then we have obtained the lease
       int rowsUpdated = resultSet.getInt(0);
       if (rowsUpdated == 1) {
-        // TODO: write to dagactionstore then update pursuant to null
-        if (updatePursuantTimestamp(flowGroup, flowName, flowExecutionId, flowActionType, triggerTimestamp)) {
-          return LeaseAttemptStatus.LEASE_OBTAINED;
+        // If the pursuing flow launch has been persisted to the {@link DagActionStore} we have completed lease obtainment
+        this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.LAUNCH);
+        if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.LAUNCH)) {
+          if (updatePursuantTimestamp(flowGroup, flowName, flowExecutionId, flowActionType, triggerTimestamp)) {
+            // TODO: potentially add metric here to count number of flows scheduled by each scheduler
+            LOG.info("Host completed obtaining lease for flow group: %s, flow name: %s flow execution id: %s and "
+                + "trigger timestamp: %s", flowGroup, flowName, flowExecutionId, triggerTimestamp);
+            return LeaseAttemptStatus.LEASE_OBTAINED;
+          } else {
+            LOG.warn("Unable to update pursuant timestamp after persisting flow launch to DagActionStore for flow "
+                + "group: %s, flow name: %s flow execution id: %s and trigger timestamp: %s.", flowGroup, flowName,
+                flowExecutionId, triggerTimestamp);
+          }
+        } else {
+          LOG.warn("Did not find flow launch action in DagActionStore after adding it for flow group: %s, flow name: "
+                  + "%s flow execution id: %s and trigger timestamp: %s.", flowGroup, flowName, flowExecutionId,
+              triggerTimestamp);
         }
       } else if (rowsUpdated > 1) {
         throw new IOException(String.format("Expect at most 1 row in table for a given trigger event. %s rows "
@@ -134,6 +159,8 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
       long currentTimeMillis = System.currentTimeMillis();
       // Another host has obtained lease and no further steps required
       if (pursuantTimestamp == null) {
+        LOG.info("Another host has already successfully obtained lease for flow group: %s, flow name: %s flow execution "
+            + "id: %s and trigger timestamp: %s", flowGroup, flowName, flowExecutionId, triggerTimeMillis);
         return LeaseAttemptStatus.LEASE_OBTAINED;
       } else if (pursuantTimestamp.getTime() + linger <= currentTimeMillis) {
         return LeaseAttemptStatus.PREVIOUS_LEASE_EXPIRED;
@@ -168,9 +195,9 @@ public class MysqlSchedulerLeaseDeterminationStore implements SchedulerLeaseDete
         }
         return i >= 1;
     } catch (SQLException e) {
-      throw new IOException(String.format("Encountered exception while trying to update pursuant timestamp to null for flowGroup: %s flowName: %s"
-          + "flowExecutionId: %s flowAction: %s triggerTimestamp: %s. Exception is %s", flowGroup, flowName, flowExecutionId,
-          flowActionType, triggerTimestamp), e);
+      throw new IOException(String.format("Encountered exception while trying to update pursuant timestamp to null for "
+              + "flowGroup: %s flowName: %s flowExecutionId: %s flowAction: %s triggerTimestamp: %s. Exception is %s",
+          flowGroup, flowName, flowExecutionId, flowActionType, triggerTimestamp), e);
     }
   }
 }
