@@ -168,7 +168,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final String ICEBERG_FILE_PATH_COLUMN = DataFile.FILE_PATH.name();
 
   private final boolean completenessEnabled;
+  private final boolean totalCountCompletenessEnabled;
   private final WhitelistBlacklist completenessWhitelistBlacklist;
+  private final WhitelistBlacklist totalCountBasedCompletenessWhitelistBlacklist;
   private final String timeZone;
   private final DateTimeFormatter HOURLY_DATEPARTITION_FORMAT;
   private final String newPartitionColumn;
@@ -234,8 +236,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
               FsPermission.getDefault());
     }
     this.completenessEnabled = state.getPropAsBoolean(ICEBERG_COMPLETENESS_ENABLED, DEFAULT_ICEBERG_COMPLETENESS);
+    this.totalCountCompletenessEnabled = state.getPropAsBoolean(ICEBERG_TOTAL_COUNT_COMPLETENESS_ENABLED,
+        DEFAULT_ICEBERG_TOTAL_COUNT_COMPLETENESS);
     this.completenessWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_COMPLETENESS_WHITELIST, ""),
         state.getProp(ICEBERG_COMPLETENESS_BLACKLIST, ""));
+    this.totalCountBasedCompletenessWhitelistBlacklist = new WhitelistBlacklist(
+        state.getProp(ICEBERG_TOTAL_COUNT_COMPLETENESS_WHITELIST, ""),
+        state.getProp(ICEBERG_TOTAL_COUNT_COMPLETENESS_BLACKLIST, ""));
     this.timeZone = state.getProp(TIME_ZONE_KEY, DEFAULT_TIME_ZONE);
     this.HOURLY_DATEPARTITION_FORMAT = DateTimeFormatter.ofPattern(DATEPARTITION_FORMAT)
         .withZone(ZoneId.of(this.timeZone));
@@ -327,6 +334,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
     if(tableMetadata.completenessEnabled) {
       tableMetadata.completionWatermark = Long.parseLong(table.properties().getOrDefault(COMPLETION_WATERMARK_KEY,
           String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
+
+      if (tableMetadata.totalCountCompletenessEnabled) {
+        tableMetadata.totalCountCompletionWatermark = Long.parseLong(
+            table.properties().getOrDefault(TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+                String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
+      }
     }
 
     computeCandidateSchema(gmce, tid, tableSpec);
@@ -830,6 +843,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
           sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
             checkAndUpdateCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
+
+            if (tableMetadata.totalCountCompletenessEnabled) {
+              checkAndUpdateTotalCountCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
+            }
           }
         }
         if (tableMetadata.deleteFiles.isPresent()) {
@@ -848,6 +865,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
           } else {
             log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
                 tableMetadata.completionWatermark, topicName));
+          }
+
+          // Deal with total count completion watermark.
+          if (tableMetadata.totalCountCompletionWatermark > DEFAULT_COMPLETION_WATERMARK) {
+            log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
+            SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
+            ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
+            timestamps.add(dtAtBeginningOfHour);
+            checkAndUpdateTotalCountCompletenessWatermark(tableMetadata, topicName, timestamps, props);
+          } else {
+            log.info(String.format("Need valid watermark, current total count watermark is %s, Not checking kafka audit for %s",
+                tableMetadata.totalCountCompletionWatermark, topicName));
           }
         }
 
@@ -914,13 +943,37 @@ public class IcebergMetadataWriter implements MetadataWriter {
           TOPIC_NAME_KEY, tableName));
     }
     long newCompletenessWatermark =
-        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.completionWatermark);
+        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.completionWatermark, false);
     if (newCompletenessWatermark > tableMetadata.completionWatermark) {
       log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY, tableMetadata.table.get().name(),
           newCompletenessWatermark));
       props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
       props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
       tableMetadata.completionWatermark = newCompletenessWatermark;
+    }
+  }
+
+  /**
+   * Update TableMetadata with the new total count completion watermark upon a successful audit check
+   * @param tableMetadata metadata of table
+   * @param topic topic name
+   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
+   * @param props table properties map
+   */
+  private void checkAndUpdateTotalCountCompletenessWatermark(TableMetadata tableMetadata, String topic,
+      SortedSet<ZonedDateTime> timestamps, Map<String, String> props) {
+    String tableName = tableMetadata.table.get().name();
+    if (topic == null) {
+      log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
+          TOPIC_NAME_KEY, tableName));
+    }
+    long newCompletenessWatermark =
+        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.totalCountCompletionWatermark, true);
+    if (newCompletenessWatermark > tableMetadata.totalCountCompletionWatermark) {
+      log.info(String.format("Updating %s for %s to %s", TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+          tableMetadata.table.get().name(), newCompletenessWatermark));
+      props.put(TOTAL_COUNT_COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
+      tableMetadata.totalCountCompletionWatermark = newCompletenessWatermark;
     }
   }
 
@@ -942,9 +995,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * @param topicName
    * @param timestamps a sorted set of timestamps in decreasing order
    * @param previousWatermark previous completion watermark for the table
+   * @param isTotalCountCompletenessWatermark whether to compute total count completeness watermark
    * @return updated completion watermark
    */
-  private long computeCompletenessWatermark(String catalogDbTableName, String topicName, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
+  private long computeCompletenessWatermark(String catalogDbTableName, String topicName,
+      SortedSet<ZonedDateTime> timestamps, long previousWatermark, boolean isTotalCountCompletenessWatermark) {
     log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", topicName, timestamps, previousWatermark));
     long completionWatermark = previousWatermark;
     ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
@@ -965,13 +1020,27 @@ public class IcebergMetadataWriter implements MetadataWriter {
             && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
           long timestampMillis = timestampDT.toInstant().toEpochMilli();
           ZonedDateTime auditCountCheckLowerBoundDT = TimeIterator.dec(timestampDT, granularity, 1);
-          if (auditCountVerifier.get().isComplete(topicName,
-              auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
+          if (!isTotalCountCompletenessWatermark && auditCountVerifier.get().isComplete(
+              topicName, auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
             completionWatermark = timestampMillis;
             // Also persist the watermark into State object to share this with other MetadataWriters
             // we enforce ourselves to always use lower-cased table name here
             String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased), completionWatermark);
+            this.state.setProp(
+                String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased),
+                completionWatermark);
+            break;
+          }
+
+          if (isTotalCountCompletenessWatermark && auditCountVerifier.get().isTotalCountComplete(
+              topicName, auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
+            completionWatermark = timestampMillis;
+            // Also persist the watermark into State object to share this with other MetadataWriters
+            // we enforce ourselves to always use lower-cased table name here
+            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
+            this.state.setProp(
+                String.format(STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased),
+                completionWatermark);
             break;
           }
         } else {
@@ -1016,6 +1085,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
     if (tableMetadata.completenessEnabled) {
       gobblinTrackingEvent.addMetadata(COMPLETION_WATERMARK_KEY, Long.toString(tableMetadata.completionWatermark));
+      if (tableMetadata.totalCountCompletenessEnabled) {
+        gobblinTrackingEvent.addMetadata(TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+            Long.toString(tableMetadata.totalCountCompletionWatermark));
+      }
     }
     eventSubmitter.submit(gobblinTrackingEvent);
   }
@@ -1102,6 +1175,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
               tableMetadataMap.get(tid).newPartitionColumnEnabled = true;
               if (this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
                 tableMetadataMap.get(tid).completenessEnabled = true;
+
+                if (this.totalCountCompletenessEnabled
+                    && this.totalCountBasedCompletenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
+                  tableMetadataMap.get(tid).totalCountCompletenessEnabled = true;
+                }
               }
             }
           }
@@ -1160,12 +1238,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<String> lastSchemaVersion = Optional.absent();
     Optional<Long> lowWatermark = Optional.absent();
     long completionWatermark = DEFAULT_COMPLETION_WATERMARK;
+    long totalCountCompletionWatermark = DEFAULT_COMPLETION_WATERMARK;
     SortedSet<ZonedDateTime> datePartitions = new TreeSet<>(Collections.reverseOrder());
     List<String> serializedAuditCountMaps = new ArrayList<>();
 
     @Setter
     String datasetName;
     boolean completenessEnabled;
+    boolean totalCountCompletenessEnabled;
     boolean newPartitionColumnEnabled;
 
     Cache<CharSequence, String> addedFiles = CacheBuilder.newBuilder()
