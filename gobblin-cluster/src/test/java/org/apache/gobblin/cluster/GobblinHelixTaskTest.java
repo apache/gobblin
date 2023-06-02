@@ -94,6 +94,8 @@ public class GobblinHelixTaskTest {
 
   private GobblinHelixTask gobblinHelixTask;
 
+  private GobblinHelixTask gobblinHelixTaskForCancel;
+
   private HelixManager helixManager;
 
   private FileSystem localFs;
@@ -194,6 +196,8 @@ public class GobblinHelixTaskTest {
     // Expect to go through.
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
 
+    this.gobblinHelixTaskForCancel = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
+
     // Mock the method getFs() which get called in SingleTask constructor, so that SingleTask could fail and trigger retry,
     // which would also fail eventually with timeout.
     TaskRunnerSuiteBase.Builder builderSpy = Mockito.spy(builder);
@@ -254,6 +258,25 @@ public class GobblinHelixTaskTest {
 
     Schema schema = new Schema.Parser().parse(TestHelper.SOURCE_SCHEMA);
     TestHelper.assertGenericRecords(outputAvroFile, schema);
+  }
+
+  @Test(dependsOnMethods = "testRun")
+  public void testCancel() throws IOException, InterruptedException {
+
+    final TaskResult[] taskResult = new TaskResult[1];
+    Thread thread = new Thread(){
+      @Override
+      public void run() {
+        taskResult[0] = gobblinHelixTaskForCancel.run();
+      }
+    };
+    thread.start();
+    Thread.sleep(3);
+    gobblinHelixTaskForCancel.cancel();
+    thread.join();
+    System.out.println(taskResult[0].getInfo());
+    //We can see task failure or task cancelled as task status
+    Assert.assertNotEquals(taskResult[0].getStatus(), TaskResult.Status.COMPLETED);
   }
 
   @AfterClass

@@ -90,6 +90,7 @@ public class GobblinHelixTask implements Task {
   private SingleTask task;
   private String helixTaskId;
   private EventBus eventBus;
+  private boolean isCanceled;
 
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
@@ -161,12 +162,20 @@ public class GobblinHelixTask implements Task {
   @Override
   public TaskResult run() {
     this.taskMetrics.helixTaskTotalRunning.incrementAndGet();
+    this.isCanceled = false;
     long startTime = System.currentTimeMillis();
     log.info("Actual task {} started. [{} {}]", this.taskId, this.applicationName, this.instanceName);
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
       this.task.run();
+      // Since we enable gracefully cancel, when task get cancelled, we might not see any exception,
+      // so we check the isCanceled flag to make sure we return the correct task status
+      if (this.isCanceled) {
+        log.error("Actual task {} canceled.", this.taskId);
+        this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
+        return new TaskResult(TaskResult.Status.CANCELED, "");
+      }
       log.info("Actual task {} completed.", this.taskId);
       this.taskMetrics.helixTaskTotalCompleted.incrementAndGet();
       return new TaskResult(TaskResult.Status.COMPLETED, "");
@@ -219,6 +228,7 @@ public class GobblinHelixTask implements Task {
     log.info("Gobblin helix task cancellation invoked for jobId {}.", jobId);
     if (this.task != null ) {
       try {
+        this.isCanceled = true;
         this.task.cancel();
         log.info("Gobblin helix task cancellation completed for jobId {}.", jobId);
       } catch (Throwable t) {
