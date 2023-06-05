@@ -20,7 +20,7 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MysqlSchedulerLeaseDeterminationStore;
+import org.apache.gobblin.runtime.api.MySQLMultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.SchedulerLeaseAlgoHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
@@ -247,7 +247,7 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MysqlSchedulerLeaseDeterminationStore.class);
+      binder.bind(MySQLMultiActiveLeaseArbiter.class);
       binder.bind(SchedulerLeaseAlgoHandler.class);
     }
 

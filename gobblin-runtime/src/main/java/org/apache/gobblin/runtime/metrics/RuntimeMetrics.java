@@ -73,6 +73,8 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_JOB_SCHEDULER_TOTAL_GET_SPEC_TIME_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.totalGetSpecTimeNanos";
   public static final String GOBBLIN_JOB_SCHEDULER_TOTAL_ADD_SPEC_TIME_NANOS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.totalAddSpecTimeNanos";
   public static final String GOBBLIN_JOB_SCHEDULER_NUM_JOBS_SCHEDULED_DURING_STARTUP = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".jobScheduler.numJobsScheduledDuringStartup";
+  // Metrics Used to Track SchedulerLeaseAlgoHandlerProgress
+  public static final String GOBBLIN_SCHEDULER_LEASE_ALGO_HANDLER_NUM_LEASES_COMPLETED = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + ".schedulerLeaseAlgoHandler.numLeasesCompleted";
   // Metadata keys
   public static final String TOPIC = "topic";
   public static final String GROUP_ID = "groupId";

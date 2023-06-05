@@ -609,7 +609,7 @@ public class JobScheduler extends AbstractIdleService {
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
       long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY,
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_NEW_EVENT_TIMESTAMP_MILLIS_KEY,
           String.valueOf(triggerTimestampMillis));
 
       try {

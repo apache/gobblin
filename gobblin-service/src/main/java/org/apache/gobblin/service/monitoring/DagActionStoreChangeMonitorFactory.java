@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -49,14 +48,12 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
 
   @Inject
   public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager,
-      FlowCatalog flowCatalog, @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isMultiActiveSchedulerEnabled) {
+      FlowCatalog flowCatalog, @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);
     this.dagActionStore = dagActionStore;
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
-    this.isMultiActiveSchedulerEnabled =
-        config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) ?
-            config.getBoolean(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY) : false;
+    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
   }
 
   private DagActionStoreChangeMonitor createDagActionStoreMonitor()

@@ -43,8 +43,6 @@ import org.apache.gobblin.util.ExponentialBackoff;
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
-  private static final long GET_DAG_ACTION_INITIAL_WAIT_AFTER_FAILURE = 1000L;
-
 
   protected final DataSource dataSource;
   private final String tableName;
@@ -86,7 +84,7 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) throws IOException, SQLException {
+  public boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException {
     ResultSet rs = null;
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement existStatement = connection.prepareStatement(String.format(EXISTS_STATEMENT, tableName))) {
@@ -94,13 +92,13 @@ public class MysqlDagActionStore implements DagActionStore {
       existStatement.setString(++i, flowGroup);
       existStatement.setString(++i, flowName);
       existStatement.setString(++i, flowExecutionId);
-      existStatement.setString(++i, dagActionValue.toString());
+      existStatement.setString(++i, flowActionType.toString());
       rs = existStatement.executeQuery();
       rs.next();
       return rs.getBoolean(1);
     } catch (SQLException e) {
-      throw new IOException(String.format("Failure checking existence for table %s of flow with flow group:%s, flow name:%s, flow execution id:%s and dagAction: %s",
-          tableName, flowGroup, flowName, flowExecutionId, dagActionValue), e);
+      throw new IOException(String.format("Failure checking existence of DagAction: %s in table %s",
+          new DagAction(flowGroup, flowName, flowExecutionId, flowActionType), tableName), e);
     } finally {
       if (rs != null) {
         rs.close();
@@ -109,7 +107,7 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue)
+  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType)
       throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement insertStatement = connection.prepareStatement(String.format(INSERT_STATEMENT, tableName))) {
@@ -117,34 +115,35 @@ public class MysqlDagActionStore implements DagActionStore {
       insertStatement.setString(++i, flowGroup);
       insertStatement.setString(++i, flowName);
       insertStatement.setString(++i, flowExecutionId);
-      insertStatement.setString(++i, dagActionValue.toString());
+      insertStatement.setString(++i, flowActionType.toString());
       insertStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException(String.format("Failure to adding action for table %s of flow with flow group: %s, flow name"
-              + ": %s, flow execution id: %s, and dag action: %s", tableName, flowGroup, flowName, flowExecutionId,
-          dagActionValue), e);
+      throw new IOException(String.format("Failure adding action for DagAction: %s in table %s",
+          new DagAction(flowGroup, flowName, flowExecutionId, flowActionType), tableName), e);
     }
   }
 
   @Override
-  public boolean deleteDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) throws IOException {
+  public boolean deleteDagAction(DagAction dagAction) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement deleteStatement = connection.prepareStatement(String.format(DELETE_STATEMENT, tableName))) {
       int i = 0;
-      deleteStatement.setString(++i, flowGroup);
-      deleteStatement.setString(++i, flowName);
-      deleteStatement.setString(++i, flowExecutionId);
+      deleteStatement.setString(++i, dagAction.getFlowGroup());
+      deleteStatement.setString(++i, dagAction.getFlowName());
+      deleteStatement.setString(++i, dagAction.getFlowExecutionId());
+      deleteStatement.setString(++i, dagAction.getFlowActionType().toString());
       int result = deleteStatement.executeUpdate();
       connection.commit();
       return result != 0;
     } catch (SQLException e) {
-      throw new IOException(String.format("Failure to delete action for table %s of flow with flow group:%s, flow name:%s, flow execution id:%s and dagAction: %s",
-          tableName, flowGroup, flowName, flowExecutionId, dagActionValue), e);
+      throw new IOException(String.format("Failure deleting action for DagAction: %s in table %s", dagAction,
+          tableName), e);
     }
   }
 
-  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue, ExponentialBackoff exponentialBackoff)
+  // TODO: later change this to getDagActions relating to a particular flow execution if it makes sense
+  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType, ExponentialBackoff exponentialBackoff)
       throws IOException, SQLException {
     ResultSet rs = null;
     try (Connection connection = this.dataSource.getConnection();
@@ -153,34 +152,28 @@ public class MysqlDagActionStore implements DagActionStore {
       getStatement.setString(++i, flowGroup);
       getStatement.setString(++i, flowName);
       getStatement.setString(++i, flowExecutionId);
-      getStatement.setString(++i, dagActionValue.toString());
+      getStatement.setString(++i, flowActionType.toString());
       rs = getStatement.executeQuery();
       if (rs.next()) {
-        return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), DagActionValue.valueOf(rs.getString(4)));
+        return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), FlowActionType.valueOf(rs.getString(4)));
       } else {
         if (exponentialBackoff.awaitNextRetryIfAvailable()) {
-          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, dagActionValue, exponentialBackoff);
+          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, flowActionType, exponentialBackoff);
         } else {
-          log.warn(String.format("Can not find dag action: %s with flowGroup: %s, flowName: %s, flowExecutionId: %s", dagActionValue, flowGroup, flowName, flowExecutionId));
+          log.warn(String.format("Can not find dag action: %s with flowGroup: %s, flowName: %s, flowExecutionId: %s",
+              flowActionType, flowGroup, flowName, flowExecutionId));
           return null;
         }
       }
     } catch (SQLException | InterruptedException e) {
-      throw new IOException(String.format("Failure get dag action: %s from table %s of flow with flow group:%s, flow name:%s and flow execution id:%s",
-          dagActionValue, tableName, flowGroup, flowName, flowExecutionId), e);
+      throw new IOException(String.format("Failure get %s from table %s", new DagAction(flowGroup, flowName, flowExecutionId,
+          flowActionType), tableName), e);
     } finally {
       if (rs != null) {
         rs.close();
       }
     }
 
-  }
-
-  @Override
-  public DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue)
-      throws IOException, SQLException {
-    ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().initialDelay(GET_DAG_ACTION_INITIAL_WAIT_AFTER_FAILURE).maxRetries(this.getDagActionMaxRetries).build();
-    return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, dagActionValue, exponentialBackoff);
   }
 
   @Override
@@ -191,7 +184,7 @@ public class MysqlDagActionStore implements DagActionStore {
         ResultSet rs = getAllStatement.executeQuery()) {
       while (rs.next()) {
         result.add(
-            new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), DagActionValue.valueOf(rs.getString(4))));
+            new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), FlowActionType.valueOf(rs.getString(4))));
       }
       if (rs != null) {
         rs.close();

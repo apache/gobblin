@@ -96,21 +96,17 @@ public class ConfigurationKeys {
   public static final String SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS = "skip.scheduling.flows.after.num.days";
   public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 365;
   // Scheduler lease determination store configuration
-  // TODO: multiActiveScheduler change here update values for the following keys and rename to more meaningful
-  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_JDBC_DRIVER_KEY = "state.store.db.jdbc.driver";
-  public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
-  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_URL_KEY = "state.store.db.url";
-  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_USER_KEY = "state.store.db.user";
-  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_PASSWORD_KEY = "state.store.db.password";
-  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY = "state.store.db.table";
-  public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE = "gobblin_job_state";
-  // TODO: fix these keys
-  public static final String SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY = "originalTriggerTimestampMillis";
-  public static final String SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY = "triggerTimestampMillis";
-  public static final String SCHEDULER_TRIGGER_EVENT_EPSILON_MILLIS_KEY = "";
-  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_EPSILON_MILLIS = 100;
-  public static final String SCHEDULER_TRIGGER_EVENT_LINGER_SEC_KEY = "";
-  public static final long DEFAULT_SCHEDULER_TRIGGER_EVENT_LINGER_SEC = 30;
+  public static final String MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE_KEY = "multi.active.scheduler.constants.db.table";
+  public static final String DEFAULT_MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE = "multi.active.scheduler.";
+  public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY = "scheduler.lease.determination.store.db.table";
+  public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE = "gobblin_scheduler_lease_determination_store";
+  public static final String SCHEDULER_REMINDER_EVENT_TIMESTAMP_MILLIS_KEY = "reminderEventTimestampMillis";
+  public static final String SCHEDULER_NEW_EVENT_TIMESTAMP_MILLIS_KEY = "newEventTimestampMillis";
+  public static final String SCHEDULER_EVENT_EPSILON_MILLIS_KEY = "";
+  public static final int DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS = 100;
+  // Note: linger should be on the order of seconds even though we measure in millis
+  public static final String SCHEDULER_EVENT_LINGER_MILLIS_KEY = "";
+  public static final int DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS = 30000;
   public static final String SCHEDULER_STAGGERING_UPPER_BOUND_SEC_KEY = "";
   public static final int DEFAULT_SCHEDULER_STAGGERING_UPPER_BOUND_SEC = 5;
 

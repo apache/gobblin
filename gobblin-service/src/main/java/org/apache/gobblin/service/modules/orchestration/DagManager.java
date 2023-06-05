@@ -426,7 +426,7 @@ public class DagManager extends AbstractIdleService {
         if (dagActionStore.isPresent()) {
           Collection<DagActionStore.DagAction> dagActions = dagActionStore.get().getDagActions();
           for (DagActionStore.DagAction action : dagActions) {
-            switch (action.getDagActionValue()) {
+            switch (action.getFlowActionType()) {
               case KILL:
                 this.handleKillFlowEvent(new KillFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
                 break;
@@ -434,7 +434,7 @@ public class DagManager extends AbstractIdleService {
                 this.handleResumeFlowEvent(new ResumeFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
                 break;
               default:
-                log.warn("Unsupported dagAction: " + action.getDagActionValue().toString());
+                log.warn("Unsupported dagAction: " + action.getFlowActionType().toString());
             }
           }
         }
@@ -581,7 +581,9 @@ public class DagManager extends AbstractIdleService {
 
     private void clearUpDagAction(DagId dagId) throws IOException {
       if (this.dagActionStore.isPresent()) {
-        this.dagActionStore.get().deleteDagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, DagActionStore.DagActionValue.KILL);
+        this.dagActionStore.get().deleteDagAction(
+            new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId,
+                DagActionStore.FlowActionType.KILL));
       }
     }
 

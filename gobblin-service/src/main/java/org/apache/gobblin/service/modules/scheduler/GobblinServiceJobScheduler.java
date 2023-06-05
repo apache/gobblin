@@ -446,14 +446,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-      String triggerTimestampMillis =
-          jobProps.containsKey(ConfigurationKeys.SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY)
-              ? jobProps.getProperty(ConfigurationKeys.SCHEDULER_ORIGINAL_TRIGGER_TIMESTAMP_MILLIS_KEY, "0L"):
-              jobProps.getProperty(ConfigurationKeys.SCHEDULER_TRIGGER_TIMESTAMP_MILLIS_KEY,"0L");
+      String triggerTimestampMillis = extractTriggerTimestampMillis(jobProps);
       this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
       throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
+  }
+
+  /*
+  Helper method used to extract the trigger timestamp from Properties object. If key for `original` trigger exists, then
+  we use that because this is a reminder event and the actual event trigger is the time we wanted to be reminded of the
+  original trigger.
+   */
+  public static String extractTriggerTimestampMillis(Properties jobProps) {
+    return jobProps.containsKey(ConfigurationKeys.SCHEDULER_REMINDER_EVENT_TIMESTAMP_MILLIS_KEY)
+        ? jobProps.getProperty(ConfigurationKeys.SCHEDULER_REMINDER_EVENT_TIMESTAMP_MILLIS_KEY, "0L"):
+        jobProps.getProperty(ConfigurationKeys.SCHEDULER_NEW_EVENT_TIMESTAMP_MILLIS_KEY,"0L");
   }
 
   /**

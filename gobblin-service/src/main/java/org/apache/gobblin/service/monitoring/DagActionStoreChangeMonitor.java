@@ -146,7 +146,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
-    DagActionStore.DagActionValue dagAction = DagActionStore.DagActionValue.valueOf(value.getDagAction());
+
+    DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
@@ -159,35 +160,36 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     }
 
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
-    // {@link DagActionStore.DagACtionValue} flow requests that have to be processed. DELETEs require no action.
+    // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
       if (operation.equals("INSERT")) {
-        if (dagAction.equals(DagActionStore.DagActionValue.RESUME)) {
+        if (dagActionType.equals(DagActionStore.FlowActionType.RESUME)) {
           log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
-        } else if (dagAction.equals(DagActionStore.DagActionValue.KILL)) {
+        } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
           log.info("Received insert dag action and about to send kill flow request");
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
-        } else if (dagAction.equals(DagActionStore.DagActionValue.LAUNCH)) {
+        } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
           // If multi-active scheduler is NOT turned on we should not receive these type of events
           if (!this.isMultiActiveSchedulerEnabled) {
-            log.warn("Received LAUNCH dagAction while not in multi-active scheduler mode for flow group: {}, flow name:"
-                + "{}, execution id: {}, dagAction: {}", flowGroup, flowName, flowExecutionId, dagAction);
             this.unexpectedErrors.mark();
+            throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
+                + "mode for flowAction: %s",
+                new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, dagActionType)));
           }
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManager(flowGroup, flowName);
-        }else {
-          log.warn("Received unsupported dagAction {}. Expected to be a KILL or RESUME", dagAction);
+        } else {
+          log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();
           return;
         }
       } else if (operation.equals("UPDATE")) {
         log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
             + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
-            flowExecutionId, dagAction);
+            flowExecutionId, dagActionType);
         this.unexpectedErrors.mark();
       } else if (operation.equals("DELETE")) {
         log.debug("Deleted flow group: {} name: {} executionId {} from DagActionStore", flowGroup, flowName, flowExecutionId);

@@ -57,9 +57,9 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.SchedulerLeaseDeterminationStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecProducer;
@@ -319,15 +319,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       if (this.isMultiActiveSchedulerEnabled) {
         String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-        boolean leaseAttemptSucceeded = schedulerLeaseAlgoHandler.handleNewTriggerEvent(jobProps, flowGroup, flowName,
-            flowExecutionId, SchedulerLeaseDeterminationStore.FlowActionType.LAUNCH, triggerTimestampMillis);
-        _log.info("scheduler attempted lease on flowGroup: %s, flowName: %s, flowExecutionId: %s, LAUNCH event for "
-            + "triggerTimestamp: %s that was " + (leaseAttemptSucceeded ? "" : "NOT") + "successful", flowGroup,
-            flowName, flowExecutionId, triggerTimestampMillis);
-        return;
-      }
-
-      if (this.dagManager.isPresent()) {
+        DagActionStore.DagAction flowAction =
+            new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+        schedulerLeaseAlgoHandler.handleNewSchedulerEvent(jobProps, flowAction, triggerTimestampMillis);
+        _log.info("Multi-active scheduler finished handling trigger event: [%s, triggerEventTimestamp: %s]", flowAction,
+            triggerTimestampMillis);
+      } else if (this.dagManager.isPresent()) {
         try {
           //Send the dag to the DagManager.
           this.dagManager.get().addDag(jobExecutionPlanDag, true, true);

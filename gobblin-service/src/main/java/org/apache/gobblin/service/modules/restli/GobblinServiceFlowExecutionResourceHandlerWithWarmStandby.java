@@ -54,25 +54,25 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
     Long flowExecutionId = key.getKey().getFlowExecutionId();
     try {
       // If an existing resume request is still pending then do not accept this request
-      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME)) {
-        this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME,
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.RESUME)) {
+        this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.RESUME,
             new RuntimeException("There is already a pending RESUME action for this flow. Please wait to resubmit and wait for"
                 + " action to be completed."));
         return;
       }
-      this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME);
+      this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.RESUME);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add execution resume action for flow %s %s %s to dag action store due to", flowGroup,
               flowName, flowExecutionId), e);
-      this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.RESUME, e);
+      this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.RESUME, e);
     }
 
   }
 
-  private void handleException (String flowGroup, String flowName, String flowExecutionId, DagActionStore.DagActionValue dagActionValue, Exception e) {
+  private void handleException (String flowGroup, String flowName, String flowExecutionId, DagActionStore.FlowActionType flowActionType, Exception e) {
     try {
-      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, dagActionValue)) {
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, flowActionType)) {
         throw new RestLiServiceException(HttpStatus.S_409_CONFLICT, e.getMessage());
       } else {
         throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
@@ -90,19 +90,19 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
     Long flowExecutionId = key.getKey().getFlowExecutionId();
     try {
       // If an existing kill request is still pending then do not accept this request
-      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL)) {
-        this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL,
+      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.KILL)) {
+        this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.KILL,
             new RuntimeException("There is already a pending KILL action for this flow. Please wait to resubmit and wait for"
                 + " action to be completed."));
         return new UpdateResponse(HttpStatus.S_400_BAD_REQUEST);
       }
-      this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL);
+      this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.KILL);
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add execution delete action for flow %s %s %s to dag action store due to", flowGroup,
               flowName, flowExecutionId), e);
-      this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.DagActionValue.KILL, e);
+      this.handleException(flowGroup, flowName, flowExecutionId.toString(), DagActionStore.FlowActionType.KILL, e);
       return new UpdateResponse(HttpStatus.S_500_INTERNAL_SERVER_ERROR);
     }
   }

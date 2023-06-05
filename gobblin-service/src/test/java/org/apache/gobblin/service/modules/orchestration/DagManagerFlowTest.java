@@ -84,8 +84,8 @@ public class DagManagerFlowTest {
         .build();
 
     dagActionStore = new MysqlDagActionStore(config);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.FlowActionType.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), false);
     dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
