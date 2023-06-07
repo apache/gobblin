@@ -39,7 +39,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveMetastoreTest;
-import org.apache.iceberg.shaded.org.apache.avro.SchemaBuilder;
+import org.apache.avro.SchemaBuilder;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -53,7 +53,7 @@ import com.google.common.collect.Sets;
 /** Test {@link org.apache.gobblin.data.management.copy.iceberg.IcebergTable} */
 public class IcebergTableTest extends HiveMetastoreTest {
 
-  protected static final org.apache.iceberg.shaded.org.apache.avro.Schema avroDataSchema =
+  protected static final org.apache.avro.Schema avroDataSchema =
       SchemaBuilder.record("test")
           .fields()
           .name("id")

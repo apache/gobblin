@@ -81,11 +81,10 @@ public class IcebergUtils {
   public static IcebergDataAndPartitionSchema getIcebergSchema(String schema,
       org.apache.hadoop.hive.metastore.api.Table table) {
 
-    org.apache.iceberg.shaded.org.apache.avro.Schema icebergDataSchema =
-        new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(schema);
+    org.apache.avro.Schema icebergDataSchema = new org.apache.avro.Schema.Parser().parse(schema);
     Types.StructType dataStructType = AvroSchemaUtil.convert(icebergDataSchema).asStructType();
     List<Types.NestedField> dataFields = Lists.newArrayList(dataStructType.fields());
-    org.apache.iceberg.shaded.org.apache.avro.Schema icebergPartitionSchema =
+    org.apache.avro.Schema icebergPartitionSchema =
         parseSchemaFromCols(table.getPartitionKeys(), table.getDbName(), table.getTableName(), true);
     Types.StructType partitionStructType = AvroSchemaUtil.convert(icebergPartitionSchema).asStructType();
     List<Types.NestedField> partitionFields = partitionStructType.fields();
@@ -99,7 +98,7 @@ public class IcebergUtils {
         new org.apache.iceberg.Schema(partitionFields));
   }
 
-  private static org.apache.iceberg.shaded.org.apache.avro.Schema parseSchemaFromCols(List<FieldSchema> cols,
+  private static org.apache.avro.Schema parseSchemaFromCols(List<FieldSchema> cols,
       String namespace, String recordName, boolean mkFieldsOptional) {
     final List<String> colNames = new ArrayList<>(cols.size());
     final List<TypeInfo> colsTypeInfo = new ArrayList<>(cols.size());
@@ -109,7 +108,7 @@ public class IcebergUtils {
     });
     final TypeInfoToSchemaParser parser =
         new TypeInfoToSchemaParser(namespace, mkFieldsOptional, Collections.emptyMap());
-    return new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(
+    return new org.apache.avro.Schema.Parser().parse(
         parser.parseSchemaFromFieldsTypeInfo("", recordName, colNames, colsTypeInfo).toString());
   }
 

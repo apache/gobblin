@@ -36,7 +36,13 @@ dependencies {
 
     compile externalDependency.hiveMetastore
     compile externalDependency.hiveSerDe
-    compile (externalDependency.icebergHive) {
+    compile (externalDependency.icebergCore) {
+        exclude group:'org.apache.avro', module:'avro'
+    }
+    compile (externalDependency.icebergHiveMetastore) {
+        exclude group:'org.apache.avro', module:'avro'
+    }
+    compile (externalDependency.icebergOrc) {
         exclude group:'org.apache.avro', module:'avro'
     }
     compile externalDependency.avro

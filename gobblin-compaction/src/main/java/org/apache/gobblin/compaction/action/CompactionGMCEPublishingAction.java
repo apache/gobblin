@@ -46,7 +46,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.orc.ORCSchemaUtil;
-import org.apache.iceberg.shaded.org.apache.orc.TypeDescription;
+import org.apache.orc.TypeDescription;
 import org.apache.orc.OrcConf;
 
 

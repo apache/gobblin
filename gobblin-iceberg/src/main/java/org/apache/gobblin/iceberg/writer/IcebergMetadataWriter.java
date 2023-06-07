@@ -569,8 +569,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private Schema getSchemaWithOriginId(GobblinMetadataChangeEvent gmce) {
     Schema schemaWithOriginId = null;
     if (gmce.getAvroSchemaWithIcebergSchemaID() != null) {
-      org.apache.iceberg.shaded.org.apache.avro.Schema avroSchema =
-          new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(gmce.getAvroSchemaWithIcebergSchemaID());
+      org.apache.avro.Schema avroSchema =
+          new org.apache.avro.Schema.Parser().parse(gmce.getAvroSchemaWithIcebergSchemaID());
       schemaWithOriginId = AvroSchemaUtil.toIceberg(avroSchema);
     }
     return schemaWithOriginId;
