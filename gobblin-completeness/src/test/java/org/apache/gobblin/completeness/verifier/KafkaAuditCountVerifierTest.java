@@ -105,4 +105,23 @@ public class KafkaAuditCountVerifierTest {
     ));
     Assert.assertFalse(verifier.isTotalCountComplete(topic, 0L, 0L));
   }
+
+  public void testEmptyAuditCount() throws IOException {
+    final String topic = "testTopic";
+    State props = new State();
+    props.setProp(KafkaAuditCountVerifier.SOURCE_TIER, SOURCE_TIER);
+    props.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.TOTAL_COUNT_REFERENCE_TIERS, TOTAL_COUNT_REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.THRESHOLD, ".99");
+    props.setProp(KafkaAuditCountVerifier.COMPLETE_ON_NO_COUNTS, true);
+    TestAuditClient client = new TestAuditClient(props);
+    KafkaAuditCountVerifier verifier = new KafkaAuditCountVerifier(props, client);
+
+    // Client gets empty audit count
+    client.setTierCounts(ImmutableMap.of());
+
+    // Should be complete, since COMPLETE_ON_NO_COUNTS=true
+    Assert.assertTrue(verifier.isComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.isTotalCountComplete(topic, 0L, 0L));
+  }
 }

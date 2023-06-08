@@ -32,7 +32,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -123,7 +122,6 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
@@ -842,10 +840,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
           tableMetadata.appendFiles.get().commit();
           sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
-            checkAndUpdateCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
+            UpdateWatermarkWithFilesRegistered(topicName, tableMetadata, props, false);
 
             if (tableMetadata.totalCountCompletenessEnabled) {
-              checkAndUpdateTotalCountCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
+              UpdateWatermarkWithFilesRegistered(topicName, tableMetadata, props, true);
             }
           }
         }
@@ -856,27 +854,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
-          if (tableMetadata.completionWatermark > DEFAULT_COMPLETION_WATERMARK) {
-            log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
-            SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
-            ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
-            timestamps.add(dtAtBeginningOfHour);
-            checkAndUpdateCompletenessWatermark(tableMetadata, topicName, timestamps, props);
-          } else {
-            log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
-                tableMetadata.completionWatermark, topicName));
-          }
+          UpdateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, false);
 
-          // Deal with total count completion watermark.
-          if (tableMetadata.totalCountCompletionWatermark > DEFAULT_COMPLETION_WATERMARK) {
-            log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
-            SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
-            ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
-            timestamps.add(dtAtBeginningOfHour);
-            checkAndUpdateTotalCountCompletenessWatermark(tableMetadata, topicName, timestamps, props);
-          } else {
-            log.info(String.format("Need valid watermark, current total count watermark is %s, Not checking kafka audit for %s",
-                tableMetadata.totalCountCompletionWatermark, topicName));
+          if (tableMetadata.totalCountCompletenessEnabled) {
+            UpdateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, true);
           }
         }
 
@@ -923,134 +904,45 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  private AbstractCompletenessWatermarkUpdater getWatermarkUpdater(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
+    return isTotalCountCompleteness
+        ? new CompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone, tableMetadata,
+            propsToUpdate, this.state, this.auditCountVerifier.get())
+        : new TotalCountCompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone,
+            tableMetadata, propsToUpdate, this.state, this.auditCountVerifier.get());
+  }
+
+  private void UpdateWatermarkWithFilesRegistered(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
+    getWatermarkUpdater(topicName, tableMetadata, propsToUpdate, isTotalCountCompleteness)
+        .run(tableMetadata.datePartitions);
+  }
+
+  private void UpdateWatermarkWithEmptyFilesRegistered(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
+    long currentWatermark = isTotalCountCompleteness
+        ? tableMetadata.completionWatermark
+        : tableMetadata.totalCountCompletionWatermark;
+
+    if (currentWatermark > DEFAULT_COMPLETION_WATERMARK) {
+      log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
+      SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
+      ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
+      timestamps.add(dtAtBeginningOfHour);
+
+      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate, isTotalCountCompleteness)
+          .run(timestamps);
+    } else {
+      String watermarkName = isTotalCountCompleteness ? "watermark" : "total count watermark";
+      log.info(String.format("Need valid %s, current %s is %s, Not checking kafka audit for %s",
+          watermarkName, watermarkName, currentWatermark, topicName));
+    }
+  }
+
   @Override
   public void reset(String dbName, String tableName) throws IOException {
     this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
-  }
-
-  /**
-   * Update TableMetadata with the new completion watermark upon a successful audit check
-   * @param tableMetadata metadata of table
-   * @param topic topic name
-   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
-   * @param props table properties map
-   */
-  private void checkAndUpdateCompletenessWatermark(TableMetadata tableMetadata, String topic, SortedSet<ZonedDateTime> timestamps,
-      Map<String, String> props) {
-    String tableName = tableMetadata.table.get().name();
-    if (topic == null) {
-      log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
-          TOPIC_NAME_KEY, tableName));
-    }
-    long newCompletenessWatermark =
-        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.completionWatermark, false);
-    if (newCompletenessWatermark > tableMetadata.completionWatermark) {
-      log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY, tableMetadata.table.get().name(),
-          newCompletenessWatermark));
-      props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-      props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
-      tableMetadata.completionWatermark = newCompletenessWatermark;
-    }
-  }
-
-  /**
-   * Update TableMetadata with the new total count completion watermark upon a successful audit check
-   * @param tableMetadata metadata of table
-   * @param topic topic name
-   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
-   * @param props table properties map
-   */
-  private void checkAndUpdateTotalCountCompletenessWatermark(TableMetadata tableMetadata, String topic,
-      SortedSet<ZonedDateTime> timestamps, Map<String, String> props) {
-    String tableName = tableMetadata.table.get().name();
-    if (topic == null) {
-      log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
-          TOPIC_NAME_KEY, tableName));
-    }
-    long newCompletenessWatermark =
-        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.totalCountCompletionWatermark, true);
-    if (newCompletenessWatermark > tableMetadata.totalCountCompletionWatermark) {
-      log.info(String.format("Updating %s for %s to %s", TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
-          tableMetadata.table.get().name(), newCompletenessWatermark));
-      props.put(TOTAL_COUNT_COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-      tableMetadata.totalCountCompletionWatermark = newCompletenessWatermark;
-    }
-  }
-
-  /**
-   * NOTE: completion watermark for a window [t1, t2] is marked as t2 if audit counts match
-   * for that window (aka its is set to the beginning of next window)
-   * For each timestamp in sorted collection of timestamps in descending order
-   * if timestamp is greater than previousWatermark
-   * and hour(now) > hour(prevWatermark)
-   *    check audit counts for completeness between
-   *    a source and reference tier for [timestamp -1 , timstamp unit of granularity]
-   *    If the audit count matches update the watermark to the timestamp and break
-   *    else continue
-   * else
-   *  break
-   * Using a {@link TimeIterator} that operates over a range of time in 1 unit
-   * given the start, end and granularity
-   * @param catalogDbTableName
-   * @param topicName
-   * @param timestamps a sorted set of timestamps in decreasing order
-   * @param previousWatermark previous completion watermark for the table
-   * @param isTotalCountCompletenessWatermark whether to compute total count completeness watermark
-   * @return updated completion watermark
-   */
-  private long computeCompletenessWatermark(String catalogDbTableName, String topicName,
-      SortedSet<ZonedDateTime> timestamps, long previousWatermark, boolean isTotalCountCompletenessWatermark) {
-    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", topicName, timestamps, previousWatermark));
-    long completionWatermark = previousWatermark;
-    ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
-    try {
-      if(timestamps == null || timestamps.size() <= 0) {
-        log.error("Cannot create time iterator. Empty for null timestamps");
-        return previousWatermark;
-      }
-      TimeIterator.Granularity granularity = TimeIterator.Granularity.valueOf(this.auditCheckGranularity);
-      ZonedDateTime prevWatermarkDT = Instant.ofEpochMilli(previousWatermark)
-          .atZone(ZoneId.of(this.timeZone));
-      ZonedDateTime startDT = timestamps.first();
-      ZonedDateTime endDT = timestamps.last();
-      TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
-      while (iterator.hasNext()) {
-        ZonedDateTime timestampDT = iterator.next();
-        if (timestampDT.isAfter(prevWatermarkDT)
-            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
-          long timestampMillis = timestampDT.toInstant().toEpochMilli();
-          ZonedDateTime auditCountCheckLowerBoundDT = TimeIterator.dec(timestampDT, granularity, 1);
-          if (!isTotalCountCompletenessWatermark && auditCountVerifier.get().isComplete(
-              topicName, auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
-            completionWatermark = timestampMillis;
-            // Also persist the watermark into State object to share this with other MetadataWriters
-            // we enforce ourselves to always use lower-cased table name here
-            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(
-                String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased),
-                completionWatermark);
-            break;
-          }
-
-          if (isTotalCountCompletenessWatermark && auditCountVerifier.get().isTotalCountComplete(
-              topicName, auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
-            completionWatermark = timestampMillis;
-            // Also persist the watermark into State object to share this with other MetadataWriters
-            // we enforce ourselves to always use lower-cased table name here
-            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(
-                String.format(STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased),
-                completionWatermark);
-            break;
-          }
-        } else {
-          break;
-        }
-      }
-    } catch (IOException e) {
-      log.warn("Exception during audit count check: ", e);
-    }
-    return completionWatermark;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,

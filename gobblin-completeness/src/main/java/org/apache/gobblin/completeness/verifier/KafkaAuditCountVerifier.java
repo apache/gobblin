@@ -140,11 +140,14 @@ public class KafkaAuditCountVerifier {
    */
   private double getCompletenessPercentage(String datasetName, long beginInMillis, long endInMillis) throws IOException {
     Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
-    validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.refTiers);
+    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
+    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
+
     if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
       log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
       return 1.0;
     }
+    validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.refTiers);
 
     double percent = -1;
     for (String refTier: this.refTiers) {
@@ -164,11 +167,14 @@ public class KafkaAuditCountVerifier {
     Preconditions.checkNotNull(this.totalCountRefTiers);
 
     Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
-    validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.totalCountRefTiers);
+    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
+    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
+
     if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
       log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
       return 1.0;
     }
+    validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.totalCountRefTiers);
 
     long srcCount = countsByTier.get(this.srcTier);
     long totalRefCount = this.totalCountRefTiers
@@ -185,9 +191,6 @@ public class KafkaAuditCountVerifier {
   private static void validateTierCounts(String datasetName, long beginInMillis, long endInMillis, Map<String, Long> countsByTier,
       String sourceTier, Collection<String> referenceTiers)
       throws IOException {
-    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
-    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
-
     if (!countsByTier.containsKey(sourceTier)) {
       throw new IOException(String.format("Source tier %s audit count cannot be retrieved for dataset %s between %s and %s", sourceTier, datasetName, beginInMillis, endInMillis));
     }
