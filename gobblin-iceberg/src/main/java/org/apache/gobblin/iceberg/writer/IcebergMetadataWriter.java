@@ -840,10 +840,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
           tableMetadata.appendFiles.get().commit();
           sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
-            UpdateWatermarkWithFilesRegistered(topicName, tableMetadata, props, false);
+            updateWatermarkWithFilesRegistered(topicName, tableMetadata, props, false);
 
             if (tableMetadata.totalCountCompletenessEnabled) {
-              UpdateWatermarkWithFilesRegistered(topicName, tableMetadata, props, true);
+              updateWatermarkWithFilesRegistered(topicName, tableMetadata, props, true);
             }
           }
         }
@@ -854,10 +854,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
-          UpdateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, false);
+          updateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, false);
 
           if (tableMetadata.totalCountCompletenessEnabled) {
-            UpdateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, true);
+            updateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, true);
           }
         }
 
@@ -913,13 +913,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
             tableMetadata, propsToUpdate, this.state, this.auditCountVerifier.get());
   }
 
-  private void UpdateWatermarkWithFilesRegistered(String topicName, TableMetadata tableMetadata,
+  private void updateWatermarkWithFilesRegistered(String topicName, TableMetadata tableMetadata,
       Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
     getWatermarkUpdater(topicName, tableMetadata, propsToUpdate, isTotalCountCompleteness)
         .run(tableMetadata.datePartitions);
   }
 
-  private void UpdateWatermarkWithEmptyFilesRegistered(String topicName, TableMetadata tableMetadata,
+  private void updateWatermarkWithEmptyFilesRegistered(String topicName, TableMetadata tableMetadata,
       Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
     long currentWatermark = isTotalCountCompleteness
         ? tableMetadata.completionWatermark
