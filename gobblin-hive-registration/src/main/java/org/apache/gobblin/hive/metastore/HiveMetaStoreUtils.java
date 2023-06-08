@@ -29,8 +29,6 @@ import java.util.stream.Stream;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang.reflect.MethodUtils;
-import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
-import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -73,6 +71,8 @@ import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.SharedHiveConfKey;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
+import org.apache.gobblin.hive.spec.HiveSpec;
 
 
 /**
@@ -289,7 +289,8 @@ public class HiveMetaStoreUtils {
           .anyMatch(type -> isNonOptionalUnion(type));
     }
 
-    throw new RuntimeException("Avro based Hive tables without \"" + HiveAvroSerDeManager.SCHEMA_LITERAL +"\" are not supported");
+    throw new RuntimeException("Avro based Hive tables without \"" + HiveAvroSerDeManager.SCHEMA_LITERAL +"\" are not supported. "
+        + "hiveTable=" + hiveTable.getDbName() + "." + hiveTable.getTableName());
   }
 
   /**

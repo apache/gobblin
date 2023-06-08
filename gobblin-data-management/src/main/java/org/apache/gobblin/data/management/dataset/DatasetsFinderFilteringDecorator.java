@@ -30,6 +30,8 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -39,6 +41,7 @@ import org.apache.gobblin.util.function.CheckedExceptionPredicate;
 /**
  * A decorator for filtering datasets after a {@link DatasetsFinder} finds a {@link List} of {@link Dataset}s
  */
+@Slf4j
 public class DatasetsFinderFilteringDecorator<T extends Dataset> implements DatasetsFinder<T> {
   private static final String PREFIX = "filtering.datasets.finder.";
   public static final String DATASET_CLASS = PREFIX + "class";
@@ -69,6 +72,7 @@ public class DatasetsFinderFilteringDecorator<T extends Dataset> implements Data
   @Override
   public List<T> findDatasets() throws IOException {
     List<T> datasets = datasetFinder.findDatasets();
+    log.info("Found {} datasets", datasets.size());
     List<T> allowedDatasets = Collections.emptyList();
     try {
       allowedDatasets = datasets.parallelStream()
@@ -83,6 +87,7 @@ public class DatasetsFinderFilteringDecorator<T extends Dataset> implements Data
       wrappedIOException.rethrowWrapped();
     }
 
+    log.info("Allowed {}/{} datasets", allowedDatasets.size() ,datasets.size());
     return allowedDatasets;
   }
 
