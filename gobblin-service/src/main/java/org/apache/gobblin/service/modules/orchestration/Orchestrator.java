@@ -40,7 +40,6 @@ import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
@@ -66,7 +65,6 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -106,8 +104,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private FlowStatusGenerator flowStatusGenerator;
 
   private UserQuotaManager quotaManager;
-  private boolean isMultiActiveSchedulerEnabled;
-  private SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler;
+  private Optional<FlowTriggerHandler> schedulerLeaseAlgoHandler;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -115,13 +112,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
-      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, boolean isMultiActiveSchedulerEnabled, SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
+      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, Optional<FlowTriggerHandler> schedulerLeaseAlgoHandler) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.schedulerLeaseAlgoHandler = schedulerLeaseAlgoHandler;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
@@ -165,9 +161,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log, @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean multiActiveSchedulerEnabled,
-      SchedulerLeaseAlgoHandler schedulerLeaseAlgoHandler) {
-    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, multiActiveSchedulerEnabled, schedulerLeaseAlgoHandler);
+      Optional<DagManager> dagManager, Optional<Logger> log, Optional<FlowTriggerHandler> schedulerLeaseAlgoHandler) {
+    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, schedulerLeaseAlgoHandler);
   }
 
 
@@ -317,26 +312,27 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
-      if (this.isMultiActiveSchedulerEnabled) {
+      if (schedulerLeaseAlgoHandler.isPresent()) {
+        // If triggerTimestampMillis is 0, then it was not set by the job trigger handler, and we cannot handle this event
+        if (triggerTimestampMillis == 0L) {
+          _log.warn("Skipping execution of spec: {} because missing trigger timestamp in job properties",
+              jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+          flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow orchestration skipped because no trigger timestamp "
+              + "associated with flow action.");
+          if (this.eventSubmitter.isPresent()) {
+            new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+          }
+          return;
+        }
+
         String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
         DagActionStore.DagAction flowAction =
             new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
-        schedulerLeaseAlgoHandler.handleNewSchedulerEvent(jobProps, flowAction, triggerTimestampMillis);
+        schedulerLeaseAlgoHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis);
         _log.info("Multi-active scheduler finished handling trigger event: [%s, triggerEventTimestamp: %s]", flowAction,
             triggerTimestampMillis);
       } else if (this.dagManager.isPresent()) {
-        try {
-          //Send the dag to the DagManager.
-          this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
-        } catch (Exception ex) {
-          if (this.eventSubmitter.isPresent()) {
-            // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
-            String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
-            flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
-            new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-          }
-          throw ex;
-        }
+        submitFlowToDagManager((FlowSpec) spec, Optional.of(jobExecutionPlanDag));
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
@@ -376,6 +372,26 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  public void submitFlowToDagManager(FlowSpec flowSpec, Optional<Dag<JobExecutionPlan>> jobExecutionPlanDag)
+      throws IOException {
+    if (!jobExecutionPlanDag.isPresent()) {
+      jobExecutionPlanDag = Optional.of(specCompiler.compileFlow(flowSpec));
+    }
+    try {
+      //Send the dag to the DagManager.
+      this.dagManager.get().addDag(jobExecutionPlanDag.get(), true, true);
+    } catch (Exception ex) {
+      if (this.eventSubmitter.isPresent()) {
+        // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
+        String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
+        Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+        flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
+        new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      }
+      throw ex;
+    }
   }
 
   /**

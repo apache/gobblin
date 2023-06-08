@@ -42,7 +42,7 @@ public class SpecStoreChangeMonitorFactory implements Provider<SpecStoreChangeMo
   private GobblinServiceJobScheduler scheduler;
 
   @Inject
-  public SpecStoreChangeMonitorFactory(Config config,FlowCatalog flowCatalog, GobblinServiceJobScheduler scheduler) {
+  public SpecStoreChangeMonitorFactory(Config config, FlowCatalog flowCatalog, GobblinServiceJobScheduler scheduler) {
     this.config = Objects.requireNonNull(config);
     this.flowCatalog = flowCatalog;
     this.scheduler = scheduler;

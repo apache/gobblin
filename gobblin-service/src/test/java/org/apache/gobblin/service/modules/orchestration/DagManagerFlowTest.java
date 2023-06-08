@@ -90,7 +90,7 @@ public class DagManagerFlowTest {
     dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
-    Thread.sleep(10000);
+    Thread.sleep(30000);
     // On active, should proceed request and delete action entry
     Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
   }

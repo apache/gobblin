@@ -90,7 +90,7 @@ public class MysqlDagActionStoreTest {
     Assert.assertEquals(dagActions, set);
   }
 
-  @Test(dependsOnMethods = "testGetAction")
+  @Test(dependsOnMethods = "testGetActions")
   public void testDeleteAction() throws IOException, SQLException {
    this.mysqlDagActionStore.deleteDagAction(
        new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL));

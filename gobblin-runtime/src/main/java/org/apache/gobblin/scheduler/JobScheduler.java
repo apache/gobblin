@@ -396,7 +396,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      Trigger trigger = getTrigger(job.getKey(), jobProps);
+      Trigger trigger = createTriggerForJob(job.getKey(), jobProps);
       this.scheduler.getScheduler().scheduleJob(job, trigger);
       LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
     } catch (SchedulerException se) {
@@ -581,7 +581,7 @@ public class JobScheduler extends AbstractIdleService {
   /**
    * Get a {@link org.quartz.Trigger} from the given job configuration properties.
    */
-  public Trigger getTrigger(JobKey jobKey, Properties jobProps) {
+  public Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
@@ -608,8 +608,9 @@ public class JobScheduler extends AbstractIdleService {
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
+      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
       long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_NEW_EVENT_TIMESTAMP_MILLIS_KEY,
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
           String.valueOf(triggerTimestampMillis));
 
       try {

@@ -25,6 +25,8 @@ public final class InjectionNames {
   public static final String SERVICE_NAME = "serviceName";
   public static final String FORCE_LEADER = "forceLeader";
   public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
+
+  // TODO: Rename `warm_standby_enabled` config to `message_forwarding_enabled` since it's a misnomer.
   public static final String WARM_STANDBY_ENABLED = "statelessRestAPIEnabled";
   public static final String MULTI_ACTIVE_SCHEDULER_ENABLED = "multiActiveSchedulerEnabled";
 }

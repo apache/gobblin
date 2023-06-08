@@ -60,7 +60,7 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.service.modules.orchestration.SchedulerLeaseAlgoHandler;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -349,7 +349,8 @@ public class GobblinServiceJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler not in warm standby mode
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, false, Mockito.mock(SchedulerLeaseAlgoHandler.class));
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
+        FlowTriggerHandler.class)));
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -367,7 +368,8 @@ public class GobblinServiceJobSchedulerTest {
 
     //Mock a GaaS scheduler in warm standby mode, where we don't check quota
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true, false, Mockito.mock(SchedulerLeaseAlgoHandler.class));
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true, Optional.of(Mockito.mock(
+        FlowTriggerHandler.class)));
 
     schedulerWithWarmStandbyEnabled.startUp();
     schedulerWithWarmStandbyEnabled.setActive(true);
@@ -389,7 +391,8 @@ public class GobblinServiceJobSchedulerTest {
     public TestGobblinServiceJobScheduler(String serviceName, Config config,
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
         SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
-      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent(), isWarmStandbyEnabled, false, Mockito.mock(SchedulerLeaseAlgoHandler.class));
+      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(
+          FlowTriggerHandler.class)));
       if (schedulerService != null) {
         hasScheduler = true;
       }

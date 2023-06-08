@@ -20,9 +20,10 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MySQLMultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
-import org.apache.gobblin.service.modules.orchestration.SchedulerLeaseAlgoHandler;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
@@ -164,6 +165,12 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
     }
 
+    OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
+    OptionalBinder.newOptionalBinder(binder, FlowTriggerHandler.class);
+    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
+      binder.bind(MysqlMultiActiveLeaseArbiter.class);
+      binder.bind(FlowTriggerHandler.class);
+    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
@@ -244,11 +251,6 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
       binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
-    }
-
-    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MySQLMultiActiveLeaseArbiter.class);
-      binder.bind(SchedulerLeaseAlgoHandler.class);
     }
 
     binder.bind(GobblinServiceManager.class);

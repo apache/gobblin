@@ -18,15 +18,12 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -38,8 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -47,13 +42,8 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
 
 /**
@@ -88,38 +78,23 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected DagActionStore dagActionStore;
 
   protected DagManager dagManager;
-  protected SpecCompiler specCompiler;
+  protected Orchestrator orchestrator;
   protected boolean isMultiActiveSchedulerEnabled;
   protected FlowCatalog flowCatalog;
-  protected EventSubmitter eventSubmitter;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagActionStore dagActionStore, DagManager dagManager,
-      int numThreads, boolean isMultiActiveSchedulerEnabled, FlowCatalog flowCatalog) {
+      int numThreads, FlowCatalog flowCatalog, Orchestrator orchestrator, boolean isMultiActiveSchedulerEnabled) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
     this.dagActionStore = dagActionStore;
     this.dagManager = dagManager;
-    ClassAliasResolver aliasResolver = new ClassAliasResolver(SpecCompiler.class);
-    try {
-      String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
-      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
-        specCompilerClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
-      }
-      log.info("Using specCompiler class name/alias " + specCompilerClassName);
-
-      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
-          specCompilerClassName)), config);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-             | ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.flowCatalog = flowCatalog;
-    this.eventSubmitter = new EventSubmitter.Builder(this.getMetricContext(), "org.apache.gobblin.service").build();
+    this.orchestrator = orchestrator;
+    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
   }
 
   @Override
@@ -131,7 +106,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Override
   /*
-  This class is multi-threaded and this message will be called by multiple threads, however any given message will be
+  This class is multithreaded and this message will be called by multiple threads, however any given message will be
   partitioned and processed by only one thread (and corresponding queue).
    */
   protected void processMessage(DecodeableKafkaRecord message) {
@@ -180,7 +155,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
                 new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, dagActionType)));
           }
           log.info("Received insert dag action and about to forward launch request to DagManager");
-          submitFlowToDagManager(flowGroup, flowName);
+          submitFlowToDagManagerHelper(flowGroup, flowName);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();
@@ -207,16 +182,14 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
-  protected void submitFlowToDagManager(String flowGroup, String flowName) {
+  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName) {
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
-      //Send the dag to the DagManager.
-      dagManager.addDag(jobExecutionPlanDag, true, true);
+      this.orchestrator.submitFlowToDagManager(spec, Optional.absent());
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {} due to error {}", flowId, e.getMessage());
       this.unexpectedErrors.mark();
@@ -226,10 +199,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       this.unexpectedErrors.mark();
       return;
     } catch (IOException e) {
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(spec);
-      String failureMessage = "Failed to add Job Execution Plan due to: " + e.getMessage();
-      flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
-      new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       log.warn("Failed to add Job Execution Plan for flow group: {} name: {} due to error {}", flowGroup, flowName, e);
       this.unexpectedErrors.mark();
       return;
