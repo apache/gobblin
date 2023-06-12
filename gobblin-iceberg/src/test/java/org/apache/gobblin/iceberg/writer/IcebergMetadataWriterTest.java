@@ -425,8 +425,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     // Test when completeness watermark = -1 bootstrap case
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
-    Mockito.when(verifier.isComplete("testTopicCompleteness", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis)).thenReturn(true);
-    Mockito.when(verifier.isTotalCountComplete("testTopicCompleteness", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
     IcebergMetadataWriter imw = (IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next();
     imw.setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
@@ -484,8 +485,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(60L))));
 
-    Mockito.when(verifier.isComplete("testTopicCompleteness", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1)).thenReturn(true);
-    Mockito.when(verifier.isTotalCountComplete("testTopicCompleteness", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
+
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(1));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
@@ -523,8 +526,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
     // For quiet topics always check for previous hour window
-    Mockito.when(verifier.isComplete("testTopicCompleteness", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark)).thenReturn(true);
-    Mockito.when(verifier.isTotalCountComplete("testTopicCompleteness", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
+
     ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
 

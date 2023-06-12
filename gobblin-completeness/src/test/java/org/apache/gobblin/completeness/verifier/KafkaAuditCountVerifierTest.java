@@ -53,21 +53,24 @@ public class KafkaAuditCountVerifierTest {
         REFERENCE_TIERS,   1000L
     ));
     // Default threshold
-    Assert.assertTrue(verifier.isComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
 
     // 99.999 % complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 999L,
         REFERENCE_TIERS,   1000L
     ));
-    Assert.assertTrue(verifier.isComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
 
     // <= 99% complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 990L,
         REFERENCE_TIERS,   1000L
     ));
-    Assert.assertFalse(verifier.isComplete(topic, 0L, 0L));
+    Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
   }
 
   public void testTotalCountCompleteness() throws IOException {
@@ -83,27 +86,33 @@ public class KafkaAuditCountVerifierTest {
     // All complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 1000L,
+        REFERENCE_TIERS, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
     // Default threshold
-    Assert.assertTrue(verifier.isTotalCountComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
 
     // 99.999 % complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 999L,
+        REFERENCE_TIERS, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
-    Assert.assertTrue(verifier.isTotalCountComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
 
     // <= 99% complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 990L,
+        REFERENCE_TIERS, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
-    Assert.assertFalse(verifier.isTotalCountComplete(topic, 0L, 0L));
+    Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
   }
 
   public void testEmptyAuditCount() throws IOException {
@@ -121,7 +130,9 @@ public class KafkaAuditCountVerifierTest {
     client.setTierCounts(ImmutableMap.of());
 
     // Should be complete, since COMPLETE_ON_NO_COUNTS=true
-    Assert.assertTrue(verifier.isComplete(topic, 0L, 0L));
-    Assert.assertTrue(verifier.isTotalCountComplete(topic, 0L, 0L));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
   }
 }

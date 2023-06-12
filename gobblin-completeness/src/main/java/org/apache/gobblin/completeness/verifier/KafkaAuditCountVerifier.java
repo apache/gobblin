@@ -19,6 +19,7 @@ package org.apache.gobblin.completeness.verifier;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.base.Preconditions;
@@ -47,6 +48,12 @@ public class KafkaAuditCountVerifier {
   public static final String THRESHOLD = COMPLETENESS_PREFIX + "threshold";
   private static final double DEFAULT_THRESHOLD = 0.999;
   public static final String COMPLETE_ON_NO_COUNTS = COMPLETENESS_PREFIX + "complete.on.no.counts";
+
+  public enum CompletenessType {
+    ClassicCompleteness,
+    TotalCountCompleteness
+  }
+
   private final boolean returnCompleteOnNoCounts;
 
   private final AuditCountClient auditCountClient;
@@ -95,38 +102,52 @@ public class KafkaAuditCountVerifier {
     }
   }
 
+  public Map<CompletenessType, Boolean> calculateCompleteness(String datasetName, long beginInMillis, long endInMillis)
+      throws IOException {
+    return calculateCompleteness(datasetName, beginInMillis, endInMillis, this.threshold);
+  }
+
   /**
    * Compare source tier against reference tiers.
-   * Compute completion percentage by srcCount/refCount. Return true iff the highest percentages is greater than threshold.
+   * Compute completion percentage which is true iff the calculated percentages is greater than threshold.
    *
    * @param datasetName A dataset short name like 'PageViewEvent'
    * @param beginInMillis Unix timestamp in milliseconds
    * @param endInMillis Unix timestamp in milliseconds
    * @param threshold User defined threshold
+   *
+   * @return a map of completeness result by CompletenessType
    */
-  public boolean isComplete(String datasetName, long beginInMillis, long endInMillis, double threshold)
-      throws IOException {
-    return getCompletenessPercentage(datasetName, beginInMillis, endInMillis) > threshold;
+  public Map<CompletenessType, Boolean> calculateCompleteness(String datasetName, long beginInMillis, long endInMillis,
+      double threshold) throws IOException {
+    Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
+    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
+    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
+
+    Map<CompletenessType, Boolean> result = new HashMap<>();
+    result.put(CompletenessType.ClassicCompleteness, CalculateCompleteness(datasetName, beginInMillis, endInMillis,
+        CompletenessType.ClassicCompleteness, countsByTier) > threshold);
+    result.put(CompletenessType.TotalCountCompleteness, CalculateCompleteness(datasetName, beginInMillis, endInMillis,
+        CompletenessType.TotalCountCompleteness, countsByTier) > threshold);
+    return result;
   }
 
-  public boolean isComplete(String datasetName, long beginInMillis, long endInMillis)
-      throws IOException {
-    return isComplete(datasetName, beginInMillis, endInMillis, this.threshold);
-  }
+  private double CalculateCompleteness(String datasetName, long beginInMillis, long endInMillis, CompletenessType type,
+      Map<String, Long> countsByTier) throws IOException {
+    if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
+      log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
+      return 1.0;
+    }
 
-  /**
-   * Check total count based completeness by comparing source tier against reference tiers,
-   * and calculate the completion percentage by srcCount/sum_of(refCount).
-   *
-   * @param datasetName A dataset short name like 'PageViewEvent'
-   * @param beginInMillis Unix timestamp in milliseconds
-   * @param endInMillis Unix timestamp in milliseconds
-   *
-   * @return The percentage value by srcCount/sum_of(refCount)
-   */
-  public boolean isTotalCountComplete(String datasetName, long beginInMillis, long endInMillis)
-      throws IOException {
-    return getTotalCountCompletenessPercentage(datasetName, beginInMillis, endInMillis) > this.threshold;
+    switch (type) {
+      case ClassicCompleteness:
+        return calculateClassicCompleteness(datasetName, beginInMillis, endInMillis, countsByTier);
+      case TotalCountCompleteness:
+        return calculateTotalCountCompleteness(datasetName, beginInMillis, endInMillis, countsByTier);
+      default:
+        log.error("Skip unsupported completeness type {}", type);
+        return -1;
+    }
   }
 
   /**
@@ -138,15 +159,8 @@ public class KafkaAuditCountVerifier {
    *
    * @return The highest percentage value
    */
-  private double getCompletenessPercentage(String datasetName, long beginInMillis, long endInMillis) throws IOException {
-    Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
-    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
-    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
-
-    if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
-      log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
-      return 1.0;
-    }
+  private double calculateClassicCompleteness(String datasetName, long beginInMillis, long endInMillis,
+      Map<String, Long> countsByTier) throws IOException {
     validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.refTiers);
 
     double percent = -1;
@@ -159,20 +173,23 @@ public class KafkaAuditCountVerifier {
     if (percent < 0) {
       throw new IOException("Cannot calculate completion percentage");
     }
-
     return percent;
   }
 
-  private double getTotalCountCompletenessPercentage(String datasetName, long beginInMillis, long endInMillis) throws IOException {
-    Preconditions.checkNotNull(this.totalCountRefTiers);
-
-    Map<String, Long> countsByTier = getTierAndCount(datasetName, beginInMillis, endInMillis);
-    log.info(String.format("checkTierCounts: audit counts map for %s for range [%s,%s]", datasetName, beginInMillis, endInMillis));
-    countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
-
-    if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
-      log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
-      return 1.0;
+  /**
+   * Check total count based completeness by comparing source tier against reference tiers,
+   * and calculate the completion percentage by srcCount/sum_of(refCount).
+   *
+   * @param datasetName A dataset short name like 'PageViewEvent'
+   * @param beginInMillis Unix timestamp in milliseconds
+   * @param endInMillis Unix timestamp in milliseconds
+   *
+   * @return The percentage value by srcCount/sum_of(refCount)
+   */
+  private double calculateTotalCountCompleteness(String datasetName, long beginInMillis, long endInMillis,
+      Map<String, Long> countsByTier) throws IOException {
+    if (this.totalCountRefTiers == null) {
+      return -1;
     }
     validateTierCounts(datasetName, beginInMillis, endInMillis, countsByTier, this.srcTier, this.totalCountRefTiers);
 

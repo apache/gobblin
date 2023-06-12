@@ -18,48 +18,236 @@
 package org.apache.gobblin.iceberg.writer;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.SortedSet;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.completeness.verifier.KafkaAuditCountVerifier;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.time.TimeIterator;
 
 import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 /**
- * A class to check and update completion watermark based on highest srcCount/refCount.
- * See {@link KafkaAuditCountVerifier#isComplete(String, long, long, double)}
+ * A class for completeness watermark updater.
+ * It computes the new watermarks and updates below entities:
+ *  1. the properties in {@link IcebergMetadataWriter.TableMetadata}
+ *  2. {@link gobblin.configuration.State}
+ *  3. the completionWatermark in {@link IcebergMetadataWriter.TableMetadata}
  */
-public class CompletenessWatermarkUpdater extends AbstractCompletenessWatermarkUpdater{
+@Slf4j
+public class CompletenessWatermarkUpdater {
+  private final String topic;
+  private final String auditCheckGranularity;
+
+  protected final String timeZone;
+  protected final IcebergMetadataWriter.TableMetadata tableMetadata;
+  protected final Map<String, String> propsToUpdate;
+  protected final State stateToUpdate;
+  protected final KafkaAuditCountVerifier auditCountVerifier;
+
   public CompletenessWatermarkUpdater(String topic, String auditCheckGranularity, String timeZone,
       IcebergMetadataWriter.TableMetadata tableMetadata, Map<String, String> propsToUpdate, State stateToUpdate,
       KafkaAuditCountVerifier auditCountVerifier) {
-    super(topic, auditCheckGranularity, timeZone, tableMetadata, propsToUpdate, stateToUpdate, auditCountVerifier);
+    this.tableMetadata = tableMetadata;
+    this.topic = topic;
+    this.auditCheckGranularity = auditCheckGranularity;
+    this.timeZone = timeZone;
+    this.propsToUpdate = propsToUpdate;
+    this.stateToUpdate = stateToUpdate;
+    this.auditCountVerifier = auditCountVerifier;
   }
 
-  @Override
-  boolean checkCompleteness(String datasetName, long beginInMillis, long endInMillis) throws IOException {
-    return this.auditCountVerifier.isComplete(datasetName, beginInMillis, endInMillis);
+  /**
+   * Update TableMetadata with the new completion watermark upon a successful audit check
+   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
+   * @param includeTotalCountCompletionWatermark If totalCountCompletionWatermark should be calculated
+   */
+  public void run(SortedSet<ZonedDateTime> timestamps, boolean includeTotalCountCompletionWatermark) {
+    String tableName = tableMetadata.table.get().name();
+    if (this.topic == null) {
+      log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
+          TOPIC_NAME_KEY, tableName));
+    }
+    computeAndUpdateWatermark(tableName, timestamps, includeTotalCountCompletionWatermark);
   }
 
-  @Override
-  void updateProps(long newCompletenessWatermark) {
-    this.propsToUpdate.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-    this.propsToUpdate.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
+  private void computeAndUpdateWatermark(String tableName, SortedSet<ZonedDateTime> timestamps,
+      boolean includeTotalCountWatermark) {
+    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s, previous totalCount watermark %s, includeTotalCountWatermark=%b",
+        this.topic, timestamps, tableMetadata.completionWatermark, tableMetadata.totalCountCompletionWatermark,
+        includeTotalCountWatermark));
+    List<WatermarkUpdater> watermarkUpdaters = createWatermarkUpdaters(tableName, includeTotalCountWatermark) ;
+    if(timestamps == null || timestamps.size() <= 0) {
+      log.error("Cannot create time iterator. Empty for null timestamps");
+      return;
+    }
+
+    ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
+    TimeIterator.Granularity granularity = TimeIterator.Granularity.valueOf(this.auditCheckGranularity);
+    ZonedDateTime startDT = timestamps.first();
+    ZonedDateTime endDT = timestamps.last();
+    TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
+    try {
+      while (iterator.hasNext()) {
+        ZonedDateTime timestampDT = iterator.next();
+        if (watermarkUpdaters.stream().allMatch(updater -> updater.checkForEarlyStop(timestampDT, now, granularity))) {
+          break;
+        }
+
+        ZonedDateTime auditCountCheckLowerBoundDT = TimeIterator.dec(timestampDT, granularity, 1);
+        Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results =
+            this.auditCountVerifier.calculateCompleteness(this.topic,
+                auditCountCheckLowerBoundDT.toInstant().toEpochMilli(),
+                timestampDT.toInstant().toEpochMilli());
+
+        watermarkUpdaters.stream()
+            .filter(updater -> !updater.isFinished())
+            .forEach(updater -> updater.computeAndUpdate(results, timestampDT));
+      }
+    } catch (IOException e) {
+      log.warn("Exception during audit count check: ", e);
+    }
   }
 
-  @Override
-  void updateState(String catalogDbTableNameLowerCased, long newCompletenessWatermark) {
-    this.stateToUpdate.setProp(
-        String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased),
-        newCompletenessWatermark);
+  /**
+   * A stateful class for watermark updaters.
+   * The updater starts with finished=false state.
+   * Then computeAndUpdate() is called multiple times with the parameters:
+   * 1. The completeness audit results within (datepartition-1, datepartition)
+   * 2. the datepartition timestamp
+   * The method is call multiple times in descending order of the datepartition timestamp.
+   * <p>
+   * When the audit result is complete for a timestamp, it updates below entities:
+   *    1. the properties in {@link IcebergMetadataWriter.TableMetadata}
+   *    2. {@link gobblin.configuration.State}
+   *    3. the completionWatermark in {@link IcebergMetadataWriter.TableMetadata}
+   *  And it turns into finished=true state, in which the following computeAndUpdate() calls will be skipped.
+   */
+  static abstract class WatermarkUpdater {
+    protected final long previousWatermark;
+    protected final ZonedDateTime prevWatermarkDT;
+    protected final String timeZone;
+    protected boolean finished = false;
+    protected final IcebergMetadataWriter.TableMetadata tableMetadata;
+    protected final Map<String, String> propsToUpdate;
+    protected final State stateToUpdate;
+
+    public WatermarkUpdater(long previousWatermark, String timeZone, IcebergMetadataWriter.TableMetadata tableMetadata,
+        Map<String, String> propsToUpdate, State stateToUpdate) {
+      this.previousWatermark = previousWatermark;
+      this.timeZone = timeZone;
+      this.tableMetadata = tableMetadata;
+      this.propsToUpdate = propsToUpdate;
+      this.stateToUpdate = stateToUpdate;
+
+      prevWatermarkDT = Instant.ofEpochMilli(previousWatermark).atZone(ZoneId.of(this.timeZone));
+    }
+
+    public void computeAndUpdate(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
+        ZonedDateTime timestampDT) {
+      if (finished) {
+        return;
+      }
+      computeAndUpdateInternal(results, timestampDT);
+    }
+
+    protected abstract void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
+        ZonedDateTime timestampDT);
+
+    protected boolean isFinished() {
+      return this.finished;
+    }
+
+    protected void setFinished() {
+      this.finished = true;
+    }
+
+    protected boolean checkForEarlyStop(ZonedDateTime timestampDT, ZonedDateTime now,
+        TimeIterator.Granularity granularity) {
+      if (!(timestampDT.isAfter(this.prevWatermarkDT)
+          && TimeIterator.durationBetween(this.prevWatermarkDT, now, granularity) > 0)) {
+        setFinished();
+      }
+      return isFinished();
+    }
   }
 
-  @Override
-  void updateCompletionWatermarkInTableMetadata(long newCompletenessWatermark) {
-    this.tableMetadata.completionWatermark = newCompletenessWatermark;
+  private List<WatermarkUpdater> createWatermarkUpdaters(String tableName, boolean includeTotalCountWatermark) {
+    List<WatermarkUpdater> updaters = new ArrayList<WatermarkUpdater>();
+    updaters.add(new ClassicWatermarkUpdater(this.tableMetadata.completionWatermark, this.timeZone, tableMetadata,
+        propsToUpdate, stateToUpdate));
+    if (includeTotalCountWatermark) {
+      updaters.add(new TotalCountWatermarkUpdater(this.tableMetadata.totalCountCompletionWatermark, this.timeZone,
+          tableMetadata, propsToUpdate, stateToUpdate));
+    }
+
+    return updaters;
   }
 
-  @Override
-  long getCompletionWatermarkFromTableMetadata() {
-    return this.tableMetadata.completionWatermark;
+  static class ClassicWatermarkUpdater extends WatermarkUpdater {
+    public ClassicWatermarkUpdater(long previousWatermark, String timeZone,
+        IcebergMetadataWriter.TableMetadata tableMetadata, Map<String, String> propsToUpdate, State stateToUpdate) {
+      super(previousWatermark, timeZone, tableMetadata, propsToUpdate, stateToUpdate);
+    }
+
+    @Override
+    protected void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
+        ZonedDateTime timestampDT) {
+      if (!results.get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness)) {
+        return;
+      }
+
+      setFinished();
+      long updatedWatermark = timestampDT.toInstant().toEpochMilli();
+      this.stateToUpdate.setProp(
+          String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE,
+              this.tableMetadata.table.get().name().toLowerCase(Locale.ROOT)),
+          updatedWatermark);
+
+      if (updatedWatermark > this.previousWatermark) {
+        log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY,
+            this.tableMetadata.table.get().name(), updatedWatermark));
+        this.propsToUpdate.put(COMPLETION_WATERMARK_KEY, String.valueOf(updatedWatermark));
+        this.propsToUpdate.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
+
+        this.tableMetadata.completionWatermark = updatedWatermark;
+      }
+    }
   }
+
+  static class TotalCountWatermarkUpdater extends WatermarkUpdater {
+    public TotalCountWatermarkUpdater(long previousWatermark, String timeZone,
+        IcebergMetadataWriter.TableMetadata tableMetadata, Map<String, String> propsToUpdate, State stateToUpdate) {
+      super(previousWatermark, timeZone, tableMetadata, propsToUpdate, stateToUpdate);
+    }
+
+    @Override
+    protected void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
+        ZonedDateTime timestampDT) {
+      if (!results.get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness)) {
+        return;
+      }
+
+      setFinished();
+      long updatedWatermark = timestampDT.toInstant().toEpochMilli();
+      this.stateToUpdate.setProp(
+          String.format(STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE,
+              this.tableMetadata.table.get().name().toLowerCase(Locale.ROOT)),
+          updatedWatermark);
+
+      if (updatedWatermark > previousWatermark) {
+        log.info(String.format("Updating %s for %s to %s", TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+            this.tableMetadata.table.get().name(), updatedWatermark));
+        this.propsToUpdate.put(TOTAL_COUNT_COMPLETION_WATERMARK_KEY, String.valueOf(updatedWatermark));
+        tableMetadata.totalCountCompletionWatermark = updatedWatermark;
+      }
+    }
+  }
+
 }

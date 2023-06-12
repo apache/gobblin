@@ -840,11 +840,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
           tableMetadata.appendFiles.get().commit();
           sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
           if (tableMetadata.completenessEnabled) {
-            updateWatermarkWithFilesRegistered(topicName, tableMetadata, props, false);
-
-            if (tableMetadata.totalCountCompletenessEnabled) {
-              updateWatermarkWithFilesRegistered(topicName, tableMetadata, props, true);
-            }
+            updateWatermarkWithFilesRegistered(topicName, tableMetadata, props,
+                tableMetadata.totalCountCompletenessEnabled);
           }
         }
         if (tableMetadata.deleteFiles.isPresent()) {
@@ -854,10 +851,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
-          updateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, false);
+          updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props, false);
 
           if (tableMetadata.totalCountCompletenessEnabled) {
-            updateWatermarkWithEmptyFilesRegistered(topicName, tableMetadata, props, true);
+            updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props, true);
           }
         }
 
@@ -904,26 +901,21 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
-  private AbstractCompletenessWatermarkUpdater getWatermarkUpdater(String topicName, TableMetadata tableMetadata,
-      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
-    return isTotalCountCompleteness
-        ? new CompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone, tableMetadata,
-            propsToUpdate, this.state, this.auditCountVerifier.get())
-        : new TotalCountCompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone,
-            tableMetadata, propsToUpdate, this.state, this.auditCountVerifier.get());
+  private CompletenessWatermarkUpdater getWatermarkUpdater(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate) {
+    return new CompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone,
+        tableMetadata, propsToUpdate, this.state, this.auditCountVerifier.get());
   }
 
   private void updateWatermarkWithFilesRegistered(String topicName, TableMetadata tableMetadata,
-      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
-    getWatermarkUpdater(topicName, tableMetadata, propsToUpdate, isTotalCountCompleteness)
-        .run(tableMetadata.datePartitions);
+      Map<String, String> propsToUpdate, boolean includeTotalCountCompletionWatermark) {
+    getWatermarkUpdater(topicName, tableMetadata, propsToUpdate)
+        .run(tableMetadata.datePartitions, includeTotalCountCompletionWatermark);
   }
 
-  private void updateWatermarkWithEmptyFilesRegistered(String topicName, TableMetadata tableMetadata,
-      Map<String, String> propsToUpdate, boolean isTotalCountCompleteness) {
-    long currentWatermark = isTotalCountCompleteness
-        ? tableMetadata.completionWatermark
-        : tableMetadata.totalCountCompletionWatermark;
+  private void updateWatermarkWithNoFilesRegistered(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate, boolean includeTotalCountCompletionWatermark) {
+    long currentWatermark = tableMetadata.completionWatermark;
 
     if (currentWatermark > DEFAULT_COMPLETION_WATERMARK) {
       log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
@@ -931,10 +923,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
       ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
       timestamps.add(dtAtBeginningOfHour);
 
-      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate, isTotalCountCompleteness)
-          .run(timestamps);
+      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate)
+          .run(timestamps, includeTotalCountCompletionWatermark);
     } else {
-      String watermarkName = isTotalCountCompleteness ? "watermark" : "total count watermark";
+      String watermarkName = includeTotalCountCompletionWatermark ? "total count watermark" : "watermark";
       log.info(String.format("Need valid %s, current %s is %s, Not checking kafka audit for %s",
           watermarkName, watermarkName, currentWatermark, topicName));
     }
