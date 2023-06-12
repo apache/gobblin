@@ -128,7 +128,6 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
   @BeforeSuite
   public void setUp() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
-    startMetastore();
     State state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
     Optional<String> metastoreUri = Optional.fromNullable(state.getProperties().getProperty(HiveRegister.HIVE_METASTORE_URI_KEY));
     hc = HiveMetastoreClientPool.get(state.getProperties(), metastoreUri);
