@@ -559,7 +559,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     protected List<HiveTable> getTables(Path path) throws IOException {
       List<HiveTable> tables = super.getTables(path);
       for (HiveTable table : tables) {
-        if(table.getTableName().equals("testTopicCompleteness")) {
+        if (table.getTableName().equals("testTopicCompleteness")) {
           table.setPartitionKeys(ImmutableList.<HiveRegistrationUnit.Column>of(
               new HiveRegistrationUnit.Column("datepartition", serdeConstants.STRING_TYPE_NAME, StringUtils.EMPTY)
               , new HiveRegistrationUnit.Column("late", serdeConstants.INT_TYPE_NAME, StringUtils.EMPTY)));
