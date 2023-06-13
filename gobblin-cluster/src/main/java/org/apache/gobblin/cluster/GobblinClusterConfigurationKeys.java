@@ -161,6 +161,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowSubmissionTimeoutSeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS = 300;
 
+  public static final String THROTTLE_TIMEOUT_DURATION = GOBBLIN_CLUSTER_PREFIX + "throttleTimeoutDuration";
+  public static final long DEFAULT_THROTTLE_TIMEOUT_DURATION = 3600;
+
   public static final String HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowDeleteTimeoutSeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = 300;
 
@@ -223,7 +226,7 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX = GOBBLIN_CLUSTER_PREFIX + "sysProps";
 
-  // determines the update throttle
   public static final String HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY = "helix.job.scheduling.throttle.enabled";
   public static final boolean DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY = false;
+
 }

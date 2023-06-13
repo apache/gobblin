@@ -20,6 +20,7 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -112,7 +113,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
-  private final long thresholdDiffTimeMillis;
+  private final Duration throttleTimeoutDuration;
   private ConcurrentHashMap<String, Instant> jobStartTimeMap;
 
   public GobblinHelixJobScheduler(Config sysConfig, HelixManager jobHelixManager,
@@ -163,7 +164,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
             GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
-    this.thresholdDiffTimeMillis = 3600000;
+    this.throttleTimeoutDuration = Duration.of(
+        ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.THROTTLE_TIMEOUT_DURATION,
+            GobblinClusterConfigurationKeys.DEFAULT_THROTTLE_TIMEOUT_DURATION), ChronoUnit.SECONDS);
     this.jobStartTimeMap = new ConcurrentHashMap<>();
   }
 
@@ -314,9 +317,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (throttleEnabled && this.jobStartTimeMap.containsKey(jobName)) {
       Instant jobStartTime = this.jobStartTimeMap.get(jobName);
-      Instant currTime = Instant.now();
-      long durationMillis = Duration.between(jobStartTime, currTime).toMillis();
-      if (durationMillis < this.thresholdDiffTimeMillis) {
+      Duration workflowDuration = Duration.between(jobStartTime, Instant.now());
+      Duration difference = workflowDuration.minus(throttleTimeoutDuration);
+      if (difference.isNegative()) {
         return;
       }
     }
