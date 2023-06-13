@@ -124,7 +124,6 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
-
     tmpDir = Files.createTempDir();
     hourlyDataFile_1 = new File(tmpDir, "testDB/testTopic/hourly/2020/03/17/08/data.avro");
     Files.createParentDirs(hourlyDataFile_1);
@@ -364,7 +363,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new LongWatermark(52L))));
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().size(), 1);
     Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap().values().iterator().next().size(), 1);
-
+    Assert.assertEquals(gobblinMCEWriter.getDatasetErrorMap()
+        .get(new File(tmpDir, "testDB/testTopic").getAbsolutePath())
+        .get("hivedb.testTopicCompleteness").get(0).getMessage(), "failed to flush table hivedb, testTopicCompleteness");
     // No events sent yet since the topic has not been flushed
     Assert.assertEquals(eventsSent.size(), 0);
 
