@@ -851,11 +851,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
-          updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props, false);
-
-          if (tableMetadata.totalCountCompletenessEnabled) {
-            updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props, true);
-          }
+          updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props);
         }
 
         //Set high waterMark
@@ -914,21 +910,17 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   private void updateWatermarkWithNoFilesRegistered(String topicName, TableMetadata tableMetadata,
-      Map<String, String> propsToUpdate, boolean includeTotalCountCompletionWatermark) {
-    long currentWatermark = tableMetadata.completionWatermark;
-
-    if (currentWatermark > DEFAULT_COMPLETION_WATERMARK) {
+      Map<String, String> propsToUpdate) {
+    if (tableMetadata.completionWatermark > DEFAULT_COMPLETION_WATERMARK) {
       log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
       SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
       ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
       timestamps.add(dtAtBeginningOfHour);
 
-      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate)
-          .run(timestamps, includeTotalCountCompletionWatermark);
+      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate).run(timestamps, true);
     } else {
-      String watermarkName = includeTotalCountCompletionWatermark ? "total count watermark" : "watermark";
-      log.info(String.format("Need valid %s, current %s is %s, Not checking kafka audit for %s",
-          watermarkName, watermarkName, currentWatermark, topicName));
+      log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
+          tableMetadata.completionWatermark, topicName));
     }
   }
 
