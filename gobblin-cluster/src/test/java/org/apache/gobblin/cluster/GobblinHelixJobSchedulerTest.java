@@ -66,7 +66,6 @@ import static org.mockito.Mockito.*;
 public class GobblinHelixJobSchedulerTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinHelixJobSchedulerTest.class);
 
-  private HelixManager helixManager;
   private FileSystem localFs;
   private Path appWorkDir;
   private final Closer closer = Closer.create();
@@ -78,11 +77,13 @@ public class GobblinHelixJobSchedulerTest {
   private final String workflowIdSuffix1 = "_1504201348471";
   private final String workflowIdSuffix2 = "_1504201348472";
   private final String workflowIdSuffix3 = "_1504201348473";
-  private final String workflowIdSuffix4 = "_1504201348474";
 
   private Instant beginTime = Instant.ofEpochMilli(0);
   private Instant shortPeriod = Instant.ofEpochMilli(1);
   private Instant longPeriod = Instant.ofEpochMilli(3600001);
+
+  private String zkConnectingString;
+  private String helixClusterName;
 
   @BeforeClass
   public void setUp()
@@ -106,16 +107,16 @@ public class GobblinHelixJobSchedulerTest {
             ConfigValueFactory.fromAnyRef(sourceJsonFile.getAbsolutePath()))
         .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true")).resolve();
 
-    String zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    String helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
     HelixUtils.createGobblinHelixCluster(zkConnectingString, helixClusterName);
 
-    this.helixManager = HelixManagerFactory
+    HelixManager helixManager = HelixManagerFactory
         .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
             zkConnectingString);
     this.closer.register(() -> helixManager.disconnect());
-    this.helixManager.connect();
+    helixManager.connect();
 
     this.localFs = FileSystem.getLocal(new Configuration());
 
@@ -139,13 +140,17 @@ public class GobblinHelixJobSchedulerTest {
     this.thread.start();
   }
 
-  public String getWorkflowID (NewJobConfigArrivalEvent newJobConfigArrivalEvent)
+  public String getWorkflowID (NewJobConfigArrivalEvent newJobConfigArrivalEvent, HelixManager helixManager )
       throws Exception {
     long endTime = System.currentTimeMillis() + 30000;
     Map<String, String> workflowIdMap;
     while (System.currentTimeMillis() < endTime) {
-      workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(this.helixManager,
-          Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
+      try{
+        workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(helixManager,
+            Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
+      } catch(GobblinHelixUnexpectedStateException e){
+        continue;
+      }
       if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
         return workflowIdMap.get(newJobConfigArrivalEvent.getJobName());
       }
@@ -154,14 +159,14 @@ public class GobblinHelixJobSchedulerTest {
     return null;
   }
 
-  private GobblinHelixJobScheduler createJobScheduler() throws Exception {
+  private GobblinHelixJobScheduler createJobScheduler(HelixManager helixManager) throws Exception {
     java.nio.file.Path p = Files.createTempDirectory(GobblinHelixJobScheduler.class.getSimpleName());
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
         ConfigValueFactory.fromAnyRef(p.toString()));
     SchedulerService schedulerService = new SchedulerService(new Properties());
     NonObservingFSJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
     jobCatalog.startAsync();
-    return new GobblinHelixJobScheduler(ConfigFactory.empty(), this.helixManager, java.util.Optional.empty(),
+    return new GobblinHelixJobScheduler(ConfigFactory.empty(), helixManager, java.util.Optional.empty(),
         new EventBus(), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
   }
 
@@ -174,9 +179,9 @@ public class GobblinHelixJobSchedulerTest {
     return newJobConfigArrivalEvent;
   }
 
-  private void connectAndAssertWorkflowId(String expectedSuffix, NewJobConfigArrivalEvent newJobConfigArrivalEvent) throws Exception {
+  private void connectAndAssertWorkflowId(String expectedSuffix, NewJobConfigArrivalEvent newJobConfigArrivalEvent, HelixManager helixManager ) throws Exception {
     helixManager.connect();
-    String workFlowId = getWorkflowID(newJobConfigArrivalEvent);
+    String workFlowId = getWorkflowID(newJobConfigArrivalEvent, helixManager);
     Assert.assertNotNull(workFlowId);
     Assert.assertTrue(workFlowId.endsWith(expectedSuffix));
   }
@@ -187,8 +192,11 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
@@ -196,13 +204,13 @@ public class GobblinHelixJobSchedulerTest {
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
 
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
 
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
     }
   }
 
@@ -211,21 +219,25 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
+
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateSameWorkflowShortPeriodThrottle", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
 
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
     }
   }
 
@@ -234,21 +246,24 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateSameWorkflowLongPeriodNoThrottle", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
 
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
     }
   }
 
@@ -257,21 +272,24 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateSameWorkflowShortPeriodNoThrottle", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
 
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
     }
   }
 
@@ -279,15 +297,18 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateDiffWorkflowShortPeriodThrottle1", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       final Properties properties2 =
           GobblinHelixJobLauncherTest.generateJobProperties(
@@ -298,7 +319,7 @@ public class GobblinHelixJobSchedulerTest {
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
 
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2);
+      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
     }
   }
 
@@ -307,15 +328,18 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateDiffWorkflowShortPeriodNoThrottle1", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       final Properties properties2 =
           GobblinHelixJobLauncherTest.generateJobProperties(
@@ -326,7 +350,7 @@ public class GobblinHelixJobSchedulerTest {
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
 
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2);
+      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
     }
   }
 
@@ -335,15 +359,18 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateDiffWorkflowLongPeriodThrottle1", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       final Properties properties2 =
           GobblinHelixJobLauncherTest.generateJobProperties(
@@ -354,7 +381,7 @@ public class GobblinHelixJobSchedulerTest {
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
 
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2);
+      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
     }
   }
 
@@ -363,15 +390,18 @@ public class GobblinHelixJobSchedulerTest {
       throws Exception {
     try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
       mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
 
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler();
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
 
       final Properties properties1 =
           GobblinHelixJobLauncherTest.generateJobProperties(
               this.baseConfig, "UpdateDiffWorkflowLongPeriodNoThrottle1", workflowIdSuffix1);
       NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
       jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
 
       final Properties properties2 =
           GobblinHelixJobLauncherTest.generateJobProperties(
@@ -382,7 +412,7 @@ public class GobblinHelixJobSchedulerTest {
       jobScheduler.handleUpdateJobConfigArrival(
           new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
 
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2);
+      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
     }
   }
 
