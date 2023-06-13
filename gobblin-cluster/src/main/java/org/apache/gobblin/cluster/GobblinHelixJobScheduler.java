@@ -18,6 +18,8 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -110,17 +112,17 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
+  private final long thresholdDiffTimeMillis;
+  private ConcurrentHashMap<String, Instant> jobStartTimeMap;
 
-  public GobblinHelixJobScheduler(Config sysConfig,
-                                  HelixManager jobHelixManager,
-                                  Optional<HelixManager> taskDriverHelixManager,
-                                  EventBus eventBus,
-                                  Path appWorkDir, List<? extends Tag<?>> metadataTags,
-                                  SchedulerService schedulerService,
-                                  MutableJobCatalog jobCatalog) throws Exception {
+  public GobblinHelixJobScheduler(Config sysConfig, HelixManager jobHelixManager,
+      Optional<HelixManager> taskDriverHelixManager, EventBus eventBus, Path appWorkDir,
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService, MutableJobCatalog jobCatalog)
+      throws Exception {
 
     super(ConfigUtils.configToProperties(sysConfig), schedulerService);
-    this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(sysConfig, COMMON_JOB_PROPS));
+    this.commonJobProperties =
+        ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(sysConfig, COMMON_JOB_PROPS));
     this.jobHelixManager = jobHelixManager;
     this.taskDriverHelixManager = taskDriverHelixManager;
     this.eventBus = eventBus;
@@ -128,48 +130,47 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.appWorkDir = appWorkDir;
     this.metadataTags = metadataTags;
     this.jobCatalog = jobCatalog;
-    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
+    this.metricContext =
+        Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
-    int metricsWindowSizeInMin = ConfigUtils.getInt(sysConfig,
-                                                    ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
-                                                    ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+    int metricsWindowSizeInMin = ConfigUtils.getInt(sysConfig, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+        ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
-    this.launcherMetrics = new GobblinHelixJobLauncherMetrics("launcherInScheduler",
-                                                              this.metricContext,
-                                                              metricsWindowSizeInMin);
+    this.launcherMetrics =
+        new GobblinHelixJobLauncherMetrics("launcherInScheduler", this.metricContext, metricsWindowSizeInMin);
 
-    this.jobSchedulerMetrics = new GobblinHelixJobSchedulerMetrics(this.jobExecutor,
-                                                                   this.metricContext,
-                                                                   metricsWindowSizeInMin);
+    this.jobSchedulerMetrics =
+        new GobblinHelixJobSchedulerMetrics(this.jobExecutor, this.metricContext, metricsWindowSizeInMin);
 
-    this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(properties),
-        PathUtils.getRootPath(appWorkDir).toUri(),
-        appWorkDir.toString());
+    this.jobsMapping =
+        new HelixJobsMapping(ConfigUtils.propertiesToConfig(properties), PathUtils.getRootPath(appWorkDir).toUri(),
+            appWorkDir.toString());
 
-    this.planningJobLauncherMetrics = new GobblinHelixPlanningJobLauncherMetrics("planningLauncherInScheduler",
-                                                                          this.metricContext,
-                                                                          metricsWindowSizeInMin, this.jobsMapping);
+    this.planningJobLauncherMetrics =
+        new GobblinHelixPlanningJobLauncherMetrics("planningLauncherInScheduler", this.metricContext,
+            metricsWindowSizeInMin, this.jobsMapping);
 
-    this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobScheduler",
-                                                  this.metricContext,
-                                                  metricsWindowSizeInMin);
+    this.helixMetrics =
+        new GobblinHelixMetrics("helixMetricsInJobScheduler", this.metricContext, metricsWindowSizeInMin);
 
     this.startServicesCompleted = false;
 
-    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
+    this.helixJobStopTimeoutMillis =
+        ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
 
-    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
+    this.helixWorkflowListingTimeoutMillis =
+        ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
+    this.thresholdDiffTimeMillis = 3600000;
+    this.jobStartTimeMap = new ConcurrentHashMap<>();
   }
 
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(this.launcherMetrics,
-                            this.jobSchedulerMetrics,
-                            this.planningJobLauncherMetrics,
-                            this.helixMetrics);
+    return ImmutableList.of(this.launcherMetrics, this.jobSchedulerMetrics, this.planningJobLauncherMetrics,
+        this.helixMetrics);
   }
 
   @Override
@@ -187,11 +188,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         Thread.sleep(1000);
       }
 
-      scheduleJob(jobProps,
-                  jobListener,
-                  Maps.newHashMap(),
-                  GobblinHelixJob.class);
-
+      scheduleJob(jobProps, jobListener, Maps.newHashMap(), GobblinHelixJob.class);
     } catch (Exception e) {
       throw new JobException("Failed to schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
@@ -200,9 +197,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Override
   protected void startServices() throws Exception {
 
-    boolean cleanAllDistJobs = PropertiesUtils.getPropAsBoolean(this.properties,
-        GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
-        String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS));
+    boolean cleanAllDistJobs =
+        PropertiesUtils.getPropAsBoolean(this.properties, GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
+            String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS));
 
     if (cleanAllDistJobs) {
       for (org.apache.gobblin.configuration.State state : this.jobsMapping.getAllStates()) {
@@ -215,50 +212,26 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
-    new HelixRetriggeringJobCallable(this,
-        this.jobCatalog,
-        this.properties,
-        jobProps,
-        jobListener,
-        this.planningJobLauncherMetrics,
-        this.helixMetrics,
-        this.appWorkDir,
-        this.jobHelixManager,
-        this.taskDriverHelixManager,
-        this.jobsMapping,
-        this.locks,
-        this.metricContext).call();
+    new HelixRetriggeringJobCallable(this, this.jobCatalog, this.properties, jobProps, jobListener,
+        this.planningJobLauncherMetrics, this.helixMetrics, this.appWorkDir, this.jobHelixManager,
+        this.taskDriverHelixManager, this.jobsMapping, this.locks, this.metricContext).call();
   }
 
   @Override
-  public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps)
-      throws Exception {
+  public GobblinHelixJobLauncher buildJobLauncher(Properties jobProps) throws Exception {
     Properties combinedProps = new Properties();
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
 
-    return new GobblinHelixJobLauncher(combinedProps,
-        this.jobHelixManager,
-        this.appWorkDir,
-        this.metadataTags,
-        this.jobRunningMap,
-        Optional.of(this.helixMetrics));
+    return new GobblinHelixJobLauncher(combinedProps, this.jobHelixManager, this.appWorkDir, this.metadataTags,
+        this.jobRunningMap, Optional.of(this.helixMetrics));
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
-    HelixRetriggeringJobCallable retriggeringJob = new HelixRetriggeringJobCallable(this,
-        this.jobCatalog,
-        this.properties,
-        jobProps,
-        jobListener,
-        this.planningJobLauncherMetrics,
-        this.helixMetrics,
-        this.appWorkDir,
-        this.jobHelixManager,
-        this.taskDriverHelixManager,
-        this.jobsMapping,
-        this.locks,
-        this.metricContext);
+    HelixRetriggeringJobCallable retriggeringJob =
+        new HelixRetriggeringJobCallable(this, this.jobCatalog, this.properties, jobProps, jobListener,
+            this.planningJobLauncherMetrics, this.helixMetrics, this.appWorkDir, this.jobHelixManager,
+            this.taskDriverHelixManager, this.jobsMapping, this.locks, this.metricContext);
 
     final Future<?> future = this.jobExecutor.submit(retriggeringJob);
     return new Future() {
@@ -318,13 +291,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + jobUri);
-        scheduleJob(jobProps,
-                    new GobblinHelixJobLauncherListener(this.launcherMetrics));
+        scheduleJob(jobProps, new GobblinHelixJobLauncherListener(this.launcherMetrics));
       } else {
         LOGGER.info("No job schedule found, so running job " + jobUri);
-        this.jobExecutor.execute(new NonScheduledJobRunner(jobProps,
-                                 new GobblinHelixJobLauncherListener(this.launcherMetrics)));
+        this.jobExecutor.execute(
+            new NonScheduledJobRunner(jobProps, new GobblinHelixJobLauncherListener(this.launcherMetrics)));
       }
+
+      this.jobStartTimeMap.put(jobUri, Instant.now());
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);
     }
@@ -333,16 +307,30 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Subscribe
   public void handleUpdateJobConfigArrival(UpdateJobConfigArrivalEvent updateJobArrival) {
     LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
+    String jobName = updateJobArrival.getJobName();
+    boolean throttleEnabled = PropertiesUtils.getPropAsBoolean(updateJobArrival.getJobConfig(),
+        GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY,
+        String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY));
+
+    if (throttleEnabled && this.jobStartTimeMap.containsKey(jobName)) {
+      Instant jobStartTime = this.jobStartTimeMap.get(jobName);
+      Instant currTime = Instant.now();
+      long durationMillis = Duration.between(jobStartTime, currTime).toMillis();
+      if (durationMillis < this.thresholdDiffTimeMillis) {
+        return;
+      }
+    }
+
     try {
-      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(),
-          updateJobArrival.getJobConfig()));
+      handleDeleteJobConfigArrival(
+          new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(), updateJobArrival.getJobConfig()));
     } catch (Exception je) {
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
     }
 
     try {
-      handleNewJobConfigArrival(new NewJobConfigArrivalEvent(updateJobArrival.getJobName(),
-          updateJobArrival.getJobConfig()));
+      handleNewJobConfigArrival(
+          new NewJobConfigArrivalEvent(updateJobArrival.getJobName(), updateJobArrival.getJobConfig()));
     } catch (Exception je) {
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
     }
@@ -371,14 +359,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @Subscribe
-  public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival)
-      throws InterruptedException {
+  public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival) throws InterruptedException {
     String jobUri = cancelJobArrival.getJoburi();
     LOGGER.info("Received cancel for job configuration of job " + jobUri);
     Optional<String> distributedJobMode;
     Optional<String> planningJob = Optional.empty();
     Optional<String> actualJob = Optional.empty();
-    boolean cancelByDelete = PropertiesUtils.getPropAsBoolean(this.commonJobProperties, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
+    boolean cancelByDelete = PropertiesUtils.getPropAsBoolean(this.commonJobProperties,
+        GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
         String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE));
 
     this.jobSchedulerMetrics.numCancellationStart.incrementAndGet();
@@ -397,7 +385,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (planningJob.isPresent()) {
       LOGGER.info("Cancelling planning job helix workflow: {}", planningJob.get());
-      HelixUtils.cancelWorkflow(planningJob.get(), this.taskDriverHelixManager.get(), this.helixJobStopTimeoutMillis, cancelByDelete);
+      HelixUtils.cancelWorkflow(planningJob.get(), this.taskDriverHelixManager.get(), this.helixJobStopTimeoutMillis,
+          cancelByDelete);
     }
 
     if (actualJob.isPresent()) {
@@ -415,12 +404,15 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
 
       //Workaround for preventing indefinite hangs observed in TaskDriver.getWorkflows() call.
-      Callable<Map<String, String>> workflowsCallable = () -> HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
-          Collections.singletonList(deleteJobArrival.getJobName()));
+      Callable<Map<String, String>> workflowsCallable =
+          () -> HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
+              Collections.singletonList(deleteJobArrival.getJobName()));
       Retryer<Map<String, String>> retryer = RetryerBuilder.<Map<String, String>>newBuilder()
           .retryIfException()
           .withStopStrategy(StopStrategies.stopAfterAttempt(5))
-          .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS)).build();
+          .withAttemptTimeLimiter(
+              AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS))
+          .build();
       Map<String, String> jobNameToWorkflowIdMap;
       try {
         jobNameToWorkflowIdMap = retryer.call(workflowsCallable);
@@ -431,8 +423,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
-        boolean cancelByDelete = PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
-            String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE));
+        boolean cancelByDelete =
+            PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_HELIX_JOB_BY_DELETE,
+                String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CANCEL_HELIX_JOB_BY_DELETE));
         HelixUtils.cancelWorkflow(workflowId, this.jobHelixManager, helixJobStopTimeoutMillis, cancelByDelete);
         LOGGER.info("Cancelled workflow: {}", deleteJobArrival.getJobName());
         //Wait until the cancelled job is complete.
@@ -442,7 +435,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       }
     }
   }
-
   /**
    * This class is responsible for running non-scheduled jobs.
    */
@@ -451,8 +443,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final GobblinHelixJobLauncherListener jobListener;
     private final Long creationTimeInMillis;
 
-    public NonScheduledJobRunner(Properties jobProps,
-                                 GobblinHelixJobLauncherListener jobListener) {
+    public NonScheduledJobRunner(Properties jobProps, GobblinHelixJobLauncherListener jobListener) {
 
       this.jobProps = jobProps;
       this.jobListener = jobListener;
@@ -463,7 +454,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     public void run() {
       try {
         GobblinHelixJobScheduler.this.jobSchedulerMetrics.updateTimeBeforeJobLaunching(this.jobProps);
-        GobblinHelixJobScheduler.this.jobSchedulerMetrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
+        GobblinHelixJobScheduler.this.jobSchedulerMetrics.updateTimeBetweenJobSchedulingAndJobLaunching(
+            this.creationTimeInMillis, System.currentTimeMillis());
         GobblinHelixJobScheduler.this.runJob(this.jobProps, this.jobListener);
       } catch (JobException je) {
         LOGGER.error("Failed to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
