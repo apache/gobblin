@@ -54,35 +54,31 @@ import org.apache.gobblin.util.ConfigUtils;
  * for a flow action event. After acquiring the lease, it persists the flow action event to the {@link DagActionStore}
  * to be eventually acted upon by the host with the active DagManager. Once it has completed this action, it will mark
  * the lease as completed by calling the
- * MysqlMultiActiveLeaseArbiter.recordLeaseSuccess method. Hosts that do not gain
- * the lease for the event, instead schedule a reminder using the {@link SchedulerService} to check back in on the
- * previous lease owner's completion status after the lease should expire to ensure the event is handled in failure
- * cases.
+ * {@link MysqlMultiActiveLeaseArbiter.recordLeaseSuccess()} method. Hosts that do not gain the lease for the event,
+ * instead schedule a reminder using the {@link SchedulerService} to check back in on the previous lease owner's
+ * completion status after the lease should expire to ensure the event is handled in failure cases.
  */
 @Slf4j
 public class FlowTriggerHandler {
   private final int schedulerMaxBackoffMillis;
   private static Random random = new Random();
   protected MultiActiveLeaseArbiter multiActiveLeaseArbiter;
-  protected JobScheduler jobScheduler;
   protected SchedulerService schedulerService;
   protected DagActionStore dagActionStore;
   private MetricContext metricContext;
-  private ContextAwareMeter numLeasesCompleted;
+  private ContextAwareMeter numFlowsSubmitted;
 
   @Inject
-  // TODO: should multiActiveLeaseArbiter and DagActionStore be optional?
   public FlowTriggerHandler(Config config, MultiActiveLeaseArbiter leaseDeterminationStore,
-      JobScheduler jobScheduler, SchedulerService schedulerService, DagActionStore dagActionStore) {
+      SchedulerService schedulerService, DagActionStore dagActionStore) {
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
     this.multiActiveLeaseArbiter = leaseDeterminationStore;
-    this.jobScheduler = jobScheduler;
     this.schedulerService = schedulerService;
     this.dagActionStore = dagActionStore;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
-    this.numLeasesCompleted = metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_SCHEDULER_LEASE_ALGO_HANDLER_NUM_FLOWS_SUBMITTED);
+    this.numFlowsSubmitted = metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
   }
 
   /**
@@ -99,40 +95,50 @@ public class FlowTriggerHandler {
         multiActiveLeaseArbiter.tryAcquireLease(flowAction, eventTimeMillis);
     // TODO: add a log event or metric for each of these cases
     if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-      persistFlowAction((MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus, flowAction);
+      MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
+      if (persistFlowAction(leaseObtainedStatus)) {
+        return;
+      }
+      // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
+      // re-attempt handling the event
+      scheduleReminderForEvent(jobProps, new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction,
+          leaseObtainedStatus.getEventTimestamp(), 0L), eventTimeMillis);
       return;
     } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
-      scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, flowAction,
+      scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus,
           eventTimeMillis);
+      return;
     } else if (leaseAttemptStatus instanceof  MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
       return;
     }
-    log.warn("Received type of leaseAttemptStatus: {} not handled by this method", leaseAttemptStatus.getClass().getName());
+    throw new RuntimeException(String.format("Received type of leaseAttemptStatus: %s not handled by this method",
+            leaseAttemptStatus.getClass().getName()));
   }
 
   // Called after obtaining a lease to persist the flow action to {@link DagActionStore} and mark the lease as done
-  private boolean persistFlowAction(MultiActiveLeaseArbiter.LeaseObtainedStatus status, DagActionStore.DagAction flowAction) {
+  private boolean persistFlowAction(MultiActiveLeaseArbiter.LeaseObtainedStatus status) {
     try {
+      DagActionStore.DagAction flowAction = status.getFlowAction();
       this.dagActionStore.addDagAction(flowAction.getFlowGroup(), flowAction.getFlowName(),
           flowAction.getFlowExecutionId(), flowAction.getFlowActionType());
       // If the flow action has been persisted to the {@link DagActionStore} we can close the lease
-      this.numLeasesCompleted.mark();
-      return this.multiActiveLeaseArbiter.recordLeaseSuccess(flowAction, status);
+      this.numFlowsSubmitted.mark();
+      return this.multiActiveLeaseArbiter.recordLeaseSuccess(status);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
 
   /**
-   * This method is used by FlowTriggerHandler.handleNewSchedulerEvent to schedule a reminder for itself to check on
+   * This method is used by {@link FlowTriggerHandler.handleTriggerEvent} to schedule a self-reminder to check on
    * the other participant's progress to finish acting on a flow action after the time the lease should expire.
    * @param jobProps
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
    * @param originalEventTimeMillis the event timestamp we were originally handling
-   * @param flowAction
    */
   private void scheduleReminderForEvent(Properties jobProps, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
-      DagActionStore.DagAction flowAction, long originalEventTimeMillis) {
+      long originalEventTimeMillis) {
+    DagActionStore.DagAction flowAction = status.getFlowAction();
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     String cronExpression = createCronFromDelayPeriod(status.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis));
@@ -145,15 +151,15 @@ public class FlowTriggerHandler {
         String.valueOf(originalEventTimeMillis));
     JobKey key = new JobKey(flowAction.getFlowName(), flowAction.getFlowGroup());
     // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
-    Trigger trigger = this.jobScheduler.createTriggerForJob(key, jobProps);
+    Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps);
     try {
-      log.info("Scheduler Lease Algo Handler - [%s, eventTimestamp: %s] -  attempting to schedule reminder for event %s in %s millis",
+      log.info("Flow Trigger Handler - [%s, eventTimestamp: %s] -  attempting to schedule reminder for event %s in %s millis",
           flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
       this.schedulerService.getScheduler().scheduleJob(trigger);
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job %s trigger event %s ", key, status.getEventTimeMillis(), e);
     }
-    log.info(String.format("Scheduler Lease Algo Handler - [%s, eventTimestamp: %s] - SCHEDULED REMINDER for event %s in %s millis",
+    log.info(String.format("Flow Trigger Handler - [%s, eventTimestamp: %s] - SCHEDULED REMINDER for event %s in %s millis",
         flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime()));
   }
 
@@ -165,9 +171,9 @@ public class FlowTriggerHandler {
    */
   protected static String createCronFromDelayPeriod(long delayPeriodMillis) {
     LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
-    LocalDateTime delaySecondsLater = now.plus(delayPeriodMillis, ChronoUnit.MILLIS);
+    LocalDateTime timeToScheduleReminder = now.plus(delayPeriodMillis, ChronoUnit.MILLIS);
     // TODO: investigate potentially better way of generating cron expression that does not make it US dependent
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ss mm HH dd MM ? yyyy", Locale.US);
-    return delaySecondsLater.format(formatter);
+    return timeToScheduleReminder.format(formatter);
   }
 }

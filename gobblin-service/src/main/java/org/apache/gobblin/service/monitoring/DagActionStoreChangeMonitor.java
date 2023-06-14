@@ -23,7 +23,6 @@ import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -189,7 +188,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      this.orchestrator.submitFlowToDagManager(spec, Optional.absent());
+      this.orchestrator.submitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {} due to error {}", flowId, e.getMessage());
       this.unexpectedErrors.mark();

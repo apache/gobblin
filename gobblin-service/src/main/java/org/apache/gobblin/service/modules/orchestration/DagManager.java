@@ -579,7 +579,7 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private void clearUpDagAction(DagId dagId, DagActionStore.FlowActionType flowActionType) throws IOException {
+    private void removeDagActionFromStore(DagId dagId, DagActionStore.FlowActionType flowActionType) throws IOException {
       if (this.dagActionStore.isPresent()) {
         this.dagActionStore.get().deleteDagAction(
             new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, flowActionType));
@@ -594,13 +594,13 @@ public class DagManager extends AbstractIdleService {
       String dagId= dagIdToResume.toString();
       if (!this.failedDagIds.contains(dagId)) {
         log.warn("No dag found with dagId " + dagId + ", so cannot resume flow");
-        clearUpDagAction(dagIdToResume, DagActionStore.FlowActionType.RESUME);
+        removeDagActionFromStore(dagIdToResume, DagActionStore.FlowActionType.RESUME);
         return;
       }
       Dag<JobExecutionPlan> dag = this.failedDagStateStore.getDag(dagId);
       if (dag == null) {
         log.error("Dag " + dagId + " was found in memory but not found in failed dag state store");
-        clearUpDagAction(dagIdToResume, DagActionStore.FlowActionType.RESUME);
+        removeDagActionFromStore(dagIdToResume, DagActionStore.FlowActionType.RESUME);
         return;
       }
 
@@ -651,7 +651,7 @@ public class DagManager extends AbstractIdleService {
         if (dagReady) {
           this.dagStateStore.writeCheckpoint(dag.getValue());
           this.failedDagStateStore.cleanUp(dag.getValue());
-          clearUpDagAction(DagManagerUtils.generateDagId(dag.getValue()), DagActionStore.FlowActionType.RESUME);
+          removeDagActionFromStore(DagManagerUtils.generateDagId(dag.getValue()), DagActionStore.FlowActionType.RESUME);
           this.failedDagIds.remove(dag.getKey());
           this.resumingDags.remove(dag.getKey());
           initialize(dag.getValue());
@@ -681,7 +681,7 @@ public class DagManager extends AbstractIdleService {
         log.warn("Did not find Dag with id {}, it might be already cancelled/finished.", dagToCancel);
       }
       // Called after a KILL request is received
-      clearUpDagAction(dagId, DagActionStore.FlowActionType.KILL);
+      removeDagActionFromStore(dagId, DagActionStore.FlowActionType.KILL);
     }
 
     private void cancelDagNode(DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {

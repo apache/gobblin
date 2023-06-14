@@ -36,7 +36,7 @@ import lombok.Data;
  *     participant has
  *        a) LeaseObtainedStatus -> this participant will attempt to carry out the required action before the lease expires
  *        b) LeasedToAnotherStatus -> another will attempt to carry out the required action before the lease expires
- *        c) NoLongerLeasingStatus -> flow event no longer needs to be acted upon or terminal state
+ *        c) NoLongerLeasingStatus -> flow event no longer needs to be acted upon (terminal state)
  *  3. If another participant has acquired the lease before this one could, then the present participant must check back
  *    in at the time of lease expiry to see if it needs to attempt the lease again [status (b) above].
  *  4. Once the participant which acquired the lease completes its work on the flow event, it calls recordLeaseSuccess
@@ -65,10 +65,10 @@ public interface MultiActiveLeaseArbiter {
    *         false if failed to update the lease properly, the caller should continue seeking to acquire the lease as
    *         if any actions it did successfully accomplish, do not count
    */
-  boolean recordLeaseSuccess(DagActionStore.DagAction flowAction, LeaseObtainedStatus status) throws IOException;
+  boolean recordLeaseSuccess(LeaseObtainedStatus status) throws IOException;
 
   /*
-   Object used to encapsulate status of lease acquisition attempt and derived should contain information specific to
+   Class used to encapsulate status of lease acquisition attempt and derivations should contain information specific to
    the status that results.
    */
   abstract class LeaseAttemptStatus {}
@@ -76,24 +76,28 @@ public interface MultiActiveLeaseArbiter {
   class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
   /*
-  The participant calling this method acquired the lease for the event in question. The class contains the `eventTimestamp`
-  associated with the lease as well as the time the caller obtained the lease or `leaseAcquisitionTimestamp`.
+  The participant calling this method acquired the lease for the event in question. The class contains the
+  `eventTimestamp` associated with the lease as well as the time the caller obtained the lease or
+  `leaseAcquisitionTimestamp`.
   */
   @Data
   class LeaseObtainedStatus extends LeaseAttemptStatus {
+    private final DagActionStore.DagAction flowAction;
     private final long eventTimestamp;
     private final long leaseAcquisitionTimestamp;
   }
 
   /*
-  This flow action event already has a valid lease owned by another host.
+  This flow action event already has a valid lease owned by another participant.
+  `eventTimeMillis` is the timestamp the lease is associated with, which may be a different timestamp for the same flow
+  action corresponding to the same instance of the event or a distinct one.
+  `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
+  the lease has completed or expired
    */
   @Data
   class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    // the timestamp the lease is associated with, but it may be a different timestamp for the same flow action
-    // (a previous participant of the event)
+    private final DagActionStore.DagAction flowAction;
     private final long eventTimeMillis;
-    // the minimum amount of time to wait before returning to check if the lease has completed or expired
     private final long minimumLingerDurationMillis;
 }
 }

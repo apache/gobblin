@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 
@@ -36,12 +35,11 @@ public interface DagActionStore {
   }
 
   @Data
-  @AllArgsConstructor
   class DagAction {
-    String flowGroup;
-    String flowName;
-    String flowExecutionId;
-    FlowActionType flowActionType;
+    final String flowGroup;
+    final String flowName;
+    final String flowExecutionId;
+    final FlowActionType flowActionType;
   }
 
 

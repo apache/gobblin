@@ -581,7 +581,7 @@ public class JobScheduler extends AbstractIdleService {
   /**
    * Get a {@link org.quartz.Trigger} from the given job configuration properties.
    */
-  public Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
+  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
