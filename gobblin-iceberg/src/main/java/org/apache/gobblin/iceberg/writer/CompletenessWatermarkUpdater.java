@@ -83,7 +83,9 @@ public class CompletenessWatermarkUpdater {
     log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s, previous totalCount watermark %s, includeTotalCountWatermark=%b",
         this.topic, timestamps, tableMetadata.completionWatermark, tableMetadata.totalCountCompletionWatermark,
         includeTotalCountWatermark));
-    List<WatermarkUpdater> watermarkUpdaters = createWatermarkUpdaters(tableName, includeTotalCountWatermark) ;
+
+    WatermarkUpdaterSet updaterSet = new WatermarkUpdaterSet(this.tableMetadata, this.timeZone, this.propsToUpdate,
+        this.stateToUpdate, includeTotalCountWatermark);
     if(timestamps == null || timestamps.size() <= 0) {
       log.error("Cannot create time iterator. Empty for null timestamps");
       return;
@@ -97,8 +99,8 @@ public class CompletenessWatermarkUpdater {
     try {
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
-        watermarkUpdaters.stream().forEach(updater -> updater.checkForEarlyStop(timestampDT, now, granularity));
-        if (watermarkUpdaters.stream().allMatch(updater -> updater.isFinished())) {
+        updaterSet.checkForEarlyStop(timestampDT, now, granularity);
+        if (updaterSet.allFinished()) {
           break;
         }
 
@@ -108,12 +110,45 @@ public class CompletenessWatermarkUpdater {
                 auditCountCheckLowerBoundDT.toInstant().toEpochMilli(),
                 timestampDT.toInstant().toEpochMilli());
 
-        watermarkUpdaters.stream()
-            .filter(updater -> !updater.isFinished())
-            .forEach(updater -> updater.computeAndUpdate(results, timestampDT));
+        updaterSet.computeAndUpdate(results, timestampDT);
       }
     } catch (IOException e) {
       log.warn("Exception during audit count check: ", e);
+    }
+  }
+
+  /**
+   * A class that contains both ClassicWatermakrUpdater and TotalCountWatermarkUpdater
+   */
+  static class WatermarkUpdaterSet {
+    private final List<WatermarkUpdater> updaters;
+
+    WatermarkUpdaterSet(IcebergMetadataWriter.TableMetadata tableMetadata, String timeZone,
+        Map<String, String> propsToUpdate, State stateToUpdate, boolean includeTotalCountWatermark) {
+      this.updaters = new ArrayList<>();
+      this.updaters.add(new ClassicWatermarkUpdater(tableMetadata.completionWatermark, timeZone, tableMetadata,
+          propsToUpdate, stateToUpdate));
+      if (includeTotalCountWatermark) {
+        this.updaters.add(new TotalCountWatermarkUpdater(tableMetadata.totalCountCompletionWatermark, timeZone,
+            tableMetadata, propsToUpdate, stateToUpdate));
+      }
+    }
+
+    void checkForEarlyStop(ZonedDateTime timestampDT, ZonedDateTime now,
+        TimeIterator.Granularity granularity) {
+      this.updaters.stream().forEach(updater
+          -> updater.checkForEarlyStop(timestampDT, now, granularity));
+    }
+
+    boolean allFinished() {
+      return this.updaters.stream().allMatch(updater -> updater.isFinished());
+    }
+
+    void computeAndUpdate(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
+        ZonedDateTime timestampDT) {
+      this.updaters.stream()
+          .filter(updater -> !updater.isFinished())
+          .forEach(updater -> updater.computeAndUpdate(results, timestampDT));
     }
   }
 
@@ -184,18 +219,6 @@ public class CompletenessWatermarkUpdater {
   @VisibleForTesting
   void setAuditCountVerifier(KafkaAuditCountVerifier auditCountVerifier) {
     this.auditCountVerifier = auditCountVerifier;
-  }
-
-  private List<WatermarkUpdater> createWatermarkUpdaters(String tableName, boolean includeTotalCountWatermark) {
-    List<WatermarkUpdater> updaters = new ArrayList<WatermarkUpdater>();
-    updaters.add(new ClassicWatermarkUpdater(this.tableMetadata.completionWatermark, this.timeZone, tableMetadata,
-        propsToUpdate, stateToUpdate));
-    if (includeTotalCountWatermark) {
-      updaters.add(new TotalCountWatermarkUpdater(this.tableMetadata.totalCountCompletionWatermark, this.timeZone,
-          tableMetadata, propsToUpdate, stateToUpdate));
-    }
-
-    return updaters;
   }
 
   static class ClassicWatermarkUpdater extends WatermarkUpdater {

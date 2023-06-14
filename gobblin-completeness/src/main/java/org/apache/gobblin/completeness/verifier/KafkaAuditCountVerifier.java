@@ -125,14 +125,14 @@ public class KafkaAuditCountVerifier {
     countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
 
     Map<CompletenessType, Boolean> result = new HashMap<>();
-    result.put(CompletenessType.ClassicCompleteness, CalculateCompleteness(datasetName, beginInMillis, endInMillis,
+    result.put(CompletenessType.ClassicCompleteness, calculateCompleteness(datasetName, beginInMillis, endInMillis,
         CompletenessType.ClassicCompleteness, countsByTier) > threshold);
-    result.put(CompletenessType.TotalCountCompleteness, CalculateCompleteness(datasetName, beginInMillis, endInMillis,
+    result.put(CompletenessType.TotalCountCompleteness, calculateCompleteness(datasetName, beginInMillis, endInMillis,
         CompletenessType.TotalCountCompleteness, countsByTier) > threshold);
     return result;
   }
 
-  private double CalculateCompleteness(String datasetName, long beginInMillis, long endInMillis, CompletenessType type,
+  private double calculateCompleteness(String datasetName, long beginInMillis, long endInMillis, CompletenessType type,
       Map<String, Long> countsByTier) throws IOException {
     if (countsByTier.isEmpty() && this.returnCompleteOnNoCounts) {
       log.info(String.format("Found empty counts map for %s, returning complete", datasetName));
