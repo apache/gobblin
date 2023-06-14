@@ -54,6 +54,7 @@ public class CompletenessWatermarkUpdaterTest {
   static final ZonedDateTime ONE_HOUR_AGO = TimeIterator.dec(NOW, TimeIterator.Granularity.valueOf(AUDIT_CHECK_GRANULARITY), 1);
   static final ZonedDateTime TWO_HOUR_AGO = TimeIterator.dec(NOW, TimeIterator.Granularity.valueOf(AUDIT_CHECK_GRANULARITY), 2);
   static final ZonedDateTime THREE_HOUR_AGO = TimeIterator.dec(NOW, TimeIterator.Granularity.valueOf(AUDIT_CHECK_GRANULARITY), 3);
+
   @Test
   public void testClassicWatermarkOnly() throws IOException {
     TestParams params = createTestParams();
@@ -87,7 +88,6 @@ public class CompletenessWatermarkUpdaterTest {
     validateCompletionWaterMark(NOW, params);
     validateEmptyTotalCompletionWatermark(params);
   }
-
 
   @Test
   public void testClassicAndTotalCountWatermark() throws IOException {
