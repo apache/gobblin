@@ -48,7 +48,7 @@ dependencies {
     compile externalDependency.findBugsAnnotations
     compile externalDependency.avroMapredH2
 
-    testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '0.11.1', classifier: 'tests') {
+    testCompile(externalDependency.icebergHiveMetastoreTest) {
         transitive = false
     }
     testCompile('org.apache.hadoop:hadoop-common:2.6.0')

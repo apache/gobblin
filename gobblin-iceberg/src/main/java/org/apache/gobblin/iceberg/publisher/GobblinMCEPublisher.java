@@ -219,7 +219,7 @@ public class GobblinMCEPublisher extends DataPublisher {
       }
       case AVRO: {
         try {
-          return new Metrics(100000000L, null, null, null);
+          return new Metrics(100000000L, null, null, null, null);
         } catch (Exception e) {
           throw new RuntimeException("Cannot get file information for file " + path.toString(), e);
         }
