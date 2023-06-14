@@ -17,17 +17,10 @@
 
 package org.apache.gobblin.iceberg.predicates;
 
-import com.google.common.io.Files;
 import java.io.File;
 import java.util.Collections;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.Dataset;
-import org.apache.gobblin.dataset.test.SimpleDatasetForTesting;
-import org.apache.gobblin.hive.HiveTable;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -40,16 +33,30 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.test.SimpleDatasetForTesting;
+import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.util.ConfigUtils;
+
+
 @Slf4j
-@Test(dependsOnGroups = "icebergMetadataWriterTest")
+// depends on icebergMetadataWriterTest to avoid concurrency between other HiveMetastoreTest(s) in CI.
+// You can uncomment the dependsOnGroups if you want to test this class in isolation
+@Test (dependsOnGroups = "icebergMetadataWriterTest")
 public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastoreTest {
 
-  private static String dbName = "dbname_" +
-      DatasetHiveSchemaContainsNonOptionalUnionTest.class.getSimpleName().toLowerCase();
+  private static String dbName = "dbName";
   private static File tmpDir;
   private static State state;
   private static String dbUri;
-  private static String testTable = "test_table";
+  private static String testTable = "test_table01";
+  private static String datasetUrn = String.format("/data/%s/streaming/test-Table01/hourly/2023/01/01", dbName);
 
   @AfterSuite
   public void clean() throws Exception {
@@ -77,14 +84,14 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
     metastoreClient.createTable(HiveMetaStoreUtils.getTable(testTable));
 
     state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
-    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.PATTERN, "/data/(\\w+)/(\\w+)");
+    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.PATTERN, "/data/(\\w+)/.*/([\\w\\d_-]+)/[hourly].*");
     Assert.assertNotNull(metastoreClient.getTable(dbName, DatasetHiveSchemaContainsNonOptionalUnionTest.testTable));
   }
 
   @Test
   public void testContainsNonOptionalUnion() throws Exception {
     DatasetHiveSchemaContainsNonOptionalUnion predicate = new DatasetHiveSchemaContainsNonOptionalUnion(state.getProperties());
-    Dataset dataset = new SimpleDatasetForTesting("/data/" + dbName + "/" + testTable);
+    Dataset dataset = new SimpleDatasetForTesting(datasetUrn);
     Assert.assertTrue(predicate.test(dataset));
   }
 

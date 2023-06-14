@@ -76,7 +76,10 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
       throw new IllegalStateException(String.format("Dataset urn [%s] doesn't follow expected pattern. " +
       "Expected pattern = %s", dataset.getUrn(), pattern.pattern()));
     }
-    return new DbAndTable(m.group(1), m.group(2));
+
+    // hive does not use '-' in the table name, so they are replaced with '_'
+    String hiveTableName = m.group(2).replaceAll("-", "_");
+    return new DbAndTable(m.group(1), hiveTableName);
   }
 
   boolean containsNonOptionalUnion(HiveTable table) {
