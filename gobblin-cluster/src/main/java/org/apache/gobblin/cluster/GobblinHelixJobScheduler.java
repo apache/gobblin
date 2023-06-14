@@ -168,8 +168,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
     this.throttleTimeoutDuration = Duration.of(ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY,
-            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY), ChronoUnit.SECONDS);    
-    
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY), ChronoUnit.SECONDS);
+
     this.jobStartTimeMap = new ConcurrentHashMap<>();
 
   }
@@ -360,7 +360,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
 
     try {
-      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(), 
+      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(),
           updateJobArrival.getJobConfig()));
     } catch (Exception je) {
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
