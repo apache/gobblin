@@ -152,6 +152,15 @@ public class HiveMetaStoreUtils {
   }
 
   /**
+   * Hive does not use '-' or '.' in the table name, so they are replaced with '_'
+   * @param topic
+   * @return
+   */
+  public static String getHiveTableName(String topic) {
+    return topic.replaceAll("[-.]", "_");
+  }
+
+  /**
    * Convert a {@link HivePartition} into a {@link Partition}.
    */
   public static Partition getPartition(HivePartition hivePartition) {

@@ -77,9 +77,7 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
       "Expected pattern = %s", dataset.getUrn(), pattern.pattern()));
     }
 
-    // hive does not use '-' in the table name, so they are replaced with '_'
-    String hiveTableName = m.group(2).replaceAll("-", "_");
-    return new DbAndTable(m.group(1), hiveTableName);
+    return new DbAndTable(m.group(1), HiveMetaStoreUtils.getHiveTableName(m.group(2)));
   }
 
   boolean containsNonOptionalUnion(HiveTable table) {

@@ -48,7 +48,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 // depends on icebergMetadataWriterTest to avoid concurrency between other HiveMetastoreTest(s) in CI.
 // You can uncomment the dependsOnGroups if you want to test this class in isolation
-@Test (dependsOnGroups = "icebergMetadataWriterTest")
+@Test(dependsOnGroups = "icebergMetadataWriterTest")
 public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastoreTest {
 
   private static String dbName = "dbName";
@@ -84,7 +84,7 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
     metastoreClient.createTable(HiveMetaStoreUtils.getTable(testTable));
 
     state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
-    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.PATTERN, "/data/(\\w+)/.*/([\\w\\d_-]+)/[hourly].*");
+    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.PATTERN, "/data/(\\w+)/.*/([\\w\\d_-]+)/hourly.*");
     Assert.assertNotNull(metastoreClient.getTable(dbName, DatasetHiveSchemaContainsNonOptionalUnionTest.testTable));
   }
 
