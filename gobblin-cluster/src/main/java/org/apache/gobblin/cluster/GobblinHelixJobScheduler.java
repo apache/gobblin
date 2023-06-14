@@ -117,12 +117,12 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private ConcurrentHashMap<String, Instant> jobStartTimeMap;
 
   public GobblinHelixJobScheduler(Config sysConfig,
-      HelixManager jobHelixManager,
-      Optional<HelixManager> taskDriverHelixManager,
-      EventBus eventBus,
-      Path appWorkDir, List<? extends Tag<?>> metadataTags,
-      SchedulerService schedulerService,
-      MutableJobCatalog jobCatalog) throws Exception {
+                                  HelixManager jobHelixManager,
+                                  Optional<HelixManager> taskDriverHelixManager,
+                                  EventBus eventBus,
+                                  Path appWorkDir, List<? extends Tag<?>> metadataTags,
+                                  SchedulerService schedulerService,
+                                  MutableJobCatalog jobCatalog) throws Exception {
 
     super(ConfigUtils.configToProperties(sysConfig), schedulerService);
     this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(sysConfig, COMMON_JOB_PROPS));
@@ -136,28 +136,28 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
     int metricsWindowSizeInMin = ConfigUtils.getInt(sysConfig,
-        ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
-        ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+                                                    ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+                                                    ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
     this.launcherMetrics = new GobblinHelixJobLauncherMetrics("launcherInScheduler",
-        this.metricContext,
-        metricsWindowSizeInMin);
+                                                              this.metricContext,
+                                                              metricsWindowSizeInMin);
 
     this.jobSchedulerMetrics = new GobblinHelixJobSchedulerMetrics(this.jobExecutor,
-        this.metricContext,
-        metricsWindowSizeInMin);
+                                                                   this.metricContext,
+                                                                   metricsWindowSizeInMin);
 
     this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(properties),
         PathUtils.getRootPath(appWorkDir).toUri(),
         appWorkDir.toString());
 
     this.planningJobLauncherMetrics = new GobblinHelixPlanningJobLauncherMetrics("planningLauncherInScheduler",
-        this.metricContext,
-        metricsWindowSizeInMin, this.jobsMapping);
+                                                                          this.metricContext,
+                                                                          metricsWindowSizeInMin, this.jobsMapping);
 
     this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobScheduler",
-        this.metricContext,
-        metricsWindowSizeInMin);
+                                                  this.metricContext,
+                                                  metricsWindowSizeInMin);
 
     this.startServicesCompleted = false;
 
@@ -168,8 +168,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
     this.throttleTimeoutDuration = Duration.of(ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY), ChronoUnit.SECONDS);
-
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY), ChronoUnit.SECONDS);    
+    
     this.jobStartTimeMap = new ConcurrentHashMap<>();
 
   }
@@ -177,9 +177,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     return ImmutableList.of(this.launcherMetrics,
-        this.jobSchedulerMetrics,
-        this.planningJobLauncherMetrics,
-        this.helixMetrics);
+                            this.jobSchedulerMetrics,
+                            this.planningJobLauncherMetrics,
+                            this.helixMetrics);
   }
 
   @Override
@@ -198,9 +198,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       }
 
       scheduleJob(jobProps,
-          jobListener,
-          Maps.newHashMap(),
-          GobblinHelixJob.class);
+                  jobListener,
+                  Maps.newHashMap(),
+                  GobblinHelixJob.class);
 
     } catch (Exception e) {
       throw new JobException("Failed to schedule job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
@@ -329,11 +329,11 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + jobUri);
         scheduleJob(jobProps,
-            new GobblinHelixJobLauncherListener(this.launcherMetrics));
+                    new GobblinHelixJobLauncherListener(this.launcherMetrics));
       } else {
         LOGGER.info("No job schedule found, so running job " + jobUri);
         this.jobExecutor.execute(new NonScheduledJobRunner(jobProps,
-            new GobblinHelixJobLauncherListener(this.launcherMetrics)));
+                                 new GobblinHelixJobLauncherListener(this.launcherMetrics)));
       }
 
       this.jobStartTimeMap.put(jobUri, Instant.now());
@@ -360,7 +360,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
 
     try {
-      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(),
+      handleDeleteJobConfigArrival(new DeleteJobConfigArrivalEvent(updateJobArrival.getJobName(), 
           updateJobArrival.getJobConfig()));
     } catch (Exception je) {
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
@@ -478,7 +478,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     private final Long creationTimeInMillis;
 
     public NonScheduledJobRunner(Properties jobProps,
-        GobblinHelixJobLauncherListener jobListener) {
+                                 GobblinHelixJobLauncherListener jobListener) {
 
       this.jobProps = jobProps;
       this.jobListener = jobListener;
