@@ -1,3 +1,240 @@
+GOBBLIN 0.17.0
+--------------
+
+### Created Date: 06/13/2023
+
+* [GOBBLIN-1836] Ensure Task Reliability: Handle Job Cancellation and Graceful Exits for Error-Free Completion 
+* [GOBBLIN-1805] Support watermark for the most recent hour for quiet topics 
+* [GOBBLIN-1833] Emit Completeness watermark information in SnapshotCommitEvent 
+* [GOBBLIN-1832] Emit warning instead of failing job in retention
+* [GOBBLIN-1831] Use flowexecutionid in kafka monitor and jobnames 
+* [GOBBLIN-1830] Improved Container Transition Tracking in Streaming Data Ingestion 
+* [GOBBLIN-1823] Improved Container Calculation and Allocation Methodology 
+* [GOBBLIN-1829] Fixed bug where the wrong workunit event was being tracked  
+* [GOBBLIN-1828] Implement Timeout for Creating Writer Functionality 
+* [GOBBLIN-1827] Added check that if nested field is optional and has a non-null default 
+* [GOBBLIN-1826] Changed isAssignableFrom() to isSuperTypeOf() per Guava 20 javadocs  
+* [GOBBLIN-1825] Fail Hive retention job if deleting underlying files fail 
+* [GOBBLIN-1824] Improved the Efficiency of Work Planning in Manifest-Based DistCp Jobs 
+* [GOBBLIN-1822] Logging for Abnormal Helix Task States 
+* [GOBBLIN-1821] Allow flow execution ID propagate to the Job ID if it exists 
+* [GOBBLIN-1820] Added null default value to observability events 
+* [GOBBLIN-1819] Log helix workflow information and timeout information during submission wait / polling 
+* [GOBBLIN-1810] Support general Iceberg catalog (support configurable behavior for metadata retention policy) 
+* [GOBBLIN-1818] Initilaize yarn clients in yarn app launcher so that a child class can override the yarn client creation logic 
+* [GOBBLIN-1817] Changed some deprecated code and fix minor codestyle 
+* [GOBBLIN-1813] Helix workflows submission timeouts made configurable 
+* [GOBBLIN-1816] Added job properties and GaaS instance ID to observability event 
+* [GOBBLIN-1814] Added MRJobLauncher configurability for any failing mapper to be fatal to the MR job 
+* [GOBBLIN-1811] Fix Iceberg Registration Serialization 
+* [GOBBLIN-1810] Support general Iceberg catalog in IcebergMetadataWriter 
+* [GOBBLIN-1815] Refactor yarn app launchers to support extending these classes 
+* [GOBBLIN-1809] Add new lookback version finder for use with iceberg retention 
+* [GOBBLIN-1808] Bump Guava version from 15.0 to 20.0 
+* [GOBBLIN-1807] Replaced conjars.org with conjars.wensel.net 
+* [GOBBLIN-1806] Submit dataset summary event post commit and integrate them into GaaSObservabilityEvent 
+* [GOBBLIN-1805] Check watermark for the most recent hour for quiet topics 
+* [GOBBLIN-1804] Merge similar logic between FlowConfig{,V2}ResourceLocalHandler.update into single base class impl. 
+* [GOBBLIN-1804] Reject flow config updates that would fail compilation by returning service error 
+* [GOBBLIN-1802] Register iceberg table metadata update with destination side catalog 
+* [GOBBLIN-1799] Fix add spec and actual number flows scheduled metrics 
+* [GOBBLIN-1798] Add backoff retry when we access mysql db for flow spec or dag action 
+* [GOBBLIN-1797] Skip scheduling flows far into future 
+* [GOBBLIN-1796] Log startup command when container fails to startup 
+* [GOBBLIN-1795] Make Manifest based copy to support facl 
+* [GOBBLIN-1794] Add defaults to newly added fields in observability events 
+* [GOBBLIN-1793] Add metrics to measure and isolate bottleneck for init
+* [GOBBLIN-1792] Upgrade Mockito to 4.* 
+* [GOBBLIN-1791] Prevent the adding of flowspec compilation errors to the scheduler  
+* [GOBBLIN-1790] Add and change appropriate job status fields for observability events 
+* [GOBBLIN-1779] Ability to filter datasets that contain non optional unions 
+* [GOBBLIN-1789] Create Generic Iceberg Data Node to Support Different Types of Catalogs 
+* [GOBBLIN-1787] Ability to delete multiple watermarks in a state store 
+* [GOBBLIN-1786] Support Other Catalog Types for Iceberg Distcp 
+* [GOBBLIN-1785] Add MR_JARS_BASE_DIR and logic to delete old mr jar dirs 
+* [GOBBLIN-1784] Only clean dags from the dag manager if a flow event is received 
+* [GOBBLIN-1783] Initialize scheduler with batch gets instead of individual get per flow 
+* [GOBBLIN-1782] Fix Merge State for Flow Pending Resume statuses 
+* [GOBBLIN-1781] Make Helix offline instance purging thread safe in the yarn service 
+* [GOBBLIN-1780] Refactor/rename YarnServiceIT to YarnServiceTest 
+* [GOBBLIN-1773] Fix bugs in quota manager 
+* [GOBBLIN-1778] Add house keeping thread in DagManager to periodically sync in memory state with mysql table 
+* [GOBBLIN-1777] Register gauge metrics for change monitors 
+* [GOBBLIN-1775] Make GMIP Hive metadatawriter gracefully fail 
+* [GOBBLIN-1774] Util for detecting non optional uniontype columns based on Hive Table metadata 
+* [GOBBLIN-1771] Clean up logs for dataset commit and file cleanup 
+* [GOBBLIN-1770] Allow null values for fields in GaaSObservabilityEvent.Issue fields which are optional 
+* [GOBBLIN-1769] Change a noisy log that indicates that the queue capacity is almost full
+* [GOBBLIN-1768] Fix constructor in KafkaJobStatusMonitorFactory so that it can be injected
+* [GOBBLIN-1767] Update references to deprecated Mysql connector/j driver to new name 
+* [GOBBLIN-1766] Define metric to measure lag from producer to consumer
+* [GOBBLIN-1765] Add support to sync metadata for dir in manifest based copy 
+* [GOBBLIN-1764] Emit observability event 
+* [GOBBLIN-1763] D2 markup/down for all live GaaS services not only leader 
+* [GOBBLIN-1762] Upgrade Gobblin OSS Hadoop version to 2.10.0 
+* [GOBBLIN-1761] Update Gobblin OSS Slack channel link to a never-expire link 
+* [GOBBLIN-1758] Disable flaky HiveMaterializerTest on CI/CD 
+* [GOBBLIN-1757] Refactor manifest, add reader/writer and iterator for efficient reading 
+* [GOBBLIN-1756] Fix the issue that causes skipping flows for multihop jobs 
+* [GOBBLIN-1755] Support extended ACLs and sticky bit for file based distcp 
+* [GOBBLIN-1754] Fixes for mysql store change monitors 
+* [GOBBLIN-1759] Add error reporting when attempting to resolve flow configs 
+* [GOBBLIN-1753] Migrate DB connection pool from o.a.commons.dbcp/dbcp2 to HikariCP 
+* [GOBBLIN-1752] Fix race condition where FSTemplateCatalog would update at the same 
+* [GOBBLIN-1750] Add schemas for observability events in GaaS 
+* [GOBBLIN-1749] Add dependency for handling xz-compressed Avro file 
+* [GOBBLIN-1748] Add logs to debug multi-hop flows creation, progression, and cleanup 
+* [GOBBLIN-1747] Add job.name and job.id to kafka and compaction workunits 
+* [GOBBLIN-1746] Add fs.uri to FsDatasetDescriptor to support copy between volumes in GaaS 
+* [GOBBLIN-1745] Fix bug in SimpleKafkaSpecProducer 
+* [GOBBLIN-1744] Improve handling of null value edge cases when querying Helix 
+* [GOBBLIN-1743] Ensure GobblinTaskRunner works without Yarn use 
+* [GOBBLIN-1742] Do not close DestinationDatasetHandlerService prematurely 
+* [GOBBLIN-1741] Create manifest based dataset finder 
+* [GOBBLIN-1739] Define Datanodes and Dataset Descriptor for Iceberg 
+* [GOBBLIN-1737] Fix bug when using mysql user quota manager 
+* [GOBBLIN-1738] Move dataset handler code before cleaning up staging data 
+* [GOBBLIN-1736] Add metrics for change stream monitor and mysql quota manager 
+* [GOBBLIN-1734] Make DestinationDatasetHandler work on streaming sources 
+* [GOBBLIN-1735] Correct a log line and GTE with correct number of total task count 
+* [GOBBLIN-1733] Support multiple node types in shared flowgraph, fix logs 
+* [GOBBLIN-1732] Search for dummy file in writer directory 
+* [GOBBLIN-1730] Include flow execution id when try to cancel/submit job using SimpleKafkaSpecProducer 
+* [GOBBLIN-1731] Enable HiveMetadataWriter to override table schema 
+* [GOBBLIN-1728] Fix YarnService incorrect container allocation behavior 
+* [GOBBLIN-1729] Use root cause for checking if exception is transient 
+* [GOBBLIN-1727] Use delete API to delete the helix job instead of stop it 
+* [GOBBLIN-1724] Support a shared flowgraph layout in GaaS 
+* [GOBBLIN-1725] Fix bugs in gaas warm standby mode 
+* [GOBBLIN-1726] Avro 1.9 upgrade of Gobblin OSS 
+* [GOBBLIN-1721] Give option to cancel helix workflow through Delete API 
+* [GOBBLIN-1723] Ignore AlreadyExistsException in hive writer 
+* [GOBBLIN-1722] Add log line for committing/retrieving watermarks in streaming 
+* [GOBBLIN-1720] Add ancestors owner permissions preservations for iceberg distcp 
+* [GOBBLIN-1712] Fail GMIP container for known transient exceptions to avoid data loss 
+* [GOBBLIN-1707] Enhance IcebergDataset to detect when files already at dest then proceed with only delta 
+* [GOBBLIN-1719] Replace moveToTrash with moveToAppropriateTrash for hadoop trash 
+* [GOBBLIN-1718] Define DagActionStoreMonitor to listen for kill/resume
+* [GOBBLIN-1717] Correct semantics of IcebergDatasetTest and streamline both impl and test code 
+* [GOBBLIN-1716] Refactor HighLevelConsumer to make consumer initiatlization configurable
+* [GOBBLIN-1707] Update IcebergDataset to incorporate all snapshots, not only the current one 
+* [GOBBLIN-1714] Use FileNotFoundException when determining files in source/target instead of generic IOException 
+* [GOBBLIN-1713] Add missing sql source validation 
+* [GOBBLIN-1712] Fail container for known transient exceptions to avoid data loss 
+* [GOBBLIN-1707] Add IcebergTableTest unit test 
+* [GOBBLIN-1708] Improve TimeAwareRecursiveCopyableDataset to lookback only into datefolders that match range 
+* [GOBBLIN-1710] Make Codecov optional in CI and not fail 
+* [GOBBLIN-1704] Purge offline helix instances during startup 
+* [GOBBLIN-1709] Create Iceberg Datasets Finder, Iceberg Dataset and FileSet to generate Copy Entities to support Distcp for Iceberg 
+* [GOBBLIN-1706] Add DagActionStore to store the action to kill/resume one flow execution 
+* [GOBBLIN-1705] New consumer service to monitor changes to FlowSpecStore 
+* [GOBBLIN-1702] Fix helix job wait completion bug when job goes to STOPPING state 
+* [GOBBLIN-1700] Remove unused coveralls-gradle-plugin dependency 
+* [GOBBLIN-1701] Replace jcenter with either maven central or gradle plugin portal 
+* [GOBBLIN-1699] Log progress of reducer task for visibility with slow compaction jobs 
+* [GOBBLIN-1695] Fix: Failure to add spec executors doesn't block deployment 
+* [GOBBLIN-1703] Avoid double quota increase for adhoc flows 
+* [GOBBLIN-1697] Have a separate resource handler to rely on CDC stream to do message forwarding 
+* [GOBBLIN-1696] Implement file based flowgraph that detects changes to the underlying files
+* [GOBBLIN-1694] Add GMCE topic explicitly to hive commit event 
+* [GOBBLIN-1691] Add MysqlUserQuotaManager 
+* [GOBBLIN-1689] Decouple compiler from scheduler in warm standby mode 
+* [GOBBLIN-1690] Improve logging in ORC Writer 
+* [GOBBLIN-1698] Fast fail during work unit generation based on config 
+* [GOBBLIN-1686] Allow all Iceberg exceptions to be fault tolerant 
+* [GOBBLIN-1684] Stub for FileSystem based message buffer 
+* [GOBBLIN-1673]* [GOBBLIN-1683] Skeleton code for handling messages between task runner / application master for Dynamic work unit allocation 
+* [GOBBLIN-1681] Guard against exists fs call as well 
+* [GOBBLIN-1678] Refactor git flowgraph component to be extensible 
+* [GOBBLIN-1677] Fix timezone property to read from key correctly 
+* [GOBBLIN-1675] Add pagination for GaaS on server side 
+* [GOBBLIN-1672] Refactor metrics from DagManager into its own class, add metrics 
+* [GOBBLIN-1671] Fix gobblin.sh script to add external jars as colon separated to HADOOP_CLASSPATH 
+* [GOBBLIN-1670] Remove rat tasks and unneeded checkstyles blocking build pipeline 
+* [GOBBLIN-1669] Clean up TimeAwareRecursiveCopyableDataset to support seconds in time
+* [GOBBLIN-1668] Add audit counts for iceberg registration 
+* [GOBBLIN-1667] Create new predicate - ExistingPartitionSkipPredicate 
+* [GOBBLIN-1667] Supporting for true ABORT on existing entity
+* [GOBBLIN-1664] Allow table to flush after write failure 
+* [GOBBLIN-1663] Add some debug log lines around GMIP hive commit events 
+* [GOBBLIN-1662] Fix running counts for retried flows 
+* [GOBBLIN-1657] Update completion watermark on change_property in IcebergMetadataWriter 
+* [GOBBLIN-1656] Return a http status 503 on GaaS when quota is exceeded for user or flowgroup 
+* [GOBBLIN-1654] Add capacity floor to avoid aggressively requesting resource and small files
+* [GOBBLIN-1653] Shorten job name length if it exceeds 255 characters 
+* [GOBBLIN-1652] Add more log in the KafkaJobStatusMonitor in case it fails to process one GobblinTrackingEvent 
+* [GOBBLIN-1651] Add config to set close timeout in HiveRegister 
+* [GOBBLIN-1650] Implement flowGroup quotas for the DagManager 
+* [GOBBLIN-1648] Complete use of JDBC DataSource 'read-only' validation query by incorporating where previously omitted 
+* [GOBBLIN-1647] Add hive commit GTE to HiveMetadataWriter  
+* [GOBBLIN-1644] Log assigned participant when helix participant check fails 
+* [GOBBLIN-1645] Change the prefix of dagManager heartbeat to make it consistent with other metrics 
+* [GOBBLIN-1641] Add meter for sla exceeded flows 
+* [GOBBLIN-1640] Add an API in AbstractBaseKafkaConsumerClient to list selected topics 
+* [GOBBLIN-1639] Prevent metrics reporting if configured, clean up workunit count metric 
+* [GOBBLIN-1638] Fix unbalanced running count metrics due to Azkaban failures 
+* [GOBBLIN-1637] Add writer, operation, and partition info to failed metadata writer events 
+* [GOBBLIN-1636] Close DatasetCleaner after clean task 
+* [GOBBLIN-1635] Avoid loading env configuration when using config store to improve the performance 
+* [GOBBLIN-1634] Add retries on flow sla kills 
+* [GOBBLIN-1633] Fix compaction actions on job failure not retried if compaction succeeds 
+* [GOBBLIN-1632] Use data node aliases to figure out data node names before using DMAS 
+* [GOBBLIN-1631] Emit heartbeat for dagManagerThread 
+* [GOBBLIN-1630] Remove flow level metrics for adhoc flows 
+* [GOBBLIN-1613] Add metadata writers field to GMCE schema 
+* [GOBBLIN-1629] Make GobblinMCEWriter be able to catch error when calculating hive specs 
+* [GOBBLIN-1620] Make yarn container allocation group by helix tag 
+* [GOBBLIN-1616] Add close connection logic in salseforceSource 
+* [GOBBLIN-1628] Add/fix some fields of MetadataWriterFailureEvent 
+* [GOBBLIN-1627] Provide option to convert datanodes names 
+* [GOBBLIN-1626] Use user supplied props to create FileSystem in DatasetCleanerTask 
+* [GOBBLIN-1625] Add coverage for edge cases when table paths do not exist, check parents 
+* [GOBBLIN-1624] Refactor quota management, fix various bugs in accounting of running jobs
+* [GOBBLIN-1623] Fix NPE when try to close RestApiConnector 
+* [GOBBLIN-1622] Clear bad mysql packages from cache in CI/CD machines 
+* [GOBBLIN-1621] Make HelixRetriggeringJobCallable emit job skip event when job is dropped due to previous job is running 
+* [GOBBLIN-1619] WriterUtils.mkdirsWithRecursivePermission contains race condition and puts unnecessary load on filesystem 
+* [GOBBLIN-1617] Pass configurations to some HadoopUtils APIs 
+* [GOBBLIN-1616] Make RestApiConnector be able to close the connection finally 
+* [GOBBLIN-1615] Add config to set log level for any class 
+* [GOBBLIN-1614] Fix bug where partitioned tables would always return the wrong equali… 
+* [GOBBLIN-1612] Add description about downloading gradle wrapper 
+* [GOBBLIN-1611] Fix a wrong value for writer.codec.type in the document 
+* [GOBBLIN-1609] Don't flush on change_property operation 
+* [GOBBLIN-1608] Fix case where error GTE is incorrectly sent from MCE writer 
+* [GOBBLIN-1606] Change DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE value 
+* [GOBBLIN-1605] Fix mysql ubuntu download 404 not found for Github Actions CI/CD 
+* [GOBBLIN-1604] Throw exception if there are no allocated requests due to lack of resources
+* [GOBBLIN-1603] Throws error if configured when encountering an IO exception  
+* [GOBBLIN-1601] Implement ChangePermissionCommitStep 
+* [GOBBLIN-1598] Fix metrics already exist issue in dag manager 
+* [GOBBLIN-1597] Add error handling in dagmanager to continue if dag fails to process
+* [GOBBLIN-1596] Ignore already exists exception if the table has already been created
+* [GOBBLIN-1594] Add guard in DagManager for improperly formed SLA 
+* [GOBBLIN-1593] Fix bugs in dag manager about metric reporting and job status monitor 
+* [GOBBLIN-1592] Make hive copy be able to apply filter on directory 
+* [GOBBLIN-1591] Lazily initialize FileContext and do not hold a reference to it 
+* [GOBBLIN-1590] Add low/high watermark information in event emitted by Gobblin cluster 
+* [GOBBLIN-1589] Add FileContextFactory to cache FileContext instances 
+* [GOBBLIN-1588] Send failure events for write failures when watermark is advanced in MCE writer 
+* [GOBBLIN-1587] Bump version of code cov plugin 
+* [GOBBLIN-1585] Fix for GaaS (DagManager) keep retrying a failed job beyond max attempt number 
+* [GOBBLIN-1584] Add replace record logic for Mysql writer 
+* [GOBBLIN-1583] Add System level job start SLA 
+* [GOBBLIN-1582] Fill low/high watermark info in SourceState for QueryBasedSource 
+* [GOBBLIN-1581] Iterate over Sql ResultSet in Only the Forward Direction 
+* [GOBBLIN-1580] Check table exists instead of call create table directly to make sure table exists 
+* [GOBBLIN-1578] Avoid deletion of data while dropping a hive table  
+* [GOBBLIN-1577] Change the multiplier used in ExponentialWaitStrategy 
+* [GOBBLIN-1576] Skip appending record count to staging file 
+* [GOBBLIN-1575] Use reference count in helix manager, so that connect/disconnect are called once and at the right time 
+* [GOBBLIN-1574] Added whitelist for iceberg tables to add new partition
+* [GOBBLIN-1573] Fix the ClassNotFoundException in streaming test pipeline 
+* [GOBBLIN-1565] Make GMCEWriter fault tolerant so that one topic failure will not affect other topics in the same container 
+* [GOBBLIN-1564] Codestyle changes, typo corrections, improved javadoc 
+* [GOBBLIN-1552] Determine flow status correctly when dag manager is disabled 
+* [GOBBLIN-1492] Optimize flowspec keys on configToProperties 
+
 GOBBLIN 0.16.0
 --------------
 
