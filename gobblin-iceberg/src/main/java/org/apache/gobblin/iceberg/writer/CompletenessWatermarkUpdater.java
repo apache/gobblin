@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.iceberg.writer;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -49,7 +50,7 @@ public class CompletenessWatermarkUpdater {
   protected final IcebergMetadataWriter.TableMetadata tableMetadata;
   protected final Map<String, String> propsToUpdate;
   protected final State stateToUpdate;
-  protected final KafkaAuditCountVerifier auditCountVerifier;
+  protected KafkaAuditCountVerifier auditCountVerifier;
 
   public CompletenessWatermarkUpdater(String topic, String auditCheckGranularity, String timeZone,
       IcebergMetadataWriter.TableMetadata tableMetadata, Map<String, String> propsToUpdate, State stateToUpdate,
@@ -96,7 +97,8 @@ public class CompletenessWatermarkUpdater {
     try {
       while (iterator.hasNext()) {
         ZonedDateTime timestampDT = iterator.next();
-        if (watermarkUpdaters.stream().allMatch(updater -> updater.checkForEarlyStop(timestampDT, now, granularity))) {
+        watermarkUpdaters.stream().forEach(updater -> updater.checkForEarlyStop(timestampDT, now, granularity));
+        if (watermarkUpdaters.stream().allMatch(updater -> updater.isFinished())) {
           break;
         }
 
@@ -168,14 +170,20 @@ public class CompletenessWatermarkUpdater {
       this.finished = true;
     }
 
-    protected boolean checkForEarlyStop(ZonedDateTime timestampDT, ZonedDateTime now,
+    protected void checkForEarlyStop(ZonedDateTime timestampDT, ZonedDateTime now,
         TimeIterator.Granularity granularity) {
-      if (!(timestampDT.isAfter(this.prevWatermarkDT)
-          && TimeIterator.durationBetween(this.prevWatermarkDT, now, granularity) > 0)) {
-        setFinished();
+      if (isFinished()
+          || (timestampDT.isAfter(this.prevWatermarkDT)
+              && TimeIterator.durationBetween(this.prevWatermarkDT, now, granularity) > 0)) {
+        return;
       }
-      return isFinished();
+      setFinished();
     }
+  }
+
+  @VisibleForTesting
+  void setAuditCountVerifier(KafkaAuditCountVerifier auditCountVerifier) {
+    this.auditCountVerifier = auditCountVerifier;
   }
 
   private List<WatermarkUpdater> createWatermarkUpdaters(String tableName, boolean includeTotalCountWatermark) {
@@ -230,7 +238,7 @@ public class CompletenessWatermarkUpdater {
     @Override
     protected void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
         ZonedDateTime timestampDT) {
-      if (!results.get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness)) {
+      if (!results.get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness)) {
         return;
       }
 

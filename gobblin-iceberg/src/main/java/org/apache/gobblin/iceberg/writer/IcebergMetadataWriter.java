@@ -263,7 +263,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   private org.apache.iceberg.Table getIcebergTable(TableIdentifier tid) throws NoSuchTableException {
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     if (!tableMetadata.table.isPresent()) {
       tableMetadata.table = Optional.of(catalog.loadTable(tid));
     }
@@ -309,7 +309,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
     TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     Table table;
     try {
       table = getIcebergTable(tid);
@@ -403,7 +403,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * the given {@link TableIdentifier} with the input {@link GobblinMetadataChangeEvent}
    */
   private void mergeOffsets(GobblinMetadataChangeEvent gmce, TableIdentifier tid) {
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     tableMetadata.dataOffsetRange = Optional.of(tableMetadata.dataOffsetRange.or(() -> getLastOffset(tableMetadata)));
     Map<String, List<Range>> offsets = tableMetadata.dataOffsetRange.get();
     for (Map.Entry<String, String> entry : gmce.getTopicPartitionOffsetsRange().entrySet()) {
@@ -435,7 +435,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   protected void updateTableProperty(HiveSpec tableSpec, TableIdentifier tid, GobblinMetadataChangeEvent gmce) {
     org.apache.hadoop.hive.metastore.api.Table table = HiveMetaStoreUtils.getTable(tableSpec.getTable());
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     tableMetadata.newProperties = Optional.of(IcebergUtils.getTableProperties(table));
     String nativeName = tableMetadata.datasetName;
     String topic = nativeName.substring(nativeName.lastIndexOf("/") + 1);
@@ -453,7 +453,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    */
   private void computeCandidateSchema(GobblinMetadataChangeEvent gmce, TableIdentifier tid, HiveSpec spec) {
     Table table = getIcebergTable(tid);
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     org.apache.hadoop.hive.metastore.api.Table hiveTable = HiveMetaStoreUtils.getTable(spec.getTable());
     tableMetadata.lastProperties = Optional.of(tableMetadata.lastProperties.or(() -> table.properties()));
     Map<String, String> props = tableMetadata.lastProperties.get();
@@ -828,7 +828,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     writeLock.lock();
     try {
       TableIdentifier tid = TableIdentifier.of(dbName, tableName);
-      TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata());
+      TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata(this.conf));
       if (tableMetadata.transaction.isPresent()) {
         Transaction transaction = tableMetadata.transaction.get();
         Map<String, String> props = tableMetadata.newProperties.or(
@@ -1043,7 +1043,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Long currentOffset = ((LongWatermark)recordEnvelope.getWatermark().getWatermark()).getValue();
 
         if (currentOffset > currentWatermark) {
-          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark.isPresent()) {
+          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf)).lowWatermark.isPresent()) {
             //This means we haven't register this table or met some error before, we need to reset the low watermark
             tableMetadataMap.get(tid).lowWatermark = Optional.of(currentOffset - 1);
             tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
@@ -1095,7 +1095,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    *
    * Also note the difference with {@link org.apache.iceberg.TableMetadata}.
    */
-  public class TableMetadata {
+  public static class TableMetadata {
     Optional<Table> table = Optional.absent();
 
     /**
@@ -1123,11 +1123,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
     boolean completenessEnabled;
     boolean totalCountCompletenessEnabled;
     boolean newPartitionColumnEnabled;
+    Configuration conf;
 
-    Cache<CharSequence, String> addedFiles = CacheBuilder.newBuilder()
-        .expireAfterAccess(conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
-            TimeUnit.HOURS)
-        .build();
+    Cache<CharSequence, String> addedFiles;
     long lowestGMCEEmittedTime = Long.MAX_VALUE;
 
     /**
@@ -1180,6 +1178,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
       this.lowWatermark = Optional.of(lowWaterMark);
       this.datePartitions.clear();
       this.serializedAuditCountMaps.clear();
+    }
+
+    TableMetadata(Configuration conf) {
+      this.conf = conf;
+      addedFiles = CacheBuilder.newBuilder()
+          .expireAfterAccess(this.conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
+              TimeUnit.HOURS)
+          .build();
     }
   }
 }
