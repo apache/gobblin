@@ -20,7 +20,10 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
@@ -147,6 +150,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
         .to(serviceConfig.isWarmStandbyEnabled());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
+        .to(serviceConfig.isMultiActiveSchedulerEnabled());
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
@@ -159,6 +165,12 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
     }
 
+    OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
+    OptionalBinder.newOptionalBinder(binder, FlowTriggerHandler.class);
+    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
+      binder.bind(MysqlMultiActiveLeaseArbiter.class);
+      binder.bind(FlowTriggerHandler.class);
+    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);

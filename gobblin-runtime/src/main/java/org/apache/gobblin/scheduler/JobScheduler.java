@@ -396,7 +396,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      Trigger trigger = getTrigger(job.getKey(), jobProps);
+      Trigger trigger = createTriggerForJob(job.getKey(), jobProps);
       this.scheduler.getScheduler().scheduleJob(job, trigger);
       LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
     } catch (SchedulerException se) {
@@ -581,7 +581,7 @@ public class JobScheduler extends AbstractIdleService {
   /**
    * Get a {@link org.quartz.Trigger} from the given job configuration properties.
    */
-  private Trigger getTrigger(JobKey jobKey, Properties jobProps) {
+  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
@@ -600,11 +600,18 @@ public class JobScheduler extends AbstractIdleService {
     @Override
     public void executeImpl(JobExecutionContext context)
         throws JobExecutionException {
-      LOG.info("Starting job " + context.getJobDetail().getKey());
-      JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+      JobDetail jobDetail = context.getJobDetail();
+      LOG.info("Starting job " + jobDetail.getKey());
+      JobDataMap dataMap = jobDetail.getJobDataMap();
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
+      // Obtain trigger timestamp from trigger to pass to jobProps
+      Trigger trigger = context.getTrigger();
+      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
+      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(triggerTimestampMillis));
 
       try {
         jobScheduler.runJob(jobProps, jobListener);

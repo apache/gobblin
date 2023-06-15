@@ -79,6 +79,7 @@ public class OrchestratorTest {
   private SpecCatalogListener mockListener;
   private FlowSpec flowSpec;
   private FlowStatusGenerator mockStatusGenerator;
+  private FlowTriggerHandler _mockFlowTriggerHandler;
   private Orchestrator orchestrator;
 
   @BeforeClass
@@ -107,9 +108,10 @@ public class OrchestratorTest {
     this.serviceLauncher.addService(flowCatalog);
     this.mockStatusGenerator = mock(FlowStatusGenerator.class);
 
+    this._mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        this.mockStatusGenerator,
-        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
+        this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
+         Optional.of(this._mockFlowTriggerHandler));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application
@@ -341,13 +343,13 @@ public class OrchestratorTest {
     flowProps.put("gobblin.flow.destinationIdentifier", "destination");
     flowProps.put("flow.allowConcurrentExecution", false);
     FlowSpec adhocSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
-    this.orchestrator.orchestrate(adhocSpec);
+    this.orchestrator.orchestrate(adhocSpec, flowProps, 0);
     String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group0", "flow0", ServiceMetricNames.COMPILED);
     Assert.assertNull(metricContext.getParent().get().getGauges().get(metricName));
 
     flowProps.setProperty("job.schedule", "0/2 * * * * ?");
     FlowSpec scheduledSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
-    this.orchestrator.orchestrate(scheduledSpec);
+    this.orchestrator.orchestrate(scheduledSpec, flowProps, 0);
     Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
   }
 }

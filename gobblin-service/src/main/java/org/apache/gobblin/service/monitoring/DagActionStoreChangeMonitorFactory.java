@@ -22,11 +22,15 @@ import java.util.Objects;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -40,12 +44,20 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   private final Config config;
   private DagActionStore dagActionStore;
   private DagManager dagManager;
+  private FlowCatalog flowCatalog;
+  private Orchestrator orchestrator;
+  private boolean isMultiActiveSchedulerEnabled;
 
   @Inject
-  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager) {
+  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager,
+      FlowCatalog flowCatalog, Orchestrator orchestrator,
+      @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);
     this.dagActionStore = dagActionStore;
     this.dagManager = dagManager;
+    this.flowCatalog = flowCatalog;
+    this.orchestrator = orchestrator;
+    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
   }
 
   private DagActionStoreChangeMonitor createDagActionStoreMonitor()
@@ -56,7 +68,8 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
     String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagActionStore, this.dagManager, numThreads);
+    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagActionStore, this.dagManager,
+        numThreads, flowCatalog, orchestrator, isMultiActiveSchedulerEnabled);
   }
 
   @Override

@@ -44,6 +44,9 @@ public class GobblinServiceConfiguration {
   private final boolean isWarmStandbyEnabled;
 
   @Getter
+  private final boolean isMultiActiveSchedulerEnabled;
+
+  @Getter
   private final boolean isTopologyCatalogEnabled;
 
   @Getter
@@ -107,6 +110,7 @@ public class GobblinServiceConfiguration {
     }
 
     this.isWarmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
+    this.isMultiActiveSchedulerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY, false);
 
     this.isHelixManagerEnabled = config.hasPath(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY);
     this.isDagManagerEnabled =

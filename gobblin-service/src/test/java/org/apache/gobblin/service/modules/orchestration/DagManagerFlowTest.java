@@ -84,13 +84,13 @@ public class DagManagerFlowTest {
         .build();
 
     dagActionStore = new MysqlDagActionStore(config);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionValue.KILL);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionValue.RESUME);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.FlowActionType.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props), false);
     dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
-    Thread.sleep(10000);
+    Thread.sleep(30000);
     // On active, should proceed request and delete action entry
     Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
   }

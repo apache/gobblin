@@ -20,29 +20,26 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+
+import lombok.Data;
 
 
 public interface DagActionStore {
-  enum DagActionValue {
-    KILL,
-    RESUME
+  enum FlowActionType {
+    KILL, // Kill invoked through API call
+    RESUME, // Resume flow invoked through API call
+    LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
+    RETRY, // Invoked through DagManager for flows configured to allow retries
+    CANCEL, // Invoked through DagManager if flow has been stuck in Orchestrated state for a while
+    ADVANCE // Launch next step in multi-hop dag
   }
 
-  @Getter
-  @EqualsAndHashCode
+  @Data
   class DagAction {
-    String flowGroup;
-    String flowName;
-    String flowExecutionId;
-    DagActionValue dagActionValue;
-    public DagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) {
-      this.flowGroup = flowGroup;
-      this.flowName = flowName;
-      this.flowExecutionId = flowExecutionId;
-      this.dagActionValue = dagActionValue;
-    }
+    final String flowGroup;
+    final String flowName;
+    final String flowExecutionId;
+    final FlowActionType flowActionType;
   }
 
 
@@ -51,40 +48,28 @@ public interface DagActionStore {
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
+   * @param flowActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
-   * @param dagActionValue the value of the dag action
+   * @param flowActionType the value of the dag action
    * @throws IOException
    */
-  void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionValue dagActionValue) throws IOException;
+  void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException;
 
   /**
    * delete the dag action from {@link DagActionStore}
-   * @param flowGroup flow group for the dag action
-   * @param flowName flow name for the dag action
-   * @param flowExecutionId flow execution for the dag action
+   * @param DagAction containing all information needed to identify dag and specific action value
    * @throws IOException
    * @return true if we successfully delete one record, return false if the record does not exist
    */
-  boolean deleteDagAction(String flowGroup, String flowName, String flowExecutionId) throws IOException;
-
-  /***
-   * Retrieve action value by the flow group, flow name and flow execution id from the {@link DagActionStore}.
-   * @param flowGroup flow group for the dag action
-   * @param flowName flow name for the dag action
-   * @param flowExecutionId flow execution for the dag action
-   * @throws IOException Exception in retrieving the {@link DagAction}.
-   * @throws SpecNotFoundException If {@link DagAction} being retrieved is not present in store.
-   */
-  DagAction getDagAction(String flowGroup, String flowName, String flowExecutionId) throws IOException, SpecNotFoundException,
-                                                                                           SQLException;
+  boolean deleteDagAction(DagAction dagAction) throws IOException;
 
   /***
    * Get all {@link DagAction}s from the {@link DagActionStore}.
