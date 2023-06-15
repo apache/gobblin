@@ -579,7 +579,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     return workUnitFile.toString();
   }
 
-  private void waitForJobCompletion() throws InterruptedException {
+  private void waitForJobCompletion() throws Exception {
     boolean timeoutEnabled = Boolean.parseBoolean(
         this.jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
             GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));

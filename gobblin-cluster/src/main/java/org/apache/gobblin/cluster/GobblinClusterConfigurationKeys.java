@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.cluster;
 
+import java.time.Duration;
+
 import org.apache.gobblin.annotation.Alpha;
 
 
@@ -227,6 +229,6 @@ public class GobblinClusterConfigurationKeys {
   public static final boolean DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY = false;
 
   public static final String HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY = "helix.job.scheduling.throttle.timeout.seconds";
-  public static final long DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY = 3600;
+  public static final long DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY = Duration.ofMinutes(40).getSeconds();;
 
 }
