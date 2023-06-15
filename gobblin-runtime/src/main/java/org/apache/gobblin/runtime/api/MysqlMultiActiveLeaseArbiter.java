@@ -169,12 +169,15 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           return getInfoStatement.executeQuery();
         }, true);
 
+    String formattedSelectAfterInsertStatement =
+        String.format(SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName, this.constantsTableName);
     try {
       // CASE 1: If no existing row for this flow action, then go ahead and insert
       if (!resultSet.next()) {
+        String formattedAcquireLeaseNewRowStatement =
+            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT, this.leaseArbiterTableName);
         ResultSet rs = withPreparedStatement(
-            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT + "; " + SELECT_AFTER_INSERT_STATEMENT,
-                this.leaseArbiterTableName, this.leaseArbiterTableName, this.constantsTableName),
+            formattedAcquireLeaseNewRowStatement + "; " + formattedSelectAfterInsertStatement,
             insertStatement -> {
               completeInsertPreparedStatement(insertStatement, flowAction, eventTimeMillis);
               return insertStatement.executeQuery();
@@ -214,10 +217,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
               dbEventTimestamp, dbLeaseAcquisitionTimestamp, dbLinger);
         }
         // Use our event to acquire lease, check for previous db eventTimestamp and leaseAcquisitionTimestamp
+        String formattedAcquireLeaseIfMatchingAllStatement =
+            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT, this.leaseArbiterTableName);
         ResultSet rs = withPreparedStatement(
-            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT + "; "
-                    + SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName, this.leaseArbiterTableName,
-                this.constantsTableName),
+            formattedAcquireLeaseIfMatchingAllStatement + "; " + formattedSelectAfterInsertStatement,
             updateStatement -> {
               completeUpdatePreparedStatement(updateStatement, flowAction, eventTimeMillis, true,
                   true, dbEventTimestamp, dbLeaseAcquisitionTimestamp);
@@ -231,10 +234,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         }
         // CASE 7: Distinct event, no longer leasing event in db
         // Use our event to acquire lease, check for previous db eventTimestamp and NULL leaseAcquisitionTimestamp
+        String formattedAcquireLeaseIfFinishedStatement =
+            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, this.leaseArbiterTableName);
         ResultSet rs = withPreparedStatement(
-            String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT  + "; "
-                    + SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName, this.leaseArbiterTableName,
-                this.constantsTableName),
+            formattedAcquireLeaseIfFinishedStatement + "; " + formattedSelectAfterInsertStatement,
             updateStatement -> {
               completeUpdatePreparedStatement(updateStatement, flowAction, eventTimeMillis, true,
                   false, dbEventTimestamp, null);

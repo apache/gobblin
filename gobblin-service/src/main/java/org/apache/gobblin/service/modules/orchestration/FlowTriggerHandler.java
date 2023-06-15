@@ -116,14 +116,14 @@ public class FlowTriggerHandler {
   }
 
   // Called after obtaining a lease to persist the flow action to {@link DagActionStore} and mark the lease as done
-  private boolean persistFlowAction(MultiActiveLeaseArbiter.LeaseObtainedStatus status) {
+  private boolean persistFlowAction(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus) {
     try {
-      DagActionStore.DagAction flowAction = status.getFlowAction();
+      DagActionStore.DagAction flowAction = leaseStatus.getFlowAction();
       this.dagActionStore.addDagAction(flowAction.getFlowGroup(), flowAction.getFlowName(),
           flowAction.getFlowExecutionId(), flowAction.getFlowActionType());
       // If the flow action has been persisted to the {@link DagActionStore} we can close the lease
       this.numFlowsSubmitted.mark();
-      return this.multiActiveLeaseArbiter.recordLeaseSuccess(status);
+      return this.multiActiveLeaseArbiter.recordLeaseSuccess(leaseStatus);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -105,7 +105,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Override
   /*
-  This class is multithreaded and this message will be called by multiple threads, however any given message will be
+  This class is multithreaded and this method will be called by multiple threads, however any given message will be
   partitioned and processed by only one thread (and corresponding queue).
    */
   protected void processMessage(DecodeableKafkaRecord message) {

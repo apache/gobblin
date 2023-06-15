@@ -378,6 +378,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       throws IOException {
     submitFlowToDagManager(flowSpec, specCompiler.compileFlow(flowSpec));
   }
+
   public void submitFlowToDagManager(FlowSpec flowSpec, Dag<JobExecutionPlan> jobExecutionPlanDag)
       throws IOException {
     try {
