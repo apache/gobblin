@@ -27,6 +27,7 @@ import org.apache.commons.lang.StringUtils;
 
 import com.google.common.base.Splitter;
 
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.util.HiveJdbcConnector;
 
 
@@ -42,7 +43,7 @@ public abstract class HiveTable {
   protected List<HiveAttribute> attributes;
 
   public static class Builder<T extends Builder<?>> {
-    protected String name = UUID.randomUUID().toString().replaceAll("-", "_");
+    protected String name = HiveMetaStoreUtils.getHiveTableName(UUID.randomUUID().toString());
     protected List<String> primaryKeys = new ArrayList<>();
     protected List<HiveAttribute> attributes = new ArrayList<>();
 

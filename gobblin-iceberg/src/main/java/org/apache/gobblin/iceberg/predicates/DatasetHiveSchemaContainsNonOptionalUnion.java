@@ -76,7 +76,8 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
       throw new IllegalStateException(String.format("Dataset urn [%s] doesn't follow expected pattern. " +
       "Expected pattern = %s", dataset.getUrn(), pattern.pattern()));
     }
-    return new DbAndTable(m.group(1), m.group(2));
+
+    return new DbAndTable(m.group(1), HiveMetaStoreUtils.getHiveTableName(m.group(2)));
   }
 
   boolean containsNonOptionalUnion(HiveTable table) {
