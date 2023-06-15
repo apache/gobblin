@@ -79,8 +79,8 @@ public class GobblinHelixJobSchedulerTest {
   private final String workflowIdSuffix3 = "_1504201348473";
 
   private Instant beginTime = Instant.ofEpochMilli(0);
-  private Instant shortPeriod = Instant.ofEpochMilli(1);
-  private Instant longPeriod = Instant.ofEpochMilli(3600001);
+  private Instant withinThrottlePeriod = Instant.ofEpochMilli(1);
+  private Instant exceedsThrottlePeriod = Instant.ofEpochMilli(3600001);
 
   private String zkConnectingString;
   private String helixClusterName;
@@ -107,16 +107,10 @@ public class GobblinHelixJobSchedulerTest {
             ConfigValueFactory.fromAnyRef(sourceJsonFile.getAbsolutePath()))
         .withValue(ConfigurationKeys.JOB_STATE_IN_STATE_STORE, ConfigValueFactory.fromAnyRef("true")).resolve();
 
-    zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    this.zkConnectingString = baseConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    this.helixClusterName = baseConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
     HelixUtils.createGobblinHelixCluster(zkConnectingString, helixClusterName);
-
-    HelixManager helixManager = HelixManagerFactory
-        .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-            zkConnectingString);
-    this.closer.register(() -> helixManager.disconnect());
-    helixManager.connect();
 
     this.localFs = FileSystem.getLocal(new Configuration());
 
@@ -140,214 +134,83 @@ public class GobblinHelixJobSchedulerTest {
     this.thread.start();
   }
 
+  // Time span exceeds throttle timeout, within same workflow, throttle is enabled
+  // Job will be updated
   @Test
   public void testNewJobAndUpdate()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "NewJobAndUpdate", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
-
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
-    }
+    runWorkflowTest(exceedsThrottlePeriod, "UpdateSameWorkflowLongPeriodThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix2, workflowIdSuffix2,
+        true, true);
   }
 
+  // Time span is within throttle timeout, within same workflow, throttle is enabled
+  // Job will not be updated
   @Test
   public void testUpdateSameWorkflowShortPeriodThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateSameWorkflowShortPeriodThrottle", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
-
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-    }
+    runWorkflowTest(withinThrottlePeriod, "UpdateSameWorkflowShortPeriodThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix2, workflowIdSuffix1,
+        true, true);
   }
 
+  // Time span exceeds throttle timeout, within same workflow, throttle is not enabled
+  // Job will be updated
   @Test
   public void testUpdateSameWorkflowLongPeriodNoThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateSameWorkflowLongPeriodNoThrottle", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
-    }
+    runWorkflowTest(exceedsThrottlePeriod, "UpdateSameWorkflowLongPeriodNoThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix2, workflowIdSuffix2,
+        false, true);
   }
 
+  // Time span is within throttle timeout, within same workflow, throttle is not enabled
+  // Job will be updated
   @Test
   public void testUpdateSameWorkflowShortPeriodNoThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateSameWorkflowShortPeriodNoThrottle", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      properties1.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties1.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties1));
-      connectAndAssertWorkflowId(workflowIdSuffix2, newJobConfigArrivalEvent, helixManager);
-    }
+    runWorkflowTest(withinThrottlePeriod, "UpdateSameWorkflowShortPeriodNoThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix2, workflowIdSuffix2,
+        false, true);
   }
 
+  // Time span is within throttle timeout, within different workflow, throttle is enabled
+  // Job will be updated
   public void testUpdateDiffWorkflowShortPeriodThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowShortPeriodThrottle1", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      final Properties properties2 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowShortPeriodThrottle2", workflowIdSuffix3);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent2 =
-          new NewJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2);
-      properties2.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
-    }
+    runWorkflowTest(withinThrottlePeriod, "UpdateDiffWorkflowShortPeriodThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix3, workflowIdSuffix3,
+        true, false);
   }
 
+  // Time span is within throttle timeout, within different workflow, throttle is not enabled
+  // Job will be updated
   @Test
   public void testUpdateDiffWorkflowShortPeriodNoThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, shortPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowShortPeriodNoThrottle1", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      final Properties properties2 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowShortPeriodNoThrottle2", workflowIdSuffix3);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent2 =
-          new NewJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2);
-      properties2.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
-    }
+    runWorkflowTest(withinThrottlePeriod, "UpdateDiffWorkflowShortPeriodNoThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix3, workflowIdSuffix3,
+        false, false);
   }
 
+  // Time span exceeds throttle timeout, within different workflow, throttle is enabled
+  // Job will be updated
   @Test
   public void testUpdateDiffWorkflowLongPeriodThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowLongPeriodThrottle1", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      final Properties properties2 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowLongPeriodThrottle2", workflowIdSuffix3);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent2 =
-          new NewJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2);
-      properties2.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "true");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
-    }
+    runWorkflowTest(exceedsThrottlePeriod, "UpdateDiffWorkflowLongPeriodThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix3, workflowIdSuffix3,
+        true, false);
   }
 
+  // Time span exceeds throttle timeout, within different workflow, throttle is not enabled
+  // Job will be updated
   @Test
   public void testUpdateDiffWorkflowLongPeriodNoThrottle()
       throws Exception {
-    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
-      mocked.when(Instant::now).thenReturn(beginTime, longPeriod);
-      HelixManager helixManager = HelixManagerFactory
-          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
-              zkConnectingString);
-      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
-      final Properties properties1 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowLongPeriodNoThrottle1", workflowIdSuffix1);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties1, workflowIdSuffix2);
-      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
-      connectAndAssertWorkflowId(workflowIdSuffix1, newJobConfigArrivalEvent, helixManager);
-
-      final Properties properties2 =
-          GobblinHelixJobLauncherTest.generateJobProperties(
-              this.baseConfig, "UpdateDiffWorkflowLongPeriodNoThrottle2", workflowIdSuffix3);
-      NewJobConfigArrivalEvent newJobConfigArrivalEvent2 =
-          new NewJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2);
-      properties2.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, "false");
-      jobScheduler.handleUpdateJobConfigArrival(
-          new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
-      connectAndAssertWorkflowId(workflowIdSuffix3, newJobConfigArrivalEvent2, helixManager);
-    }
+    runWorkflowTest(exceedsThrottlePeriod, "UpdateDiffWorkflowLongPeriodNoThrottle",
+        workflowIdSuffix1, workflowIdSuffix2, workflowIdSuffix3, workflowIdSuffix3,
+        false, false);
   }
 
   private GobblinHelixJobScheduler createJobScheduler(HelixManager helixManager) throws Exception {
@@ -379,6 +242,7 @@ public class GobblinHelixJobSchedulerTest {
 
   private String getWorkflowID (NewJobConfigArrivalEvent newJobConfigArrivalEvent, HelixManager helixManager )
       throws Exception {
+    // endTime is manually set time period that we allow HelixUtils to fetch workflowIdMap before timeout
     long endTime = System.currentTimeMillis() + 30000;
     Map<String, String> workflowIdMap;
     while (System.currentTimeMillis() < endTime) {
@@ -396,6 +260,43 @@ public class GobblinHelixJobSchedulerTest {
     return null;
   }
 
+  private void runWorkflowTest(Instant mockedTime, String jobSuffix, String newJobWorkflowIdSuffix,
+      String updateWorkflowIdSuffix1, String updateWorkflowIdSuffix2,
+      String assertUpdateWorkflowIdSuffix, boolean isThrottleEnabled, boolean isSameWorkflow) throws Exception {
+    try (MockedStatic<Instant> mocked = mockStatic(Instant.class, CALLS_REAL_METHODS)) {
+      mocked.when(Instant::now).thenReturn(beginTime, mockedTime);
+
+      // helixManager is set to local variable to avoid the HelixManager (ZkClient) is not connected error across tests
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER,
+              zkConnectingString);
+      GobblinHelixJobScheduler jobScheduler = createJobScheduler(helixManager);
+      final Properties properties =
+          GobblinHelixJobLauncherTest.generateJobProperties(
+              this.baseConfig, jobSuffix, newJobWorkflowIdSuffix);
+      NewJobConfigArrivalEvent newJobConfigArrivalEvent = createJobConfigArrivalEvent(properties, updateWorkflowIdSuffix1);
+      jobScheduler.handleNewJobConfigArrival(newJobConfigArrivalEvent);
+      connectAndAssertWorkflowId(newJobWorkflowIdSuffix, newJobConfigArrivalEvent, helixManager);
+
+      if (isSameWorkflow) {
+        properties.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, String.valueOf(isThrottleEnabled));
+        jobScheduler.handleUpdateJobConfigArrival(
+            new UpdateJobConfigArrivalEvent(properties.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties));
+        connectAndAssertWorkflowId(assertUpdateWorkflowIdSuffix, newJobConfigArrivalEvent, helixManager);
+      }
+      else {
+        final Properties properties2 =
+            GobblinHelixJobLauncherTest.generateJobProperties(
+                this.baseConfig, jobSuffix + '2', updateWorkflowIdSuffix2);
+        NewJobConfigArrivalEvent newJobConfigArrivalEvent2 =
+            new NewJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2);
+        properties2.setProperty(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY, String.valueOf(isThrottleEnabled));
+        jobScheduler.handleUpdateJobConfigArrival(
+            new UpdateJobConfigArrivalEvent(properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY), properties2));
+        connectAndAssertWorkflowId(assertUpdateWorkflowIdSuffix, newJobConfigArrivalEvent2, helixManager);
+      }
+    }
+  }
 
   @AfterClass
   public void tearDown()

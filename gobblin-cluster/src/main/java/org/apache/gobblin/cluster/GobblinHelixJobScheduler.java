@@ -113,8 +113,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
-  private final Duration throttleTimeoutDuration;
-  private ConcurrentHashMap<String, Instant> jobStartTimeMap;
+  private final Duration throttleTimeoutDurationSecs;
+  private ConcurrentHashMap<String, Instant> jobNameToStartTimeMap;
 
   public GobblinHelixJobScheduler(Config sysConfig,
                                   HelixManager jobHelixManager,
@@ -167,10 +167,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
-    this.throttleTimeoutDuration = Duration.of(ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY,
+    this.throttleTimeoutDurationSecs = Duration.of(ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY,
             GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY), ChronoUnit.SECONDS);
 
-    this.jobStartTimeMap = new ConcurrentHashMap<>();
+    this.jobNameToStartTimeMap = new ConcurrentHashMap<>();
 
   }
 
@@ -336,7 +336,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                  new GobblinHelixJobLauncherListener(this.launcherMetrics)));
       }
 
-      this.jobStartTimeMap.put(jobUri, Instant.now());
+      this.jobNameToStartTimeMap.put(jobUri, Instant.now());
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);
     }
@@ -346,15 +346,15 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   public void handleUpdateJobConfigArrival(UpdateJobConfigArrivalEvent updateJobArrival) {
     LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
     String jobName = updateJobArrival.getJobName();
-    boolean throttleEnabled = PropertiesUtils.getPropAsBoolean(updateJobArrival.getJobConfig(),
+    boolean isThrottleEnabled = PropertiesUtils.getPropAsBoolean(updateJobArrival.getJobConfig(),
         GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY,
         String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY));
 
-    if (throttleEnabled && this.jobStartTimeMap.containsKey(jobName)) {
-      Instant jobStartTime = this.jobStartTimeMap.get(jobName);
-      Duration workflowDuration = Duration.between(jobStartTime, Instant.now());
-      Duration difference = workflowDuration.minus(throttleTimeoutDuration);
-      if (difference.isNegative()) {
+    if (isThrottleEnabled && this.jobNameToStartTimeMap.containsKey(jobName)) {
+      Instant jobStartTime = this.jobNameToStartTimeMap.get(jobName);
+      Duration workflowRunningDuration = Duration.between(jobStartTime, Instant.now());
+      if (workflowRunningDuration.minus(throttleTimeoutDurationSecs).isNegative()) {
+        LOGGER.info("Replanning is skipped for job {} ", jobName);
         return;
       }
     }
