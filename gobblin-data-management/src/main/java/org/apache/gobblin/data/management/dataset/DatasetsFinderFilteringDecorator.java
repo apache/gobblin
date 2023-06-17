@@ -75,7 +75,7 @@ public class DatasetsFinderFilteringDecorator<T extends Dataset> implements Data
     log.info("Found {} datasets", datasets.size());
     List<T> allowedDatasets = Collections.emptyList();
     try {
-      allowedDatasets = datasets.parallelStream()
+      allowedDatasets = datasets.stream()
           .filter(dataset -> allowDatasetPredicates.stream()
               .map(CheckedExceptionPredicate::wrapToTunneled)
               .allMatch(p -> p.test(dataset)))
