@@ -34,6 +34,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
@@ -281,12 +282,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.eventBus.register(this);
     this.multiManager.connect();
-    disableLiveHelixInstances();
 
     // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
     // mode, such as YARN mode
     if (!this.isStandaloneMode) {
       this.multiManager.cleanUpJobs();
+      disableLiveHelixInstances();
     }
 
     configureHelixQuotaBasedTaskScheduling();
@@ -429,9 +430,18 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    */
   @VisibleForTesting
   void initializeHelixManager() {
-    this.multiManager = new GobblinHelixMultiManager(
-        this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus) ;
+    this.multiManager = createMultiManager();
     this.multiManager.addLeadershipChangeAwareComponent(this);
+  }
+
+  /***
+   * Can be overriden to inject mock GobblinHelixMultiManager
+   * @return a new GobblinHelixMultiManager
+   */
+  @VisibleForTesting
+  public GobblinHelixMultiManager createMultiManager() {
+    return new GobblinHelixMultiManager(
+        this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
   }
 
   @VisibleForTesting

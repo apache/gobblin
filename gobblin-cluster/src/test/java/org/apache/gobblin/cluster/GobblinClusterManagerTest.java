@@ -53,9 +53,6 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
@@ -85,6 +82,8 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
   private URL url;
 
   private Config config;
+
+  GobblinHelixMultiManager mockMultiManager;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -227,10 +226,7 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
 
   @Test
   public void testDisableLiveHelixInstances() throws Exception {
-    GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
-
-    TestGobblinClusterManager testGobblinClusterManager = new TestGobblinClusterManager(GobblinClusterManagerTest.class.getSimpleName(), TestHelper.TEST_APPLICATION_ID, config,
-            Optional.<Path>absent(), mockMultiManager);
+    this.mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
 
     HelixManager mockHelixManager = Mockito.mock(HelixManager.class);
     when(mockMultiManager.getJobClusterHelixManager()).thenReturn(mockHelixManager);
@@ -248,7 +244,7 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
     PropertyKey mockLiveInstancesKey = Mockito.mock(PropertyKey.class);
     when(mockBuilder.liveInstances()).thenReturn(mockLiveInstancesKey);
 
-    List<String> mockLiveInstances = Arrays.asList("TestInstance_0");
+    List<String> mockLiveInstances = Arrays.asList("TestInstance_0", "TestInstance_1", "TestInstance_2");
     when(mockAccessor.getChildNames(mockLiveInstancesKey)).thenReturn(mockLiveInstances);
 
     ConfigAccessor mockConfigAccessor = Mockito.mock(ConfigAccessor.class);
@@ -257,18 +253,25 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
     ClusterConfig mockClusterConfig = Mockito.mock(ClusterConfig.class);
     when(mockConfigAccessor.getClusterConfig("GobblinClusterManagerTest")).thenReturn(mockClusterConfig);
 
+    TestGobblinClusterManager testGobblinClusterManager = new TestGobblinClusterManager(GobblinClusterManagerTest.class.getSimpleName(), TestHelper.TEST_APPLICATION_ID, config,
+        Optional.<Path>absent());
     testGobblinClusterManager.start();
 
-    Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", "TestInstance_0", false);
+    for (String mockLiveInstance: mockLiveInstances) {
+      Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", mockLiveInstance, false);
+    }
   }
 
   public class TestGobblinClusterManager extends GobblinClusterManager {
     public TestGobblinClusterManager(String clusterName, String applicationId, Config sysConfig,
-        Optional<Path> appWorkDirOptional, GobblinHelixMultiManager multiManager)
+        Optional<Path> appWorkDirOptional)
         throws Exception {
       super(clusterName, applicationId, sysConfig, appWorkDirOptional);
-      this.multiManager = multiManager;
-      this.multiManager.addLeadershipChangeAwareComponent(this);
+    }
+
+    @Override
+    public GobblinHelixMultiManager createMultiManager() {
+      return mockMultiManager;
     }
   }
 }
