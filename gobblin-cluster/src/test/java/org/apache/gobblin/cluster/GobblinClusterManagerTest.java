@@ -82,17 +82,21 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
 
   private GobblinClusterManager gobblinClusterManager;
 
+  private URL url;
+
+  private Config config;
+
   @BeforeClass
   public void setUp() throws Exception {
     // Use a random ZK port
     this.testingZKServer = new TestingServer(-1);
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
-    URL url = GobblinClusterManagerTest.class.getClassLoader().getResource(
+    this.url = GobblinClusterManagerTest.class.getClassLoader().getResource(
         GobblinClusterManager.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
 
-    Config config = ConfigFactory.parseURL(url)
+    this.config = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY,
@@ -223,25 +227,10 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
 
   @Test
   public void testDisableLiveHelixInstances() throws Exception {
-    URL url = GobblinClusterManagerTest.class.getClassLoader().getResource(
-        GobblinClusterManager.class.getSimpleName() + ".conf");
-
-    Config config = ConfigFactory.parseURL(url)
-        .withValue("gobblin.cluster.zk.connection.string",
-            ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY,
-            ConfigValueFactory.fromAnyRef("DEFAULT:1,OTHER:10"))
-        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
-            ConfigValueFactory.fromAnyRef("value"))
-        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
-            ConfigValueFactory.fromAnyRef("true"))
-        .resolve();
-
-    GobblinClusterManager gobblinClusterManager1 = new GobblinClusterManager(GobblinClusterManagerTest.class.getSimpleName(), TestHelper.TEST_APPLICATION_ID, config,
-            Optional.<Path>absent());
-
     GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
-    gobblinClusterManager1.setHelixManager(mockMultiManager);
+
+    TestGobblinClusterManager testGobblinClusterManager = new TestGobblinClusterManager(GobblinClusterManagerTest.class.getSimpleName(), TestHelper.TEST_APPLICATION_ID, config,
+            Optional.<Path>absent(), mockMultiManager);
 
     HelixManager mockHelixManager = Mockito.mock(HelixManager.class);
     when(mockMultiManager.getJobClusterHelixManager()).thenReturn(mockHelixManager);
@@ -268,8 +257,18 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
     ClusterConfig mockClusterConfig = Mockito.mock(ClusterConfig.class);
     when(mockConfigAccessor.getClusterConfig("GobblinClusterManagerTest")).thenReturn(mockClusterConfig);
 
-    gobblinClusterManager1.start();
+    testGobblinClusterManager.start();
 
     Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", "TestInstance_0", false);
+  }
+
+  public class TestGobblinClusterManager extends GobblinClusterManager {
+    public TestGobblinClusterManager(String clusterName, String applicationId, Config sysConfig,
+        Optional<Path> appWorkDirOptional, GobblinHelixMultiManager multiManager)
+        throws Exception {
+      super(clusterName, applicationId, sysConfig, appWorkDirOptional);
+      this.multiManager = multiManager;
+      this.multiManager.addLeadershipChangeAwareComponent(this);
+    }
   }
 }
