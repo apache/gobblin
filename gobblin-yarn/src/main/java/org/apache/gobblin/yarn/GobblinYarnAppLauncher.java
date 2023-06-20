@@ -371,7 +371,6 @@ public class GobblinYarnAppLauncher {
     this.applicationId = getReconnectableApplicationId();
 
     if (!this.applicationId.isPresent()) {
-      disableLiveHelixInstances();
       LOGGER.info("No reconnectable application found so submitting a new application");
       this.yarnClient = potentialYarnClients.get(this.originalYarnRMAddress);
       this.applicationId = Optional.of(setupAndSubmitApplication());
@@ -454,7 +453,6 @@ public class GobblinYarnAppLauncher {
 
       if (!this.detachOnExitEnabled) {
         LOGGER.info("Disabling all live Helix instances..");
-        disableLiveHelixInstances();
       }
 
       disconnectHelixManager();
@@ -549,16 +547,6 @@ public class GobblinYarnAppLauncher {
    * NOTE: this is a workaround for an existing YARN bug. Once YARN has a fix to guarantee container kills on application
    * completion, this method should be removed.
    */
-  void disableLiveHelixInstances() {
-    String clusterName = this.helixManager.getClusterName();
-    HelixAdmin helixAdmin = this.helixManager.getClusterManagmentTool();
-    List<String> liveInstances = HelixUtils.getLiveInstances(this.helixManager);
-    LOGGER.warn("Found {} live instances in the cluster.", liveInstances.size());
-    for (String instanceName: liveInstances) {
-      LOGGER.warn("Disabling instance: {}", instanceName);
-      helixAdmin.enableInstance(clusterName, instanceName, false);
-    }
-  }
 
   @VisibleForTesting
   void disconnectHelixManager() {

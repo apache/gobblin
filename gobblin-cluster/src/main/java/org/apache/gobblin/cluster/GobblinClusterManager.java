@@ -35,6 +35,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.Criteria;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
@@ -280,6 +281,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.eventBus.register(this);
     this.multiManager.connect();
+    disableLiveHelixInstances();
 
     // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
     // mode, such as YARN mode
@@ -507,6 +509,18 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private static void printUsage(Options options) {
     HelpFormatter formatter = new HelpFormatter();
     formatter.printHelp(GobblinClusterManager.class.getSimpleName(), options);
+  }
+
+  public void disableLiveHelixInstances() {
+    HelixManager helixManager = this.multiManager.getJobClusterHelixManager();
+    String clusterName = helixManager.getClusterName();
+    HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
+    List<String> liveInstances = HelixUtils.getLiveInstances(helixManager);
+    LOGGER.warn("Found {} live instances in the cluster.", liveInstances.size());
+    for (String instanceName: liveInstances) {
+      LOGGER.warn("Disabling instance: {}", instanceName);
+      helixAdmin.enableInstance(clusterName, instanceName, false);
+    }
   }
 
   public static void main(String[] args) throws Exception {
