@@ -25,18 +25,16 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-<<<<<<< HEAD
-=======
 import org.apache.helix.ConfigAccessor;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
->>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.PropertyKey;
 import org.apache.helix.model.ClusterConfig;
 import org.apache.helix.model.Message;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -55,14 +53,11 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
-<<<<<<< HEAD
-=======
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
->>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 
 /**
  * Unit tests for {@link GobblinClusterManager}.
@@ -225,8 +220,6 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
     Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
   }
-<<<<<<< HEAD
-=======
 
   @Test
   public void testDisableLiveHelixInstances() throws Exception {
@@ -279,5 +272,4 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
 
     Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", "TestInstance_0", false);
   }
->>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 }
