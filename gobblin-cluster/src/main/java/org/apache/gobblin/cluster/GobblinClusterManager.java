@@ -432,6 +432,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.multiManager.addLeadershipChangeAwareComponent(this);
   }
 
+  void setHelixManager(GobblinHelixMultiManager multiManager) {
+    this.multiManager = multiManager;
+    this.multiManager.addLeadershipChangeAwareComponent(this);
+  }
+
   @VisibleForTesting
   void sendShutdownRequest() {
     Criteria criteria = new Criteria();

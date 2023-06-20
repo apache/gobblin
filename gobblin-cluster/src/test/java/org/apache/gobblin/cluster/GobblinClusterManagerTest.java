@@ -18,14 +18,23 @@
 package org.apache.gobblin.cluster;
 
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+<<<<<<< HEAD
+=======
+import org.apache.helix.ConfigAccessor;
+import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
+>>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.model.ClusterConfig;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
@@ -46,6 +55,14 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+<<<<<<< HEAD
+=======
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+>>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 
 /**
  * Unit tests for {@link GobblinClusterManager}.
@@ -208,4 +225,59 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
     Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
   }
+<<<<<<< HEAD
+=======
+
+  @Test
+  public void testDisableLiveHelixInstances() throws Exception {
+    URL url = GobblinClusterManagerTest.class.getClassLoader().getResource(
+        GobblinClusterManager.class.getSimpleName() + ".conf");
+
+    Config config = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+            ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY,
+            ConfigValueFactory.fromAnyRef("DEFAULT:1,OTHER:10"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
+            ConfigValueFactory.fromAnyRef("value"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
+            ConfigValueFactory.fromAnyRef("true"))
+        .resolve();
+
+    GobblinClusterManager gobblinClusterManager1 = new GobblinClusterManager(GobblinClusterManagerTest.class.getSimpleName(), TestHelper.TEST_APPLICATION_ID, config,
+            Optional.<Path>absent());
+
+    GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
+    gobblinClusterManager1.setHelixManager(mockMultiManager);
+
+    HelixManager mockHelixManager = Mockito.mock(HelixManager.class);
+    when(mockMultiManager.getJobClusterHelixManager()).thenReturn(mockHelixManager);
+
+    HelixAdmin mockHelixAdmin = Mockito.mock(HelixAdmin.class);
+    when(mockHelixManager.getClusterManagmentTool()).thenReturn(mockHelixAdmin);
+    when(mockHelixManager.getClusterName()).thenReturn("mockCluster");
+
+    HelixDataAccessor mockAccessor = Mockito.mock(HelixDataAccessor.class);
+    when(mockHelixManager.getHelixDataAccessor()).thenReturn(mockAccessor);
+
+    PropertyKey.Builder mockBuilder = Mockito.mock(PropertyKey.Builder.class);
+    when(mockAccessor.keyBuilder()).thenReturn(mockBuilder);
+
+    PropertyKey mockLiveInstancesKey = Mockito.mock(PropertyKey.class);
+    when(mockBuilder.liveInstances()).thenReturn(mockLiveInstancesKey);
+
+    List<String> mockLiveInstances = Arrays.asList("TestInstance_0");
+    when(mockAccessor.getChildNames(mockLiveInstancesKey)).thenReturn(mockLiveInstances);
+
+    ConfigAccessor mockConfigAccessor = Mockito.mock(ConfigAccessor.class);
+    when(mockHelixManager.getConfigAccessor()).thenReturn(mockConfigAccessor);
+
+    ClusterConfig mockClusterConfig = Mockito.mock(ClusterConfig.class);
+    when(mockConfigAccessor.getClusterConfig("GobblinClusterManagerTest")).thenReturn(mockClusterConfig);
+
+    gobblinClusterManager1.start();
+
+    Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", "TestInstance_0", false);
+  }
+>>>>>>> 08368ed6d ([GOBBLIN-1841] Implement disableLiveHelixInstances and unit test)
 }
