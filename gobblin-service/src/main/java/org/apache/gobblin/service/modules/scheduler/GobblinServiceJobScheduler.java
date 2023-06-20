@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.TimeZone;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.helix.HelixManager;
 import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
@@ -576,6 +577,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       this.scheduledFlowSpecs.remove(specURI.toString());
       this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
+      try {
+          FlowSpec spec = (FlowSpec) this.flowCatalog.get().getSpecs(specURI);
+          Properties properties = spec.getConfigAsProperties();
+          _log.info("Scheduler trigger validation: [flowName: {} flowGroup: {}] - Unscheduled Spec",
+                  properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+                  properties.getProperty(ConfigurationKeys.JOB_GROUP_KEY));
+        } catch (SpecNotFoundException e) {
+          _log.warn("Unable to retrieve spec for URI {}", specURI);
+        }
     } else {
       throw new JobException(String.format(
           "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",

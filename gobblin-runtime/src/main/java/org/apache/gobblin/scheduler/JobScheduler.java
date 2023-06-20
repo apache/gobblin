@@ -398,7 +398,8 @@ public class JobScheduler extends AbstractIdleService {
       // Schedule the Quartz job with a trigger built from the job configuration
       Trigger trigger = createTriggerForJob(job.getKey(), jobProps);
       this.scheduler.getScheduler().scheduleJob(job, trigger);
-      LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
+      LOG.info("Scheduler trigger validation: [flowName: {} flowGroup: {}] - nextTriggerTime: {} - "
+          + "Job scheduled", job.getKey().getName(), job.getKey().getGroup(), trigger.getNextFireTime());
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);
       throw new JobException("Failed to schedule job " + jobName, se);
@@ -612,7 +613,10 @@ public class JobScheduler extends AbstractIdleService {
       long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
       jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
           String.valueOf(triggerTimestampMillis));
-
+      LOG.info("Scheduler trigger validation: [flowName: {} flowGroup: {}] - triggerTime: {} nextTriggerTime: {} - "
+              + "Job triggered by scheduler",
+          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY),
+          triggerTimestampMillis, trigger.getNextFireTime().getTime());
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
