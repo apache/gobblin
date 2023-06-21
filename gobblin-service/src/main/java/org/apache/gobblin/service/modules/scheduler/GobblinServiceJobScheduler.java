@@ -36,9 +36,11 @@ import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
 import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.SchedulerException;
+import org.quartz.Trigger;
 import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,6 +99,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFI
  */
 @Alpha
 @Singleton
+@Slf4j
 public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
 
   // Scheduler related configuration
@@ -444,6 +447,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   @Override
+  public void scheduleJobLogUtil(JobDetail job, Trigger trigger) {
+    Properties jobProps = (Properties) job.getJobDataMap().get(JobScheduler.JOB_SCHEDULER_KEY);
+    log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - nextTriggerTime: {} - Job newly scheduled",
+        jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, ""),
+        jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, ""), trigger.getNextFireTime());
+  }
+
+  @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
@@ -580,7 +591,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
           FlowSpec spec = (FlowSpec) this.flowCatalog.get().getSpecs(specURI);
           Properties properties = spec.getConfigAsProperties();
-          _log.info("Scheduler trigger validation: [flowName: {} flowGroup: {}] - Unscheduled Spec",
+          _log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - Unscheduled Spec",
                   properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
                   properties.getProperty(ConfigurationKeys.JOB_GROUP_KEY));
         } catch (SpecNotFoundException e) {
@@ -676,13 +687,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     @Override
     public void executeImpl(JobExecutionContext context) throws JobExecutionException {
-      _log.info("Starting FlowSpec " + context.getJobDetail().getKey());
+      JobDetail jobDetail = context.getJobDetail();
+      _log.info("Starting FlowSpec " + jobDetail.getKey());
 
-      JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+      JobDataMap dataMap = jobDetail.getJobDataMap();
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
 
+      // Obtain trigger timestamp from trigger to pass to jobProps
+      Trigger trigger = context.getTrigger();
+      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
+      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(triggerTimestampMillis));
+      _log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - triggerTime: {} nextTriggerTime: {} - "
+              + "Job triggered by scheduler",
+          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY),
+          triggerTimestampMillis, trigger.getNextFireTime().getTime());
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
