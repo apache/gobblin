@@ -30,7 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-
 import org.apache.commons.compress.utils.Sets;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
@@ -39,6 +38,7 @@ import org.apache.helix.PropertyKey;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskPartitionState;
 import org.apache.helix.task.TaskState;
@@ -220,16 +220,18 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
+        WorkflowConfig workflowConfig = workFlowEntry.getValue();
 
-        // Only allocate for active workflows
-        if (workflowContext == null || !workflowContext.getWorkflowState().equals(TaskState.IN_PROGRESS)) {
+        // Only allocate for active workflows and those not marked for delete
+        if (workflowContext == null ||
+            TargetState.DELETE.equals(workflowConfig.getTargetState()) ||
+            !workflowContext.getWorkflowState().equals(TaskState.IN_PROGRESS)) {
           continue;
         }
 
         log.debug("Workflow name {} config {} context {}", workFlowEntry.getKey(), workFlowEntry.getValue(),
             workflowContext);
 
-        WorkflowConfig workflowConfig = workFlowEntry.getValue();
         JobDag jobDag = workflowConfig.getJobDag();
         Set<String> jobs = jobDag.getAllNodes();
 
