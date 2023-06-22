@@ -447,11 +447,16 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   @Override
-  public void scheduleJobLogUtil(JobDetail job, Trigger trigger) {
+  protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
     Properties jobProps = (Properties) job.getJobDataMap().get(JobScheduler.JOB_SCHEDULER_KEY);
-    log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - nextTriggerTime: {} - Job newly scheduled",
-        jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, ""),
-        jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, ""), trigger.getNextFireTime());
+    log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} - Job newly scheduled",
+         trigger.getNextFireTime());
+  }
+
+  protected static String jobSchedulerTracePrefixBuilder(Properties jobProps) {
+    return String.format("Scheduler trigger tracing: [flowName: %s flowGroup: %s] - ",
+        jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, "<<no flow name>>"),
+        jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<no flow group>>"));
   }
 
   @Override
@@ -591,9 +596,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
           FlowSpec spec = (FlowSpec) this.flowCatalog.get().getSpecs(specURI);
           Properties properties = spec.getConfigAsProperties();
-          _log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - Unscheduled Spec",
-                  properties.getProperty(ConfigurationKeys.JOB_NAME_KEY),
-                  properties.getProperty(ConfigurationKeys.JOB_GROUP_KEY));
+          _log.info(jobSchedulerTracePrefixBuilder(properties) + "Unscheduled Spec");
         } catch (SpecNotFoundException e) {
           _log.warn("Unable to retrieve spec for URI {}", specURI);
         }
@@ -701,10 +704,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
       jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
           String.valueOf(triggerTimestampMillis));
-      _log.info("Scheduler trigger tracing: [flowName: {} flowGroup: {}] - triggerTime: {} nextTriggerTime: {} - "
-              + "Job triggered by scheduler",
-          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY),
-          triggerTimestampMillis, trigger.getNextFireTime().getTime());
+      _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+              + "scheduler", triggerTimestampMillis, trigger.getNextFireTime().getTime());
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
