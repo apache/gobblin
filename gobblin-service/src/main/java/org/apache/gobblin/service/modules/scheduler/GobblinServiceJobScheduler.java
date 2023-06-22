@@ -30,14 +30,17 @@ import java.util.Properties;
 import java.util.TimeZone;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.helix.HelixManager;
 import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
 import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.SchedulerException;
+import org.quartz.Trigger;
 import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +99,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFI
  */
 @Alpha
 @Singleton
+@Slf4j
 public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
 
   // Scheduler related configuration
@@ -443,6 +447,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   @Override
+  protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
+    Properties jobProps = (Properties) job.getJobDataMap().get(PROPERTIES_KEY);
+    log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} - Job newly scheduled",
+         trigger.getNextFireTime());
+  }
+
+  protected static String jobSchedulerTracePrefixBuilder(Properties jobProps) {
+    return String.format("Scheduler trigger tracing: [flowName: %s flowGroup: %s] - ",
+        jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, "<<no flow name>>"),
+        jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<no flow group>>"));
+  }
+
+  @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
@@ -576,6 +593,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       this.scheduledFlowSpecs.remove(specURI.toString());
       this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
+      try {
+          FlowSpec spec = (FlowSpec) this.flowCatalog.get().getSpecs(specURI);
+          Properties properties = spec.getConfigAsProperties();
+          _log.info(jobSchedulerTracePrefixBuilder(properties) + "Unscheduled Spec");
+        } catch (SpecNotFoundException e) {
+          _log.warn("Unable to retrieve spec for URI {}", specURI);
+        }
     } else {
       throw new JobException(String.format(
           "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
@@ -666,13 +690,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     @Override
     public void executeImpl(JobExecutionContext context) throws JobExecutionException {
-      _log.info("Starting FlowSpec " + context.getJobDetail().getKey());
+      JobDetail jobDetail = context.getJobDetail();
+      _log.info("Starting FlowSpec " + jobDetail.getKey());
 
-      JobDataMap dataMap = context.getJobDetail().getJobDataMap();
+      JobDataMap dataMap = jobDetail.getJobDataMap();
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
 
+      // Obtain trigger timestamp from trigger to pass to jobProps
+      Trigger trigger = context.getTrigger();
+      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
+      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(triggerTimestampMillis));
+      _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+              + "scheduler", triggerTimestampMillis, trigger.getNextFireTime().getTime());
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {

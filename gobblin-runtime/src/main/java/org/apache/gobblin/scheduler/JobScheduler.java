@@ -398,13 +398,17 @@ public class JobScheduler extends AbstractIdleService {
       // Schedule the Quartz job with a trigger built from the job configuration
       Trigger trigger = createTriggerForJob(job.getKey(), jobProps);
       this.scheduler.getScheduler().scheduleJob(job, trigger);
-      LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
+      logNewlyScheduledJob(job, trigger);
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);
       throw new JobException("Failed to schedule job " + jobName, se);
     }
 
     this.scheduledJobs.put(jobName, job.getKey());
+  }
+
+  protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
+    LOG.info(String.format("Scheduled job %s. Next run: %s.", job.getKey(), trigger.getNextFireTime()));
   }
 
   /**
@@ -606,13 +610,6 @@ public class JobScheduler extends AbstractIdleService {
       JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
       Properties jobProps = (Properties) dataMap.get(PROPERTIES_KEY);
       JobListener jobListener = (JobListener) dataMap.get(JOB_LISTENER_KEY);
-      // Obtain trigger timestamp from trigger to pass to jobProps
-      Trigger trigger = context.getTrigger();
-      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
-      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(triggerTimestampMillis));
-
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
