@@ -34,13 +34,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowContext;
 import org.assertj.core.util.Lists;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -65,7 +63,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -106,7 +104,7 @@ public class GobblinHelixJobSchedulerTest {
   public void setUp()
       throws Exception {
     TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
-    System.out.println("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+    LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     URL url = GobblinHelixJobSchedulerTest.class.getClassLoader()
         .getResource(GobblinHelixJobSchedulerTest.class.getSimpleName() + ".conf");
@@ -285,7 +283,6 @@ public class GobblinHelixJobSchedulerTest {
             Thread.sleep(100);
             context = taskDriver.getWorkflowContext(workflowId);
           }
-
           return workflowId;
         }
       } catch(IllegalStateException | GobblinHelixUnexpectedStateException e){

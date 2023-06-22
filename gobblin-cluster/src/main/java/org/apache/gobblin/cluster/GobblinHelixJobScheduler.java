@@ -125,7 +125,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                   EventBus eventBus,
                                   Path appWorkDir, List<? extends Tag<?>> metadataTags,
                                   SchedulerService schedulerService,
-                                  MutableJobCatalog jobCatalog) throws Exception {
+                                  MutableJobCatalog jobCatalog,
+                                  Clock clock) throws Exception {
     super(ConfigUtils.configToProperties(sysConfig), schedulerService);
     this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(sysConfig, COMMON_JOB_PROPS));
     this.jobHelixManager = jobHelixManager;
@@ -344,7 +345,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
       this.jobSchedulerMetrics.updateTimeBeforeJobScheduling(jobProps);
       GobblinHelixJobLauncherListener listener = isThrottleEnabled ?
-          new GobblinThrottleHelixJobLauncherListener(this.launcherMetrics, jobNameToNextSchedulableTime,
+          new GobblinThrottlingHelixJobLauncherListener(this.launcherMetrics, jobNameToNextSchedulableTime,
               jobSchedulingThrottleTimeout, clock)
           : new GobblinHelixJobLauncherListener(this.launcherMetrics);
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {

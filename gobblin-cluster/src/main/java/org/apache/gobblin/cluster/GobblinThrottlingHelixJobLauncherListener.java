@@ -12,14 +12,18 @@ import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 
 
-public class GobblinThrottleHelixJobLauncherListener extends GobblinHelixJobLauncherListener {
+/***
+ * When throttle is enabled, this class is used for record jobNameToNextSchedulableTime...
+ */
 
-  public final static Logger LOG = LoggerFactory.getLogger(GobblinThrottleHelixJobLauncherListener.class);
+public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLauncherListener {
+
+  public final static Logger LOG = LoggerFactory.getLogger(GobblinThrottlingHelixJobLauncherListener.class);
   private ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime;
   private Duration helixJobSchedulingThrottleTimeout;
   private Clock clock;
 
-  GobblinThrottleHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics,
+  public GobblinThrottlingHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics,
       ConcurrentHashMap jobNameToNextSchedulableTime, Duration helixJobSchedulingThrottleTimeout, Clock clock) {
     super(jobLauncherMetrics);
     this.jobNameToNextSchedulableTime = jobNameToNextSchedulableTime;
@@ -32,8 +36,10 @@ public class GobblinThrottleHelixJobLauncherListener extends GobblinHelixJobLaun
       throws Exception {
     super.onJobPrepare(jobContext);
     Instant finishTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
+    // rename finishTime
     jobNameToNextSchedulableTime.put(jobContext.getJobName(), finishTime);
-    LOG.info(jobContext.getJobName() + " finishes onJobPrepare at " + finishTime );
+    LOG.info(jobContext.getJobName() + " finishes prepare.");
+    LOG.info(jobContext.getJobName() + " next schedulable time is  " + finishTime );
   }
 
   @Override
@@ -45,7 +51,8 @@ public class GobblinThrottleHelixJobLauncherListener extends GobblinHelixJobLaun
     } else {
       Instant finishTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
       jobNameToNextSchedulableTime.put(jobContext.getJobName(), finishTime);
-      LOG.info(jobContext.getJobName() + " finishes onJobCompletion at " + finishTime );
+      LOG.info(jobContext.getJobName() + " finishes completion.");
+      LOG.info(jobContext.getJobName() + " next schedulable time is " + finishTime );
     }
   }
 
