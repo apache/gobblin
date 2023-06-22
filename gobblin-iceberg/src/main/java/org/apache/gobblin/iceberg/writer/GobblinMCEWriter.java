@@ -131,12 +131,14 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private final Set<String> currentErrorDatasets = new HashSet<>();
   @Setter
   private int maxErrorDataset;
+  private final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
   private final Set<String> transientExceptionMessages;
   private final Set<String> nonTransientExceptionMessages;
   private final Map<String, ContextAwareTimer> metadataWriterWriteTimers = new HashMap<>();
   private final Map<String, ContextAwareTimer> metadataWriterFlushTimers = new HashMap<>();
   private final ContextAwareTimer hiveSpecComputationTimer;
+  private final Map<String, ContextAwareTimer> datasetTimers = new HashMap<>();
 
   @AllArgsConstructor
   static class TableStatus {
@@ -159,7 +161,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     List<Tag<?>> tags = Lists.newArrayList();
     String clusterIdentifier = ClustersNames.getInstance().getClusterName();
     tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
-    MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
+    metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
     eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
     for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
@@ -306,6 +308,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
       partitionKeysMap.put(tableString, spec.getTable().getPartitionKeys());
+      if (!datasetTimers.containsKey(tableName)) {
+        datasetTimers.put(tableName, metricContext.contextAwareTimer(tableName, 1, TimeUnit.HOURS));
+      }
       if (!tableOperationTypeMap.containsKey(tableString)) {
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
@@ -352,8 +357,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         writer.reset(dbName, tableName);
       } else {
         try {
-          Timer timer = metadataWriterWriteTimers.get(writer.getClass().getName());
-          try (Timer.Context context = timer.time()) {
+          Timer writeTimer = metadataWriterWriteTimers.get(writer.getClass().getName());
+          Timer datasetTimer = datasetTimers.get(tableName);
+          try (Timer.Context writeContext = writeTimer.time();
+              Timer.Context datasetContext = datasetTimer.time()) {
             writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
           }
         } catch (Exception e) {
@@ -433,8 +440,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         writer.reset(dbName, tableName);
       } else {
         try {
-          Timer timer = metadataWriterFlushTimers.get(writer.getClass().getName());
-          try (Timer.Context context = timer.time()) {
+          Timer flushTimer = metadataWriterFlushTimers.get(writer.getClass().getName());
+          Timer datasetTimer = datasetTimers.get(tableName);
+          try (Timer.Context flushContext = flushTimer.time();
+              Timer.Context datasetContext = datasetTimer.time()) {
             writer.flush(dbName, tableName);
           }
         } catch (IOException e) {
@@ -585,9 +594,10 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   }
 
   private void logTimers() {
+    logTimer(hiveSpecComputationTimer);
     metadataWriterWriteTimers.values().forEach(this::logTimer);
     metadataWriterFlushTimers.values().forEach(this::logTimer);
-    logTimer(hiveSpecComputationTimer);
+    datasetTimers.values().forEach(this::logTimer);
   }
 
   private void logTimer(ContextAwareTimer timer) {

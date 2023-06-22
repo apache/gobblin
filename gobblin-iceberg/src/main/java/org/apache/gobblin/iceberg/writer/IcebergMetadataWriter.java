@@ -826,7 +826,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         String topicName = getTopicName(tid, tableMetadata);
         if (tableMetadata.appendFiles.isPresent()) {
           tableMetadata.appendFiles.get().commit();
-          sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
+          try (Timer.Context context = new Timer().time()) {
+            sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
+            log.info("Sending audit counts for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+          }
           if (tableMetadata.completenessEnabled) {
             checkAndUpdateCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
           }
@@ -869,20 +872,25 @@ public class IcebergMetadataWriter implements MetadataWriter {
         UpdateProperties updateProperties = transaction.updateProperties();
         props.forEach(updateProperties::set);
         updateProperties.commit();
-        try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
+        try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName);
+            Timer.Context context = new Timer().time()) {
           transaction.commitTransaction();
+          log.info("Committing transaction for table {} took {} ms", tid, TimeUnit.NANOSECONDS.toMillis(context.stop()));
         }
 
         // Emit GTE for snapshot commits
         Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
         Map<String, String> currentProps = tableMetadata.table.get().properties();
-        submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
+        try (Timer.Context context = new Timer().time()) {
+          submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
+          log.info("Sending snapshot commit event for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+        }
 
         //Reset the table metadata for next accumulation period
         tableMetadata.reset(currentProps, highWatermark);
-        log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid.toString()));
+        log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid));
       } else {
-        log.info("There's no transaction initiated for the table {}", tid.toString());
+        log.info("There's no transaction initiated for the table {}", tid);
       }
     } catch (RuntimeException e) {
       throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
