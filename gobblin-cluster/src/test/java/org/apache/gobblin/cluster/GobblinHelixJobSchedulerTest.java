@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.conf.Configuration;
@@ -40,8 +41,6 @@ import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowContext;
 import org.assertj.core.util.Lists;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -298,17 +297,8 @@ public class GobblinHelixJobSchedulerTest {
     String newJobWorkflowIdSuffix, String updateWorkflowIdSuffix,
     String assertUpdateWorkflowIdSuffix, boolean isThrottleEnabled, boolean isSameWorkflow) throws Exception {
     Clock mockClock = Mockito.mock(Clock.class);
-    when(mockClock.instant()).thenAnswer(new Answer<Instant>() {
-      private int count = 0;
-      @Override
-      public Instant answer(InvocationOnMock invocation) {
-        if (count++ == 0) {
-          return beginTime;
-        } else {
-          return mockedTime;
-        }
-      }
-    });
+    AtomicInteger count = new AtomicInteger(0);
+    when(mockClock.instant()).thenAnswer(invocation -> count.getAndIncrement() == 0 ? beginTime : mockedTime);
 
     // Use GobblinHelixManagerFactory instead of HelixManagerFactory to avoid the connection error
     // helixManager is set to local variable to avoid the HelixManager (ZkClient) is not connected error across tests

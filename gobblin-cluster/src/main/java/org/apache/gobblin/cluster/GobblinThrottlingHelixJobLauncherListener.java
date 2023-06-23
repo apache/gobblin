@@ -12,10 +12,12 @@ import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 
 
-/***
- * When throttle is enabled, this class is used for record jobNameToNextSchedulableTime...
+/**
+ * A job listener used when {@link GobblinHelixJobLauncher} launches a job.
+ * In {@link GobblinHelixJobScheduler}, when throttling is enabled, this
+ * listener would record jobName to next schedulable time to decide whether
+ * the replanning should be executed or skipped.
  */
-
 public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLauncherListener {
 
   public final static Logger LOG = LoggerFactory.getLogger(GobblinThrottlingHelixJobLauncherListener.class);
@@ -35,11 +37,9 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
   public void onJobPrepare(JobContext jobContext)
       throws Exception {
     super.onJobPrepare(jobContext);
-    Instant finishTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
-    // rename finishTime
-    jobNameToNextSchedulableTime.put(jobContext.getJobName(), finishTime);
-    LOG.info(jobContext.getJobName() + " finishes prepare.");
-    LOG.info(jobContext.getJobName() + " next schedulable time is  " + finishTime );
+    Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
+    jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
+    LOG.info(jobContext.getJobName() + " finished prepare. The next schedulable time is  " + nextSchedulableTime );
   }
 
   @Override
@@ -49,10 +49,9 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
     if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
       jobNameToNextSchedulableTime.put(jobContext.getJobName(), Instant.ofEpochMilli(0));
     } else {
-      Instant finishTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
-      jobNameToNextSchedulableTime.put(jobContext.getJobName(), finishTime);
-      LOG.info(jobContext.getJobName() + " finishes completion.");
-      LOG.info(jobContext.getJobName() + " next schedulable time is " + finishTime );
+      Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
+      jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
+      LOG.info(jobContext.getJobName() + " finished completion. The next schedulable time is " + nextSchedulableTime );
     }
   }
 

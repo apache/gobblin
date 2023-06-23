@@ -371,7 +371,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (this.isThrottleEnabled &&
         this.jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.ofEpochMilli(0)).isAfter(clock.instant())) {
-      LOGGER.info("Replanning is skipped for job {} ", jobName);
+      LOGGER.info("Replanning is skipped for job {}. Current time is "
+          + clock.instant() + " and the next schedulable time would be "
+          + this.jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.ofEpochMilli(0)), jobName);
       return;
     }
 
