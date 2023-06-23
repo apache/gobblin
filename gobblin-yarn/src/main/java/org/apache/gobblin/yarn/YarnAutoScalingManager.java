@@ -222,7 +222,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
         WorkflowConfig workflowConfig = workFlowEntry.getValue();
 
-        // Only allocate for active workflows and those not marked for delete
+        // Only allocate for active workflows. Those marked for deletion are ignored but the existing containers won't
+        // be released until maxIdleTimeInMinutesBeforeScalingDown
         if (workflowContext == null ||
             TargetState.DELETE.equals(workflowConfig.getTargetState()) ||
             !workflowContext.getWorkflowState().equals(TaskState.IN_PROGRESS)) {
