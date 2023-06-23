@@ -270,24 +270,12 @@ public class GobblinHelixJobSchedulerTest {
       try{
         workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(helixManager,
             Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
-        if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
-          String workflowId = workflowIdMap.get(newJobConfigArrivalEvent.getJobName());
-          TaskDriver taskDriver = new TaskDriver(helixManager);
-
-          Set<TaskState> finalizedStates =
-              ImmutableSet.of(TaskState.ABORTED, TaskState.STOPPED, TaskState.COMPLETED, TaskState.FAILED, TaskState.TIMED_OUT);
-
-          WorkflowContext context = taskDriver.getWorkflowContext(workflowId);
-          while (context != null && !finalizedStates.contains(context.getWorkflowState())) {
-            Thread.sleep(100);
-            context = taskDriver.getWorkflowContext(workflowId);
-          }
-          return workflowId;
-        }
       } catch(IllegalStateException | GobblinHelixUnexpectedStateException e){
         continue;
       }
-
+      if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
+        return workflowIdMap.get(newJobConfigArrivalEvent.getJobName());
+      }
       Thread.sleep(100);
     }
     return null;
