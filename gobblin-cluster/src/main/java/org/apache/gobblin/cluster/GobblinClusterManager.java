@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -34,7 +35,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
@@ -281,16 +281,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     LOGGER.info("Starting the Gobblin Cluster Manager");
 
     this.eventBus.register(this);
-    this.multiManager.connect();
-
-    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
-    // mode, such as YARN mode
-    if (!this.isStandaloneMode) {
-      this.multiManager.cleanUpJobs();
-      disableLiveHelixInstances();
-    }
-
-    configureHelixQuotaBasedTaskScheduling();
+    setupHelix();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
@@ -317,6 +308,18 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       startAppLauncherAndServices();
     }
     this.started = true;
+  }
+
+  public synchronized void setupHelix() {
+    this.multiManager.connect();
+
+    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
+    // mode, such as YARN mode
+    if (!this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
+
+    configureHelixQuotaBasedTaskScheduling();
   }
 
   /**
@@ -438,7 +441,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    * Can be overriden to inject mock GobblinHelixMultiManager
    * @return a new GobblinHelixMultiManager
    */
-  @VisibleForTesting
   public GobblinHelixMultiManager createMultiManager() {
     return new GobblinHelixMultiManager(
         this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
@@ -516,17 +518,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     formatter.printHelp(GobblinClusterManager.class.getSimpleName(), options);
   }
 
-  public void disableLiveHelixInstances() {
-    HelixManager helixManager = this.multiManager.getJobClusterHelixManager();
-    String clusterName = helixManager.getClusterName();
-    HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
-    List<String> liveInstances = HelixUtils.getLiveInstances(helixManager);
-    LOGGER.warn("Found {} live instances in the cluster.", liveInstances.size());
-    for (String instanceName: liveInstances) {
-      LOGGER.warn("Disabling instance: {}", instanceName);
-      helixAdmin.enableInstance(clusterName, instanceName, false);
-    }
-  }
 
   public static void main(String[] args) throws Exception {
     Options options = buildOptions();

@@ -28,15 +28,18 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
+import org.apache.helix.HelixProperty;
 import org.apache.helix.PropertyKey;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.InstanceConfig;
+import org.apache.helix.model.LiveInstance;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.TargetState;
@@ -446,6 +449,19 @@ public class HelixUtils {
     HelixDataAccessor accessor = helixManager.getHelixDataAccessor();
     PropertyKey liveInstancesKey = accessor.keyBuilder().liveInstances();
     return accessor.getChildNames(liveInstancesKey);
+  }
+
+  /**
+   * Getting all instances (Helix Participants) in cluster at this moment.
+   * Note that the raw result could contains AppMaster node and replanner node.
+   * @param filterString Helix instances whose name containing fitlerString will pass filtering.
+   */
+  public static Set<String> getParticipants(HelixManager helixManager, String filterString) {
+    HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+    PropertyKey.Builder keyBuilder = helixDataAccessor.keyBuilder();
+    PropertyKey liveInstance = keyBuilder.liveInstances();
+    Map<String, HelixProperty> childValuesMap = helixDataAccessor.getChildValuesMap(liveInstance);
+    return childValuesMap.keySet().stream().filter(x -> filterString.isEmpty() || x.contains(filterString)).collect(Collectors.toSet());
   }
 
   public static boolean isInstanceLive(HelixManager helixManager, String instanceName) {
