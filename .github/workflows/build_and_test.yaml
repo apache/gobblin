@@ -19,12 +19,13 @@ name: Build and Run Tests
 
 on:
   push:
-    # Publish only on `master`
     branches:
       - master
+      - temporal-poc 
   pull_request:
     branches:
       - master
+      - temporal-poc 
   release:
     types: [published, edited]
 
