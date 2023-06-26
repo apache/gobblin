@@ -19,10 +19,6 @@
 apply from: 'gradle/scripts/environment.gradle'
 
 buildscript {
-  configurations.all {
-    exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-  }
-
   apply from: 'gradle/scripts/repositories.gradle'
   apply from: 'gradle/scripts/defaultBuildProperties.gradle'
   apply from: 'gradle/scripts/computeVersions.gradle'

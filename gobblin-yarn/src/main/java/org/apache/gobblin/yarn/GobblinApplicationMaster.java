@@ -34,6 +34,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
@@ -55,6 +56,7 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinHelixMultiManager;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
@@ -142,14 +144,15 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   @Override
   public synchronized void setupHelix() {
     super.setupHelix();
-    this.disableTaskRunnersFromPreviousExecutions();
+    this.disableTaskRunnersFromPreviousExecutions(this.multiManager);
   }
 
-  public void disableTaskRunnersFromPreviousExecutions() {
-    HelixManager helixManager = this.multiManager.getJobClusterHelixManager();
+  public static void disableTaskRunnersFromPreviousExecutions(GobblinHelixMultiManager multiManager) {
+    HelixManager helixManager = multiManager.getJobClusterHelixManager();
+    HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
     String clusterName = helixManager.getClusterName();
     HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
-    Set<String> taskRunners = HelixUtils.getParticipants(helixManager,
+    Set<String> taskRunners = HelixUtils.getParticipants(helixDataAccessor,
         GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX);
     LOGGER.warn("Found {} task runners in the cluster.", taskRunners.size());
     for (String taskRunner: taskRunners) {

@@ -39,7 +39,6 @@ import org.apache.helix.PropertyKey;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.model.InstanceConfig;
-import org.apache.helix.model.LiveInstance;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.TargetState;
@@ -453,11 +452,10 @@ public class HelixUtils {
 
   /**
    * Getting all instances (Helix Participants) in cluster at this moment.
-   * Note that the raw result could contains AppMaster node and replanner node.
+   * Note that the raw result could contain AppMaster node and replanner node.
    * @param filterString Helix instances whose name containing fitlerString will pass filtering.
    */
-  public static Set<String> getParticipants(HelixManager helixManager, String filterString) {
-    HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+  public static Set<String> getParticipants(HelixDataAccessor helixDataAccessor, String filterString) {
     PropertyKey.Builder keyBuilder = helixDataAccessor.keyBuilder();
     PropertyKey liveInstance = keyBuilder.liveInstances();
     Map<String, HelixProperty> childValuesMap = helixDataAccessor.getChildValuesMap(liveInstance);
