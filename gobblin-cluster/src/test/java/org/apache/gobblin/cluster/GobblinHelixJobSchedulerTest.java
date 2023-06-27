@@ -291,16 +291,12 @@ public class GobblinHelixJobSchedulerTest {
     return null;
   }
 
-  private void runWorkflowTest(Duration mockedTime, String jobSuffix,
+  private void runWorkflowTest(Duration mockedPeriod, String jobSuffix,
     String newJobWorkflowIdSuffix, String updateWorkflowIdSuffix,
     String assertUpdateWorkflowIdSuffix, boolean isThrottleEnabled, boolean isSameWorkflow) throws Exception {
     Clock mockClock = Mockito.mock(Clock.class);
     AtomicReference<Instant> nextInstant = new AtomicReference<>(beginTime);
-    when(mockClock.instant()).thenAnswer(invocation -> {
-      Instant currentInstant = nextInstant.get();
-      nextInstant.set(currentInstant.plus(mockedTime));
-      return currentInstant;
-    });
+    when(mockClock.instant()).thenAnswer(invocation -> nextInstant.getAndAccumulate(nextInstant.get(), (currentInstant, x) -> currentInstant.plus(mockedPeriod)));
 
     // Use GobblinHelixManagerFactory instead of HelixManagerFactory to avoid the connection error
     // helixManager is set to local variable to avoid the HelixManager (ZkClient) is not connected error across tests

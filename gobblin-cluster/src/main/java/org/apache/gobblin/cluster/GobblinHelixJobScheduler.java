@@ -235,9 +235,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (cleanAllDistJobs) {
       for (org.apache.gobblin.configuration.State state : this.jobsMapping.getAllStates()) {
-        String jobUri = state.getId();
-        LOGGER.info("Delete mapping for job " + jobUri);
-        this.jobsMapping.deleteMapping(jobUri);
+        String jobName = state.getId();
+        LOGGER.info("Delete mapping for job " + jobName);
+        this.jobsMapping.deleteMapping(jobName);
       }
     }
   }
@@ -333,20 +333,20 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Subscribe
   public synchronized void handleNewJobConfigArrival(NewJobConfigArrivalEvent newJobArrival) {
-    String jobUri = newJobArrival.getJobName();
-    LOGGER.info("Received new job configuration of job " + jobUri);
+    String jobName = newJobArrival.getJobName();
+    LOGGER.info("Received new job configuration of job " + jobName);
 
-    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobUri, Instant.EPOCH);
+    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.EPOCH);
     if (this.isThrottleEnabled && clock.instant().isBefore(nextSchedulableTime)) {
       LOGGER.info("Adding new job is skipped for job {}. Current time is {} and the next schedulable time would be {}",
-          jobUri,
+          jobName,
           clock.instant(),
           nextSchedulableTime
       );
       return;
     }
     nextSchedulableTime = clock.instant().plus(jobSchedulingThrottleTimeout);
-    jobNameToNextSchedulableTime.put(jobUri, nextSchedulableTime);
+    jobNameToNextSchedulableTime.put(jobName, nextSchedulableTime);
 
     try {
       Properties jobProps = new Properties();
@@ -354,7 +354,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       jobProps.putAll(newJobArrival.getJobConfig());
 
       // set uri so that we can delete this job later
-      jobProps.setProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI, jobUri);
+      jobProps.setProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI, jobName);
 
       this.jobSchedulerMetrics.updateTimeBeforeJobScheduling(jobProps);
       GobblinHelixJobLauncherListener listener = isThrottleEnabled ?
@@ -362,27 +362,30 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
               jobSchedulingThrottleTimeout, clock)
           : new GobblinHelixJobLauncherListener(this.launcherMetrics);
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        LOGGER.info("Scheduling job " + jobUri);
+        LOGGER.info("Scheduling job " + jobName);
         scheduleJob(jobProps, listener);
       } else {
-        LOGGER.info("No job schedule found, so running job " + jobUri);
+        LOGGER.info("No job schedule found, so running job " + jobName);
         this.jobExecutor.execute(new NonScheduledJobRunner(jobProps, listener));
       }
     } catch (JobException je) {
-      LOGGER.error("Failed to schedule or run job " + jobUri, je);
-      jobNameToNextSchedulableTime.put(jobUri, Instant.EPOCH);
+      LOGGER.error("Failed to schedule or run job {} . Reset the next scheduable time to {}",
+          jobName,
+          Instant.EPOCH,
+          je);
+      jobNameToNextSchedulableTime.put(jobName, Instant.EPOCH);
     }
   }
 
   @Subscribe
   public synchronized void handleUpdateJobConfigArrival(UpdateJobConfigArrivalEvent updateJobArrival) {
     LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
-    String jobUri = updateJobArrival.getJobName();
+    String jobName = updateJobArrival.getJobName();
 
-    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobUri, Instant.EPOCH);
+    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.EPOCH);
     if (this.isThrottleEnabled && clock.instant().isBefore(nextSchedulableTime)) {
       LOGGER.info("Replanning is skipped for job {}. Current time is {} and the next schedulable time would be {}",
-          jobUri,
+          jobName,
           clock.instant(),
           nextSchedulableTime
       );
@@ -415,6 +418,15 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
   }
 
+  /***
+   * Deleting a workflow with throttling enabled means that the next
+   * schedulable time for the workflow will remain unchanged.
+   * Note: In such case, it is required to wait until the throttle
+   * timeout period elapses before the workflow can be rescheduled.
+   *
+   * @param deleteJobArrival
+   * @throws InterruptedException
+   */
   @Subscribe
   public synchronized void handleDeleteJobConfigArrival(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
     LOGGER.info("Received delete for job configuration of job " + deleteJobArrival.getJobName());
@@ -429,8 +441,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Subscribe
   public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival)
       throws InterruptedException {
-    String jobUri = cancelJobArrival.getJoburi();
-    LOGGER.info("Received cancel for job configuration of job " + jobUri);
+    String jobName = cancelJobArrival.getJoburi();
+    LOGGER.info("Received cancel for job configuration of job " + jobName);
     Optional<String> distributedJobMode;
     Optional<String> planningJob = Optional.empty();
     Optional<String> actualJob = Optional.empty();
@@ -440,14 +452,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobSchedulerMetrics.numCancellationStart.incrementAndGet();
 
     try {
-      distributedJobMode = this.jobsMapping.getDistributedJobMode(jobUri);
+      distributedJobMode = this.jobsMapping.getDistributedJobMode(jobName);
       if (distributedJobMode.isPresent() && Boolean.parseBoolean(distributedJobMode.get())) {
-        planningJob = this.jobsMapping.getPlanningJobId(jobUri);
+        planningJob = this.jobsMapping.getPlanningJobId(jobName);
       } else {
-        actualJob = this.jobsMapping.getActualJobId(jobUri);
+        actualJob = this.jobsMapping.getActualJobId(jobName);
       }
     } catch (IOException e) {
-      LOGGER.warn("jobsMapping could not be retrieved for job {}", jobUri);
+      LOGGER.warn("jobsMapping could not be retrieved for job {}", jobName);
       return;
     }
 
@@ -522,7 +534,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         GobblinHelixJobScheduler.this.jobSchedulerMetrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
         GobblinHelixJobScheduler.this.runJob(this.jobProps, this.jobListener);
       } catch (JobException je) {
-        LOGGER.error("Failed to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+        LOGGER.error("Failed to schedule or run job to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }
     }
   }
