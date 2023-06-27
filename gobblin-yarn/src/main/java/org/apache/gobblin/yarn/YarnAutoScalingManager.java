@@ -260,7 +260,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       }
       // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
       // and potentially replanner-instance.
-      Set<String> allParticipants = HelixUtils.getParticipants(helixDataAccessor,HELIX_YARN_INSTANCE_NAME_PREFIX);
+      Set<String> allParticipants = HelixUtils.getParticipants(helixDataAccessor, HELIX_YARN_INSTANCE_NAME_PREFIX);
 
       // Find all joined participants not in-use for this round of inspection.
       // If idle time is beyond tolerance, mark the instance as unused by assigning timestamp as -1.

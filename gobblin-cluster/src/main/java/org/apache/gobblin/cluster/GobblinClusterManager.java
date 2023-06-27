@@ -440,8 +440,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    * @return a new GobblinHelixMultiManager
    */
   public GobblinHelixMultiManager createMultiManager() {
-    return new GobblinHelixMultiManager(
-        this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
+    return new GobblinHelixMultiManager(this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
   }
 
   @VisibleForTesting
@@ -515,7 +514,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     HelpFormatter formatter = new HelpFormatter();
     formatter.printHelp(GobblinClusterManager.class.getSimpleName(), options);
   }
-
 
   public static void main(String[] args) throws Exception {
     Options options = buildOptions();

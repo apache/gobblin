@@ -1,5 +1,6 @@
 package org.apache.gobblin.yarn;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +18,7 @@ import junit.framework.TestCase;
 
 import org.apache.gobblin.cluster.GobblinHelixMultiManager;
 
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 
@@ -42,12 +44,21 @@ public class GobblinApplicationMasterTest extends TestCase {
     when(mockBuilder.liveInstances()).thenReturn(mockLiveInstancesKey);
 
     int instanceCount = 3;
-    Map<String, HelixProperty> mockChildValuesMap = new HashMap<>();
+
+    // GobblinYarnTaskRunner prefix would be disabled, while GobblinClusterManager prefix will not
+    ArrayList<String> gobblinYarnTaskRunnerPrefix = new ArrayList<String>();
+    ArrayList<String> gobblinClusterManagerPrefix = new ArrayList<String>();
     for (int i = 0; i < instanceCount; i++) {
-      mockChildValuesMap.put("GobblinYarnTaskRunner_TestInstance_" + i, Mockito.mock(HelixProperty.class));
+      gobblinYarnTaskRunnerPrefix.add("GobblinYarnTaskRunner_TestInstance_" + i);
+      gobblinClusterManagerPrefix.add("GobblinClusterManager_TestInstance_" + i);
     }
 
-    when(mockAccessor.getChildValuesMap(mockLiveInstancesKey)).thenReturn(mockChildValuesMap);
+    Map<String, HelixProperty> mockChildValues = new HashMap<>();
+    for (int i = 0; i < instanceCount; i++) {
+      mockChildValues.put(gobblinYarnTaskRunnerPrefix.get(i), Mockito.mock(HelixProperty.class));
+      mockChildValues.put(gobblinClusterManagerPrefix.get(i), Mockito.mock(HelixProperty.class));
+    }
+    when(mockAccessor.getChildValuesMap(mockLiveInstancesKey)).thenReturn(mockChildValues);
 
     ConfigAccessor mockConfigAccessor = Mockito.mock(ConfigAccessor.class);
     when(mockHelixManager.getConfigAccessor()).thenReturn(mockConfigAccessor);
@@ -57,8 +68,9 @@ public class GobblinApplicationMasterTest extends TestCase {
 
     GobblinApplicationMaster.disableTaskRunnersFromPreviousExecutions(mockMultiManager);
 
-    for (String mockLiveInstance: mockChildValuesMap.keySet()) {
-      Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", mockLiveInstance, false);
+    for (int i = 0; i < instanceCount; i++) {
+      Mockito.verify(mockHelixAdmin).enableInstance("mockCluster", gobblinYarnTaskRunnerPrefix.get(i), false);
+      Mockito.verify(mockHelixAdmin, times(0)).enableInstance("mockCluster", gobblinClusterManagerPrefix.get(i), false);
     }
   }
 }

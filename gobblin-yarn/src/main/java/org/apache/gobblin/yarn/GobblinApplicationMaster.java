@@ -155,7 +155,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     Set<String> taskRunners = HelixUtils.getParticipants(helixDataAccessor,
         GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX);
     LOGGER.warn("Found {} task runners in the cluster.", taskRunners.size());
-    for (String taskRunner: taskRunners) {
+    for (String taskRunner : taskRunners) {
       LOGGER.warn("Disabling instance: {}", taskRunner);
       helixAdmin.enableInstance(clusterName, taskRunner, false);
     }
