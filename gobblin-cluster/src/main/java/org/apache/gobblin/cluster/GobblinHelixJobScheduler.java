@@ -350,15 +350,11 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
           : new GobblinHelixJobLauncherListener(this.launcherMetrics);
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + jobUri);
-        scheduleJob(jobProps,
-            listener);
+        scheduleJob(jobProps, listener);
       } else {
-        LOGGER.info("No job schedule"
-            + " found, so running job " + jobUri);
-        this.jobExecutor.execute(new NonScheduledJobRunner(jobProps,
-            listener));
+        LOGGER.info("No job schedule found, so running job " + jobUri);
+        this.jobExecutor.execute(new NonScheduledJobRunner(jobProps, listener));
       }
-
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);
     }
@@ -369,8 +365,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
     String jobName = updateJobArrival.getJobName();
 
-    if (this.isThrottleEnabled &&
-        this.jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.ofEpochMilli(0)).isAfter(clock.instant())) {
+    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.MIN);
+    if (this.isThrottleEnabled && clock.instant().isBefore(nextSchedulableTime)) {
       LOGGER.info("Replanning is skipped for job {}. Current time is "
           + clock.instant() + " and the next schedulable time would be "
           + this.jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.ofEpochMilli(0)), jobName);
@@ -485,10 +481,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         LOGGER.warn("Could not find Helix Workflow Id for job: {}", deleteJobArrival.getJobName());
       }
     }
-  }
-
-  public void setThrottleEnabled(boolean throttleEnabled) {
-    isThrottleEnabled = throttleEnabled;
   }
 
   /**

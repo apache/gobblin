@@ -39,7 +39,7 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
     super.onJobPrepare(jobContext);
     Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
     jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
-    LOG.info(jobContext.getJobName() + " finished prepare. The next schedulable time is  " + nextSchedulableTime );
+    LOG.info("{} finished preparing. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
   }
 
   @Override
@@ -47,11 +47,14 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
       throws Exception {
     super.onJobCompletion(jobContext);
     if (jobContext.getJobState().getState() == JobState.RunningState.FAILED) {
-      jobNameToNextSchedulableTime.put(jobContext.getJobName(), Instant.ofEpochMilli(0));
+      jobNameToNextSchedulableTime.put(jobContext.getJobName(), Instant.EPOCH);
+      LOG.info("{} failed. The next schedulable time is {} so that any future schedule attempts will be allowed.",
+          jobContext.getJobName(),
+          Instant.EPOCH);
     } else {
       Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
       jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
-      LOG.info(jobContext.getJobName() + " finished completion. The next schedulable time is " + nextSchedulableTime );
+      LOG.info("{} is completed. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
     }
   }
 
@@ -59,6 +62,10 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
   public void onJobCancellation(JobContext jobContext)
       throws Exception {
     super.onJobCancellation(jobContext);
-    jobNameToNextSchedulableTime.put(jobContext.getJobName(), Instant.ofEpochMilli(0));
+    jobNameToNextSchedulableTime.put(jobContext.getJobName(), Instant.EPOCH);
+    LOG.info("{} is cancelled. The next schedulable time is {} so that any future schedule attempts will be allowed.",
+        jobContext.getJobName(),
+        Instant.EPOCH);
+
   }
 }

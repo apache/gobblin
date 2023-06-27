@@ -27,7 +27,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.curator.test.TestingServer;
@@ -36,9 +35,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
-import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.TaskState;
-import org.apache.helix.task.WorkflowContext;
 import org.assertj.core.util.Lists;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -49,7 +45,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
@@ -68,13 +63,10 @@ import static org.mockito.Mockito.when;
 /**
  * Unit tests for {@link org.apache.gobblin.cluster.GobblinHelixJobScheduler}.
  *
- */
-
-/**
  * In all test cases, we use GobblinHelixManagerFactory instead of
- * HelixManagerFactory, and use HelixManager as a local variable to avoid
- * the HelixManager (ZkClient) is not connected error when that's set as
- * a global variable across tests.
+ * HelixManagerFactory, and instantiate a local HelixManager per test to
+ * provide isolation and prevent errors caused by the ZKClient being shared
+ * (e.g. ZKClient is not connected exceptions).
  */
 @Test(groups = {"gobblin.cluster"}, singleThreaded = true)
 public class GobblinHelixJobSchedulerTest {
@@ -90,9 +82,9 @@ public class GobblinHelixJobSchedulerTest {
   private final String workflowIdSuffix1 = "_1504201348471";
   private final String workflowIdSuffix2 = "_1504201348472";
 
-  private Instant beginTime = Instant.ofEpochMilli(0);
-  private Instant withinThrottlePeriod = beginTime.plus(1, ChronoUnit.SECONDS);
-  private Instant exceedsThrottlePeriod = beginTime.plus(
+  private final Instant beginTime = Instant.EPOCH;
+  private final Instant withinThrottlePeriod = beginTime.plus(1, ChronoUnit.SECONDS);
+  private final Instant exceedsThrottlePeriod = beginTime.plus(
       GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY + 1,
       ChronoUnit.SECONDS);
 
@@ -148,8 +140,11 @@ public class GobblinHelixJobSchedulerTest {
     this.thread.start();
   }
 
-  // Time span exceeds throttle timeout, within same workflow, throttle is enabled
-  // Job will be updated
+  /***
+   * Time span exceeds throttle timeout, within same workflow, throttle is enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateSameWorkflowLongPeriodThrottle()
       throws Exception {
@@ -158,8 +153,11 @@ public class GobblinHelixJobSchedulerTest {
         true, true);
   }
 
-  // Time span is within throttle timeout, within same workflow, throttle is enabled
-  // Job will not be updated
+  /***
+   * Time span is within throttle timeout, within same workflow, throttle is enabled
+   * Job will not be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateSameWorkflowShortPeriodThrottle()
       throws Exception {
@@ -168,8 +166,11 @@ public class GobblinHelixJobSchedulerTest {
         true, true);
   }
 
-  // Time span exceeds throttle timeout, within same workflow, throttle is not enabled
-  // Job will be updated
+  /***
+   * Time span exceeds throttle timeout, within same workflow, throttle is not enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateSameWorkflowLongPeriodNoThrottle()
       throws Exception {
@@ -178,8 +179,11 @@ public class GobblinHelixJobSchedulerTest {
         false, true);
   }
 
-  // Time span is within throttle timeout, within same workflow, throttle is not enabled
-  // Job will be updated
+  /***
+   * Time span is within throttle timeout, within same workflow, throttle is not enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateSameWorkflowShortPeriodNoThrottle()
       throws Exception {
@@ -188,8 +192,11 @@ public class GobblinHelixJobSchedulerTest {
         false, true);
   }
 
-  // Time span is within throttle timeout, within different workflow, throttle is enabled
-  // Job will be updated
+  /***
+   * Time span is within throttle timeout, within different workflow, throttle is enabled
+   * Job will be updated
+   * @throws Exception
+   */
   public void testUpdateDiffWorkflowShortPeriodThrottle()
       throws Exception {
     runWorkflowTest(withinThrottlePeriod, "UpdateDiffWorkflowShortPeriodThrottle",
@@ -197,8 +204,11 @@ public class GobblinHelixJobSchedulerTest {
         true, false);
   }
 
-  // Time span is within throttle timeout, within different workflow, throttle is not enabled
-  // Job will be updated
+  /***
+   * Time span is within throttle timeout, within different workflow, throttle is not enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateDiffWorkflowShortPeriodNoThrottle()
       throws Exception {
@@ -207,8 +217,11 @@ public class GobblinHelixJobSchedulerTest {
         false, false);
   }
 
-  // Time span exceeds throttle timeout, within different workflow, throttle is enabled
-  // Job will be updated
+  /***
+   * Time span exceeds throttle timeout, within different workflow, throttle is enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateDiffWorkflowLongPeriodThrottle()
       throws Exception {
@@ -217,8 +230,11 @@ public class GobblinHelixJobSchedulerTest {
         true, false);
   }
 
-  // Time span exceeds throttle timeout, within different workflow, throttle is not enabled
-  // Job will be updated
+  /***
+   * Time span exceeds throttle timeout, within different workflow, throttle is not enabled
+   * Job will be updated
+   * @throws Exception
+   */
   @Test
   public void testUpdateDiffWorkflowLongPeriodNoThrottle()
       throws Exception {
@@ -234,16 +250,10 @@ public class GobblinHelixJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     NonObservingFSJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
     jobCatalog.startAsync();
-    GobblinHelixJobScheduler gobblinHelixJobScheduler;
-    if (isThrottleEnabled) {
-      gobblinHelixJobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), helixManager, java.util.Optional.empty(),
+    Config helixJobSchedulerConfig = ConfigFactory.empty().withValue("helix.job.scheduling.throttle.enabled",
+        ConfigValueFactory.fromAnyRef(isThrottleEnabled));
+    GobblinHelixJobScheduler gobblinHelixJobScheduler = new GobblinHelixJobScheduler(helixJobSchedulerConfig, helixManager, java.util.Optional.empty(),
           new EventBus(), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog, clock);
-    }
-    else {
-      gobblinHelixJobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), helixManager, java.util.Optional.empty(),
-          new EventBus(), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
-    }
-    gobblinHelixJobScheduler.setThrottleEnabled(isThrottleEnabled);
     return gobblinHelixJobScheduler;
   }
 
@@ -263,14 +273,14 @@ public class GobblinHelixJobSchedulerTest {
 
   private String getWorkflowID (NewJobConfigArrivalEvent newJobConfigArrivalEvent, HelixManager helixManager)
       throws Exception {
-    // endTime is manually set time period that we allow HelixUtils to fetch workflowIdMap before timeout
+    // Poll helix for up to 30 seconds to fetch until a workflow with a matching job name exists in Helix and then return that workflowID
     long endTime = System.currentTimeMillis() + 30000;
     Map<String, String> workflowIdMap;
     while (System.currentTimeMillis() < endTime) {
       try{
         workflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(helixManager,
             Collections.singletonList(newJobConfigArrivalEvent.getJobName()));
-      } catch(IllegalStateException | GobblinHelixUnexpectedStateException e){
+      } catch(GobblinHelixUnexpectedStateException e){
         continue;
       }
       if (workflowIdMap.containsKey(newJobConfigArrivalEvent.getJobName())) {
