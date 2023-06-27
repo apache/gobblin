@@ -167,6 +167,12 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowListingTimeoutSeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS = 60;
 
+  /**
+   * When a Gobblin job exits (success or failure), it will attempt to cancel the underlying Helix workflow
+   */
+  public static final String HELIX_WORKFLOW_CANCEL_ON_EXIT = GOBBLIN_CLUSTER_PREFIX + "cancelWorkflowOnExit";
+  public static final boolean DEFAULT_HELIX_WORKFLOW_CANCEL_ON_EXIT = false;
+
   public static final String CLEAN_ALL_DIST_JOBS = GOBBLIN_CLUSTER_PREFIX + "bootup.clean.dist.jobs";
   public static final boolean DEFAULT_CLEAN_ALL_DIST_JOBS = false;
 

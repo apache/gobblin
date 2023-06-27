@@ -38,6 +38,7 @@ import org.apache.helix.InstanceType;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -63,6 +64,7 @@ import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.listeners.AbstractJobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -298,6 +300,25 @@ public class GobblinHelixJobLauncherTest {
     // using launchJobImpl because we do not want to swallow the exception
     Assert.assertThrows(JobException.class, () -> gobblinHelixJobLauncher.launchJobImpl(null));
   }
+
+  public void testCancelJobOnExit() throws Exception {
+    final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
+
+    final Properties props = generateJobProperties(this.baseConfig, "testCancelOnExit", "_12345");
+    props.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS, "0");
+    props.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_CANCEL_ON_EXIT, "true");
+
+    final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
+        new GobblinHelixJobLauncher(props, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
+
+    // The launchJob will throw an exception (see testTimeout test) and we expect the launcher to swallow the exception,
+    // then call still properly call cancel. We use the listener to confirm the cancel hook was correctly called once
+    JobListener mockListener = Mockito.mock(JobListener.class);
+    gobblinHelixJobLauncher.launchJob(mockListener);
+    Mockito.verify(mockListener).onJobCancellation(Mockito.any(JobContext.class));
+  }
+
 
   @Test(enabled = false, dependsOnMethods = {"testLaunchJob", "testLaunchMultipleJobs"})
   public void testJobCleanup() throws Exception {
