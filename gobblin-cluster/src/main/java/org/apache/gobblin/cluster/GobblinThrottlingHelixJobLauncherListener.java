@@ -46,6 +46,15 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
   }
 
   @Override
+  public void onJobStart(JobContext jobContext)
+      throws Exception {
+    super.onJobStart(jobContext);
+    Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
+    jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
+    LOG.info("{} has started. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
+  }
+
+  @Override
   public void onJobCompletion(JobContext jobContext)
       throws Exception {
     super.onJobCompletion(jobContext);
@@ -54,10 +63,6 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
       LOG.info("{} failed. The next schedulable time is {} so that any future schedule attempts will be allowed.",
           jobContext.getJobName(),
           Instant.EPOCH);
-    } else {
-      Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
-      jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
-      LOG.info("{} is completed. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
     }
   }
 

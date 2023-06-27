@@ -85,8 +85,8 @@ public class GobblinHelixJobSchedulerTest {
 
   private final Instant beginTime = Instant.EPOCH;
   private final Duration withinThrottlePeriod = Duration.of(1, ChronoUnit.SECONDS);
-  private final Duration exceedsThrottlePeriod =
-      Duration.of(GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY + 1, ChronoUnit.SECONDS);
+  private final Duration exceedsThrottlePeriod = Duration.of(
+      GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY + 1, ChronoUnit.SECONDS);
 
   private String zkConnectingString;
   private String helixClusterName;
@@ -291,12 +291,12 @@ public class GobblinHelixJobSchedulerTest {
     return null;
   }
 
-  private void runWorkflowTest(Duration mockedPeriod, String jobSuffix,
+  private void runWorkflowTest(Duration mockStepAmountTime, String jobSuffix,
     String newJobWorkflowIdSuffix, String updateWorkflowIdSuffix,
     String assertUpdateWorkflowIdSuffix, boolean isThrottleEnabled, boolean isSameWorkflow) throws Exception {
     Clock mockClock = Mockito.mock(Clock.class);
     AtomicReference<Instant> nextInstant = new AtomicReference<>(beginTime);
-    when(mockClock.instant()).thenAnswer(invocation -> nextInstant.getAndAccumulate(nextInstant.get(), (currentInstant, x) -> currentInstant.plus(mockedPeriod)));
+    when(mockClock.instant()).thenAnswer(invocation -> nextInstant.getAndAccumulate(null, (currentInstant, x) -> currentInstant.plus(mockStepAmountTime)));
 
     // Use GobblinHelixManagerFactory instead of HelixManagerFactory to avoid the connection error
     // helixManager is set to local variable to avoid the HelixManager (ZkClient) is not connected error across tests

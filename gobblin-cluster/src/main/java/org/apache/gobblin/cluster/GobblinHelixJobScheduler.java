@@ -114,6 +114,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
+
+  /**
+   * The throttling timeout prevents helix workflows with the same job name / URI from being submitted
+   * more than once within the timeout period. This timeout is not reset by deletes / cancels, meaning that
+   * if you delete a workflow within the timeout period, you cannot reschedule until the timeout period is complete.
+   * However, if there is an error when launching the job, you can immediately reschedule the flow. <br><br>
+   *
+   * NOTE: This throttle timeout period starts when the job launcher thread picks up the runnable. Meaning that the
+   * time it takes to submit to Helix and start running the flow is also included as part of the timeout period
+   */
   private final Duration jobSchedulingThrottleTimeout;
   private ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime;
   private boolean isThrottleEnabled;
@@ -534,7 +544,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         GobblinHelixJobScheduler.this.jobSchedulerMetrics.updateTimeBetweenJobSchedulingAndJobLaunching(this.creationTimeInMillis, System.currentTimeMillis());
         GobblinHelixJobScheduler.this.runJob(this.jobProps, this.jobListener);
       } catch (JobException je) {
-        LOGGER.error("Failed to schedule or run job to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+        LOGGER.error("Failed to schedule or run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }
     }
   }
