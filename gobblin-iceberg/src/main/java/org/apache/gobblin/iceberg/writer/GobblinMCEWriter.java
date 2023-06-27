@@ -131,12 +131,15 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private final Set<String> currentErrorDatasets = new HashSet<>();
   @Setter
   private int maxErrorDataset;
-  private final MetricContext metricContext;
+  @VisibleForTesting
+  public final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
   private final Set<String> transientExceptionMessages;
   private final Set<String> nonTransientExceptionMessages;
-  private final Map<String, ContextAwareTimer> metadataWriterWriteTimers = new HashMap<>();
-  private final Map<String, ContextAwareTimer> metadataWriterFlushTimers = new HashMap<>();
+  @VisibleForTesting
+  public final Map<String, ContextAwareTimer> metadataWriterWriteTimers = new HashMap<>();
+  @VisibleForTesting
+  public final Map<String, ContextAwareTimer> metadataWriterFlushTimers = new HashMap<>();
   private final ContextAwareTimer hiveSpecComputationTimer;
   private final Map<String, ContextAwareTimer> datasetTimers = new HashMap<>();
 
@@ -308,9 +311,6 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       String tableName = spec.getTable().getTableName();
       String tableString = Joiner.on(TABLE_NAME_DELIMITER).join(dbName, tableName);
       partitionKeysMap.put(tableString, spec.getTable().getPartitionKeys());
-      if (!datasetTimers.containsKey(tableName)) {
-        datasetTimers.put(tableName, metricContext.contextAwareTimer(tableName, 1, TimeUnit.HOURS));
-      }
       if (!tableOperationTypeMap.containsKey(tableString)) {
         tableOperationTypeMap.put(tableString, new TableStatus(gmce.getOperationType(),
             gmce.getDatasetIdentifier().getNativeName(), watermark.getSource(),
@@ -358,7 +358,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       } else {
         try {
           Timer writeTimer = metadataWriterWriteTimers.get(writer.getClass().getName());
-          Timer datasetTimer = datasetTimers.get(tableName);
+          Timer datasetTimer = datasetTimers.computeIfAbsent(tableName, k -> metricContext.contextAwareTimer(k, 1, TimeUnit.HOURS));
           try (Timer.Context writeContext = writeTimer.time();
               Timer.Context datasetContext = datasetTimer.time()) {
             writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
@@ -441,7 +441,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       } else {
         try {
           Timer flushTimer = metadataWriterFlushTimers.get(writer.getClass().getName());
-          Timer datasetTimer = datasetTimers.get(tableName);
+          Timer datasetTimer = datasetTimers.computeIfAbsent(tableName, k -> metricContext.contextAwareTimer(k, 1, TimeUnit.HOURS));
           try (Timer.Context flushContext = flushTimer.time();
               Timer.Context datasetContext = datasetTimer.time()) {
             writer.flush(dbName, tableName);

@@ -350,6 +350,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     MetadataWriter mockWriter = Mockito.mock(MetadataWriter.class);
     Mockito.doThrow(new IOException("Test failure")).when(mockWriter).writeEnvelope(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
     gobblinMCEWriter.metadataWriters.add(0, mockWriter);
+    gobblinMCEWriter.metadataWriterWriteTimers.put(mockWriter.getClass().getName(), gobblinMCEWriter.metricContext
+        .contextAwareTimer(mockWriter.getClass().getName() + ".write", 1, TimeUnit.HOURS));
+    gobblinMCEWriter.metadataWriterFlushTimers.put(mockWriter.getClass().getName(), gobblinMCEWriter.metricContext
+        .contextAwareTimer(mockWriter.getClass().getName() + ".flush", 1, TimeUnit.HOURS));
 
     GobblinMetadataChangeEvent gmceWithMockWriter = SpecificData.get().deepCopy(gmce.getSchema(), gmce);
     gmceWithMockWriter.setAllowedMetadataWriters(Arrays.asList(IcebergMetadataWriter.class.getName(), mockWriter.getClass().getName()));
