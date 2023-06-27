@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 
@@ -18,6 +20,7 @@ import org.apache.gobblin.runtime.JobState;
  * listener would record jobName to next schedulable time to decide whether
  * the replanning should be executed or skipped.
  */
+@Slf4j
 public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLauncherListener {
 
   public final static Logger LOG = LoggerFactory.getLogger(GobblinThrottlingHelixJobLauncherListener.class);
