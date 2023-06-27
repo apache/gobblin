@@ -29,7 +29,7 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
   private Clock clock;
 
   public GobblinThrottlingHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics,
-      ConcurrentHashMap jobNameToNextSchedulableTime, Duration helixJobSchedulingThrottleTimeout, Clock clock) {
+      ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime, Duration helixJobSchedulingThrottleTimeout, Clock clock) {
     super(jobLauncherMetrics);
     this.jobNameToNextSchedulableTime = jobNameToNextSchedulableTime;
     this.helixJobSchedulingThrottleTimeout = helixJobSchedulingThrottleTimeout;

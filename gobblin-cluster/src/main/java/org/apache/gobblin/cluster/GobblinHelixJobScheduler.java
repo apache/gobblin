@@ -335,6 +335,19 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   public synchronized void handleNewJobConfigArrival(NewJobConfigArrivalEvent newJobArrival) {
     String jobUri = newJobArrival.getJobName();
     LOGGER.info("Received new job configuration of job " + jobUri);
+
+    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobUri, Instant.EPOCH);
+    if (this.isThrottleEnabled && clock.instant().isBefore(nextSchedulableTime)) {
+      LOGGER.info("Adding new job is skipped for job {}. Current time is {} and the next schedulable time would be {}",
+          jobUri,
+          clock.instant(),
+          nextSchedulableTime
+      );
+      return;
+    }
+    nextSchedulableTime = clock.instant().plus(jobSchedulingThrottleTimeout);
+    jobNameToNextSchedulableTime.put(jobUri, nextSchedulableTime);
+
     try {
       Properties jobProps = new Properties();
       jobProps.putAll(this.commonJobProperties);
@@ -357,19 +370,22 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       }
     } catch (JobException je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);
+      jobNameToNextSchedulableTime.put(jobUri, Instant.EPOCH);
     }
   }
 
   @Subscribe
   public synchronized void handleUpdateJobConfigArrival(UpdateJobConfigArrivalEvent updateJobArrival) {
     LOGGER.info("Received update for job configuration of job " + updateJobArrival.getJobName());
-    String jobName = updateJobArrival.getJobName();
+    String jobUri = updateJobArrival.getJobName();
 
-    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.MIN);
+    Instant nextSchedulableTime = jobNameToNextSchedulableTime.getOrDefault(jobUri, Instant.EPOCH);
     if (this.isThrottleEnabled && clock.instant().isBefore(nextSchedulableTime)) {
-      LOGGER.info("Replanning is skipped for job {}. Current time is "
-          + clock.instant() + " and the next schedulable time would be "
-          + this.jobNameToNextSchedulableTime.getOrDefault(jobName, Instant.ofEpochMilli(0)), jobName);
+      LOGGER.info("Replanning is skipped for job {}. Current time is {} and the next schedulable time would be {}",
+          jobUri,
+          clock.instant(),
+          nextSchedulableTime
+      );
       return;
     }
 
