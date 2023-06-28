@@ -136,7 +136,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final long helixWorkflowSubmissionTimeoutSeconds;
   private Map<String, TaskConfig> workUnitToHelixConfig;
   private Retryer<Boolean> taskRetryer;
-  private boolean isCancelWorkflowOnExitEnabled;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap,
@@ -170,9 +169,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.helixWorkflowSubmissionTimeoutSeconds = ConfigUtils.getLong(jobConfig,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS);
-    this.isCancelWorkflowOnExitEnabled = ConfigUtils.getBoolean(jobConfig,
-        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_CANCEL_ON_EXIT,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_CANCEL_ON_EXIT);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -469,11 +465,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       // One potential way to improve the error handling is to make this error swallowing configurable
     } catch (Throwable t) {
       errorInJobLaunching = t;
-    } finally {
-      if (isCancelWorkflowOnExitEnabled) {
+      if (isLaunched) {
+        // Attempts to cancel the helix workflow if an error occurs during launch
         cancelJob(jobListener);
       }
-
+    } finally {
       if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
           LOGGER.info("Job {} is done, remove from running map.", this.jobContext.getJobId());

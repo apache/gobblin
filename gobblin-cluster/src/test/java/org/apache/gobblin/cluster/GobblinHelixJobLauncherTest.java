@@ -301,12 +301,10 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertThrows(JobException.class, () -> gobblinHelixJobLauncher.launchJobImpl(null));
   }
 
-  public void testCancelJobOnExit() throws Exception {
+  public void testCancelJobOnFailureDuringLaunch() throws Exception {
     final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
-
-    final Properties props = generateJobProperties(this.baseConfig, "testCancelOnExit", "_12345");
+    final Properties props = generateJobProperties(this.baseConfig, "testDoesCancelOnFailure", "_12345");
     props.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_SUBMISSION_TIMEOUT_SECONDS, "0");
-    props.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_CANCEL_ON_EXIT, "true");
 
     final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
         new GobblinHelixJobLauncher(props, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
@@ -319,6 +317,18 @@ public class GobblinHelixJobLauncherTest {
     Mockito.verify(mockListener).onJobCancellation(Mockito.any(JobContext.class));
   }
 
+  public void testNoCancelWhenJobCompletesSuccessfully() throws Exception {
+    final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
+    final Properties props = generateJobProperties(this.baseConfig, "testDoesNotCancelOnSuccess", "_12345");
+    final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
+        new GobblinHelixJobLauncher(props, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
+
+    // When the job finishes successfully, the cancellation hook should not be invoked
+    JobListener mockListener = Mockito.mock(JobListener.class);
+    gobblinHelixJobLauncher.launchJob(mockListener);
+    Mockito.verify(mockListener, Mockito.never()).onJobCancellation(Mockito.any(JobContext.class));
+  }
 
   @Test(enabled = false, dependsOnMethods = {"testLaunchJob", "testLaunchMultipleJobs"})
   public void testJobCleanup() throws Exception {
