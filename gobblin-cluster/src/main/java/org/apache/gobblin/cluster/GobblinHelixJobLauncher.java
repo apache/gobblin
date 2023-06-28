@@ -462,9 +462,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       }
 
       // TODO: Better error handling. The current impl swallows exceptions for jobs that were started by this method call.
-      // One potential way to improve the error handling is to make this error swallowing conifgurable
+      // One potential way to improve the error handling is to make this error swallowing configurable
     } catch (Throwable t) {
       errorInJobLaunching = t;
+      if (isLaunched) {
+        // Attempts to cancel the helix workflow if an error occurs during launch
+        cancelJob(jobListener);
+      }
     } finally {
       if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
