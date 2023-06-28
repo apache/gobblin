@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.hive.writer;
 
+import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -160,8 +161,9 @@ public class HiveMetadataWriter implements MetadataWriter {
       HashMap<List<String>, ListenableFuture<Void>> executionMap = this.currentExecutionMap.get(tableKey);
       //iterator all execution to get the result to make sure they all succeeded
       for (HashMap.Entry<List<String>, ListenableFuture<Void>> execution : executionMap.entrySet()) {
-        try {
+        try (Timer.Context context = new Timer().time()) {
           execution.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
+          log.info("Time taken to add partition to table {} is {} ms", tableKey, TimeUnit.NANOSECONDS.toMillis(context.stop()));
         } catch (TimeoutException e) {
           // Since TimeoutException should always be a transient issue, throw RuntimeException which will fail/retry container
           throw new RuntimeException("Timeout waiting for result of registration for table " + tableKey, e);
@@ -177,7 +179,11 @@ public class HiveMetadataWriter implements MetadataWriter {
         if (cache != null) {
           HiveSpec hiveSpec = cache.getIfPresent(execution.getKey());
           if (hiveSpec != null) {
-            eventSubmitter.submit(buildCommitEvent(dbName, tableName, execution.getKey(), hiveSpec, HivePartitionOperation.ADD_OR_MODIFY));
+            try (Timer.Context context = new Timer().time()) {
+              eventSubmitter.submit(buildCommitEvent(dbName, tableName, execution.getKey(), hiveSpec,
+                  HivePartitionOperation.ADD_OR_MODIFY));
+              log.info("Time taken to submit event for table {} is {} ms", tableKey, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+            }
           }
         }
       }

@@ -38,6 +38,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.commons.collections.CollectionUtils;
+
+import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 
 import com.google.common.base.Joiner;
@@ -69,6 +71,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -128,9 +131,17 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private final Set<String> currentErrorDatasets = new HashSet<>();
   @Setter
   private int maxErrorDataset;
+  @VisibleForTesting
+  public final MetricContext metricContext;
   protected EventSubmitter eventSubmitter;
   private final Set<String> transientExceptionMessages;
   private final Set<String> nonTransientExceptionMessages;
+  @VisibleForTesting
+  public final Map<String, ContextAwareTimer> metadataWriterWriteTimers = new HashMap<>();
+  @VisibleForTesting
+  public final Map<String, ContextAwareTimer> metadataWriterFlushTimers = new HashMap<>();
+  private final ContextAwareTimer hiveSpecComputationTimer;
+  private final Map<String, ContextAwareTimer> datasetTimers = new HashMap<>();
 
   @AllArgsConstructor
   static class TableStatus {
@@ -150,19 +161,22 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     acceptedClusters = properties.getPropAsSet(ACCEPTED_CLUSTER_NAMES, ClustersNames.getInstance().getClusterName());
     state = properties;
     maxErrorDataset = state.getPropAsInt(GMCE_METADATA_WRITER_MAX_ERROR_DATASET, DEFUALT_GMCE_METADATA_WRITER_MAX_ERROR_DATASET);
+    List<Tag<?>> tags = Lists.newArrayList();
+    String clusterIdentifier = ClustersNames.getInstance().getClusterName();
+    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
+    metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
+    eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
     for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
+      metadataWriterWriteTimers.put(className, metricContext.contextAwareTimer(className + ".write", 1, TimeUnit.HOURS));
+      metadataWriterFlushTimers.put(className, metricContext.contextAwareTimer(className + ".flush", 1, TimeUnit.HOURS));
     }
+    hiveSpecComputationTimer = metricContext.contextAwareTimer("hiveSpec.computation", 1, TimeUnit.HOURS);
     tableOperationTypeMap = new HashMap<>();
     parallelRunner = closer.register(new ParallelRunner(state.getPropAsInt(METADATA_REGISTRATION_THREADS, 20),
         FileSystem.get(HadoopUtils.getConfFromState(properties))));
     parallelRunnerTimeoutMills =
         state.getPropAsInt(METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS, DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS);
-    List<Tag<?>> tags = Lists.newArrayList();
-    String clusterIdentifier = ClustersNames.getInstance().getClusterName();
-    tags.add(new Tag<>(MetadataWriterKeys.CLUSTER_IDENTIFIER_KEY_NAME, clusterIdentifier));
-    MetricContext metricContext = Instrumented.getMetricContext(state, this.getClass(), tags);
-    eventSubmitter = new EventSubmitter.Builder(metricContext, GOBBLIN_MCE_WRITER_METRIC_NAMESPACE).build();
     transientExceptionMessages = new HashSet<>(properties.getPropAsList(TRANSIENT_EXCEPTION_MESSAGES_KEY, ""));
     nonTransientExceptionMessages = new HashSet<>(properties.getPropAsList(NON_TRANSIENT_EXCEPTION_MESSAGES_KEY, ""));
   }
@@ -187,26 +201,28 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
    */
   private void computeSpecMap(List<String> files, ConcurrentHashMap<String, Collection<HiveSpec>> specsMap,
       Cache<String, Collection<HiveSpec>> cache, State registerState, boolean isPrefix) throws IOException {
-    HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(registerState);
-    for (String file : files) {
-      parallelRunner.submitCallable(new Callable<Void>() {
-        @Override
-        public Void call() throws Exception {
-          try {
-            Path regPath = isPrefix ? new Path(file) : new Path(file).getParent();
-            //Use raw path to comply with HDFS federation setting.
-            Path rawPath = new Path(regPath.toUri().getRawPath());
-            specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
-          } catch (Throwable e) {
-            //todo: Emit failed GMCE in the future to easily track the error gmce and investigate the reason for that.
-            log.warn("Cannot get Hive Spec for {} using policy {} due to:", file, policy.toString());
-            log.warn(e.getMessage());
+    try (Timer.Context context = hiveSpecComputationTimer.time()) {
+      HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(registerState);
+      for (String file : files) {
+        parallelRunner.submitCallable(new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            try {
+              Path regPath = isPrefix ? new Path(file) : new Path(file).getParent();
+              //Use raw path to comply with HDFS federation setting.
+              Path rawPath = new Path(regPath.toUri().getRawPath());
+              specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
+            } catch (Throwable e) {
+              //todo: Emit failed GMCE in the future to easily track the error gmce and investigate the reason for that.
+              log.warn("Cannot get Hive Spec for {} using policy {} due to:", file, policy.toString());
+              log.warn(e.getMessage());
+            }
+            return null;
           }
-          return null;
-        }
-      }, file);
+        }, file);
+      }
+      parallelRunner.waitForTasks(parallelRunnerTimeoutMills);
     }
-    parallelRunner.waitForTasks(parallelRunnerTimeoutMills);
   }
 
   @Override
@@ -341,7 +357,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         writer.reset(dbName, tableName);
       } else {
         try {
-          writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
+          Timer writeTimer = metadataWriterWriteTimers.get(writer.getClass().getName());
+          Timer datasetTimer = datasetTimers.computeIfAbsent(tableName, k -> metricContext.contextAwareTimer(k, 1, TimeUnit.HOURS));
+          try (Timer.Context writeContext = writeTimer.time();
+              Timer.Context datasetContext = datasetTimer.time()) {
+            writer.writeEnvelope(recordEnvelope, newSpecsMap, oldSpecsMap, spec);
+          }
         } catch (Exception e) {
           if (exceptionMatches(e, transientExceptionMessages)) {
             throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
@@ -419,7 +440,12 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
         writer.reset(dbName, tableName);
       } else {
         try {
-          writer.flush(dbName, tableName);
+          Timer flushTimer = metadataWriterFlushTimers.get(writer.getClass().getName());
+          Timer datasetTimer = datasetTimers.computeIfAbsent(tableName, k -> metricContext.contextAwareTimer(k, 1, TimeUnit.HOURS));
+          try (Timer.Context flushContext = flushTimer.time();
+              Timer.Context datasetContext = datasetTimer.time()) {
+            writer.flush(dbName, tableName);
+          }
         } catch (IOException e) {
           if (exceptionMatches(e, transientExceptionMessages)) {
             throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
@@ -480,6 +506,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       }
       entry.getValue().clear();
     }
+    logTimers();
   }
 
   @Override
@@ -564,5 +591,17 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private List<String> getFailedWriterList(MetadataWriter failedWriter) {
     List<MetadataWriter> failedWriters = metadataWriters.subList(metadataWriters.indexOf(failedWriter), metadataWriters.size());
     return failedWriters.stream().map(writer -> writer.getClass().getName()).collect(Collectors.toList());
+  }
+
+  private void logTimers() {
+    logTimer(hiveSpecComputationTimer);
+    metadataWriterWriteTimers.values().forEach(this::logTimer);
+    metadataWriterFlushTimers.values().forEach(this::logTimer);
+    datasetTimers.values().forEach(this::logTimer);
+  }
+
+  private void logTimer(ContextAwareTimer timer) {
+    log.info("Timer {} 1 hour mean duration: {} ms", timer.getName(), TimeUnit.NANOSECONDS.toMillis((long) timer.getSnapshot().getMean()));
+    log.info("Timer {} 1 hour 99th percentile duration: {} ms", timer.getName(), TimeUnit.NANOSECONDS.toMillis((long) timer.getSnapshot().get99thPercentile()));
   }
 }
