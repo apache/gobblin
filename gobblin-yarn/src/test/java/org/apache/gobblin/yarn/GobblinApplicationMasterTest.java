@@ -21,13 +21,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.helix.ConfigAccessor;
 import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.PropertyKey;
-import org.apache.helix.model.ClusterConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -76,12 +74,6 @@ public class GobblinApplicationMasterTest extends TestCase {
       mockChildValues.put(gobblinClusterManagerPrefix.get(i), Mockito.mock(HelixProperty.class));
     }
     when(mockAccessor.getChildValuesMap(mockLiveInstancesKey)).thenReturn(mockChildValues);
-
-    ConfigAccessor mockConfigAccessor = Mockito.mock(ConfigAccessor.class);
-    when(mockHelixManager.getConfigAccessor()).thenReturn(mockConfigAccessor);
-
-    ClusterConfig mockClusterConfig = Mockito.mock(ClusterConfig.class);
-    when(mockConfigAccessor.getClusterConfig("GobblinApplicationMasterTest")).thenReturn(mockClusterConfig);
 
     GobblinApplicationMaster.disableTaskRunnersFromPreviousExecutions(mockMultiManager);
 
