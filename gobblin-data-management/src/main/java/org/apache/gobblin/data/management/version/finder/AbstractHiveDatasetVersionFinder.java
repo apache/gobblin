@@ -75,11 +75,10 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
     if (!hiveDataset.getTable().isPartitioned()) {
       if (hiveDataset.getTable().getTableType() == TableType.VIRTUAL_VIEW) {
         log.warn("Skipping processing a view type dataset: ", ((HiveDataset) dataset).getTable().getTableName());
-        return Collections.emptyList();
       } else {
-        throw new IllegalArgumentException("HiveDatasetVersionFinder is only compatible with partitioned hive tables. "
-            + "This is a snapshot hive table.");
+        log.warn("Skipping processing a snapshot hive table: ", ((HiveDataset) dataset).getTable().getTableName());
       }
+      return Collections.emptyList();
     }
 
     try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
