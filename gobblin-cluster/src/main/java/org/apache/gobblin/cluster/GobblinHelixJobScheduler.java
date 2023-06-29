@@ -355,8 +355,11 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       );
       return;
     }
-    nextSchedulableTime = clock.instant().plus(jobSchedulingThrottleTimeout);
-    jobNameToNextSchedulableTime.put(jobName, nextSchedulableTime);
+
+    if (isThrottleEnabled) {
+      nextSchedulableTime = clock.instant().plus(jobSchedulingThrottleTimeout);
+      jobNameToNextSchedulableTime.put(jobName, nextSchedulableTime);
+    }
 
     try {
       Properties jobProps = new Properties();
@@ -383,7 +386,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
           jobName,
           Instant.EPOCH,
           je);
-      jobNameToNextSchedulableTime.put(jobName, Instant.EPOCH);
+      if (isThrottleEnabled) {
+        jobNameToNextSchedulableTime.put(jobName, Instant.EPOCH);
+      }
     }
   }
 
