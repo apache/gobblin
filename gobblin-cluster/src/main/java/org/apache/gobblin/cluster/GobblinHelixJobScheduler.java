@@ -371,8 +371,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
       this.jobSchedulerMetrics.updateTimeBeforeJobScheduling(jobProps);
       GobblinHelixJobLauncherListener listener = isThrottleEnabled ?
-          new GobblinThrottlingHelixJobLauncherListener(this.launcherMetrics, jobNameToNextSchedulableTime,
-              jobSchedulingThrottleTimeout, clock)
+          new GobblinThrottlingHelixJobLauncherListener(this.launcherMetrics, jobNameToNextSchedulableTime)
           : new GobblinHelixJobLauncherListener(this.launcherMetrics);
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + jobName);

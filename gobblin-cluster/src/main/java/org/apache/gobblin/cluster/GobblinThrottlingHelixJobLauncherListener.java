@@ -25,33 +25,11 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
 
   public final static Logger LOG = LoggerFactory.getLogger(GobblinThrottlingHelixJobLauncherListener.class);
   private ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime;
-  private Duration helixJobSchedulingThrottleTimeout;
-  private Clock clock;
 
   public GobblinThrottlingHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics,
-      ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime, Duration helixJobSchedulingThrottleTimeout, Clock clock) {
+      ConcurrentHashMap<String, Instant> jobNameToNextSchedulableTime) {
     super(jobLauncherMetrics);
     this.jobNameToNextSchedulableTime = jobNameToNextSchedulableTime;
-    this.helixJobSchedulingThrottleTimeout = helixJobSchedulingThrottleTimeout;
-    this.clock = clock;
-  }
-
-  @Override
-  public void onJobPrepare(JobContext jobContext)
-      throws Exception {
-    super.onJobPrepare(jobContext);
-    Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
-    jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
-    LOG.info("{} finished preparing. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
-  }
-
-  @Override
-  public void onJobStart(JobContext jobContext)
-      throws Exception {
-    super.onJobStart(jobContext);
-    Instant nextSchedulableTime = clock.instant().plus(helixJobSchedulingThrottleTimeout);
-    jobNameToNextSchedulableTime.put(jobContext.getJobName(), nextSchedulableTime);
-    LOG.info("{} has started. The next schedulable time is {}", jobContext.getJobName(), nextSchedulableTime);
   }
 
   @Override
@@ -74,6 +52,5 @@ public class GobblinThrottlingHelixJobLauncherListener extends GobblinHelixJobLa
     LOG.info("{} is cancelled. The next schedulable time is {} so that any future schedule attempts will be allowed.",
         jobContext.getJobName(),
         Instant.EPOCH);
-
   }
 }
