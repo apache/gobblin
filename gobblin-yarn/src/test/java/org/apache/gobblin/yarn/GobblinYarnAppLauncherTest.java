@@ -27,6 +27,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,9 +45,13 @@ import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
+import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.model.Message;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -84,6 +89,7 @@ import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -431,6 +437,25 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
 
     appMaster.setMultiManager(mockMultiManager);
+
+    HelixManager mockHelixManager = Mockito.mock(HelixManager.class);
+    when(mockMultiManager.getJobClusterHelixManager()).thenReturn(mockHelixManager);
+
+    HelixAdmin mockHelixAdmin = Mockito.mock(HelixAdmin.class);
+    when(mockHelixManager.getClusterManagmentTool()).thenReturn(mockHelixAdmin);
+
+    HelixDataAccessor mockAccessor = Mockito.mock(HelixDataAccessor.class);
+    when(mockHelixManager.getHelixDataAccessor()).thenReturn(mockAccessor);
+
+    PropertyKey.Builder mockBuilder = Mockito.mock(PropertyKey.Builder.class);
+    when(mockAccessor.keyBuilder()).thenReturn(mockBuilder);
+
+    PropertyKey mockLiveInstancesKey = Mockito.mock(PropertyKey.class);
+    when(mockBuilder.liveInstances()).thenReturn(mockLiveInstancesKey);
+
+    Map<String, HelixProperty> mockChildValues = new HashMap<>();
+    when(mockAccessor.getChildValuesMap(mockLiveInstancesKey)).thenReturn(mockChildValues);
+
     appMaster.start();
 
     Mockito.verify(mockMultiManager, times(1)).cleanUpJobs();

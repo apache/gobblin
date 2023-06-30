@@ -279,15 +279,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     LOGGER.info("Starting the Gobblin Cluster Manager");
 
     this.eventBus.register(this);
-    this.multiManager.connect();
-
-    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
-    // mode, such as YARN mode
-    if (!this.isStandaloneMode) {
-      this.multiManager.cleanUpJobs();
-    }
-
-    configureHelixQuotaBasedTaskScheduling();
+    setupHelix();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
@@ -314,6 +306,18 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       startAppLauncherAndServices();
     }
     this.started = true;
+  }
+
+  public synchronized void setupHelix() {
+    this.multiManager.connect();
+
+    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
+    // mode, such as YARN mode
+    if (!this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
+
+    configureHelixQuotaBasedTaskScheduling();
   }
 
   /**
@@ -427,9 +431,16 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    */
   @VisibleForTesting
   void initializeHelixManager() {
-    this.multiManager = new GobblinHelixMultiManager(
-        this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus) ;
+    this.multiManager = createMultiManager();
     this.multiManager.addLeadershipChangeAwareComponent(this);
+  }
+
+  /***
+   * Can be overriden to inject mock GobblinHelixMultiManager
+   * @return a new GobblinHelixMultiManager
+   */
+  public GobblinHelixMultiManager createMultiManager() {
+    return new GobblinHelixMultiManager(this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
   }
 
   @VisibleForTesting

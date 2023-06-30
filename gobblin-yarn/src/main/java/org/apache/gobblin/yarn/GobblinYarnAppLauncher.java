@@ -38,8 +38,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.mail.EmailException;
-import org.apache.gobblin.util.hadoop.TokenUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -71,7 +69,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.helix.Criteria;
-import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -117,8 +114,10 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.EmailUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
 
@@ -371,7 +370,6 @@ public class GobblinYarnAppLauncher {
     this.applicationId = getReconnectableApplicationId();
 
     if (!this.applicationId.isPresent()) {
-      disableLiveHelixInstances();
       LOGGER.info("No reconnectable application found so submitting a new application");
       this.yarnClient = potentialYarnClients.get(this.originalYarnRMAddress);
       this.applicationId = Optional.of(setupAndSubmitApplication());
@@ -454,7 +452,6 @@ public class GobblinYarnAppLauncher {
 
       if (!this.detachOnExitEnabled) {
         LOGGER.info("Disabling all live Helix instances..");
-        disableLiveHelixInstances();
       }
 
       disconnectHelixManager();
@@ -537,26 +534,6 @@ public class GobblinYarnAppLauncher {
     } catch (Exception e) {
       LOGGER.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
-    }
-  }
-
-  /**
-   * A method to disable pre-existing live instances in a Helix cluster. This can happen when a previous Yarn application
-   * leaves behind orphaned Yarn worker processes. Since Helix does not provide an API to drop a live instance, we use
-   * the disable instance API to fence off these orphaned instances and prevent them from becoming participants in the
-   * new cluster.
-   *
-   * NOTE: this is a workaround for an existing YARN bug. Once YARN has a fix to guarantee container kills on application
-   * completion, this method should be removed.
-   */
-  void disableLiveHelixInstances() {
-    String clusterName = this.helixManager.getClusterName();
-    HelixAdmin helixAdmin = this.helixManager.getClusterManagmentTool();
-    List<String> liveInstances = HelixUtils.getLiveInstances(this.helixManager);
-    LOGGER.warn("Found {} live instances in the cluster.", liveInstances.size());
-    for (String instanceName: liveInstances) {
-      LOGGER.warn("Disabling instance: {}", instanceName);
-      helixAdmin.enableInstance(clusterName, instanceName, false);
     }
   }
 

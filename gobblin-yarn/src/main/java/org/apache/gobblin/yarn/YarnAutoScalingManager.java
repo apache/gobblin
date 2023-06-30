@@ -34,7 +34,6 @@ import org.apache.commons.compress.utils.Sets;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
-import org.apache.helix.PropertyKey;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
@@ -56,6 +55,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
@@ -184,17 +184,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       }
     }
 
-    /**
-     * Getting all instances (Helix Participants) in cluster at this moment.
-     * Note that the raw result could contains AppMaster node and replanner node.
-     * @param filterString Helix instances whose name containing fitlerString will pass filtering.
-     */
-    private Set<String> getParticipants(String filterString) {
-      PropertyKey.Builder keyBuilder = helixDataAccessor.keyBuilder();
-      return helixDataAccessor.getChildValuesMap(keyBuilder.liveInstances())
-          .keySet().stream().filter(x -> filterString.isEmpty() || x.contains(filterString)).collect(Collectors.toSet());
-    }
-
     private String getInuseParticipantForHelixPartition(JobContext jobContext, int partition) {
       if (jobContext.getPartitionNumAttempts(partition) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
         log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better",
@@ -275,7 +264,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       }
       // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
       // and potentially replanner-instance.
-      Set<String> allParticipants = getParticipants(HELIX_YARN_INSTANCE_NAME_PREFIX);
+      Set<String> allParticipants = HelixUtils.getParticipants(helixDataAccessor, HELIX_YARN_INSTANCE_NAME_PREFIX);
 
       // Find all joined participants not in-use for this round of inspection.
       // If idle time is beyond tolerance, mark the instance as unused by assigning timestamp as -1.

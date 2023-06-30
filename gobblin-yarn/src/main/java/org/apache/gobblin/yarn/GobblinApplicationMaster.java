@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -32,6 +33,9 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
@@ -52,6 +56,8 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinHelixMultiManager;
+import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
@@ -133,6 +139,35 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   @Override
   protected MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new ControllerUserDefinedMessageHandlerFactory();
+  }
+
+  @Override
+  public synchronized void setupHelix() {
+    super.setupHelix();
+    this.disableTaskRunnersFromPreviousExecutions(this.multiManager);
+  }
+
+  /**
+   * A method to disable pre-existing live instances in a Helix cluster. This can happen when a previous Yarn application
+   * leaves behind orphaned Yarn worker processes. Since Helix does not provide an API to drop a live instance, we use
+   * the disable instance API to fence off these orphaned instances and prevent them from becoming participants in the
+   * new cluster.
+   *
+   * NOTE: this is a workaround for an existing YARN bug. Once YARN has a fix to guarantee container kills on application
+   * completion, this method should be removed.
+   */
+  public static void disableTaskRunnersFromPreviousExecutions(GobblinHelixMultiManager multiManager) {
+    HelixManager helixManager = multiManager.getJobClusterHelixManager();
+    HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
+    String clusterName = helixManager.getClusterName();
+    HelixAdmin helixAdmin = helixManager.getClusterManagmentTool();
+    Set<String> taskRunners = HelixUtils.getParticipants(helixDataAccessor,
+        GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX);
+    LOGGER.warn("Found {} task runners in the cluster.", taskRunners.size());
+    for (String taskRunner : taskRunners) {
+      LOGGER.warn("Disabling instance: {}", taskRunner);
+      helixAdmin.enableInstance(clusterName, taskRunner, false);
+    }
   }
 
   /**
