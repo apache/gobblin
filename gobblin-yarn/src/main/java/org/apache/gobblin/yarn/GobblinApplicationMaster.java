@@ -147,6 +147,15 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     this.disableTaskRunnersFromPreviousExecutions(this.multiManager);
   }
 
+  /**
+   * A method to disable pre-existing live instances in a Helix cluster. This can happen when a previous Yarn application
+   * leaves behind orphaned Yarn worker processes. Since Helix does not provide an API to drop a live instance, we use
+   * the disable instance API to fence off these orphaned instances and prevent them from becoming participants in the
+   * new cluster.
+   *
+   * NOTE: this is a workaround for an existing YARN bug. Once YARN has a fix to guarantee container kills on application
+   * completion, this method should be removed.
+   */
   public static void disableTaskRunnersFromPreviousExecutions(GobblinHelixMultiManager multiManager) {
     HelixManager helixManager = multiManager.getJobClusterHelixManager();
     HelixDataAccessor helixDataAccessor = helixManager.getHelixDataAccessor();
