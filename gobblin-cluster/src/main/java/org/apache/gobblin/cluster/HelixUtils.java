@@ -417,7 +417,11 @@ public class HelixUtils {
       }
       Set<String> helixJobs = workflowConfig.getJobDag().getAllNodes();
       for (String helixJob : helixJobs) {
-        Iterator<TaskConfig> taskConfigIterator = taskDriver.getJobConfig(helixJob).getTaskConfigMap().values().iterator();
+        JobConfig jobConfig = taskDriver.getJobConfig(helixJob);
+        if (jobConfig == null) {
+          throw new GobblinHelixUnexpectedStateException("Received null jobConfig from Helix. We should not see any null configs when reading all helixJobs. helixJob=%s", helixJob);
+        }
+        Iterator<TaskConfig> taskConfigIterator = jobConfig.getTaskConfigMap().values().iterator();
         if (taskConfigIterator.hasNext()) {
           TaskConfig taskConfig = taskConfigIterator.next();
           String jobName = taskConfig.getConfigMap().get(ConfigurationKeys.JOB_NAME_KEY);
