@@ -157,6 +157,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
         ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
+    _log.info("Orchestrator initialized with flow trigger handler present: " + this.flowTriggerHandler.isPresent());
   }
 
   @Inject
@@ -313,6 +314,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       if (flowTriggerHandler.isPresent()) {
+        _log.info("flow trigger handler present in orchestrator");
         // If triggerTimestampMillis is 0, then it was not set by the job trigger handler, and we cannot handle this event
         if (triggerTimestampMillis == 0L) {
           _log.warn("Skipping execution of spec: {} because missing trigger timestamp in job properties",
