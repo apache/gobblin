@@ -33,6 +33,7 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -261,10 +262,10 @@ public class DagManagerMetrics {
 
   public void cleanup() {
     // Add null check so that unit test will not affect each other when we de-active non-instrumented DagManager
-    if(this.metricContext != null) {
+    if(this.metricContext != null && this.metricContext.getTagMap().get(GobblinMetricsKeys.CLASS_META).equals(DagManager.class.getSimpleName())) {
       // The DMThread's metrics mappings follow the lifecycle of the DMThread itself and so are lost by DM deactivation-reactivation but the RootMetricContext is a (persistent) singleton.
       // To avoid IllegalArgumentException by the RMC preventing (re-)add of a metric already known, remove all metrics that a new DMThread thread would attempt to add (in DagManagerThread::initialize) whenever running post-re-enablement
-//      RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());
+      RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());
     }
   }
 }
