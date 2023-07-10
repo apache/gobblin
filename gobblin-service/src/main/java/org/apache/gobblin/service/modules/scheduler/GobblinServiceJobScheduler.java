@@ -677,6 +677,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
     }
 
+    // Note: the default values for missing flow name/group are different than the ones above to easily identify where
+    // the values are not present initially
+    jobConfig.setProperty(ConfigurationKeys.FLOW_NAME_KEY,
+        flowSpecProperties.getProperty(ConfigurationKeys.FLOW_NAME_KEY, "<<missing flow name>>"));
+    jobConfig.setProperty(ConfigurationKeys.FLOW_GROUP_KEY,
+        flowSpecProperties.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<missing flow group>>"));
+
     return jobConfig;
   }
 
