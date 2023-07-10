@@ -58,8 +58,8 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
    * Calls {@link #getDatasetVersion(Partition)} for every {@link Partition} found.
    * <p>
    * Note: If an exception occurs while processing a partition, that partition will be ignored in the returned collection
-   * Also note that if the dataset passed is a view type, we will return an empty list even if the underlying table is
-   * partitioned.
+   * Also note that if the dataset passed is a view type or a snapshot of a hive table, we will return an empty list
+   * even if the underlying table is partitioned.
    * </p>
    *
    * @throws IllegalArgumentException if <code>dataset</code> is not a {@link HiveDataset}. Or if {@link HiveDataset#getTable()}
