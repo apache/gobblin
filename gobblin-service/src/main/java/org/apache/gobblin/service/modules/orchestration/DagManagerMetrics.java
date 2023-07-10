@@ -28,16 +28,22 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.GobblinMetricsKeys;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricTagNames;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
@@ -73,6 +79,13 @@ public class DagManagerMetrics {
 
   public DagManagerMetrics(MetricContext metricContext) {
     this.metricContext = metricContext;
+  }
+
+  public DagManagerMetrics() {
+    // Create a new metric context for the DagManagerMetrics tagged appropriately
+    List<Tag<?>> tags = new ArrayList<>();
+    tags.add(new Tag<>(MetricTagNames.METRIC_BACKEND_REPRESENTATION, GobblinMetrics.MetricType.COUNTER));
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), this.getClass(), tags);
   }
 
   public void activate() {
@@ -249,7 +262,7 @@ public class DagManagerMetrics {
 
   public void cleanup() {
     // Add null check so that unit test will not affect each other when we de-active non-instrumented DagManager
-    if(this.metricContext != null) {
+    if(this.metricContext != null && this.metricContext.getTagMap().get(GobblinMetricsKeys.CLASS_META).equals(DagManager.class.getSimpleName())) {
       // The DMThread's metrics mappings follow the lifecycle of the DMThread itself and so are lost by DM deactivation-reactivation but the RootMetricContext is a (persistent) singleton.
       // To avoid IllegalArgumentException by the RMC preventing (re-)add of a metric already known, remove all metrics that a new DMThread thread would attempt to add (in DagManagerThread::initialize) whenever running post-re-enablement
       RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());
