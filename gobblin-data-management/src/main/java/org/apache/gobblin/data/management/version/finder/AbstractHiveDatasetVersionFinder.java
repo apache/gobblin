@@ -76,7 +76,7 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
       if (hiveDataset.getTable().getTableType() == TableType.VIRTUAL_VIEW) {
         log.warn("Skipping processing a view type dataset: ", ((HiveDataset) dataset).getTable().getTableName());
       } else {
-        log.warn("Skipping processing a snapshot hive table: ", ((HiveDataset) dataset).getTable().getTableName());
+        log.warn("Skipping processing a snapshot hive table: ", ((HiveDataset) dataset).getTable().getTableName()); 
       }
       return Collections.emptyList();
     }
