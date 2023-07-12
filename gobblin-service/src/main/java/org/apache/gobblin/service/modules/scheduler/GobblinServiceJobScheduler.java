@@ -203,7 +203,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       metricContext.register(this.totalAddSpecTimeNanos);
       metricContext.register(this.numJobsScheduledDuringStartup);
     }
-    _log.info("flow trigger handler present: " + this.flowTriggerHandler.isPresent());
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,

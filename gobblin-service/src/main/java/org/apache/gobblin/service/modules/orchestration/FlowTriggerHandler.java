@@ -72,8 +72,6 @@ public class FlowTriggerHandler {
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
-    log.info("FlowTriggerHandler constructor called with config " + config + " leaseArbiter present: " + leaseDeterminationStore.isPresent(),
-        " dag action store present: " + dagActionStore.isPresent());
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
     this.multiActiveLeaseArbiter = leaseDeterminationStore;
@@ -82,7 +80,6 @@ public class FlowTriggerHandler {
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
     this.numFlowsSubmitted = metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
-    log.info("FlowTriggerHandler initialized");
   }
 
   /**
