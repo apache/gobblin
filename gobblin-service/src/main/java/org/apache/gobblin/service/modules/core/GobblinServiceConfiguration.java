@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
@@ -33,7 +32,6 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @ToString
-@Slf4j
 public class GobblinServiceConfiguration {
 
   @Getter

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.api;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -57,8 +58,9 @@ import org.apache.gobblin.util.ConfigUtils;
  * The `event_timestamp` is the time of the flow_action event request.
  * --- Note ---
  * We only use the participant's local event_timestamp internally to identify the particular flow_action event, but
- * after interacting with the database to the database utilize the CURRENT_TIMESTAMP of the database to insert or keep
- * track of our event. This is to avoid any discrepancies between local time and database time for future comparisons.
+ * after interacting with the database utilize the CURRENT_TIMESTAMP of the database to insert or keep
+ * track of our event. This is to avoid any discrepancies due to clock drift between participants as well as
+ * variation in local time and database time for future comparisons.
  * ---Event consolidation---
  * Note that for the sake of simplification, we only allow one event associated with a particular flow's flow_action
  * (ie: only one LAUNCH for example of flow FOO, but there can be a LAUNCH, KILL, & RESUME for flow FOO at once) during
@@ -85,6 +87,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private final String constantsTableName;
   private final int epsilon;
   private final int linger;
+  String formattedGetInfoStatement;
+  String formattedSelectAfterInsertStatement;
 
   // TODO: define retention on this table
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
@@ -92,7 +96,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "flow_execution_id varchar("
       + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, flow_action varchar(100) NOT NULL, "
       + "event_timestamp TIMESTAMP, "
-      + "lease_acquisition_timestamp TIMESTAMP NULL DEFAULT '1970-01-02 00:00:00', "
+      + "lease_acquisition_timestamp TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,flow_action))";
   private static final String CREATE_CONSTANTS_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s "
       + "(epsilon INT, linger INT, PRIMARY KEY (epsilon, linger))";
@@ -145,6 +149,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
     this.linger = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS);
+    this.formattedGetInfoStatement = String.format(GET_EVENT_INFO_STATEMENT, this.leaseArbiterTableName,
+        this.constantsTableName);
+    this.formattedSelectAfterInsertStatement = String.format(SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName,
+        this.constantsTableName);
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
     String createArbiterStatement = String.format(
         CREATE_LEASE_ARBITER_TABLE_STATEMENT, leaseArbiterTableName);
@@ -155,19 +163,26 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     } catch (SQLException e) {
       throw new IOException("Table creation failure for " + leaseArbiterTableName, e);
     }
+    initializeConstantsTable();
+
+    log.info("MysqlMultiActiveLeaseArbiter initialized");
+  }
+
+  // Initialize Constants table if needed and insert row into it if one does not exist
+  private void initializeConstantsTable() throws IOException {
     String createConstantsStatement = String.format(CREATE_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(createConstantsStatement, createStatement -> createStatement.executeUpdate(), true);
 
-    int count = withPreparedStatement(String.format(GET_ROW_COUNT_STATEMENT, this.constantsTableName), getStatement -> {
+    Optional<Integer> count = withPreparedStatement(String.format(GET_ROW_COUNT_STATEMENT, this.constantsTableName), getStatement -> {
       ResultSet resultSet = getStatement.executeQuery();
       if (resultSet.next()) {
-        return resultSet.getInt(1);
+        return Optional.of(resultSet.getInt(1));
       }
-      return -1;
+      return Optional.absent();
     }, true);
 
     // Only insert epsilon and linger values from config if this table does not contain pre-existing values.
-    if (count == 0) {
+    if (count.isPresent() && count.get() == 0) {
       String insertConstantsStatement = String.format(INSERT_IN_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
       withPreparedStatement(insertConstantsStatement, insertStatement -> {
         int i = 0;
@@ -176,16 +191,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         return insertStatement.executeUpdate();
       }, true);
     }
-
-    log.info("MysqlMultiActiveLeaseArbiter initialized");
   }
 
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis)
       throws IOException {
     // Check table for an existing entry for this flow action and event time
-    GetEventInfoResult getResult = withPreparedStatement(
-        String.format(GET_EVENT_INFO_STATEMENT, this.leaseArbiterTableName, this.constantsTableName),
+    Optional<GetEventInfoResult> getResult = withPreparedStatement(
+        formattedGetInfoStatement,
         getInfoStatement -> {
           int i = 0;
           getInfoStatement.setString(++i, flowAction.getFlowGroup());
@@ -194,14 +207,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           getInfoStatement.setString(++i, flowAction.getFlowActionType().toString());
           ResultSet resultSet = getInfoStatement.executeQuery();
           if (!resultSet.next()) {
-            return null;
+            return Optional.absent();
           }
-          return new GetEventInfoResult(resultSet);
+          return createGetInfoResult(resultSet);
         }, true);
 
     try {
-      // CASE 1: If no existing row for this flow action, then go ahead and insert
-      if (getResult == null) {
+      if (!getResult.isPresent()) {
         log.debug("CASE 1: no existing row for this flow action, then go ahead and insert");
         String formattedAcquireLeaseNewRowStatement =
             String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT, this.leaseArbiterTableName);
@@ -214,31 +226,31 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       }
 
       // Extract values from result set
-      Timestamp dbEventTimestamp = getResult.getDbEventTimestamp();
-      Timestamp dbLeaseAcquisitionTimestamp = getResult.getDbLeaseAcquisitionTimestamp();
-      boolean isWithinEpsilon = getResult.isWithinEpsilon();
-      int leaseValidityStatus = getResult.getLeaseValidityStatus();
-      int dbLinger = getResult.getDbLinger();
-      Timestamp dbCurrentTimestamp = getResult.getDbCurrentTimestamp();
+      Timestamp dbEventTimestamp = getResult.get().getDbEventTimestamp();
+      Timestamp dbLeaseAcquisitionTimestamp = getResult.get().getDbLeaseAcquisitionTimestamp();
+      boolean isWithinEpsilon = getResult.get().isWithinEpsilon();
+      int leaseValidityStatus = getResult.get().getLeaseValidityStatus();
+      int dbLinger = getResult.get().getDbLinger();
+      Timestamp dbCurrentTimestamp = getResult.get().getDbCurrentTimestamp();
 
       log.info("Multi-active arbiter replacing local trigger event timestamp with database one {}: "
           + "[{}, triggerEventTimestamp: {}]",  dbCurrentTimestamp, flowAction, eventTimeMillis);
 
       // Lease is valid
       if (leaseValidityStatus == 1) {
-        // CASE 2: Same event, lease is valid
         if (isWithinEpsilon) {
+          log.debug("CASE 2: Same event, lease is valid");
           // Utilize db timestamp for reminder
           return new LeasedToAnotherStatus(flowAction, dbEventTimestamp.getTime(),
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - System.currentTimeMillis());
         }
-        // CASE 3: Distinct event, lease is valid
+        log.debug("CASE 3: Distinct event, lease is valid");
         // Utilize db lease acquisition timestamp for wait time
         return new LeasedToAnotherStatus(flowAction, dbCurrentTimestamp.getTime(),
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - System.currentTimeMillis());
       }
-      // CASE 4: Lease is out of date (regardless of whether same or distinct event)
       else if (leaseValidityStatus == 2) {
+        log.debug("CASE 4: Lease is out of date (regardless of whether same or distinct event)");
         if (isWithinEpsilon) {
           log.warn("Lease should not be out of date for the same trigger event since epsilon << linger for flowAction"
                   + " {}, db eventTimestamp {}, db leaseAcquisitionTimestamp {}, linger {}", flowAction,
@@ -255,11 +267,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
             }, true);
         return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction);
       } // No longer leasing this event
-        // CASE 5: Same event, no longer leasing event in db: terminate
         if (isWithinEpsilon) {
+          log.debug("CASE 5: Same event, no longer leasing event in db: terminate");
           return new NoLongerLeasingStatus();
         }
-        // CASE 6: Distinct event, no longer leasing event in db
+        log.debug("CASE 6: Distinct event, no longer leasing event in db");
         // Use our event to acquire lease, check for previous db eventTimestamp and NULL leaseAcquisitionTimestamp
         String formattedAcquireLeaseIfFinishedStatement =
             String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, this.leaseArbiterTableName);
@@ -275,6 +287,34 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
   }
 
+  protected Optional<GetEventInfoResult> createGetInfoResult(ResultSet resultSet) {
+    try {
+      // Extract values from result set
+      Timestamp dbEventTimestamp = resultSet.getTimestamp("event_timestamp");
+      Timestamp dbLeaseAcquisitionTimestamp = resultSet.getTimestamp("lease_acquisition_timestamp");
+      boolean withinEpsilon = resultSet.getBoolean("isWithinEpsilon");
+      int leaseValidityStatus = resultSet.getInt("leaseValidityStatus");
+      int dbLinger = resultSet.getInt("linger");
+      Timestamp dbCurrentTimestamp = resultSet.getTimestamp("CURRENT_TIMESTAMP");
+      return Optional.of(new GetEventInfoResult(dbEventTimestamp, dbLeaseAcquisitionTimestamp, withinEpsilon, leaseValidityStatus,
+          dbLinger, dbCurrentTimestamp));
+    } catch (SQLException exception) {
+      log.warn("Failed to retrieve values from GET event info query resultSet. Exception: ", exception);
+      // Note: this will proceed to CASE 1 of acquiring a lease above
+      return Optional.absent();
+    }
+  }
+
+  protected SelectInfoResult createSelectInfoResult(ResultSet resultSet) throws SQLException {
+      if (!resultSet.next()) {
+        log.error("Expected num rows and lease_acquisition_timestamp returned from query but received nothing");
+      }
+      long eventTimeMillis = resultSet.getTimestamp(1).getTime();
+      long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
+      int dbLinger = resultSet.getInt(3);
+      return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
+  }
+
   /**
    * Parse result of attempted insert/update to obtain a lease for a
    * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} event by selecting values corresponding to that
@@ -286,14 +326,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       DagActionStore.DagAction flowAction)
       throws SQLException, IOException {
     // Fetch values in row after attempted insert
-    String formattedSelectAfterInsertStatement =
-        String.format(SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName, this.constantsTableName);
     SelectInfoResult selectInfoResult = withPreparedStatement(formattedSelectAfterInsertStatement,
         selectStatement -> {
           completeWhereClauseMatchingKeyPreparedStatement(selectStatement, flowAction);
-          return new SelectInfoResult(selectStatement.executeQuery());
+          return createSelectInfoResult(selectStatement.executeQuery());
         }, true);
-
     if (numRowsUpdated == 1) {
       log.debug("Obtained lease for flowAction {} at eventTime {} successfully!", flowAction,
           selectInfoResult.eventTimeMillis);
@@ -417,11 +454,12 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
   }
 
-  @Data
-  /*
-  Class used to extract information from initial SELECT query resultSet to be used for understanding the state of the
+
+  /**
+  Class used to store information from initial SELECT query resultSet to be used for understanding the state of the
   flow action event's lease in the arbiter store and act accordingly.
   */
+  @Data
   class GetEventInfoResult {
     private Timestamp dbEventTimestamp;
     private Timestamp dbLeaseAcquisitionTimestamp;
@@ -430,41 +468,31 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     private int dbLinger;
     private Timestamp dbCurrentTimestamp;
 
-    GetEventInfoResult(ResultSet resultSet) {
-      try {
-        // Extract values from result set
-        dbEventTimestamp = resultSet.getTimestamp("event_timestamp");
-        dbLeaseAcquisitionTimestamp = resultSet.getTimestamp("lease_acquisition_timestamp");
-        withinEpsilon = resultSet.getBoolean("isWithinEpsilon");
-        leaseValidityStatus = resultSet.getInt("leaseValidityStatus");
-        dbLinger = resultSet.getInt("linger");
-        dbCurrentTimestamp = resultSet.getTimestamp("CURRENT_TIMESTAMP");
-      } catch (SQLException exception) {
-        log.warn("Failed to retrieve values from GET event info query resultSet. Exception: ", exception);
-      }
+    GetEventInfoResult(Timestamp eventTimestamp, Timestamp leaseAcquisitionTimestamp, boolean isWithinEpsilon,
+        int validityStatus, int linger, Timestamp currentTimestamp) {
+      // Extract values from result set
+      dbEventTimestamp = eventTimestamp;
+      dbLeaseAcquisitionTimestamp = leaseAcquisitionTimestamp;
+      withinEpsilon = isWithinEpsilon;
+      leaseValidityStatus = validityStatus;
+      dbLinger = linger;
+      dbCurrentTimestamp = currentTimestamp;
     }
   }
 
-  @Data
-  /*
-   Class used to extract information from SELECT query used to determine status of lease acquisition attempt.
+  /**
+   Class used to store information from SELECT query used to determine status of lease acquisition attempt.
   */
+  @Data
   class SelectInfoResult {
     private long eventTimeMillis;
     private long leaseAcquisitionTimeMillis;
     private int dbLinger;
 
-    SelectInfoResult(ResultSet resultSet) {
-      try {
-        if (!resultSet.next()) {
-          log.error("Expected num rows and lease_acquisition_timestamp returned from query but received nothing");
-        }
-        eventTimeMillis = resultSet.getTimestamp(1).getTime();
-        leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
-        dbLinger = resultSet.getInt(3);
-    } catch (SQLException exception) {
-      log.warn("Failed to retrieve values from SELECT query resultSet: ", exception);
-    }
+    SelectInfoResult(long eventTimeMillis, long leaseAcquisitionTimeMillis, int linger) {
+      this.eventTimeMillis = eventTimeMillis;
+      this.leaseAcquisitionTimeMillis = leaseAcquisitionTimeMillis;
+      this.dbLinger = linger;
     }
   }
 }
