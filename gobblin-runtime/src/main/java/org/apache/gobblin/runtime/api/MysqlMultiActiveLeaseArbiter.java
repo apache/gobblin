@@ -175,10 +175,16 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
     Optional<Integer> count = withPreparedStatement(String.format(GET_ROW_COUNT_STATEMENT, this.constantsTableName), getStatement -> {
       ResultSet resultSet = getStatement.executeQuery();
-      if (resultSet.next()) {
-        return Optional.of(resultSet.getInt(1));
+      try {
+        if (resultSet.next()) {
+          return Optional.of(resultSet.getInt(1));
+        }
+        return Optional.absent();
+      } finally {
+        if (resultSet != null) {
+          resultSet.close();
+        }
       }
-      return Optional.absent();
     }, true);
 
     // Only insert epsilon and linger values from config if this table does not contain pre-existing values.
@@ -205,10 +211,16 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           getInfoStatement.setString(++i, flowAction.getFlowExecutionId());
           getInfoStatement.setString(++i, flowAction.getFlowActionType().toString());
           ResultSet resultSet = getInfoStatement.executeQuery();
-          if (!resultSet.next()) {
-            return Optional.absent();
+          try {
+            if (!resultSet.next()) {
+              return Optional.absent();
+            }
+            return Optional.of(createGetInfoResult(resultSet));
+          } finally {
+            if (resultSet !=  null) {
+              resultSet.close();
+            }
           }
-          return Optional.of(createGetInfoResult(resultSet));
         }, true);
 
     try {
@@ -293,25 +305,42 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   protected GetEventInfoResult createGetInfoResult(ResultSet resultSet) throws SQLException {
-    // Extract values from result set
-    Timestamp dbEventTimestamp = resultSet.getTimestamp("event_timestamp");
-    Timestamp dbLeaseAcquisitionTimestamp = resultSet.getTimestamp("lease_acquisition_timestamp");
-    boolean withinEpsilon = resultSet.getBoolean("is_within_epsilon");
-    int leaseValidityStatus = resultSet.getInt("lease_validity_status");
-    int dbLinger = resultSet.getInt("linger");
-    Timestamp dbCurrentTimestamp = resultSet.getTimestamp("CURRENT_TIMESTAMP");
-    return new GetEventInfoResult(dbEventTimestamp, dbLeaseAcquisitionTimestamp, withinEpsilon, leaseValidityStatus,
-        dbLinger, dbCurrentTimestamp);
+    try {
+      // Extract values from result set
+      Timestamp dbEventTimestamp = resultSet.getTimestamp("event_timestamp");
+      Timestamp dbLeaseAcquisitionTimestamp = resultSet.getTimestamp("lease_acquisition_timestamp");
+      boolean withinEpsilon = resultSet.getBoolean("is_within_epsilon");
+      int leaseValidityStatus = resultSet.getInt("lease_validity_status");
+      int dbLinger = resultSet.getInt("linger");
+      Timestamp dbCurrentTimestamp = resultSet.getTimestamp("CURRENT_TIMESTAMP");
+      return new GetEventInfoResult(dbEventTimestamp, dbLeaseAcquisitionTimestamp, withinEpsilon, leaseValidityStatus,
+          dbLinger, dbCurrentTimestamp);
+    } catch (SQLException e) {
+      throw e;
+    } finally {
+      if (resultSet != null) {
+        resultSet.close();
+      }
+    }
   }
 
   protected SelectInfoResult createSelectInfoResult(ResultSet resultSet) throws SQLException {
-      if (!resultSet.next()) {
-        log.error("Expected num rows and lease_acquisition_timestamp returned from query but received nothing");
+      try {
+        if (!resultSet.next()) {
+          resultSet.close();
+          log.error("Expected num rows and lease_acquisition_timestamp returned from query but received nothing");
+        }
+        long eventTimeMillis = resultSet.getTimestamp(1).getTime();
+        long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
+        int dbLinger = resultSet.getInt(3);
+        return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
+      } catch (SQLException e) {
+        throw e;
+      } finally {
+        if (resultSet != null) {
+          resultSet.close();
+        }
       }
-      long eventTimeMillis = resultSet.getTimestamp(1).getTime();
-      long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
-      int dbLinger = resultSet.getInt(3);
-      return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
   }
 
   /**
@@ -328,7 +357,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     SelectInfoResult selectInfoResult = withPreparedStatement(thisTableSelectAfterInsertStatement,
         selectStatement -> {
           completeWhereClauseMatchingKeyPreparedStatement(selectStatement, flowAction);
-          return createSelectInfoResult(selectStatement.executeQuery());
+          ResultSet resultSet = selectStatement.executeQuery();
+          try {
+            return createSelectInfoResult(resultSet);
+          } finally {
+            if (resultSet !=  null) {
+              resultSet.close();
+            }
+          }
         }, true);
     if (numRowsUpdated == 1) {
       log.debug("Obtained lease for [{}, eventTimestamp: {}] successfully!", flowAction,
@@ -445,6 +481,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       if (shouldCommit) {
         connection.commit();
       }
+      statement.close();
       return result;
     } catch (SQLException e) {
       log.warn("Received SQL exception that can result from invalid connection. Checking if validation query is set {} "
@@ -458,7 +495,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    * DTO for arbiter's current lease state for a FlowActionEvent
   */
   @Data
-  class GetEventInfoResult {
+  static class GetEventInfoResult {
     private Timestamp dbEventTimestamp;
     private Timestamp dbLeaseAcquisitionTimestamp;
     private boolean withinEpsilon;
@@ -482,7 +519,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    DTO for result of SELECT query used to determine status of lease acquisition attempt
   */
   @Data
-  class SelectInfoResult {
+  static class SelectInfoResult {
     private long eventTimeMillis;
     private long leaseAcquisitionTimeMillis;
     private int dbLinger;
