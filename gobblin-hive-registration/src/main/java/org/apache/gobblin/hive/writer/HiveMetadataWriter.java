@@ -17,16 +17,6 @@
 
 package org.apache.gobblin.hive.writer;
 
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,20 +28,37 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificData;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.ListenableFuture;
+
+import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.specific.SpecificData;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -67,10 +74,6 @@ import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
@@ -313,9 +316,15 @@ public class HiveMetadataWriter implements MetadataWriter {
       return false;
     }
 
-    HiveTable existingTable = hiveRegister.getTable(dbName, tableName).get();
-    latestSchemaMap.put(tableKey,
-        existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+    HiveTable table = hiveRegister.getTable(dbName, tableName).get();
+    String latestSchema = table.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+    if (latestSchema == null) {
+      throw new IllegalStateException(String.format("The %s in the table %s.%s is null. This implies the DB is "
+              + "misconfigured and was not correctly created through Gobblin, since all Gobblin managed tables should "
+              + "have %s", HiveAvroSerDeManager.SCHEMA_LITERAL, dbName, tableName, HiveAvroSerDeManager.SCHEMA_LITERAL));
+    }
+
+    latestSchemaMap.put(tableKey, latestSchema);
     return true;
   }
 
@@ -445,10 +454,14 @@ public class HiveMetadataWriter implements MetadataWriter {
       return;
     }
     //Force to set the schema even there is no schema literal defined in the spec
-    if (latestSchemaMap.containsKey(tableKey)) {
-      spec.getTable().getSerDeProps()
-          .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
-      HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+    String latestSchema = latestSchemaMap.get(tableKey);
+    if (latestSchema != null) {
+      String tableSchema = spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+      if (tableSchema == null || !tableSchema.equals(latestSchema)) {
+        spec.getTable().getSerDeProps()
+            .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
+        HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
+      }
     }
   }
 

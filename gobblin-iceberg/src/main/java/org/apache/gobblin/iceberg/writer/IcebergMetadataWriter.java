@@ -48,10 +48,7 @@ import java.util.stream.Stream;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.specific.SpecificData;
-
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.hive.writer.MetadataWriterKeys;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -112,6 +109,7 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.writer.MetadataWriter;
+import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.iceberg.Utils.IcebergUtils;
 import org.apache.gobblin.metadata.GobblinMetadataChangeEvent;
 import org.apache.gobblin.metadata.OperationType;
@@ -122,6 +120,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
@@ -129,6 +128,7 @@ import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
+
 import static org.apache.gobblin.iceberg.writer.IcebergMetadataWriterConfigKeys.*;
 
 /**
@@ -493,13 +493,20 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * @return table with updated schema and partition spec
    */
   private Table addPartitionToIcebergTable(Table table, String fieldName, String type) {
+    boolean isTableUpdated = false;
     if(!table.schema().columns().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
       table.updateSchema().addColumn(fieldName, Types.fromPrimitiveString(type)).commit();
+      isTableUpdated = true;
     }
     if(!table.spec().fields().stream().anyMatch(x -> x.name().equalsIgnoreCase(fieldName))) {
       table.updateSpec().addField(fieldName).commit();
+      isTableUpdated = true;
     }
-    table.refresh();
+
+    if (isTableUpdated) {
+      table.refresh();
+    }
+
     return table;
   }
 
