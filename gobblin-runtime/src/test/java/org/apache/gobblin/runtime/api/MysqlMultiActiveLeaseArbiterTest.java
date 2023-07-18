@@ -65,6 +65,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
      Tests all cases of trying to acquire a lease (CASES 1-6 detailed below) for a flow action event with one
      participant involved.
   */
+  // TODO: refactor this to break it into separate test cases as much is possible
   @Test
   public void testAcquireLeaseSingleParticipant() throws Exception {
     // Tests CASE 1 of acquire lease for a flow action event not present in DB

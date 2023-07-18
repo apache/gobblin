@@ -226,6 +226,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       Timestamp dbLeaseAcquisitionTimestamp = getResult.get().getDbLeaseAcquisitionTimestamp();
       boolean isWithinEpsilon = getResult.get().isWithinEpsilon();
       int leaseValidityStatus = getResult.get().getLeaseValidityStatus();
+      // Used to calculate minimum amount of time until a participant should check whether a lease expired
       int dbLinger = getResult.get().getDbLinger();
       Timestamp dbCurrentTimestamp = getResult.get().getDbCurrentTimestamp();
 
@@ -315,7 +316,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected SelectInfoResult createSelectInfoResult(ResultSet resultSet) throws IOException {
       try {
         if (!resultSet.next()) {
-          log.error("Expected num rows and lease_acquisition_timestamp returned from query but received nothing");
+          throw new IOException("Expected num rows and lease_acquisition_timestamp returned from query but received nothing, so "
+              + "providing empty result to lease evaluation code");
         }
         long eventTimeMillis = resultSet.getTimestamp(1).getTime();
         long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
