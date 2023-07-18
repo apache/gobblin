@@ -110,7 +110,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     MultiActiveLeaseArbiter.LeasedToAnotherStatus thirdLeasedToAnotherStatus =
         (MultiActiveLeaseArbiter.LeasedToAnotherStatus) thirdLaunchStatus;
     Assert.assertTrue(thirdLeasedToAnotherStatus.getEventTimeMillis() > firstObtainedStatus.getEventTimestamp());
-    Assert.assertTrue(thirdLeasedToAnotherStatus.getMinimumLingerDurationMillis() > LINGER);
+    Assert.assertTrue(thirdLeasedToAnotherStatus.getMinimumLingerDurationMillis() < LINGER);
 
     // Tests CASE 4 of lease out of date
     Thread.sleep(LINGER);
