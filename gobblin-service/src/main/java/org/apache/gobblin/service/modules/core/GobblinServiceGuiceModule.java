@@ -168,7 +168,7 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
     OptionalBinder.newOptionalBinder(binder, FlowTriggerHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MysqlMultiActiveLeaseArbiter.class);
+      binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowTriggerHandler.class);
     }
 
