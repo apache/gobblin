@@ -388,6 +388,12 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     ));
     Assert.assertTrue(updateLatestSchema.apply(tableNameAllowed));
     Mockito.verify(hiveRegister, Mockito.times(2)).getTable(eq(dbName), eq(tableNameAllowed));
+
+    HiveTable tableThatHasNoSchemaLiteral = Mockito.mock(HiveTable.class);
+    String nameOfTableThatHasNoSchemaLiteral = "improperlyConfiguredTable";
+    Mockito.when(hiveRegister.getTable(eq(dbName), eq(nameOfTableThatHasNoSchemaLiteral))).thenReturn(Optional.of(tableThatHasNoSchemaLiteral));
+    Mockito.when(tableThatHasNoSchemaLiteral.getSerDeProps()).thenReturn(new State());
+    Assert.assertThrows(IllegalStateException.class, () -> updateLatestSchema.apply(nameOfTableThatHasNoSchemaLiteral));
   }
 
   private String writeRecord(File file) throws IOException {
