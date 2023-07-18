@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.Collections;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
@@ -66,7 +67,10 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
   @BeforeSuite
   public void setup() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
-    startMetastore();
+    try {
+      startMetastore();
+    } catch (AlreadyExistsException ignored) { }
+
     tmpDir = Files.createTempDir();
     dbUri = String.format("%s/%s/%s", tmpDir.getAbsolutePath(),"metastore", dbName);
     try {

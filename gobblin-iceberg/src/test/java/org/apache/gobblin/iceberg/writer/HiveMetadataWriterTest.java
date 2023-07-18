@@ -37,6 +37,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -128,6 +129,10 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
   @BeforeSuite
   public void setUp() throws Exception {
     Class.forName("org.apache.derby.jdbc.EmbeddedDriver").newInstance();
+    try {
+      startMetastore();
+    } catch (AlreadyExistsException ignored) { }
+
     State state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
     Optional<String> metastoreUri = Optional.fromNullable(state.getProperties().getProperty(HiveRegister.HIVE_METASTORE_URI_KEY));
     hc = HiveMetastoreClientPool.get(state.getProperties(), metastoreUri);
