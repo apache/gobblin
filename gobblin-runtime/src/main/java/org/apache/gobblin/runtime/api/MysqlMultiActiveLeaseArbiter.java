@@ -101,7 +101,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private static final String CREATE_CONSTANTS_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s "
       + "(primary_key INT, epsilon INT, linger INT, PRIMARY KEY (primary_key))";
   // Only insert epsilon and linger values from config if this table does not contain a pre-existing values already.
-  private static final String INSERT_IN_CONSTANTS_TABLE_STATEMENT = "INSERT INTO %s (primary_key, epsilon, linger) "
+  private static final String UPSERT_CONSTANTS_TABLE_STATEMENT = "INSERT INTO %s (primary_key, epsilon, linger) "
       + "VALUES(1, ?, ?) ON DUPLICATE KEY UPDATE epsilon=VALUES(epsilon), linger=VALUES(linger)";
   protected static final String WHERE_CLAUSE_TO_MATCH_KEY = "WHERE flow_group=? AND flow_name=? AND flow_execution_id=?"
       + " AND flow_action=?";
@@ -174,7 +174,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     String createConstantsStatement = String.format(CREATE_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(createConstantsStatement, createStatement -> createStatement.executeUpdate(), true);
 
-    String insertConstantsStatement = String.format(INSERT_IN_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
+    String insertConstantsStatement = String.format(UPSERT_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(insertConstantsStatement, insertStatement -> {
       int i = 0;
       insertStatement.setInt(++i, epsilon);
