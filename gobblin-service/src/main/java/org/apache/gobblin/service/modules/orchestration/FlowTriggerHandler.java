@@ -164,11 +164,11 @@ public class FlowTriggerHandler {
     // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
     Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps);
     try {
-      log.info("Flow Trigger Handler - [%s, eventTimestamp: %s] -  attempting to schedule reminder for event %s in %s millis",
+      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} millis",
           flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
       this.schedulerService.getScheduler().scheduleJob(trigger);
     } catch (SchedulerException e) {
-      log.warn("Failed to add job reminder due to SchedulerException for job %s trigger event %s ", key, status.getEventTimeMillis(), e);
+      log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {} ", key, status.getEventTimeMillis(), e);
     }
     log.info(String.format("Flow Trigger Handler - [%s, eventTimestamp: %s] - SCHEDULED REMINDER for event %s in %s millis",
         flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime()));
