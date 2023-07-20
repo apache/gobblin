@@ -96,15 +96,17 @@ public class HelixJobsMapping {
   }
 
   public static String createPlanningJobId (Properties jobPlanningProps) {
+    long planningJobId = PropertiesUtils.getPropAsBoolean(jobPlanningProps, GobblinClusterConfigurationKeys.USE_GENERATED_JOBEXECUTION_IDS, "false") ?
+        System.currentTimeMillis() : PropertiesUtils.getPropAsLong(jobPlanningProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis());
     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
-            + JobState.getJobNameFromProps(jobPlanningProps),
-        PropertiesUtils.getPropAsLong(jobPlanningProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
+            + JobState.getJobNameFromProps(jobPlanningProps), planningJobId);
   }
 
   public static String createActualJobId (Properties jobProps) {
-     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
-             + JobState.getJobNameFromProps(jobProps),
-          PropertiesUtils.getPropAsLong(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
+    long actualJobId = PropertiesUtils.getPropAsBoolean(jobProps, GobblinClusterConfigurationKeys.USE_GENERATED_JOBEXECUTION_IDS, "false") ?
+        System.currentTimeMillis() : PropertiesUtils.getPropAsLong(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis());
+    return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
+        + JobState.getJobNameFromProps(jobProps), actualJobId);
   }
 
   @Nullable
