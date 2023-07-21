@@ -31,8 +31,6 @@ import org.testng.annotations.Test;
 
 import static org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter.*;
 
-
-
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTest {
   private static final int EPSILON = 30000;
@@ -186,9 +184,10 @@ public class MysqlMultiActiveLeaseArbiterTest {
   }
 
     /*
-  CASE 4; lease out of date and try to acquire lease if matching all -> update in btwn so not matching one or more of
-  the timestamps
-  - will end up returning LeasedToAnother
+    Tests CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT to ensure insertion is not completed if another
+    participant updated the table between the prior reed and attempted insertion.
+    Note: this isolates and tests CASE 4 in which a flow action event has an out of date lease, so a participant
+    attempts a new one given the table the eventTimestamp and leaseAcquisitionTimestamp values are unchanged.
    */
   @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfNewRow")
   public void testConditionallyAcquireLeaseIfFMatchingAllColsStatement() throws IOException {
@@ -233,9 +232,10 @@ public class MysqlMultiActiveLeaseArbiterTest {
   }
 
   /*
-  CASE 6: distinct event, no longer leasing in db will try to acquire lease if event time remains same
-  - in btwn update the event time and keep others same
-  - expected behavior also get LEASED to another instead of LeaseObtainedStatus
+  Tests CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT to ensure the insertion will only succeed if another
+  participant has not updated the eventTimestamp state since the prior read.
+  Note: This isolates and tests CASE 6 during which current participant saw a distinct flow action event had completed
+  its prior lease, encouraging the current participant to acquire a lease for its event.
    */
   @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFMatchingAllColsStatement")
   public void testConditionallyAcquireLeaseIfFinishedLeasingStatement() throws IOException, InterruptedException {
