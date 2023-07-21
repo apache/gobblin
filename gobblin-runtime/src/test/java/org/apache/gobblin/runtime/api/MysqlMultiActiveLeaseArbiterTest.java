@@ -18,6 +18,8 @@
 package org.apache.gobblin.runtime.api;
 
 import com.typesafe.config.Config;
+import java.io.IOException;
+import java.sql.Timestamp;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -26,6 +28,10 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import static org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter.*;
+
+
 
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTest {
@@ -37,11 +43,22 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowGroup = "testFlowGroup";
   private static final String flowName = "testFlowName";
   private static final String flowExecutionId = "12345677";
+  // The following are considered unique because they correspond to different flow action types
   private static DagActionStore.DagAction launchDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
-
+  private static DagActionStore.DagAction resumeDagAction =
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.RESUME);
   private static final long eventTimeMillis = System.currentTimeMillis();
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
+  private String formattedAcquireLeaseNewRowStatement =
+      String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT,
+          TABLE, TABLE);
+  private String formattedAcquireLeaseIfMatchingAllStatement =
+      String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT, TABLE);
+  private String formattedAcquireLeaseIfFinishedStatement =
+      String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, TABLE);
+  private String formattedSelectAfterInsertStatement = String.format(SELECT_AFTER_INSERT_STATEMENT, TABLE,
+          ConfigurationKeys.DEFAULT_MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE);
 
   // The setup functionality verifies that the initialization of the tables is done correctly and verifies any SQL
   // syntax errors.
@@ -50,12 +67,12 @@ public class MysqlMultiActiveLeaseArbiterTest {
     ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY, LINGER)
+        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
+        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY, LINGER)
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
     this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(config);
@@ -142,5 +159,118 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (MultiActiveLeaseArbiter.LeaseObtainedStatus) sixthLaunchStatus;
     Assert.assertTrue(sixthObtainedStatus.getEventTimestamp()
         <= sixthObtainedStatus.getLeaseAcquisitionTimestamp());
+  }
+
+  /*
+     Tests CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT to ensure an insertion is not attempted unless the table
+     state remains the same as the prior read, which expects no row matching the primary key in the table
+     Note: this isolates and tests CASE 1 in which another participant could have acquired the lease between the time
+     the read was done and subsequent write was carried out
+  */
+  @Test //(dependsOnMethods = "testAcquireLeaseSingleParticipant")
+  public void testConditionallyAcquireLeaseIfNewRow() throws IOException {
+    // Inserting the first time should update 1 row
+    int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
+        insertStatement -> {
+          completeInsertPreparedStatement(insertStatement, resumeDagAction);
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 1);
+    // Inserting the second time should update 0 rows but not throw any error
+    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
+        insertStatement -> {
+          completeInsertPreparedStatement(insertStatement, resumeDagAction);
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 0);
+  }
+
+    /*
+  CASE 4; lease out of date and try to acquire lease if matching all -> update in btwn so not matching one or more of
+  the timestamps
+  - will end up returning LeasedToAnother
+   */
+  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfNewRow")
+  public void testConditionallyAcquireLeaseIfFMatchingAllColsStatement() throws IOException {
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedSelectAfterInsertStatement,
+        selectStatement -> {
+          completeWhereClauseMatchingKeyPreparedStatement(selectStatement, resumeDagAction);
+          return MysqlMultiActiveLeaseArbiter.createSelectInfoResult(selectStatement.executeQuery());
+        }, true);
+    // This insert should work since the values match all the columns
+    int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(
+        formattedAcquireLeaseIfMatchingAllStatement,
+        insertStatement -> {
+          completeUpdatePreparedStatement(insertStatement, resumeDagAction, true,
+              true, new Timestamp(selectInfoResult.getEventTimeMillis()),
+              new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis()));
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 1);
+
+    // The following insert will fail since the eventTimestamp does not match
+    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(
+        formattedAcquireLeaseIfMatchingAllStatement,
+        insertStatement -> {
+          completeUpdatePreparedStatement(insertStatement, resumeDagAction, true,
+              true, new Timestamp(99999),
+              new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis()));
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 0);
+
+    // The following insert will fail since the leaseAcquisitionTimestamp does not match
+    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(
+        formattedAcquireLeaseIfMatchingAllStatement,
+        insertStatement -> {
+          completeUpdatePreparedStatement(insertStatement, resumeDagAction, true,
+              true, new Timestamp(selectInfoResult.getEventTimeMillis()),
+              new Timestamp(99999));
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 0);
+  }
+
+  /*
+  CASE 6: distinct event, no longer leasing in db will try to acquire lease if event time remains same
+  - in btwn update the event time and keep others same
+  - expected behavior also get LEASED to another instead of LeaseObtainedStatus
+   */
+  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFMatchingAllColsStatement")
+  public void testConditionallyAcquireLeaseIfFinishedLeasingStatement() throws IOException, InterruptedException {
+    // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedSelectAfterInsertStatement,
+            selectStatement -> {
+              completeWhereClauseMatchingKeyPreparedStatement(selectStatement, resumeDagAction);
+              return MysqlMultiActiveLeaseArbiter.createSelectInfoResult(selectStatement.executeQuery());
+            }, true);
+    boolean markedSuccess = this.mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
+        resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis()));
+    Assert.assertTrue(markedSuccess);
+
+    // Sleep enough time for event to be considered distinct
+    Thread.sleep(LINGER);
+
+    // The following insert will fail since eventTimestamp does not match the expected
+    int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(
+        formattedAcquireLeaseIfFinishedStatement,
+        insertStatement -> {
+          completeUpdatePreparedStatement(insertStatement, resumeDagAction, true,
+              false, new Timestamp(99999), null);
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 0);
+
+    // This insert does match since we utilize the right eventTimestamp
+    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(
+        formattedAcquireLeaseIfFinishedStatement,
+        insertStatement -> {
+          completeUpdatePreparedStatement(insertStatement, resumeDagAction, true,
+              false, new Timestamp(selectInfoResult.getEventTimeMillis()), null);
+          return insertStatement.executeUpdate();
+        }, true);
+    Assert.assertEquals(numRowsUpdated, 1);
   }
 }
