@@ -48,7 +48,10 @@ public class EmailNotificationJobListener extends AbstractJobListener {
 
     // Send out alert email if the maximum number of consecutive failures is reached
     if (jobState.getState() == JobState.RunningState.FAILED) {
-      int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 0) + jobContext.getDatasetStateFailures();
+      // Number of fail attempts are increased during the commit phase by changing JOB_FAILURES_KEY.
+      // But if the job fails before commit, e.g. during workunit creation, this config is not set,
+      // so it makes sense to set the default value to 1 when the job state is FAILED
+      int failures = jobState.getPropAsInt(ConfigurationKeys.JOB_FAILURES_KEY, 1) + jobContext.getDatasetStateFailures();
       int maxFailures =
           jobState.getPropAsInt(ConfigurationKeys.JOB_MAX_FAILURES_KEY, ConfigurationKeys.DEFAULT_JOB_MAX_FAILURES);
       if (alertEmailEnabled && failures >= maxFailures) {
