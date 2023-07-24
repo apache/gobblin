@@ -194,6 +194,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     State state = getState();
     state.setProp(ICEBERG_NEW_PARTITION_ENABLED, true);
     state.setProp(ICEBERG_COMPLETENESS_ENABLED, true);
+    state.setProp(ICEBERG_TOTAL_COUNT_COMPLETENESS_ENABLED, true);
     state.setProp(NEW_PARTITION_KEY, "late");
     state.setProp(NEW_PARTITION_TYPE_KEY, "int");
     state.setProp(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY, TestAuditClientFactory.class.getName());
@@ -223,6 +224,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertFalse(table.properties().containsKey("offset.range.testTopic-1"));
     Assert.assertEquals(table.location(),
         new File(tmpDir, "testDB/testTopic/_iceberg_metadata/").getAbsolutePath() + "/" + dbName);
+    Assert.assertFalse(table.properties().containsKey(COMPLETION_WATERMARK_KEY));
+    Assert.assertFalse(table.properties().containsKey(TOTAL_COUNT_COMPLETION_WATERMARK_KEY));
 
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "1000-2000").build());
     GenericRecord genericGmce_1000_2000 = GenericData.get().deepCopy(gmce.getSchema(), gmce);
@@ -238,6 +241,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     // Assert low watermark and high watermark set properly
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "9");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "20");
+    Assert.assertFalse(table.properties().containsKey(COMPLETION_WATERMARK_KEY));
+    Assert.assertFalse(table.properties().containsKey(TOTAL_COUNT_COMPLETION_WATERMARK_KEY));
 
     /*test flush twice*/
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "2000-3000").build());
@@ -257,6 +262,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 2);
     Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "20");
     Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "30");
+    Assert.assertFalse(table.properties().containsKey(COMPLETION_WATERMARK_KEY));
+    Assert.assertFalse(table.properties().containsKey(TOTAL_COUNT_COMPLETION_WATERMARK_KEY));
 
     /* Test it will skip event with lower watermark*/
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "3000-4000").build());
@@ -268,6 +275,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
     Assert.assertEquals(table.currentSnapshot().allManifests(table.io()).size(), 2);
+    Assert.assertFalse(table.properties().containsKey(COMPLETION_WATERMARK_KEY));
+    Assert.assertFalse(table.properties().containsKey(TOTAL_COUNT_COMPLETION_WATERMARK_KEY));
   }
 
   //Make sure hive test execute later and close the metastore
@@ -420,7 +429,9 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     // Test when completeness watermark = -1 bootstrap case
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
-    Mockito.when(verifier.isComplete("testTopicCompleteness", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", timestampMillis - TimeUnit.HOURS.toMillis(1), timestampMillis))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
     IcebergMetadataWriter imw = (IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next();
     imw.setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
@@ -429,8 +440,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+    Assert.assertEquals(table.properties().get(TOTAL_COUNT_COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
     // 1631811600000L correspond to 2020-09-16-10 in PT
     Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631811600000L);
+    Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631811600000L);
 
     Iterator<org.apache.iceberg.DataFile> dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -453,6 +466,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(1));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
+    Assert.assertEquals(table.properties().get(TOTAL_COUNT_COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis));
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile1.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -475,12 +489,17 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(60L))));
 
-    Mockito.when(verifier.isComplete("testTopicCompleteness", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", timestampMillis1 - TimeUnit.HOURS.toMillis(1), timestampMillis1))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
+
     gobblinMCEWriterWithCompletness.flush();
     table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(1));
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
+    Assert.assertEquals(table.properties().get(TOTAL_COUNT_COMPLETION_WATERMARK_KEY), String.valueOf(timestampMillis1));
     // watermark 1631815200000L correspond to 2021-09-16-11 in PT
     Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631815200000L);
+    Assert.assertEquals(imw.state.getPropAsLong(String.format(STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE, table.name().toLowerCase(Locale.ROOT))), 1631815200000L);
 
     dfl = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile2.getAbsolutePath())).collect().iterator();
     Assert.assertTrue(dfl.hasNext());
@@ -511,7 +530,10 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     KafkaAuditCountVerifier verifier = Mockito.mock(TestAuditCountVerifier.class);
     // For quiet topics always check for previous hour window
-    Mockito.when(verifier.isComplete("testTopicCompleteness", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark)).thenReturn(true);
+    Mockito.when(verifier.calculateCompleteness("testTopicCompleteness", expectedCWDt.minusHours(1).toInstant().toEpochMilli(), expectedWatermark))
+        .thenReturn(ImmutableMap.of(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, true,
+                    KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, true));
+
     ((IcebergMetadataWriter) gobblinMCEWriterWithCompletness.metadataWriters.iterator().next()).setAuditCountVerifier(verifier);
     gobblinMCEWriterWithCompletness.flush();
 
@@ -521,7 +543,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_TIMEZONE_KEY), "America/Los_Angeles");
     Assert.assertEquals(table.properties().get(COMPLETION_WATERMARK_KEY), String.valueOf(expectedWatermark));
-
+    Assert.assertEquals(table.properties().get(TOTAL_COUNT_COMPLETION_WATERMARK_KEY), String.valueOf(expectedWatermark));
   }
 
   private String writeRecord(File file) throws IOException {

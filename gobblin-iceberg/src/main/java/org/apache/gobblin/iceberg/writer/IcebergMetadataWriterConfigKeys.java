@@ -21,9 +21,14 @@ public class IcebergMetadataWriterConfigKeys {
 
   public static final String ICEBERG_COMPLETENESS_ENABLED = "iceberg.completeness.enabled";
   public static final boolean DEFAULT_ICEBERG_COMPLETENESS = false;
+  public static final String ICEBERG_TOTAL_COUNT_COMPLETENESS_ENABLED = "iceberg.completeness.totalCount.enabled";
+  public static final boolean DEFAULT_ICEBERG_TOTAL_COUNT_COMPLETENESS = false;
   public static final String ICEBERG_COMPLETENESS_WHITELIST = "iceberg.completeness.whitelist";
+  public static final String ICEBERG_TOTAL_COUNT_COMPLETENESS_WHITELIST = "iceberg.totalCount.completeness.whitelist";
   public static final String ICEBERG_COMPLETENESS_BLACKLIST = "iceberg.completeness.blacklist";
+  public static final String ICEBERG_TOTAL_COUNT_COMPLETENESS_BLACKLIST = "iceberg.totalCount.completeness.blacklist";
   public static final String COMPLETION_WATERMARK_KEY = "completionWatermark";
+  public static final String TOTAL_COUNT_COMPLETION_WATERMARK_KEY = "totalCountCompletionWatermark";
   public static final String COMPLETION_WATERMARK_TIMEZONE_KEY = "completionWatermarkTimezone";
   public static final long DEFAULT_COMPLETION_WATERMARK = -1L;
   public static final String TIME_ZONE_KEY = "iceberg.completeness.timezone";
@@ -41,8 +46,7 @@ public class IcebergMetadataWriterConfigKeys {
   public static final String ICEBERG_NEW_PARTITION_WHITELIST = "iceberg.new.partition.whitelist";
   public static final String ICEBERG_NEW_PARTITION_BLACKLIST = "iceberg.new.partition.blacklist";
   public static final String STATE_COMPLETION_WATERMARK_KEY_OF_TABLE = "completion.watermark.%s";
+  public static final String STATE_TOTAL_COUNT_COMPLETION_WATERMARK_KEY_OF_TABLE = "totalCount.completion.watermark.%s";
   public static final String ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY = "iceberg.enable.custom.metadata.retention.policy";
   public static final boolean DEFAULT_ICEBERG_ENABLE_CUSTOM_METADATA_RETENTION_POLICY = true;
-
-
 }

@@ -32,7 +32,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -122,7 +121,6 @@ import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
@@ -168,7 +166,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final String ICEBERG_FILE_PATH_COLUMN = DataFile.FILE_PATH.name();
 
   private final boolean completenessEnabled;
+  private final boolean totalCountCompletenessEnabled;
   private final WhitelistBlacklist completenessWhitelistBlacklist;
+  private final WhitelistBlacklist totalCountBasedCompletenessWhitelistBlacklist;
   private final String timeZone;
   private final DateTimeFormatter HOURLY_DATEPARTITION_FORMAT;
   private final String newPartitionColumn;
@@ -234,8 +234,13 @@ public class IcebergMetadataWriter implements MetadataWriter {
               FsPermission.getDefault());
     }
     this.completenessEnabled = state.getPropAsBoolean(ICEBERG_COMPLETENESS_ENABLED, DEFAULT_ICEBERG_COMPLETENESS);
+    this.totalCountCompletenessEnabled = state.getPropAsBoolean(ICEBERG_TOTAL_COUNT_COMPLETENESS_ENABLED,
+        DEFAULT_ICEBERG_TOTAL_COUNT_COMPLETENESS);
     this.completenessWhitelistBlacklist = new WhitelistBlacklist(state.getProp(ICEBERG_COMPLETENESS_WHITELIST, ""),
         state.getProp(ICEBERG_COMPLETENESS_BLACKLIST, ""));
+    this.totalCountBasedCompletenessWhitelistBlacklist = new WhitelistBlacklist(
+        state.getProp(ICEBERG_TOTAL_COUNT_COMPLETENESS_WHITELIST, ""),
+        state.getProp(ICEBERG_TOTAL_COUNT_COMPLETENESS_BLACKLIST, ""));
     this.timeZone = state.getProp(TIME_ZONE_KEY, DEFAULT_TIME_ZONE);
     this.HOURLY_DATEPARTITION_FORMAT = DateTimeFormatter.ofPattern(DATEPARTITION_FORMAT)
         .withZone(ZoneId.of(this.timeZone));
@@ -258,7 +263,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   }
 
   private org.apache.iceberg.Table getIcebergTable(TableIdentifier tid) throws NoSuchTableException {
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     if (!tableMetadata.table.isPresent()) {
       tableMetadata.table = Optional.of(catalog.loadTable(tid));
     }
@@ -304,7 +309,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
     TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     Table table;
     try {
       table = getIcebergTable(tid);
@@ -327,6 +332,12 @@ public class IcebergMetadataWriter implements MetadataWriter {
     if(tableMetadata.completenessEnabled) {
       tableMetadata.completionWatermark = Long.parseLong(table.properties().getOrDefault(COMPLETION_WATERMARK_KEY,
           String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
+
+      if (tableMetadata.totalCountCompletenessEnabled) {
+        tableMetadata.totalCountCompletionWatermark = Long.parseLong(
+            table.properties().getOrDefault(TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+                String.valueOf(DEFAULT_COMPLETION_WATERMARK)));
+      }
     }
 
     computeCandidateSchema(gmce, tid, tableSpec);
@@ -392,7 +403,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * the given {@link TableIdentifier} with the input {@link GobblinMetadataChangeEvent}
    */
   private void mergeOffsets(GobblinMetadataChangeEvent gmce, TableIdentifier tid) {
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     tableMetadata.dataOffsetRange = Optional.of(tableMetadata.dataOffsetRange.or(() -> getLastOffset(tableMetadata)));
     Map<String, List<Range>> offsets = tableMetadata.dataOffsetRange.get();
     for (Map.Entry<String, String> entry : gmce.getTopicPartitionOffsetsRange().entrySet()) {
@@ -424,7 +435,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   protected void updateTableProperty(HiveSpec tableSpec, TableIdentifier tid, GobblinMetadataChangeEvent gmce) {
     org.apache.hadoop.hive.metastore.api.Table table = HiveMetaStoreUtils.getTable(tableSpec.getTable());
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     tableMetadata.newProperties = Optional.of(IcebergUtils.getTableProperties(table));
     String nativeName = tableMetadata.datasetName;
     String topic = nativeName.substring(nativeName.lastIndexOf("/") + 1);
@@ -442,7 +453,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    */
   private void computeCandidateSchema(GobblinMetadataChangeEvent gmce, TableIdentifier tid, HiveSpec spec) {
     Table table = getIcebergTable(tid);
-    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
+    TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf));
     org.apache.hadoop.hive.metastore.api.Table hiveTable = HiveMetaStoreUtils.getTable(spec.getTable());
     tableMetadata.lastProperties = Optional.of(tableMetadata.lastProperties.or(() -> table.properties()));
     Map<String, String> props = tableMetadata.lastProperties.get();
@@ -824,7 +835,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     writeLock.lock();
     try {
       TableIdentifier tid = TableIdentifier.of(dbName, tableName);
-      TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata());
+      TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata(this.conf));
       if (tableMetadata.transaction.isPresent()) {
         Transaction transaction = tableMetadata.transaction.get();
         Map<String, String> props = tableMetadata.newProperties.or(
@@ -839,7 +850,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
             log.info("Sending audit counts for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
           }
           if (tableMetadata.completenessEnabled) {
-            checkAndUpdateCompletenessWatermark(tableMetadata, topicName, tableMetadata.datePartitions, props);
+            updateWatermarkWithFilesRegistered(topicName, tableMetadata, props,
+                tableMetadata.totalCountCompletenessEnabled);
           }
         }
         if (tableMetadata.deleteFiles.isPresent()) {
@@ -849,16 +861,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         // The logic is to check the window [currentHour-1,currentHour] and update the watermark if there are no audit counts
         if(!tableMetadata.appendFiles.isPresent() && !tableMetadata.deleteFiles.isPresent()
             && tableMetadata.completenessEnabled) {
-          if (tableMetadata.completionWatermark > DEFAULT_COMPLETION_WATERMARK) {
-            log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
-            SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
-            ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
-            timestamps.add(dtAtBeginningOfHour);
-            checkAndUpdateCompletenessWatermark(tableMetadata, topicName, timestamps, props);
-          } else {
-            log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
-                tableMetadata.completionWatermark, topicName));
-          }
+          updateWatermarkWithNoFilesRegistered(topicName, tableMetadata, props);
         }
 
         //Set high waterMark
@@ -909,94 +912,36 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
+  private CompletenessWatermarkUpdater getWatermarkUpdater(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate) {
+    return new CompletenessWatermarkUpdater(topicName, this.auditCheckGranularity, this.timeZone,
+        tableMetadata, propsToUpdate, this.state, this.auditCountVerifier.get());
+  }
+
+  private void updateWatermarkWithFilesRegistered(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate, boolean includeTotalCountCompletionWatermark) {
+    getWatermarkUpdater(topicName, tableMetadata, propsToUpdate)
+        .run(tableMetadata.datePartitions, includeTotalCountCompletionWatermark);
+  }
+
+  private void updateWatermarkWithNoFilesRegistered(String topicName, TableMetadata tableMetadata,
+      Map<String, String> propsToUpdate) {
+    if (tableMetadata.completionWatermark > DEFAULT_COMPLETION_WATERMARK) {
+      log.info(String.format("Checking kafka audit for %s on change_property ", topicName));
+      SortedSet<ZonedDateTime> timestamps = new TreeSet<>();
+      ZonedDateTime dtAtBeginningOfHour = ZonedDateTime.now(ZoneId.of(this.timeZone)).truncatedTo(ChronoUnit.HOURS);
+      timestamps.add(dtAtBeginningOfHour);
+
+      getWatermarkUpdater(topicName, tableMetadata, propsToUpdate).run(timestamps, true);
+    } else {
+      log.info(String.format("Need valid watermark, current watermark is %s, Not checking kafka audit for %s",
+          tableMetadata.completionWatermark, topicName));
+    }
+  }
+
   @Override
   public void reset(String dbName, String tableName) throws IOException {
     this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
-  }
-
-  /**
-   * Update TableMetadata with the new completion watermark upon a successful audit check
-   * @param tableMetadata metadata of table
-   * @param topic topic name
-   * @param timestamps Sorted set in reverse order of timestamps to check audit counts for
-   * @param props table properties map
-   */
-  private void checkAndUpdateCompletenessWatermark(TableMetadata tableMetadata, String topic, SortedSet<ZonedDateTime> timestamps,
-      Map<String, String> props) {
-    String tableName = tableMetadata.table.get().name();
-    if (topic == null) {
-      log.error(String.format("Not performing audit check. %s is null. Please set as table property of %s",
-          TOPIC_NAME_KEY, tableName));
-    }
-    long newCompletenessWatermark =
-        computeCompletenessWatermark(tableName, topic, timestamps, tableMetadata.completionWatermark);
-    if (newCompletenessWatermark > tableMetadata.completionWatermark) {
-      log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY, tableMetadata.table.get().name(),
-          newCompletenessWatermark));
-      props.put(COMPLETION_WATERMARK_KEY, String.valueOf(newCompletenessWatermark));
-      props.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
-      tableMetadata.completionWatermark = newCompletenessWatermark;
-    }
-  }
-
-  /**
-   * NOTE: completion watermark for a window [t1, t2] is marked as t2 if audit counts match
-   * for that window (aka its is set to the beginning of next window)
-   * For each timestamp in sorted collection of timestamps in descending order
-   * if timestamp is greater than previousWatermark
-   * and hour(now) > hour(prevWatermark)
-   *    check audit counts for completeness between
-   *    a source and reference tier for [timestamp -1 , timstamp unit of granularity]
-   *    If the audit count matches update the watermark to the timestamp and break
-   *    else continue
-   * else
-   *  break
-   * Using a {@link TimeIterator} that operates over a range of time in 1 unit
-   * given the start, end and granularity
-   * @param catalogDbTableName
-   * @param topicName
-   * @param timestamps a sorted set of timestamps in decreasing order
-   * @param previousWatermark previous completion watermark for the table
-   * @return updated completion watermark
-   */
-  private long computeCompletenessWatermark(String catalogDbTableName, String topicName, SortedSet<ZonedDateTime> timestamps, long previousWatermark) {
-    log.info(String.format("Compute completion watermark for %s and timestamps %s with previous watermark %s", topicName, timestamps, previousWatermark));
-    long completionWatermark = previousWatermark;
-    ZonedDateTime now = ZonedDateTime.now(ZoneId.of(this.timeZone));
-    try {
-      if(timestamps == null || timestamps.size() <= 0) {
-        log.error("Cannot create time iterator. Empty for null timestamps");
-        return previousWatermark;
-      }
-      TimeIterator.Granularity granularity = TimeIterator.Granularity.valueOf(this.auditCheckGranularity);
-      ZonedDateTime prevWatermarkDT = Instant.ofEpochMilli(previousWatermark)
-          .atZone(ZoneId.of(this.timeZone));
-      ZonedDateTime startDT = timestamps.first();
-      ZonedDateTime endDT = timestamps.last();
-      TimeIterator iterator = new TimeIterator(startDT, endDT, granularity, true);
-      while (iterator.hasNext()) {
-        ZonedDateTime timestampDT = iterator.next();
-        if (timestampDT.isAfter(prevWatermarkDT)
-            && TimeIterator.durationBetween(prevWatermarkDT, now, granularity) > 0) {
-          long timestampMillis = timestampDT.toInstant().toEpochMilli();
-          ZonedDateTime auditCountCheckLowerBoundDT = TimeIterator.dec(timestampDT, granularity, 1);
-          if (auditCountVerifier.get().isComplete(topicName,
-              auditCountCheckLowerBoundDT.toInstant().toEpochMilli(), timestampMillis)) {
-            completionWatermark = timestampMillis;
-            // Also persist the watermark into State object to share this with other MetadataWriters
-            // we enforce ourselves to always use lower-cased table name here
-            String catalogDbTableNameLowerCased = catalogDbTableName.toLowerCase(Locale.ROOT);
-            this.state.setProp(String.format(STATE_COMPLETION_WATERMARK_KEY_OF_TABLE, catalogDbTableNameLowerCased), completionWatermark);
-            break;
-          }
-        } else {
-          break;
-        }
-      }
-    } catch (IOException e) {
-      log.warn("Exception during audit count check: ", e);
-    }
-    return completionWatermark;
   }
 
   private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
@@ -1031,6 +976,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
     if (tableMetadata.completenessEnabled) {
       gobblinTrackingEvent.addMetadata(COMPLETION_WATERMARK_KEY, Long.toString(tableMetadata.completionWatermark));
+      if (tableMetadata.totalCountCompletenessEnabled) {
+        gobblinTrackingEvent.addMetadata(TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+            Long.toString(tableMetadata.totalCountCompletionWatermark));
+      }
     }
     eventSubmitter.submit(gobblinTrackingEvent);
   }
@@ -1109,7 +1058,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         Long currentOffset = ((LongWatermark)recordEnvelope.getWatermark().getWatermark()).getValue();
 
         if (currentOffset > currentWatermark) {
-          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata()).lowWatermark.isPresent()) {
+          if (!tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata(this.conf)).lowWatermark.isPresent()) {
             //This means we haven't register this table or met some error before, we need to reset the low watermark
             tableMetadataMap.get(tid).lowWatermark = Optional.of(currentOffset - 1);
             tableMetadataMap.get(tid).setDatasetName(gmce.getDatasetIdentifier().getNativeName());
@@ -1117,6 +1066,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
               tableMetadataMap.get(tid).newPartitionColumnEnabled = true;
               if (this.completenessEnabled && this.completenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
                 tableMetadataMap.get(tid).completenessEnabled = true;
+
+                if (this.totalCountCompletenessEnabled
+                    && this.totalCountBasedCompletenessWhitelistBlacklist.acceptTable(dbName, tableName)) {
+                  tableMetadataMap.get(tid).totalCountCompletenessEnabled = true;
+                }
               }
             }
           }
@@ -1156,7 +1110,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    *
    * Also note the difference with {@link org.apache.iceberg.TableMetadata}.
    */
-  public class TableMetadata {
+  public static class TableMetadata {
     Optional<Table> table = Optional.absent();
 
     /**
@@ -1175,18 +1129,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Optional<String> lastSchemaVersion = Optional.absent();
     Optional<Long> lowWatermark = Optional.absent();
     long completionWatermark = DEFAULT_COMPLETION_WATERMARK;
+    long totalCountCompletionWatermark = DEFAULT_COMPLETION_WATERMARK;
     SortedSet<ZonedDateTime> datePartitions = new TreeSet<>(Collections.reverseOrder());
     List<String> serializedAuditCountMaps = new ArrayList<>();
 
     @Setter
     String datasetName;
     boolean completenessEnabled;
+    boolean totalCountCompletenessEnabled;
     boolean newPartitionColumnEnabled;
+    Configuration conf;
 
-    Cache<CharSequence, String> addedFiles = CacheBuilder.newBuilder()
-        .expireAfterAccess(conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
-            TimeUnit.HOURS)
-        .build();
+    Cache<CharSequence, String> addedFiles;
     long lowestGMCEEmittedTime = Long.MAX_VALUE;
 
     /**
@@ -1239,6 +1193,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
       this.lowWatermark = Optional.of(lowWaterMark);
       this.datePartitions.clear();
       this.serializedAuditCountMaps.clear();
+    }
+
+    TableMetadata(Configuration conf) {
+      this.conf = conf;
+      addedFiles = CacheBuilder.newBuilder()
+          .expireAfterAccess(this.conf.getInt(ADDED_FILES_CACHE_EXPIRING_TIME, DEFAULT_ADDED_FILES_CACHE_EXPIRING_TIME),
+              TimeUnit.HOURS)
+          .build();
     }
   }
 }
