@@ -38,8 +38,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.mail.EmailException;
-import org.apache.gobblin.util.hadoop.TokenUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -117,8 +115,10 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.EmailUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
 
@@ -824,7 +824,7 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   protected String buildApplicationMasterCommand(String applicationId, int memoryMbs) {
-    String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
+    String appMasterClassName = GobblinTemporalApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append((int) (memoryMbs * this.jvmMemoryXmxRatio) - this.jvmMemoryOverheadMbs).append("M")
@@ -832,7 +832,7 @@ public class GobblinYarnAppLauncher {
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
-        .append(" ").append(GobblinApplicationMaster.class.getName())
+        .append(" ").append(GobblinTemporalApplicationMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)

@@ -101,7 +101,7 @@ ext.externalDependency = [
     "confluentJsonSerializer": "io.confluent:kafka-json-serializer:" + confluentVersion,
     "zkClient": "com.101tec:zkclient:0.7",
     "quartz": "org.quartz-scheduler:quartz:2.2.3",
-    "temporal-sdk": "io.temporal:temporal-sdk:1.20.0",
+    "temporal-sdk": "io.temporal:temporal-sdk:1.18.1",
     "testng": "org.testng:testng:6.14.3",
     "junit": "junit:junit:4.13.2",
     "mockserver":"org.mock-server:mockserver-netty:3.10.4",
@@ -215,6 +215,7 @@ ext.externalDependency = [
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "testContainers": "org.testcontainers:testcontainers:1.17.3",
     "testContainersMysql": "org.testcontainers:mysql:1.17.3",
+    "workflowClient.namespace": "gobblin-fastingest-internpoc",
     "xz": "org.tukaani:xz:1.8"
 ]
 
