@@ -219,6 +219,7 @@ public class ConfigurationKeys {
   public static final int DEFAULT_JOB_MAX_FAILURES = 1;
   public static final String MAX_TASK_RETRIES_KEY = "task.maxretries";
   public static final int DEFAULT_MAX_TASK_RETRIES = 5;
+
   public static final String TASK_RETRY_INTERVAL_IN_SEC_KEY = "task.retry.intervalinsec";
   public static final long DEFAULT_TASK_RETRY_INTERVAL_IN_SEC = 300;
   public static final String OVERWRITE_CONFIGS_IN_STATESTORE = "overwrite.configs.in.statestore";
