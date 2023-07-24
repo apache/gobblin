@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime.api;
 
 import com.typesafe.config.Config;
 import java.io.IOException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Timestamp;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.config.ConfigBuilder;
@@ -174,13 +175,22 @@ public class MysqlMultiActiveLeaseArbiterTest {
           return insertStatement.executeUpdate();
         }, true);
     Assert.assertEquals(numRowsUpdated, 1);
-    // Inserting the second time should update 0 rows but not throw any error
-    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
-        insertStatement -> {
-          completeInsertPreparedStatement(insertStatement, resumeDagAction);
-          return insertStatement.executeUpdate();
-        }, true);
-    Assert.assertEquals(numRowsUpdated, 0);
+    // Inserting the second time should throw an error
+    boolean wasExceptionThrown =
+        this.mysqlMultiActiveLeaseArbiter.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
+    insertStatement -> {
+      completeInsertPreparedStatement(insertStatement, resumeDagAction);
+      try {
+        insertStatement.executeUpdate();
+        return false;
+      } catch (SQLIntegrityConstraintViolationException e) {
+        if (e.getMessage().contains("Duplicate entry")) {
+          return true;
+        }
+      }
+      return false;
+    }, true);
+    Assert.assertTrue(wasExceptionThrown);
   }
 
     /*

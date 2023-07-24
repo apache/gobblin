@@ -123,8 +123,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   // Need to define three separate statements to handle cases where row does not exist or has null values to check
   protected static final String CONDITIONALLY_ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT = "INSERT INTO %s (flow_group, "
       + "flow_name, flow_execution_id, flow_action, event_timestamp, lease_acquisition_timestamp) "
-      + "SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT * FROM %s "
-      + WHERE_CLAUSE_TO_MATCH_KEY + ")";
+      + "VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
   protected static final String CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT = "UPDATE %s "
       + "SET event_timestamp=CURRENT_TIMESTAMP, lease_acquisition_timestamp=CURRENT_TIMESTAMP "
       + WHERE_CLAUSE_TO_MATCH_KEY + " AND event_timestamp=? AND lease_acquisition_timestamp is NULL";
@@ -226,7 +225,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         int numRowsUpdated = withPreparedStatement(formattedAcquireLeaseNewRowStatement,
             insertStatement -> {
               completeInsertPreparedStatement(insertStatement, flowAction);
-              return insertStatement.executeUpdate();
+              try {
+                return insertStatement.executeUpdate();
+              } catch (SQLIntegrityConstraintViolationException e) {
+                if (!e.getMessage().contains("Duplicate entry")) {
+                  throw e;
+                }
+              }
+              return 0;
             }, true);
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.absent());
       }
@@ -392,11 +398,6 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       DagActionStore.DagAction flowAction) throws SQLException {
     int i = 0;
     // Values to set in new row
-    statement.setString(++i, flowAction.getFlowGroup());
-    statement.setString(++i, flowAction.getFlowName());
-    statement.setString(++i, flowAction.getFlowExecutionId());
-    statement.setString(++i, flowAction.getFlowActionType().toString());
-    // Values to check if a row with this primary key exists
     statement.setString(++i, flowAction.getFlowGroup());
     statement.setString(++i, flowAction.getFlowName());
     statement.setString(++i, flowAction.getFlowExecutionId());
