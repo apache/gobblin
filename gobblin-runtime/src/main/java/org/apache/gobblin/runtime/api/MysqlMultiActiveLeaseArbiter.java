@@ -23,6 +23,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Timestamp;
 
 import com.google.inject.Inject;
@@ -101,8 +102,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private static final String CREATE_CONSTANTS_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s "
       + "(primary_key INT, epsilon INT, linger INT, PRIMARY KEY (primary_key))";
   // Only insert epsilon and linger values from config if this table does not contain a pre-existing values already.
-  private static final String UPSERT_CONSTANTS_TABLE_STATEMENT = "INSERT INTO %s (primary_key, epsilon, linger) "
-      + "VALUES(1, ?, ?) ON DUPLICATE KEY UPDATE epsilon=VALUES(epsilon), linger=VALUES(linger)";
+  private static final String INSERT_CONSTANTS_TABLE_STATEMENT = "INSERT INTO %s (primary_key, epsilon, linger) "
+      + "VALUES(1, ?, ?)";
   protected static final String WHERE_CLAUSE_TO_MATCH_KEY = "WHERE flow_group=? AND flow_name=? AND flow_execution_id=?"
       + " AND flow_action=?";
   protected static final String WHERE_CLAUSE_TO_MATCH_ROW = WHERE_CLAUSE_TO_MATCH_KEY
@@ -175,12 +176,19 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     String createConstantsStatement = String.format(CREATE_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(createConstantsStatement, createStatement -> createStatement.executeUpdate(), true);
 
-    String insertConstantsStatement = String.format(UPSERT_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
+    String insertConstantsStatement = String.format(INSERT_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(insertConstantsStatement, insertStatement -> {
       int i = 0;
       insertStatement.setInt(++i, epsilon);
       insertStatement.setInt(++i, linger);
-      return insertStatement.executeUpdate();
+      try {
+        return insertStatement.executeUpdate();
+      } catch (SQLIntegrityConstraintViolationException e) {
+        if (!e.getMessage().contains("Duplicate entry '1' for key 'PRIMARY")) {
+          throw e;
+        }
+      }
+      return null;
     }, true);
   }
 
