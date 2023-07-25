@@ -450,13 +450,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           updateStatement.setTimestamp(++i, new Timestamp(status.getLeaseAcquisitionTimestamp()));
           int numRowsUpdated = updateStatement.executeUpdate();
           if (numRowsUpdated == 0) {
-            log.info("Multi-active lease arbiter lease attempt: [%s, eventTimestamp: %s] - FAILED to complete because "
+            log.info("Multi-active lease arbiter lease attempt: [{}, eventTimestamp: {}] - FAILED to complete because "
                 + "lease expired or event cleaned up before host completed required actions", flowAction,
                 status.getEventTimestamp());
             return false;
           }
           if( numRowsUpdated == 1) {
-            log.info("Multi-active lease arbiter lease attempt: [%s, eventTimestamp: %s] - COMPLETED, no longer leasing"
+            log.info("Multi-active lease arbiter lease attempt: [{}, eventTimestamp: {}] - COMPLETED, no longer leasing"
                     + " this event after this.", flowAction, status.getEventTimestamp());
             return true;
           };
