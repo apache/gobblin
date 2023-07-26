@@ -30,6 +30,7 @@ import com.google.common.base.Strings;
  * The WriterBuilder extension to create {@link GobblinOrcWriter} on top of {@link FsDataWriterBuilder}
  */
 public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
+  public static String ORC_WRITER_INSTRUMENTED = GobblinBaseOrcWriter.ORC_WRITER_PREFIX + "instrumented";
   public GobblinOrcWriterBuilder() {
   }
 
@@ -42,6 +43,9 @@ public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, Generic
 
     switch (this.destination.getType()) {
       case HDFS:
+        if (this.destination.getProperties().getPropAsBoolean(ORC_WRITER_INSTRUMENTED, false)) {
+          return new InstrumentedGobblinOrcWriter(this, this.destination.getProperties());
+        }
         return new GobblinOrcWriter(this, this.destination.getProperties());
       default:
         throw new RuntimeException("Unknown destination type: " + this.destination.getType());
