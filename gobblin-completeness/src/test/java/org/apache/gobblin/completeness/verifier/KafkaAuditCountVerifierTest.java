@@ -135,4 +135,12 @@ public class KafkaAuditCountVerifierTest {
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
   }
+
+  public void testDivideByDoubleZero() throws IOException {
+    double anyNumerator = 5;
+    double arithmeticDivide = anyNumerator/(double) 0;
+    double readDoubleValue = Double.POSITIVE_INFINITY;
+    Assert.assertEquals(arithmeticDivide, readDoubleValue);
+    Assert.assertTrue(arithmeticDivide > 0);
+  }
 }
