@@ -26,6 +26,8 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.completeness.audit.TestAuditClient;
 import org.apache.gobblin.configuration.State;
+import org.testng.asserts.Assertion;
+
 
 @Test
 public class KafkaAuditCountVerifierTest {
@@ -113,6 +115,20 @@ public class KafkaAuditCountVerifierTest {
     ));
     Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
+
+    // Check validation tiers for exceptions
+    client.setTierCounts(ImmutableMap.of(
+        SOURCE_TIER, 990L,
+        REFERENCE_TIERS, 0L,
+        TOTAL_COUNT_REF_TIER_0, 0L,
+        TOTAL_COUNT_REF_TIER_1, 0L
+    ));
+    try {
+      verifier.calculateCompleteness(topic, 0L, 0L)
+          .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness);
+    } catch (IOException e){
+      Assert.fail("Completeness calculation failure.");
+    }
   }
 
   public void testEmptyAuditCount() throws IOException {
@@ -134,13 +150,5 @@ public class KafkaAuditCountVerifierTest {
         .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
-  }
-
-  public void testDivideByDoubleZero() throws IOException {
-    double anyNumerator = 5;
-    double arithmeticDivide = anyNumerator/(double) 0;
-    double readDoubleValue = Double.POSITIVE_INFINITY;
-    Assert.assertEquals(arithmeticDivide, readDoubleValue);
-    Assert.assertTrue(arithmeticDivide > 0);
   }
 }
