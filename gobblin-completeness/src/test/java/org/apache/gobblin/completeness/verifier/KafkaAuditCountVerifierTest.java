@@ -26,8 +26,6 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.completeness.audit.TestAuditClient;
 import org.apache.gobblin.configuration.State;
-import org.testng.asserts.Assertion;
-
 
 @Test
 public class KafkaAuditCountVerifierTest {
