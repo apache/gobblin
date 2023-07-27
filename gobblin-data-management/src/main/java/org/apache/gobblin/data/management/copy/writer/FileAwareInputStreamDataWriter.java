@@ -417,7 +417,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
     FsAction newOwnerAction = fsPermission.getUserAction().or(FsAction.EXECUTE);
-    return new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction());
+    return new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction(), fsPermission.getStickyBit());
   }
 
   @Override
