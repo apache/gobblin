@@ -280,20 +280,22 @@ public class DagManager extends AbstractIdleService {
    * Note this should only be called from the {@link Orchestrator} or {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
    */
   public synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
-    if (persist) {
-      //Persist the dag
-      this.dagStateStore.writeCheckpoint(dag);
-    }
-    int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
-    // Add the dag to the specific queue determined by flowExecutionId
-    // Flow cancellation request has to be forwarded to the same DagManagerThread where the
-    // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
-    // specific DagManagerThread queue
-    if (!this.runQueue[queueId].offer(dag)) {
-      throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
-    }
-    if (setStatus) {
-      submitEventsAndSetStatus(dag);
+    if (isActive) {
+      if (persist) {
+        //Persist the dag
+        this.dagStateStore.writeCheckpoint(dag);
+      }
+      int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
+      // Add the dag to the specific queue determined by flowExecutionId
+      // Flow cancellation request has to be forwarded to the same DagManagerThread where the
+      // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
+      // specific DagManagerThread queue
+      if (!this.runQueue[queueId].offer(dag)) {
+        throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
+      }
+      if (setStatus) {
+        submitEventsAndSetStatus(dag);
+      }
     }
   }
 
@@ -432,6 +434,9 @@ public class DagManager extends AbstractIdleService {
                 break;
               case RESUME:
                 this.handleResumeFlowEvent(new ResumeFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
+                break;
+              case LAUNCH:
+                // TODO: handle launch events on leader change of DagManager
                 break;
               default:
                 log.warn("Unsupported dagAction: " + action.getFlowActionType().toString());
