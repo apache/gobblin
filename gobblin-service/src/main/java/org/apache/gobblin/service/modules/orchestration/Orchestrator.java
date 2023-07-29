@@ -278,26 +278,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-        // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
-        // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
-        // In this case, the current time is used as the flow executionId.
-        flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-            Long.toString(System.currentTimeMillis()));
-
-        String message = "Flow was not compiled successfully.";
-        if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
-          message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
-        }
-        flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
-
-        Optional<TimingEvent> flowCompileFailedTimer = this.eventSubmitter.transform(submitter ->
-            new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
+        emitFlowCompilationFailedEvent(spec, flowMetadata);
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
         conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.FAILED);
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
-        if (flowCompileFailedTimer.isPresent()) {
-          flowCompileFailedTimer.get().stop(flowMetadata);
-        }
         return;
       }
       conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SUCCESSFUL);
@@ -374,9 +358,41 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
+  /**
+   * Abstraction used to populate the message of and emit a FlowCompileFailed event for the Orchestrator.
+   * @param spec
+   * @param flowMetadata
+   */
+  public void emitFlowCompilationFailedEvent(Spec spec, Map<String, String> flowMetadata) {
+    // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
+    // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
+    // In this case, the current time is used as the flow executionId.
+    flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+        Long.toString(System.currentTimeMillis()));
+
+    String message = "Flow was not compiled successfully.";
+    if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
+      message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
+    }
+    _log.warn(message);
+    flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
+
+    Optional<TimingEvent> flowCompileFailedTimer = eventSubmitter.transform(submitter ->
+        new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
+
+    if (flowCompileFailedTimer.isPresent()) {
+      flowCompileFailedTimer.get().stop(flowMetadata);
+    }
+  }
+
   public void submitFlowToDagManager(FlowSpec flowSpec)
       throws IOException {
-    submitFlowToDagManager(flowSpec, specCompiler.compileFlow(flowSpec));
+    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
+    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+      emitFlowCompilationFailedEvent(flowSpec, TimingEventUtils.getFlowMetadata(flowSpec));
+      return;
+    }
+    submitFlowToDagManager(flowSpec, jobExecutionPlanDag);
   }
 
   public void submitFlowToDagManager(FlowSpec flowSpec, Dag<JobExecutionPlan> jobExecutionPlanDag)
