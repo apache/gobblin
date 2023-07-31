@@ -230,7 +230,7 @@ public class CompletenessWatermarkUpdater {
     @Override
     protected void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
         ZonedDateTime timestampDT) {
-      if (!results.get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness)) {
+      if (!results.getOrDefault(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness, false)) {
         return;
       }
 
@@ -261,7 +261,7 @@ public class CompletenessWatermarkUpdater {
     @Override
     protected void computeAndUpdateInternal(Map<KafkaAuditCountVerifier.CompletenessType, Boolean> results,
         ZonedDateTime timestampDT) {
-      if (!results.get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness)) {
+      if (!results.getOrDefault(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness, false)) {
         return;
       }
 
