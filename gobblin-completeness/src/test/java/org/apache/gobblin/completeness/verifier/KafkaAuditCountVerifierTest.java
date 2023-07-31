@@ -135,4 +135,28 @@ public class KafkaAuditCountVerifierTest {
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
   }
+
+  public void testOneCountFailed() throws IOException {
+    final String topic = "testTopic";
+    State props = new State();
+    props.setProp(KafkaAuditCountVerifier.SOURCE_TIER, SOURCE_TIER);
+    props.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.TOTAL_COUNT_REFERENCE_TIERS, TOTAL_COUNT_REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.THRESHOLD, ".99");
+    props.setProp(KafkaAuditCountVerifier.COMPLETE_ON_NO_COUNTS, true);
+    TestAuditClient client = new TestAuditClient(props);
+    KafkaAuditCountVerifier verifier = new KafkaAuditCountVerifier(props, client);
+
+    // Missing total count tier which will throw exception
+    client.setTierCounts(ImmutableMap.of(
+        SOURCE_TIER, 999L,
+        REFERENCE_TIERS, 1000L
+    ));
+
+    // Classic completeness is still returned, but total is missing
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
+    Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
+        .containsKey(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
+  }
 }

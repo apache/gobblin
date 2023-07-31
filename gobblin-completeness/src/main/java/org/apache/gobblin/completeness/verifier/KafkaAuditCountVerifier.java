@@ -18,6 +18,7 @@
 package org.apache.gobblin.completeness.verifier;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -125,10 +126,13 @@ public class KafkaAuditCountVerifier {
     countsByTier.forEach((x,y) -> log.info(String.format(" %s : %s ", x, y)));
 
     Map<CompletenessType, Boolean> result = new HashMap<>();
-    result.put(CompletenessType.ClassicCompleteness, calculateCompleteness(datasetName, beginInMillis, endInMillis,
-        CompletenessType.ClassicCompleteness, countsByTier) > threshold);
-    result.put(CompletenessType.TotalCountCompleteness, calculateCompleteness(datasetName, beginInMillis, endInMillis,
-        CompletenessType.TotalCountCompleteness, countsByTier) > threshold);
+    Arrays.stream(CompletenessType.values()).forEach(type -> {
+      try {
+        result.put(type, calculateCompleteness(datasetName, beginInMillis, endInMillis, type, countsByTier) > threshold);
+      } catch (IOException e) {
+        log.error("Failed to calculate completeness for type " + type, e);
+      }
+    });
     return result;
   }
 
