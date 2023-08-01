@@ -410,6 +410,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
+  /**
+   * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the
+   * flowspec can be compiled. If the pre-conditions hold, then a JobExecutionPlan is constructed and returned to the
+   * caller.
+   * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
+   */
   public Optional<Dag<JobExecutionPlan>> handleChecksBeforeExecution(FlowSpec flowSpec)
       throws IOException, InterruptedException {
     Config flowConfig = flowSpec.getConfig();
