@@ -134,6 +134,17 @@ public class KafkaAuditCountVerifierTest {
         .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
+
+    // Check validation tiers for exceptions
+    client.setTierCounts(
+        ImmutableMap.of(
+            SOURCE_TIER, 990L,
+            REFERENCE_TIERS, 0L,
+            TOTAL_COUNT_REF_TIER_0, 0L,
+            TOTAL_COUNT_REF_TIER_1, 0L
+        ));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L).get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L).get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
   }
 
   public void testOneCountFailed() throws IOException {

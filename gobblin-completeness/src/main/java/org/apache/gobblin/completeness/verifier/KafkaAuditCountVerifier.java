@@ -221,8 +221,11 @@ public class KafkaAuditCountVerifier {
         throw new IOException(String.format("Reference tier %s audit count cannot be retrieved for dataset %s between %s and %s", refTier, datasetName, beginInMillis, endInMillis));
       }
       long refCount = countsByTier.get(refTier);
-      if(refCount <= 0) {
-        throw new IOException(String.format("Reference tier %s count cannot be less than or equal to zero", refTier));
+      if (refCount == 0) {
+        // If count in refTier is 0, it will be assumed that the data for that hour is completed and move the watermark forward.
+        log.warn(String.format("Reference tier %s audit count is reported to be zero", refCount));
+      } else if (refCount < 0) {
+        throw new IOException(String.format("Reference tier %s count cannot be less than zero", refTier));
       }
     }
   }
