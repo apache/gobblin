@@ -77,7 +77,6 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -207,7 +206,7 @@ public class DagManager extends AbstractIdleService {
   protected final Long defaultJobStartSlaTimeMillis;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
-  private final Optional<SpecCompiler> specCompiler;
+  private final Orchestrator orchestrator;
   private final FlowCatalog flowCatalog;
   private final Config config;
   private final Optional<EventSubmitter> eventSubmitter;
@@ -219,7 +218,7 @@ public class DagManager extends AbstractIdleService {
 
   private volatile boolean isActive = false;
 
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<SpecCompiler> specCompiler,
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Orchestrator orchestrator,
       FlowCatalog flowCatalog, boolean instrumentationEnabled) {
     this.config = config;
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
@@ -241,7 +240,7 @@ public class DagManager extends AbstractIdleService {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     this.jobStatusRetriever = jobStatusRetriever;
-    this.specCompiler = specCompiler;
+    this.orchestrator = orchestrator;
     this.flowCatalog = flowCatalog;
     TimeUnit timeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, FAILED_DAG_RETENTION_TIME_UNIT, DEFAULT_FAILED_DAG_RETENTION_TIME_UNIT));
     this.failedDagRetentionTime = timeUnit.toMillis(ConfigUtils.getLong(config, FAILED_DAG_RETENTION_TIME, DEFAULT_FAILED_DAG_RETENTION_TIME));
@@ -267,9 +266,9 @@ public class DagManager extends AbstractIdleService {
   }
 
   @Inject
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Optional<SpecCompiler> specCompiler,
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Orchestrator orchestrator,
       FlowCatalog flowCatalog) {
-    this(config, jobStatusRetriever, specCompiler, flowCatalog, true);
+    this(config, jobStatusRetriever, orchestrator, flowCatalog, true);
   }
 
   /** Do Nothing on service startup. Scheduling of {@link DagManagerThread}s and loading of any {@link Dag}s is done
@@ -290,22 +289,24 @@ public class DagManager extends AbstractIdleService {
    * Note this should only be called from the {@link Orchestrator} or {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
    */
   public synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
-    if (isActive) {
-      if (persist) {
-        //Persist the dag
-        this.dagStateStore.writeCheckpoint(dag);
-      }
-      int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
-      // Add the dag to the specific queue determined by flowExecutionId
-      // Flow cancellation request has to be forwarded to the same DagManagerThread where the
-      // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
-      // specific DagManagerThread queue
-      if (!this.runQueue[queueId].offer(dag)) {
-        throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
-      }
-      if (setStatus) {
-        submitEventsAndSetStatus(dag);
-      }
+    if (!isActive) {
+      log.warn("Skipping add dag because this instance of DagManager is not active for dag: {}", dag);
+      return;
+    }
+    if (persist) {
+      //Persist the dag
+      this.dagStateStore.writeCheckpoint(dag);
+    }
+    int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
+    // Add the dag to the specific queue determined by flowExecutionId
+    // Flow cancellation request has to be forwarded to the same DagManagerThread where the
+    // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
+    // specific DagManagerThread queue
+    if (!this.runQueue[queueId].offer(dag)) {
+      throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
+    }
+    if (setStatus) {
+      submitEventsAndSetStatus(dag);
     }
   }
 
@@ -477,44 +478,23 @@ public class DagManager extends AbstractIdleService {
    * the process.
    */
   public void handleLaunchFlowEvent(DagActionStore.DagAction action) {
-    if (this.specCompiler.isPresent()) {
-      FlowId flowId = new FlowId().setFlowGroup(action.getFlowGroup()).setFlowName(action.getFlowName());
-      FlowSpec spec;
-      try {
-        URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-        spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-        Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.get().compileFlow(spec);
-        if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-          Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(spec);
-          // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
-          // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
-          // In this case, the current time is used as the flow executionId.
-          flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-              Long.toString(System.currentTimeMillis()));
-
-          String message = "Flow was not compiled successfully.";
-          if (!( spec).getCompilationErrors().isEmpty()) {
-            message = message + " Compilation errors encountered: " + ( spec).getCompilationErrors();
-          }
-          flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
-
-          Optional<TimingEvent> flowCompileFailedTimer = eventSubmitter.transform(submitter ->
-              new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
-
-          if (flowCompileFailedTimer.isPresent()) {
-            flowCompileFailedTimer.get().stop(flowMetadata);
-          }
-        }
-        addDag(jobExecutionPlanDag, true, true);
-      } catch (URISyntaxException e) {
-        log.warn("Could not create URI object for flowId {} due to error {}", flowId, e.getMessage());
-      } catch (SpecNotFoundException e) {
-        log.warn("Spec not found for flow group: {} name: {} Exception: {}", action.getFlowGroup(),
-            action.getFlowName(), e);
-      } catch (IOException e) {
-        log.warn("Failed to add Job Execution Plan for flow group: {} name: {} due to error {}",
-            action.getFlowGroup(), action.getFlowName(), e);
+    FlowId flowId = action.getFlowId();
+    FlowSpec spec;
+    try {
+      URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
+      spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
+      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag = orchestrator.handleChecksBeforeExecution(spec);
+      if (optionalJobExecutionPlanDag.isPresent()) {
+        addDag(optionalJobExecutionPlanDag.get(), true, true);
       }
+    } catch (URISyntaxException e) {
+      log.warn("Could not create URI object for flowId {} due to exception {}", flowId, e.getMessage());
+    } catch (SpecNotFoundException e) {
+      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
+    } catch (IOException e) {
+      log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
+    } catch (InterruptedException e) {
+      log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
     }
   }
 

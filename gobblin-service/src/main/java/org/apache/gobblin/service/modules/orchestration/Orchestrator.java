@@ -110,9 +110,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
-
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
-      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled, Optional<FlowTriggerHandler> flowTriggerHandler) {
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
+      Optional<FlowTriggerHandler> flowTriggerHandler) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -126,10 +126,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
       _log.info("Using specCompiler class name/alias " + specCompilerClassName);
 
-      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specCompilerClassName)), config);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-        | ClassNotFoundException e) {
+      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(specCompilerClassName)), config);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
+             ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
 
@@ -156,7 +155,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
-        ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
+        ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
+        config);
   }
 
   @Inject
@@ -238,64 +238,20 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       // Only register the metric of flows that are scheduled, run once flows should not be tracked indefinitely
       if (!flowGauges.containsKey(spec.getUri().toString()) && flowConfig.hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        String flowCompiledGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
+        String flowCompiledGaugeName =
+            MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
         flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
         ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
         RootMetricContext.get().register(flowCompiledGaugeName, gauge);
       }
 
-      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
-      //running. If so, return immediately.
-      boolean allowConcurrentExecution = ConfigUtils
-          .getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, this.flowConcurrencyFlag);
-
-      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
-
-      if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
-        _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
-            + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-        conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SKIPPED);
-        Instrumented.markMeter(this.skippedFlowsMeter);
-        if (!((FlowSpec)spec).getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-          // For ad-hoc flow, we might already increase quota, we need to decrease here
-          for(Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
-            quotaManager.releaseQuota(dagNode);
-          }
-        }
-
-        // Send FLOW_FAILED event
-        Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
-        flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
-            + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
-        if (this.eventSubmitter.isPresent()) {
-          new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-        }
+      if (!isExecutionPermittedHandler(flowConfig, spec, flowName, flowGroup)) {
         return;
       }
-
-      Optional<TimingEvent> flowCompilationTimer = this.eventSubmitter.transform(submitter ->
-          new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
-
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
-      if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-        emitFlowCompilationFailedEvent(spec, flowMetadata);
-        Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-        conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.FAILED);
-        _log.warn("Cannot determine an executor to run on for Spec: " + spec);
-        return;
-      }
-      conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SUCCESSFUL);
-
-      //If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is successful,
-      // retrieve the flowExecutionId from the JobSpec.
-      flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-          jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
-
-      if (flowCompilationTimer.isPresent()) {
-        flowCompilationTimer.get().stop(flowMetadata);
-      }
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
+      // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
       if (flowTriggerHandler.isPresent()) {
         // If triggerTimestampMillis is 0, then it was not set by the job trigger handler, and we cannot handle this event
         if (triggerTimestampMillis == 0L) {
@@ -315,38 +271,60 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis);
         _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]", flowAction,
             triggerTimestampMillis);
-      } else if (this.dagManager.isPresent()) {
-        submitFlowToDagManager((FlowSpec) spec, jobExecutionPlanDag);
       } else {
-        // Schedule all compiled JobSpecs on their respective Executor
-        for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
-          DagManagerUtils.incrementJobAttempt(dagNode);
-          JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+        // Compile flow spec and do corresponding checks
+        Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+        Optional<TimingEvent> flowCompilationTimer =
+            this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
 
-          // Run this spec on selected executor
-          SpecProducer producer = null;
-          try {
-            producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-            Spec jobSpec = jobExecutionPlan.getJobSpec();
+        if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+          populateFlowCompilationFailedEventMessage(spec, flowMetadata);
+          Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+          conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.FAILED);
+          _log.warn("Cannot determine an executor to run on for Spec: " + spec);
+          return;
+        }
+        conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SUCCESSFUL);
 
-            if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-              _log.warn("JobSpec does not contain flowExecutionId.");
+        addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+        if (flowCompilationTimer.isPresent()) {
+          flowCompilationTimer.get().stop(flowMetadata);
+        }
+
+        // Depending on if DagManager is present, handle execution
+        if (this.dagManager.isPresent()) {
+          submitFlowToDagManager((FlowSpec) spec, jobExecutionPlanDag);
+        } else {
+          // Schedule all compiled JobSpecs on their respective Executor
+          for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
+            DagManagerUtils.incrementJobAttempt(dagNode);
+            JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+
+            // Run this spec on selected executor
+            SpecProducer producer = null;
+            try {
+              producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
+              Spec jobSpec = jobExecutionPlan.getJobSpec();
+
+              if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+                _log.warn("JobSpec does not contain flowExecutionId.");
+              }
+
+              Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);
+              _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
+
+              Optional<TimingEvent> jobOrchestrationTimer = this.eventSubmitter.transform(
+                  submitter -> new TimingEvent(submitter, TimingEvent.LauncherTimings.JOB_ORCHESTRATED));
+
+              producer.addSpec(jobSpec);
+
+              if (jobOrchestrationTimer.isPresent()) {
+                jobOrchestrationTimer.get().stop(jobMetadata);
+              }
+            } catch (Exception e) {
+              _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
+                  + " for flow: " + spec, e);
             }
-
-            Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);
-            _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
-
-            Optional<TimingEvent> jobOrchestrationTimer = this.eventSubmitter.transform(submitter ->
-                new TimingEvent(submitter, TimingEvent.LauncherTimings.JOB_ORCHESTRATED));
-
-            producer.addSpec(jobSpec);
-
-            if (jobOrchestrationTimer.isPresent()) {
-              jobOrchestrationTimer.get().stop(jobMetadata);
-            }
-          } catch (Exception e) {
-            _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
-                + " for flow: " + spec, e);
           }
         }
       }
@@ -359,11 +337,59 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /**
+   * If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is
+   * successful, retrieve the flowExecutionId from the JobSpec.
+   */
+  public void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata, Dag<JobExecutionPlan> jobExecutionPlanDag) {
+    flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+        jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(
+            ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+  }
+
+  /**
+   * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
+   * already running and emits a FLOW FAILED event. Otherwise, this check passes.
+   * @return true if caller can proceed to execute flow, false otherwise
+   * @throws IOException
+   */
+  public boolean isExecutionPermittedHandler(Config flowConfig, Spec spec, String flowName, String flowGroup)
+      throws IOException {
+    boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, this.flowConcurrencyFlag);
+
+    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+
+    if (!isExecutionPermitted(flowName, flowGroup, allowConcurrentExecution)) {
+      _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
+          + "concurrent executions are disabled for this flow.", flowGroup, flowName);
+      conditionallyUpdateFlowGaugeSpecState(spec, CompiledState.SKIPPED);
+      Instrumented.markMeter(this.skippedFlowsMeter);
+      if (!((FlowSpec) spec).getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+        // For ad-hoc flow, we might already increase quota, we need to decrease here
+        for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
+          quotaManager.releaseQuota(dagNode);
+        }
+      }
+
+      // Send FLOW_FAILED event
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
+      flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
+          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
+      if (this.eventSubmitter.isPresent()) {
+        new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      }
+      return false;
+    }
+    return true;
+  }
+
+
+  /**
    * Abstraction used to populate the message of and emit a FlowCompileFailed event for the Orchestrator.
    * @param spec
    * @param flowMetadata
    */
-  public void emitFlowCompilationFailedEvent(Spec spec, Map<String, String> flowMetadata) {
+  public void populateFlowCompilationFailedEventMessage(Spec spec,
+      Map<String, String> flowMetadata) {
     // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
     // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
     // In this case, the current time is used as the flow executionId.
@@ -374,7 +400,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
       message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
     }
-    _log.warn(message);
     flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
     Optional<TimingEvent> flowCompileFailedTimer = eventSubmitter.transform(submitter ->
@@ -385,14 +410,40 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  public void submitFlowToDagManager(FlowSpec flowSpec)
-      throws IOException {
-    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
-    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-      emitFlowCompilationFailedEvent(flowSpec, TimingEventUtils.getFlowMetadata(flowSpec));
-      return;
+  public Optional<Dag<JobExecutionPlan>> handleChecksBeforeExecution(FlowSpec flowSpec)
+      throws IOException, InterruptedException {
+    Config flowConfig = flowSpec.getConfig();
+    String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    if (!isExecutionPermittedHandler(flowConfig, flowSpec, flowName, flowGroup)) {
+      return Optional.absent();
     }
-    submitFlowToDagManager(flowSpec, jobExecutionPlanDag);
+
+    //Wait for the SpecCompiler to become healthy.
+    this.getSpecCompiler().awaitHealthy();
+
+    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
+    Optional<TimingEvent> flowCompilationTimer =
+        this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
+    Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+
+    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+      populateFlowCompilationFailedEventMessage(flowSpec, flowMetadata);
+      return Optional.absent();
+    }
+
+    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+    if (flowCompilationTimer.isPresent()) {
+      flowCompilationTimer.get().stop(flowMetadata);
+    }
+    return Optional.of(jobExecutionPlanDag);
+  }
+
+  public void submitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
+    Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag = handleChecksBeforeExecution(flowSpec);
+    if (optionalJobExecutionPlanDag.isPresent()) {
+      submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
+    }
   }
 
   public void submitFlowToDagManager(FlowSpec flowSpec, Dag<JobExecutionPlan> jobExecutionPlanDag)
@@ -420,7 +471,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  private boolean canRun(String flowName, String flowGroup, boolean allowConcurrentExecution) {
+  private boolean isExecutionPermitted(String flowName, String flowGroup, boolean allowConcurrentExecution) {
     if (allowConcurrentExecution) {
       return true;
     } else {

@@ -190,15 +190,19 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       this.orchestrator.submitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
-      log.warn("Could not create URI object for flowId {} due to error {}", flowId, e.getMessage());
+      log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.unexpectedErrors.mark();
       return;
     } catch (SpecNotFoundException e) {
-      log.warn("Spec not found for flow group: {} name: {} Exception: {}", flowGroup, flowName, e);
+      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
       this.unexpectedErrors.mark();
       return;
     } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flow group: {} name: {} due to error {}", flowGroup, flowName, e);
+      log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
+      this.unexpectedErrors.mark();
+      return;
+    } catch (InterruptedException e) {
+      log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
       this.unexpectedErrors.mark();
       return;
     }
