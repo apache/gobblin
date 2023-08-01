@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 
 import lombok.Data;
+import org.apache.gobblin.service.FlowId;
 
 
 public interface DagActionStore {
@@ -40,6 +41,10 @@ public interface DagActionStore {
     final String flowName;
     final String flowExecutionId;
     final FlowActionType flowActionType;
+
+    public FlowId getFlowId() {
+      return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
+    }
   }
 
 
