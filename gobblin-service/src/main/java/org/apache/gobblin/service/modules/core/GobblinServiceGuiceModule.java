@@ -23,7 +23,6 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
@@ -231,9 +230,6 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(UserQuotaManager.class)
           .to(getClassByNameOrAlias(UserQuotaManager.class, serviceConfig.getInnerConfig(),
               ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER));
-      OptionalBinder.newOptionalBinder(binder, SpecCompiler.class);
-      binder.bind(SpecCompiler.class).to(getClassByNameOrAlias(SpecCompiler.class, serviceConfig.getInnerConfig(),
-          ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS));
     }
 
     if (serviceConfig.isGitConfigMonitorEnabled()) {
