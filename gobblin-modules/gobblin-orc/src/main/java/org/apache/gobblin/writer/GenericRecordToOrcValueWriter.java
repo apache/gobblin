@@ -46,6 +46,7 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
@@ -69,6 +70,10 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   @VisibleForTesting
   public int resizeCount = 0;
 
+  @Getter
+  long totalBytesConverted = 0;
+  @Getter
+  long totalRecordsConverted = 0;
   /**
    * The interface for the conversion from GenericRecord to ORC's ColumnVectors.
    */
@@ -79,8 +84,9 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
      * @param column either the column number or element number
      * @param data Object which contains the data
      * @param output the ColumnVector to put the value into
+     * @returns the number of elements converted by the converter, for tracking and estimation purposes
      */
-    void addValue(int rowId, int column, Object data, ColumnVector output);
+    long addValue(int rowId, int column, Object data, ColumnVector output);
   }
 
   private final Converter[] converters;
@@ -101,8 +107,8 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   @Override
   public void write(GenericRecord value, VectorizedRowBatch output)
       throws IOException {
-
     int row = output.size++;
+    long bytesConverted = 0;
     for (int c = 0; c < converters.length; ++c) {
       ColumnVector col = output.cols[c];
       if (value.get(c) == null) {
@@ -110,55 +116,65 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
         col.isNull[row] = true;
       } else {
         col.isNull[row] = false;
-        converters[c].addValue(row, c, value.get(c), col);
+        bytesConverted += converters[c].addValue(row, c, value.get(c), col);
       }
     }
+    this.totalBytesConverted += bytesConverted;
+    this.totalRecordsConverted += 1;
   }
 
+
   static class BooleanConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (boolean) data ? 1 : 0;
+      return 1;
     }
   }
 
   static class ByteConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (byte) data;
+      return 1;
     }
   }
 
   static class ShortConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (short) data;
+      return 2;
     }
   }
 
   static class IntConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (int) data;
+      return 4;
     }
   }
 
   static class LongConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (long) data;
+      return 8;
     }
   }
 
   static class FloatConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (float) data;
+      return 4;
     }
   }
 
   static class DoubleConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (double) data;
+      return 8;
     }
   }
 
   static class StringConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       final byte[] value;
       if (data instanceof GenericEnumSymbol) {
         value = data.toString().getBytes(StandardCharsets.UTF_8);
@@ -170,11 +186,12 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
         value = ((String) data).getBytes(StandardCharsets.UTF_8);
       }
       ((BytesColumnVector) output).setRef(rowId, value, 0, value.length);
+      return value.length;
     }
   }
 
   static class BytesConverter implements Converter {
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       final byte[] value;
       if (data instanceof GenericFixed) {
         value = ((GenericFixed) data).bytes();
@@ -184,6 +201,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
         value = (byte[]) data;
       }
       ((BytesColumnVector) output).setRef(rowId, value, 0, value.length);
+      return 1;
     }
   }
 
@@ -194,8 +212,9 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       this.scale = scale;
     }
 
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DecimalColumnVector) output).vector[rowId].set(getHiveDecimalFromByteBuffer((ByteBuffer) data));
+      return 1;
     }
 
     /**
@@ -228,19 +247,22 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       }
     }
 
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       GenericRecord value = (GenericRecord) data;
       StructColumnVector cv = (StructColumnVector) output;
+      long estimatedBytes = 0;
       for (int c = 0; c < children.length; ++c) {
         ColumnVector field = cv.fields[c];
         if (value.get(c) == null) {
           field.noNulls = false;
           field.isNull[rowId] = true;
+          estimatedBytes += 1;
         } else {
           field.isNull[rowId] = false;
-          children[c].addValue(rowId, c, value.get(c), field);
+          estimatedBytes += children[c].addValue(rowId, c, value.get(c), field);
         }
       }
+      return estimatedBytes;
     }
   }
 
@@ -261,22 +283,24 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
      *             original data type without union wrapper.
      */
     @Override
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       UnionColumnVector cv = (UnionColumnVector) output;
       int tag = (data != null) ? GenericData.get().resolveUnion(unionSchema, data) : children.length;
-
+      long estimatedBytes = 0;
       for (int c = 0; c < children.length; ++c) {
         ColumnVector field = cv.fields[c];
         // If c == tag that indicates data must not be null
         if (c == tag) {
           field.isNull[rowId] = false;
           cv.tags[rowId] = c;
-          children[c].addValue(rowId, c, data, field);
+          estimatedBytes += children[c].addValue(rowId, c, data, field);
         } else {
           field.noNulls = false;
           field.isNull[rowId] = true;
+          estimatedBytes += 1;
         }
       }
+      return estimatedBytes;
     }
   }
 
@@ -290,7 +314,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       rowsAdded = 0;
     }
 
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       rowsAdded += 1;
       List value = (List) data;
       ListColumnVector cv = (ListColumnVector) output;
@@ -299,6 +323,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       cv.lengths[rowId] = value.size();
       cv.offsets[rowId] = cv.childCount;
       cv.childCount += cv.lengths[rowId];
+
       // make sure the child is big enough
       // If seeing child array being saturated, will need to expand with a reasonable amount.
       if (cv.childCount > cv.child.isNull.length) {
@@ -306,18 +331,21 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
         log.info("Column vector: {}, resizing to: {}, child count: {}", cv.child, resizedLength, cv.childCount);
         cv.child.ensureSize(resizedLength, true);
       }
-
+      // Add the size of the empty space of the list
+      long estimatedBytes = 0;
       // Add each element
       for (int e = 0; e < cv.lengths[rowId]; ++e) {
         int offset = (int) (e + cv.offsets[rowId]);
         if (value.get(e) == null) {
           cv.child.noNulls = false;
           cv.child.isNull[offset] = true;
+          estimatedBytes += 1;
         } else {
           cv.child.isNull[offset] = false;
-          children.addValue(offset, e, value.get(e), cv.child);
+          estimatedBytes += children.addValue(offset, e, value.get(e), cv.child);
         }
       }
+      return estimatedBytes;
     }
   }
 
@@ -333,7 +361,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       rowsAdded = 0;
     }
 
-    public void addValue(int rowId, int column, Object data, ColumnVector output) {
+    public long addValue(int rowId, int column, Object data, ColumnVector output) {
       rowsAdded += 1;
       Map<Object, Object> map = (Map<Object, Object>) data;
       Set<Map.Entry<Object, Object>> entries = map.entrySet();
@@ -353,24 +381,28 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       }
       // Add each element
       int e = 0;
+      long estimatedBytes = 0;
       for (Map.Entry entry : entries) {
         int offset = (int) (e + cv.offsets[rowId]);
         if (entry.getKey() == null) {
           cv.keys.noNulls = false;
           cv.keys.isNull[offset] = true;
+          estimatedBytes += 1;
         } else {
           cv.keys.isNull[offset] = false;
-          keyConverter.addValue(offset, e, entry.getKey(), cv.keys);
+          estimatedBytes += keyConverter.addValue(offset, e, entry.getKey(), cv.keys);
         }
         if (entry.getValue() == null) {
           cv.values.noNulls = false;
           cv.values.isNull[offset] = true;
+          estimatedBytes += 1;
         } else {
           cv.values.isNull[offset] = false;
-          valueConverter.addValue(offset, e, entry.getValue(), cv.values);
+          estimatedBytes += valueConverter.addValue(offset, e, entry.getValue(), cv.values);
         }
         e++;
       }
+      return estimatedBytes;
     }
   }
 

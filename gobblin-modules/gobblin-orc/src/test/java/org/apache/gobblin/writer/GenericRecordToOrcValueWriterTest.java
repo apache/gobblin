@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -47,6 +46,8 @@ import org.testng.annotations.Test;
 import com.google.common.io.Files;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 import static org.apache.orc.mapred.OrcMapredRecordReader.nextValue;
 
@@ -170,6 +171,33 @@ public class GenericRecordToOrcValueWriterTest {
     }
     // Examining resize count, which should happen only once for map and list, so totally 2.
     Assert.assertEquals(valueWriter.resizeCount, 2);
+  }
+
+  @Test
+  public void testConvertedBytesCalculation()
+      throws Exception {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("list_map_test/schema.avsc"));
+
+    TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    // Make the batch size very small so that the enlarge behavior would easily be triggered.
+    // But this has to more than the number of records that we deserialized form data.json, as here we don't reset batch.
+    VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
+
+    List<GenericRecord> recordList = GobblinOrcWriterTest
+        .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
+    Assert.assertEquals(recordList.size(), 6);
+    for (GenericRecord record : recordList) {
+      valueWriter.write(record, rowBatch);
+    }
+    // We want to add the sum of the sizes of the elements in the list and map, as well as any isNull values created by resizing the array
+    long byteSumOfIdList = 4 * 3 * 6;
+    // Sum of keys + values
+    long byteSumOfMaps = 1 * 2 * 6 + 4 * 2 * 6;
+    long expectedBytesConverted = byteSumOfIdList + byteSumOfMaps;
+    Assert.assertEquals(valueWriter.getTotalBytesConverted(), expectedBytesConverted);
+    Assert.assertEquals(valueWriter.getTotalRecordsConverted(), 6);
   }
 
   /**

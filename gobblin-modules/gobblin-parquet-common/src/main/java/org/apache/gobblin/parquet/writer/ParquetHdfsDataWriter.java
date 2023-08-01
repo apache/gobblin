@@ -26,6 +26,7 @@ import org.apache.gobblin.writer.FsDataWriter;
 /**
  * An extension to {@link FsDataWriter} that writes in Parquet formats.
  *
+ *
  * <p>
  *   This implementation allows users to specify different formats and codecs
  *   through {@link ParquetWriterConfiguration} to write data.

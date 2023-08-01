@@ -270,6 +270,8 @@ public class KafkaProduceRateTracker {
               avgRecordSize)
               : new TopicPartitionStats(kafkaWatermark.getAvgProduceRates(), kafkaWatermark.getAvgConsumeRate(), kafkaWatermark.getAvgRecordSize(), -1);
 
+
+
       if (unacknowledgedWatermark == null) {
         //If no record seen for this topicPartition in the current time window; carry forward the previously committed
         // watermark with the updated statistics
