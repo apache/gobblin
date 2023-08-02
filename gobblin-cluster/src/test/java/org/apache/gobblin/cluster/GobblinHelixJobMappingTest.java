@@ -34,20 +34,19 @@ public class GobblinHelixJobMappingTest {
     props.setProperty(ConfigurationKeys.JOB_NAME_KEY, "job1");
     String planningJobId = HelixJobsMapping.createPlanningJobId(props);
     String actualJobId = HelixJobsMapping.createActualJobId(props);
-    Assert.assertEquals(planningJobId, "job_PlanningJobjob1_1234");
-    Assert.assertEquals(actualJobId, "job_ActualJobjob1_1234");
+    // The jobID contains the system timestamp that we need to parse out
+    Assert.assertEquals(planningJobId.substring(0, planningJobId.lastIndexOf("_")), "job_PlanningJobjob1_1234");
+    Assert.assertEquals(actualJobId.substring(0, actualJobId.lastIndexOf("_")), "job_ActualJobjob1_1234");
   }
 
   @Test
-  void testMapJobNameWithOverride() {
+  void testMapJobNameWithoutFlowExecutionId() {
     Properties props = new Properties();
-    props.setProperty(GobblinClusterConfigurationKeys.USE_GENERATED_JOBEXECUTION_IDS, "true");
-    props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "1234");
     props.setProperty(ConfigurationKeys.JOB_NAME_KEY, "job1");
     String planningJobId = HelixJobsMapping.createPlanningJobId(props);
     String actualJobId = HelixJobsMapping.createActualJobId(props);
-    // The jobID will be the system timestamp instead of the flow execution ID
-    Assert.assertNotEquals(planningJobId, "job_PlanningJobjob1_1234");
-    Assert.assertNotEquals(actualJobId, "job_ActualJobjob1_1234");
+    // The jobID contains the system timestamp that we need to parse out
+    Assert.assertEquals(planningJobId.substring(0, planningJobId.lastIndexOf("_")), "job_PlanningJobjob1");
+    Assert.assertEquals(actualJobId.substring(0, actualJobId.lastIndexOf("_")), "job_ActualJobjob1");
   }
 }
