@@ -137,6 +137,7 @@ public class KafkaIngestionHealthCheck implements CommitStep {
   public void execute() {
     this.ingestionLatencies.add(this.statsTracker.getMaxIngestionLatency(TimeUnit.MINUTES));
     this.consumptionRateMBps.add(this.statsTracker.getConsumptionRateMBps());
+    log.info("ConsumptionRate " + this.statsTracker.getConsumptionRateMBps());
     if (ingestionLatencies.size() < this.slidingWindowSize) {
       log.info("SUCCESS: Num observations: {} smaller than {}", ingestionLatencies.size(), this.slidingWindowSize);
       return;
