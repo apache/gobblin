@@ -229,14 +229,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
-//      // Only register the metric of flows that are scheduled, run once flows should not be tracked indefinitely
-//      if (!flowGauges.containsKey(spec.getUri().toString()) && flowConfig.hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-//        String flowCompiledGaugeName =
-//            MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
-//        flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
-//        ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
-//        RootMetricContext.get().register(flowCompiledGaugeName, gauge);
-//      }
+      sharedFlowMetricsContainer.addFlowGauge(spec, flowConfig, flowName, flowGroup);
 
       if (!ExecutionChecksUtil.isExecutionPermittedHandler(sharedFlowMetricsContainer, specCompiler, quotaManager,
           eventSubmitter, flowStatusGenerator, _log, flowConcurrencyFlag, flowConfig, spec, flowName, flowGroup)) {
@@ -399,7 +392,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
     }
   }
-  
+
   @Nonnull
   @Override
   public MetricContext getMetricContext() {

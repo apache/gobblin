@@ -212,7 +212,6 @@ public class DagManager extends AbstractIdleService {
   protected final Long defaultJobStartSlaTimeMillis;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
-//  private final Orchestrator orchestrator;
   private final FlowStatusGenerator flowStatusGenerator;
   private final UserQuotaManager quotaManager;
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
@@ -253,7 +252,6 @@ public class DagManager extends AbstractIdleService {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     this.jobStatusRetriever = jobStatusRetriever;
-//    this.orchestrator = orchestrator;
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.flowStatusGenerator = flowStatusGenerator;
     try {
