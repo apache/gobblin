@@ -38,12 +38,18 @@ import org.slf4j.Logger;
 
 
 /**
- * Made to reuse checks between DagManager and Orchestrator
- * // TODO: may be refactored in later stage of multi-active development if we rethink DagManager functionality and
- * // abstractions
+ * Stateless class with functionality meant to be re-used between the DagManager and Orchestrator when launching
+ * executions of a flow spec. In the common case, the Orchestrator receives a flow to orchestrate, performs necessary
+ * validations, and forwards the execution responsibility to the DagManager. The DagManager's responsibility is to
+ * carry out any flow action requests. However, with launch executions now being stored in the DagActionStateStore, on
+ * restart or leadership change the DagManager has to perform validations before executing any launch actions the
+ * previous leader was unable to complete. Rather than duplicating the code or introducing a circular dependency between
+ * the DagManager and Orchestrator, this class is utilized to store the common functionality. It is stateless and
+ * requires all stateful pieces to be passed as input from the caller.
+ * Note: We expect further refactoring to be done to the DagManager in later stage of multi-active development so we do
+ * not attempt major reorganization as abstractions may change.
  */
 public final class ExecutionChecksUtil {
-
 
   /**
    * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the

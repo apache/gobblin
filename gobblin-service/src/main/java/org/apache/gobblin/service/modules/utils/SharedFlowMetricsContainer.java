@@ -39,7 +39,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Class to store flow related metrics shared between the {@link Orchestrator} and {@link DagManager}
+ * Class to store flow related metrics shared between the {@link Orchestrator} and {@link DagManager} so we can easily
+ * track all flow compilations and skipped flows handled between the two in a common place.
  */
 @Singleton
 @Data
