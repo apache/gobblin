@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -58,6 +59,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -77,14 +79,18 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.utils.ExecutionChecksUtil;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsContainer;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -206,7 +212,13 @@ public class DagManager extends AbstractIdleService {
   protected final Long defaultJobStartSlaTimeMillis;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
-  private final Orchestrator orchestrator;
+//  private final Orchestrator orchestrator;
+  private final FlowStatusGenerator flowStatusGenerator;
+  private final UserQuotaManager quotaManager;
+  private final ClassAliasResolver<SpecCompiler> aliasResolver;
+  private final SpecCompiler specCompiler;
+  private final SharedFlowMetricsContainer sharedFlowMetricsContainer;
+  private final boolean flowConcurrencyFlag;
   private final FlowCatalog flowCatalog;
   private final Config config;
   private final Optional<EventSubmitter> eventSubmitter;
@@ -218,7 +230,8 @@ public class DagManager extends AbstractIdleService {
 
   private volatile boolean isActive = false;
 
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Orchestrator orchestrator,
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever,
+      SharedFlowMetricsContainer sharedFlowMetricsContainer, FlowStatusGenerator flowStatusGenerator,
       FlowCatalog flowCatalog, boolean instrumentationEnabled) {
     this.config = config;
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
@@ -240,7 +253,27 @@ public class DagManager extends AbstractIdleService {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     this.jobStatusRetriever = jobStatusRetriever;
-    this.orchestrator = orchestrator;
+//    this.orchestrator = orchestrator;
+    this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
+    this.flowStatusGenerator = flowStatusGenerator;
+    try {
+      String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
+      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
+        specCompilerClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
+      }
+      log.info("Using specCompiler class name/alias " + specCompilerClassName);
+
+      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(specCompilerClassName)), config);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
+             ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+    this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
+        ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
+    this.quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+        ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
+        config);
+    this.sharedFlowMetricsContainer = sharedFlowMetricsContainer;
     this.flowCatalog = flowCatalog;
     TimeUnit timeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, FAILED_DAG_RETENTION_TIME_UNIT, DEFAULT_FAILED_DAG_RETENTION_TIME_UNIT));
     this.failedDagRetentionTime = timeUnit.toMillis(ConfigUtils.getLong(config, FAILED_DAG_RETENTION_TIME, DEFAULT_FAILED_DAG_RETENTION_TIME));
@@ -266,9 +299,10 @@ public class DagManager extends AbstractIdleService {
   }
 
   @Inject
-  public DagManager(Config config, JobStatusRetriever jobStatusRetriever, Orchestrator orchestrator,
+  public DagManager(Config config, JobStatusRetriever jobStatusRetriever,
+      SharedFlowMetricsContainer sharedFlowMetricsContainer, FlowStatusGenerator flowStatusGenerator,
       FlowCatalog flowCatalog) {
-    this(config, jobStatusRetriever, orchestrator, flowCatalog, true);
+    this(config, jobStatusRetriever, sharedFlowMetricsContainer, flowStatusGenerator, flowCatalog, true);
   }
 
   /** Do Nothing on service startup. Scheduling of {@link DagManagerThread}s and loading of any {@link Dag}s is done
@@ -483,7 +517,9 @@ public class DagManager extends AbstractIdleService {
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag = orchestrator.handleChecksBeforeExecution(spec);
+      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
+          ExecutionChecksUtil.handleChecksBeforeExecution(sharedFlowMetricsContainer, specCompiler, quotaManager,
+              eventSubmitter, flowStatusGenerator, log, flowConcurrencyFlag, spec);
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
       }

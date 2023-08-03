@@ -31,7 +31,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsContainer;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -111,7 +113,7 @@ public class OrchestratorTest {
     this._mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
-         Optional.of(this._mockFlowTriggerHandler));
+         Optional.of(this._mockFlowTriggerHandler), Mockito.mock(SharedFlowMetricsContainer.class));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application
