@@ -30,7 +30,7 @@ import com.google.common.base.Strings;
  * The WriterBuilder extension to create {@link GobblinOrcWriter} on top of {@link FsDataWriterBuilder}
  */
 public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
-  public static String ORC_WRITER_INSTRUMENTED = GobblinBaseOrcWriter.ORC_WRITER_PREFIX + "instrumented";
+  public static final String ORC_WRITER_INSTRUMENTED = GobblinBaseOrcWriter.ORC_WRITER_PREFIX + "instrumented";
   public GobblinOrcWriterBuilder() {
   }
 

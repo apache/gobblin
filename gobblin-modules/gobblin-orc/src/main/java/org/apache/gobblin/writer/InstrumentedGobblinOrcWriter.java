@@ -40,12 +40,12 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 @Slf4j
 public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
   MetricContext metricContext;
-  public static String METRICS_SCHEMA_NAME = "schemaName";
-  public static String METRICS_BYTES_WRITTEN = "bytesWritten";
-  public static String METRICS_RECORDS_WRITTEN = "recordsWritten";
-  public static String METRICS_BUFFER_RESIZES = "bufferResizes";
-  public static String METRICS_BUFFER_SIZE = "bufferSize";
-  public static String ORC_WRITER_METRICS_NAME = "OrcWriterMetrics";
+  public static final String METRICS_SCHEMA_NAME = "schemaName";
+  public static final String METRICS_BYTES_WRITTEN = "bytesWritten";
+  public static final String METRICS_RECORDS_WRITTEN = "recordsWritten";
+  public static final String METRICS_BUFFER_RESIZES = "bufferResizes";
+  public static final String METRICS_BUFFER_SIZE = "bufferSize";
+  public static final String ORC_WRITER_METRICS_NAME = "OrcWriterMetrics";
 
   public InstrumentedGobblinOrcWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     super(builder, properties);
