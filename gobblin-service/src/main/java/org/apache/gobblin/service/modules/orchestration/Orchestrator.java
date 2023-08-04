@@ -98,6 +98,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private Optional<FlowTriggerHandler> flowTriggerHandler;
+  @Getter
   private SharedFlowMetricsContainer sharedFlowMetricsContainer;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;

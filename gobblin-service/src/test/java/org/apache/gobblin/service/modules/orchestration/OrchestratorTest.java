@@ -113,7 +113,8 @@ public class OrchestratorTest {
     this._mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
-         Optional.of(this._mockFlowTriggerHandler), Mockito.mock(SharedFlowMetricsContainer.class));
+         Optional.of(this._mockFlowTriggerHandler), new SharedFlowMetricsContainer(
+             ConfigUtils.propertiesToConfig(orchestratorProperties)));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application
@@ -334,7 +335,7 @@ public class OrchestratorTest {
 
   @Test (dependsOnMethods = "deleteFlowSpec")
   public void doNotRegisterMetricsAdhocFlows() throws Exception {
-    MetricContext metricContext = this.orchestrator.getMetricContext();
+    MetricContext metricContext = this.orchestrator.getSharedFlowMetricsContainer().getMetricContext(); //.getMetricContext();
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
     Properties flowProps = new Properties();
     flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "flow0");
