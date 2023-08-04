@@ -22,6 +22,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import java.net.URI;
 import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -44,42 +45,10 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Singleton
 @Data
-public class SharedFlowMetricsContainer {
+public class SharedFlowMetricsSingleton {
   protected final MetricContext metricContext;
-  private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
+  private Map<URI, FlowCompiledState> flowGaugeStateBySpecUri = Maps.newHashMap();
   private Optional<Meter> skippedFlowsMeter;
-
-  @Inject
-  public SharedFlowMetricsContainer(Config config) {
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), SharedFlowMetricsContainer.class);
-    this.skippedFlowsMeter = Optional.of(metricContext.contextAwareMeter(ServiceMetricNames.SKIPPED_FLOWS));
-  }
-
-  /**
-   * Adds a new FlowGauge to the metric context if one does not already exist for this flow spec
-   */
-  public void addFlowGauge(Spec spec, Config flowConfig, String flowName, String flowGroup) {
-    // Only register the metric of flows that are scheduled, run once flows should not be tracked indefinitely
-    if (!flowGauges.containsKey(spec.getUri().toString()) && flowConfig.hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-      String flowCompiledGaugeName =
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
-      flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
-      ContextAwareGauge<Integer> gauge =
-          RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName,
-              () -> flowGauges.get(spec.getUri().toString()).state.value);
-      RootMetricContext.get().register(flowCompiledGaugeName, gauge);
-    }
-  }
-  /**
-   * Updates the flowgauge related to the spec if the gauge is being tracked for the flow
-   * @param spec FlowSpec to be updated
-   * @param state desired state to set the gauge
-   */
-  public void conditionallyUpdateFlowGaugeSpecState(Spec spec, CompiledState state) {
-    if (flowGauges.containsKey(spec.getUri().toString())) {
-      flowGauges.get(spec.getUri().toString()).setState(state);
-    }
-  }
 
   @Setter
   public static class FlowCompiledState {
@@ -96,6 +65,40 @@ public class SharedFlowMetricsContainer {
 
     CompiledState(int value) {
       this.value = value;
+    }
+  }
+
+  @Inject
+  public SharedFlowMetricsSingleton(Config config) {
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config),
+        SharedFlowMetricsSingleton.class);
+    this.skippedFlowsMeter = Optional.of(metricContext.contextAwareMeter(ServiceMetricNames.SKIPPED_FLOWS));
+  }
+
+  /**
+   * Adds a new FlowGauge to the metric context if one does not already exist for this flow spec
+   */
+  public void addFlowGauge(Spec spec, Config flowConfig, String flowGroup, String flowName) {
+    // Only register the metric of flows that are scheduled, run once flows should not be tracked indefinitely
+    if (!flowGaugeStateBySpecUri.containsKey(spec.getUri())
+        && flowConfig.hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      String flowCompiledGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowGroup, flowName,
+              ServiceMetricNames.COMPILED);
+      flowGaugeStateBySpecUri.put(spec.getUri(), new FlowCompiledState());
+      ContextAwareGauge<Integer> gauge =
+          RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName,
+              () -> flowGaugeStateBySpecUri.get(spec.getUri()).state.value);
+      RootMetricContext.get().register(flowCompiledGaugeName, gauge);
+    }
+  }
+  /**
+   * Updates the flowgauge related to the spec if the gauge is being tracked for the flow
+   * @param spec FlowSpec to be updated
+   * @param state desired state to set the gauge
+   */
+  public void conditionallyUpdateFlowGaugeSpecState(Spec spec, CompiledState state) {
+    if (flowGaugeStateBySpecUri.containsKey(spec.getUri())) {
+      flowGaugeStateBySpecUri.get(spec.getUri()).setState(state);
     }
   }
 }

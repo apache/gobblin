@@ -21,6 +21,8 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -34,22 +36,29 @@ import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
-import org.slf4j.Logger;
 
 
 /**
- * Stateless class with functionality meant to be re-used between the DagManager and Orchestrator when launching
+ * Helper class with functionality meant to be re-used between the DagManager and Orchestrator when launching
  * executions of a flow spec. In the common case, the Orchestrator receives a flow to orchestrate, performs necessary
  * validations, and forwards the execution responsibility to the DagManager. The DagManager's responsibility is to
  * carry out any flow action requests. However, with launch executions now being stored in the DagActionStateStore, on
  * restart or leadership change the DagManager has to perform validations before executing any launch actions the
  * previous leader was unable to complete. Rather than duplicating the code or introducing a circular dependency between
- * the DagManager and Orchestrator, this class is utilized to store the common functionality. It is stateless and
- * requires all stateful pieces to be passed as input from the caller.
- * Note: We expect further refactoring to be done to the DagManager in later stage of multi-active development so we do
+ * the DagManager and Orchestrator, this class is utilized to store the common functionality. It is stateful,
+ * requiring all stateful pieces to be passed as input from the caller upon instantiating the helper.
+ * Note: We expect further refactoring to be done to the DagManager in later stage of multi-active development, so we do
  * not attempt major reorganization as abstractions may change.
  */
-public final class ExecutionChecksUtil {
+@Slf4j
+@AllArgsConstructor
+public final class FlowCompilationValidationHelper {
+  private SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  private SpecCompiler specCompiler;
+  private UserQuotaManager quotaManager;
+  private Optional<EventSubmitter> eventSubmitter;
+  private FlowStatusGenerator flowStatusGenerator;
+  private boolean isFlowConcurrencyEnabled;
 
   /**
    * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the
@@ -57,60 +66,59 @@ public final class ExecutionChecksUtil {
    * caller.
    * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
    */
-  public static Optional<Dag<JobExecutionPlan>> handleChecksBeforeExecution(
-      SharedFlowMetricsContainer sharedFlowMetricsContainer, SpecCompiler specCompiler, UserQuotaManager quotaManager,
-      Optional<EventSubmitter> eventSubmitter, FlowStatusGenerator flowStatusGenerator, Logger log,
-      boolean flowConcurrencyFlag, FlowSpec flowSpec)
+  public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec)
       throws IOException, InterruptedException {
     Config flowConfig = flowSpec.getConfig();
     String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    if (!isExecutionPermittedHandler(sharedFlowMetricsContainer, specCompiler, quotaManager, eventSubmitter,
-        flowStatusGenerator, log, flowConcurrencyFlag, flowConfig, flowSpec, flowName, flowGroup)) {
-      return Optional.absent();
-    }
 
     //Wait for the SpecCompiler to become healthy.
     specCompiler.awaitHealthy();
 
-    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
+    Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
+        validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName);
+    if (!jobExecutionPlanDagOptional.isPresent()) {
+      return Optional.absent();
+    }
+
     Optional<TimingEvent> flowCompilationTimer =
         eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
     Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
 
-    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+    if (jobExecutionPlanDagOptional.get() == null || jobExecutionPlanDagOptional.get().isEmpty()) {
       populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
       return Optional.absent();
     }
 
-    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
     if (flowCompilationTimer.isPresent()) {
       flowCompilationTimer.get().stop(flowMetadata);
     }
-    return Optional.of(jobExecutionPlanDag);
+    return jobExecutionPlanDagOptional;
   }
 
   /**
    * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
    * already running and emits a FLOW FAILED event. Otherwise, this check passes.
-   * @return true if caller can proceed to execute flow, false otherwise
+   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile spec, else absent Optional
    * @throws IOException
    */
-  public static boolean isExecutionPermittedHandler(SharedFlowMetricsContainer sharedFlowMetricsContainer,
-      SpecCompiler specCompiler, UserQuotaManager quotaManager, Optional<EventSubmitter> eventSubmitter,
-      FlowStatusGenerator flowStatusGenerator, Logger log, boolean flowConcurrencyFlag, Config flowConfig, Spec spec,
-      String flowName, String flowGroup) throws IOException {
+  public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, Spec spec,
+      String flowGroup, String flowName) throws IOException {
     boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig,
-        ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, flowConcurrencyFlag);
+        ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, isFlowConcurrencyEnabled);
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
-    if (!isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
+    if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
+      return Optional.of(jobExecutionPlanDag);
+    } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
           + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-      sharedFlowMetricsContainer.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsContainer.CompiledState.SKIPPED);
-      Instrumented.markMeter(sharedFlowMetricsContainer.getSkippedFlowsMeter());
-      if (!((FlowSpec) spec).getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+          SharedFlowMetricsSingleton.CompiledState.SKIPPED);
+      Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
+      if (!isScheduledFlow((FlowSpec) spec)) {
         // For ad-hoc flow, we might already increase quota, we need to decrease here
         for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
           quotaManager.releaseQuota(dagNode);
@@ -124,9 +132,8 @@ public final class ExecutionChecksUtil {
       if (eventSubmitter.isPresent()) {
         new TimingEvent(eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       }
-      return false;
+      return Optional.absent();
     }
-    return true;
   }
 
   /**
@@ -137,13 +144,9 @@ public final class ExecutionChecksUtil {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  private static boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName,
-      String flowGroup, boolean allowConcurrentExecution) {
-    if (allowConcurrentExecution) {
-      return true;
-    } else {
-      return !flowStatusGenerator.isFlowRunning(flowName, flowGroup);
-    }
+  private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
+      boolean allowConcurrentExecution) {
+    return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup);
   }
 
   /**
@@ -177,9 +180,17 @@ public final class ExecutionChecksUtil {
    * If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is
    * successful, retrieve the flowExecutionId from the JobSpec.
    */
-  public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata, Dag<JobExecutionPlan> jobExecutionPlanDag) {
+  public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
+      Dag<JobExecutionPlan> jobExecutionPlanDag) {
     flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
         jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(
             ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+  }
+
+  /**
+   * Return true if the spec contains a schedule, false otherwise.
+   */
+  public static boolean isScheduledFlow(FlowSpec spec) {
+    return spec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY);
   }
 }

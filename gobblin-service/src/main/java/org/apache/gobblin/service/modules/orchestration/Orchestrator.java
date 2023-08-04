@@ -59,8 +59,8 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.utils.ExecutionChecksUtil;
-import org.apache.gobblin.service.modules.utils.SharedFlowMetricsContainer;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -86,7 +86,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final MetricContext metricContext;
 
   protected final Optional<EventSubmitter> eventSubmitter;
-  private final boolean flowConcurrencyFlag;
+  private final boolean isFlowConcurrencyEnabled;
   @Getter
   private Optional<Meter> flowOrchestrationSuccessFulMeter;
   @Getter
@@ -97,22 +97,23 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private FlowStatusGenerator flowStatusGenerator;
 
   private UserQuotaManager quotaManager;
+  private final FlowCompilationValidationHelper flowCompilationValidationHelper;
   private Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
-  private SharedFlowMetricsContainer sharedFlowMetricsContainer;
+  private SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsContainer sharedFlowMetricsContainer) {
+      Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
     this.flowTriggerHandler = flowTriggerHandler;
-    this.sharedFlowMetricsContainer = sharedFlowMetricsContainer;
+    this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -144,19 +145,21 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationTimer = Optional.absent();
       this.eventSubmitter = Optional.absent();
     }
-    this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
+    this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
         ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
         config);
+    this.flowCompilationValidationHelper = new FlowCompilationValidationHelper(sharedFlowMetricsSingleton, specCompiler,
+        quotaManager, eventSubmitter, flowStatusGenerator, isFlowConcurrencyEnabled);
   }
 
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<Logger> log, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsContainer sharedFlowMetricsContainer) {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton) {
     this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, flowTriggerHandler,
-        sharedFlowMetricsContainer);
+        sharedFlowMetricsSingleton);
   }
 
 
@@ -230,10 +233,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
-      sharedFlowMetricsContainer.addFlowGauge(spec, flowConfig, flowName, flowGroup);
-
-      if (!ExecutionChecksUtil.isExecutionPermittedHandler(sharedFlowMetricsContainer, specCompiler, quotaManager,
-          eventSubmitter, flowStatusGenerator, _log, flowConcurrencyFlag, flowConfig, spec, flowName, flowGroup)) {
+      sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
+      Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
+          this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
+              flowName);
+      if (!jobExecutionPlanDagOptional.isPresent()) {
         return;
       }
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
@@ -260,21 +264,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]", flowAction,
             triggerTimestampMillis);
       } else {
-        // Compile flow spec and do corresponding checks
-        Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
         Optional<TimingEvent> flowCompilationTimer =
             this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
-
+        Dag<JobExecutionPlan> jobExecutionPlanDag = jobExecutionPlanDagOptional.get();
         if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-          ExecutionChecksUtil.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
+          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-          sharedFlowMetricsContainer.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsContainer.CompiledState.FAILED);
+          sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsSingleton.CompiledState.FAILED);
           _log.warn("Cannot determine an executor to run on for Spec: " + spec);
           return;
         }
-        sharedFlowMetricsContainer.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsContainer.CompiledState.SUCCESSFUL);
+        sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
 
-        ExecutionChecksUtil.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
         if (flowCompilationTimer.isPresent()) {
           flowCompilationTimer.get().stop(flowMetadata);
         }
@@ -326,8 +328,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   public void submitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
     Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-        ExecutionChecksUtil.handleChecksBeforeExecution(sharedFlowMetricsContainer, specCompiler, quotaManager,
-            eventSubmitter, flowStatusGenerator, _log, flowConcurrencyFlag, flowSpec);
+        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
     if (optionalJobExecutionPlanDag.isPresent()) {
       submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
     }

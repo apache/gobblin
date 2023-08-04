@@ -18,36 +18,23 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.typesafe.config.Config;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-
 import org.apache.commons.io.FileUtils;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.runtime.api.SpecCatalogListener;
-import org.apache.gobblin.service.modules.utils.SharedFlowMetricsContainer;
-import org.apache.hadoop.fs.Path;
-import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
@@ -55,9 +42,17 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.*;
 
@@ -113,7 +108,7 @@ public class OrchestratorTest {
     this._mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
-         Optional.of(this._mockFlowTriggerHandler), new SharedFlowMetricsContainer(
+         Optional.of(this._mockFlowTriggerHandler), new SharedFlowMetricsSingleton(
              ConfigUtils.propertiesToConfig(orchestratorProperties)));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
@@ -335,7 +330,7 @@ public class OrchestratorTest {
 
   @Test (dependsOnMethods = "deleteFlowSpec")
   public void doNotRegisterMetricsAdhocFlows() throws Exception {
-    MetricContext metricContext = this.orchestrator.getSharedFlowMetricsContainer().getMetricContext(); //.getMetricContext();
+    MetricContext metricContext = this.orchestrator.getSharedFlowMetricsSingleton().getMetricContext();
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
     Properties flowProps = new Properties();
     flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "flow0");

@@ -27,7 +27,7 @@ import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
-import org.apache.gobblin.service.modules.utils.SharedFlowMetricsContainer;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
@@ -187,7 +187,7 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(RequesterService.class)
         .to(NoopRequesterService.class);
 
-    binder.bind(SharedFlowMetricsContainer.class);
+    binder.bind(SharedFlowMetricsSingleton.class);
 
     OptionalBinder.newOptionalBinder(binder, TopologyCatalog.class);
     if (serviceConfig.isTopologyCatalogEnabled()) {
