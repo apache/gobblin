@@ -85,7 +85,6 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -209,9 +208,7 @@ public class DagManager extends AbstractIdleService {
   private final JobStatusRetriever jobStatusRetriever;
   private final FlowStatusGenerator flowStatusGenerator;
   private final UserQuotaManager quotaManager;
-  private final ClassAliasResolver<SpecCompiler> aliasResolver;
   private final SpecCompiler specCompiler;
-  private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
   private final boolean isFlowConcurrencyEnabled;
   private final FlowCatalog flowCatalog;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
@@ -248,7 +245,6 @@ public class DagManager extends AbstractIdleService {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(config, JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     this.defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
     this.jobStatusRetriever = jobStatusRetriever;
-    this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.flowStatusGenerator = flowStatusGenerator;
     this.specCompiler = GobblinConstructorUtils.invokeConstructor(SpecCompiler.class, ConfigUtils.getString(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY,
@@ -258,7 +254,6 @@ public class DagManager extends AbstractIdleService {
     this.quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
         ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
         config);
-    this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
     this.flowCompilationValidationHelper = new FlowCompilationValidationHelper(sharedFlowMetricsSingleton, specCompiler,
         quotaManager, eventSubmitter, flowStatusGenerator, isFlowConcurrencyEnabled);

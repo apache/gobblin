@@ -100,7 +100,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
   private Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
-  private SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -234,10 +234,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
       sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
+      Optional<TimingEvent> flowCompilationTimer =
+          this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
       Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
           this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
               flowName);
       if (!jobExecutionPlanDagOptional.isPresent()) {
+        Instrumented.markMeter(this.flowOrchestrationFailedMeter);
         return;
       }
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
@@ -264,17 +267,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]", flowAction,
             triggerTimestampMillis);
       } else {
-        Optional<TimingEvent> flowCompilationTimer =
-            this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
         Dag<JobExecutionPlan> jobExecutionPlanDag = jobExecutionPlanDagOptional.get();
         if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
           FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-          sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsSingleton.CompiledState.FAILED);
+          sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+              SharedFlowMetricsSingleton.CompiledState.FAILED);
           _log.warn("Cannot determine an executor to run on for Spec: " + spec);
           return;
         }
-        sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec, SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
+        sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+            SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
 
         FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
         if (flowCompilationTimer.isPresent()) {
@@ -331,6 +334,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
     if (optionalJobExecutionPlanDag.isPresent()) {
       submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
+    } else {
+      Instrumented.markMeter(this.flowOrchestrationFailedMeter);
     }
   }
 

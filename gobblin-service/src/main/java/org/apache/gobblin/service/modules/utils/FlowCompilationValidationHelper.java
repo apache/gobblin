@@ -21,7 +21,7 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Map;
-import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -51,14 +51,14 @@ import org.apache.gobblin.util.ConfigUtils;
  * not attempt major reorganization as abstractions may change.
  */
 @Slf4j
-@AllArgsConstructor
+@Data
 public final class FlowCompilationValidationHelper {
-  private SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
-  private SpecCompiler specCompiler;
-  private UserQuotaManager quotaManager;
-  private Optional<EventSubmitter> eventSubmitter;
-  private FlowStatusGenerator flowStatusGenerator;
-  private boolean isFlowConcurrencyEnabled;
+  private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  private final SpecCompiler specCompiler;
+  private final UserQuotaManager quotaManager;
+  private final Optional<EventSubmitter> eventSubmitter;
+  private final FlowStatusGenerator flowStatusGenerator;
+  private final boolean isFlowConcurrencyEnabled;
 
   /**
    * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the
@@ -75,15 +75,15 @@ public final class FlowCompilationValidationHelper {
     //Wait for the SpecCompiler to become healthy.
     specCompiler.awaitHealthy();
 
+    Optional<TimingEvent> flowCompilationTimer =
+        this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
     Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
         validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName);
+    Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+
     if (!jobExecutionPlanDagOptional.isPresent()) {
       return Optional.absent();
     }
-
-    Optional<TimingEvent> flowCompilationTimer =
-        eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
-    Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
 
     if (jobExecutionPlanDagOptional.get() == null || jobExecutionPlanDagOptional.get().isEmpty()) {
       populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
