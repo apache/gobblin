@@ -255,7 +255,6 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
 
   private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit)
       throws IOException {
-    Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
     try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
       addSchemaPropertiesHelper(path, hiveUnit);
     }
@@ -281,6 +280,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
       schema = TypeInfoUtils.getTypeInfoFromObjectInspector(
           TypeDescriptionToObjectInspectorUtil.getObjectInspector(orcSchema));
     } else {
+      Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
       schema = getSchemaFromLatestFile(path, this.fs);
     }
     if (schema instanceof StructTypeInfo) {
