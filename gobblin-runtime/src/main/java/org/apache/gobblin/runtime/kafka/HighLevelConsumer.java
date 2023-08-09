@@ -139,7 +139,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
 
   protected GobblinKafkaConsumerClient createConsumerClient(Config config) {
     String kafkaConsumerClientClass = config.getString(CONSUMER_CLIENT_FACTORY_CLASS_KEY);
-    log.info("Creating consumer client of class {}", kafkaConsumerClientClass, config);
+    log.info("Creating consumer client of class {} with config {}", kafkaConsumerClientClass, config);
 
     try {
       Class clientFactoryClass = Class.forName(kafkaConsumerClientClass);
