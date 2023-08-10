@@ -608,6 +608,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         String errMsg = "Failed to launch and run job " + jobId + " due to " + t.getMessage();
         LOG.error(errMsg + ": " + t, t);
         this.jobContext.getJobState().setJobFailureException(t);
+        jobState.setProp(ConfigurationKeys.JOB_FAILURES_KEY,
+            Integer.parseInt(jobState.getProp(ConfigurationKeys.JOB_FAILURES_KEY, "0")) + 1);
       } finally {
         try {
           troubleshooter.refineIssues();

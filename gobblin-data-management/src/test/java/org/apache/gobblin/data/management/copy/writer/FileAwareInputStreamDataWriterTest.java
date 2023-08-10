@@ -574,22 +574,15 @@ public class FileAwareInputStreamDataWriterTest {
 
   @Test
   public void testAddExecutePermission() {
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("000")),
-        new FsPermission("100"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("100")),
-        new FsPermission("100"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("200")),
-        new FsPermission("300"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("400")),
-        new FsPermission("500"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("600")),
-        new FsPermission("700"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("700")),
-        new FsPermission("700"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("211")),
-        new FsPermission("311"));
-    Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("250")),
-        new FsPermission("350"));
+    String[] setPermissions = {"000", "100", "200", "400", "600", "700", "211", "250"};
+    String[] expectPermissions = {"100", "100", "300", "500", "700", "700", "311", "350"};
+    String[] stickyBit = {"" ,"1"};
+    for (String bit : stickyBit) {
+      for (int index = 0; index < setPermissions.length; ++index) {
+        Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission(bit + setPermissions[index])),
+                new FsPermission(bit + expectPermissions[index]));
+      }
+    }
   }
 
   @Test

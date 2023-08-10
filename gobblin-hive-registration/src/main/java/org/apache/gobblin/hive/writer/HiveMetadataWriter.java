@@ -456,12 +456,9 @@ public class HiveMetadataWriter implements MetadataWriter {
     //Force to set the schema even there is no schema literal defined in the spec
     String latestSchema = latestSchemaMap.get(tableKey);
     if (latestSchema != null) {
-      String tableSchema = spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
-      if (tableSchema == null || !tableSchema.equals(latestSchema)) {
-        spec.getTable().getSerDeProps()
-            .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
-        HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
-      }
+      spec.getTable().getSerDeProps()
+          .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
+      HiveMetaStoreUtils.updateColumnsInfoIfNeeded(spec);
     }
   }
 

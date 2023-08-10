@@ -36,7 +36,6 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -96,15 +95,17 @@ public class HelixJobsMapping {
   }
 
   public static String createPlanningJobId (Properties jobPlanningProps) {
+    String flowExecIdSuffix = jobPlanningProps.containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) ?
+        "_" + jobPlanningProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) : "";
     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
-            + JobState.getJobNameFromProps(jobPlanningProps),
-        PropertiesUtils.getPropAsLong(jobPlanningProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
+            + JobState.getJobNameFromProps(jobPlanningProps) + flowExecIdSuffix);
   }
 
   public static String createActualJobId (Properties jobProps) {
-     return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
-             + JobState.getJobNameFromProps(jobProps),
-          PropertiesUtils.getPropAsLong(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()));
+    String flowExecIdSuffix = jobProps.containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) ?
+        "_" + jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY) : "";
+    return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
+        + JobState.getJobNameFromProps(jobProps) + flowExecIdSuffix);
   }
 
   @Nullable

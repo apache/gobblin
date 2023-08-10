@@ -180,6 +180,10 @@ public class GobblinClusterConfigurationKeys {
   public static final String CANCEL_RUNNING_JOB_ON_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelRunningJobOnDelete";
   public static final String DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE = "false";
 
+  // Job Execution ID for Helix jobs is inferred from Flow Execution IDs, but there are scenarios in earlyStop jobs where
+  // this behavior needs to be avoided due to concurrent planning and actual jobs sharing the same execution ID
+  public static final String USE_GENERATED_JOBEXECUTION_IDS = GOBBLIN_CLUSTER_PREFIX + "job.useGeneratedJobExecutionIds";
+
   // By default we cancel job by calling helix stop API. In some cases, jobs just hang in STOPPING state and preventing
   // new job being launched. We provide this config to give an option to cancel jobs by calling Delete API. Directly delete
   // a Helix workflow should be safe in Gobblin world, as Gobblin job is stateless for Helix since we implement our own state store
