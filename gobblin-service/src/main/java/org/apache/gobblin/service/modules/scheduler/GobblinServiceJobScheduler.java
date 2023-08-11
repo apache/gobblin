@@ -298,6 +298,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       cron = new CronExpression(cronExpression);
       cron.setTimeZone(TimeZone.getTimeZone("UTC"));
       Date nextValidTimeAfter = cron.getNextValidTimeAfter(new Date());
+      if (nextValidTimeAfter == null) {
+        log.warn("Calculation issue for next valid time for expression: {}. Will default to true for within range",
+            cronExpression);
+        return true;
+      }
       cal.setTime(nextValidTimeAfter);
       long diff = cal.getTimeInMillis() - System.currentTimeMillis();
       return (int) Math.round(diff / numMillisInADay) < maxNumDaysToScheduleWithin;
