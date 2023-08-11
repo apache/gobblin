@@ -29,8 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
@@ -46,6 +46,7 @@ public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
   public static final String METRICS_BUFFER_RESIZES = "bufferResizes";
   public static final String METRICS_BUFFER_SIZE = "bufferSize";
   public static final String ORC_WRITER_METRICS_NAME = "OrcWriterMetrics";
+  private static final String ORC_WRITER_NAMESPACE = "gobblin.orc.writer";
 
   public InstrumentedGobblinOrcWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     super(builder, properties);
@@ -60,7 +61,7 @@ public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
       this.orcFileWriter.close();
       this.closed = true;
       log.info("Emitting ORC event metrics");
-      this.metricContext.submitEvent(this.createOrcWriterMetadataEvent());
+      this.sendOrcWriterMetadataEvent();
       this.recycleRowBatchPool();
     } else {
       // Throw fatal exception if there's outstanding buffered data since there's risk losing data if proceeds.
@@ -70,8 +71,8 @@ public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
     }
   }
 
-  GobblinTrackingEvent createOrcWriterMetadataEvent() throws IOException {
-    GobblinEventBuilder builder = new GobblinEventBuilder(ORC_WRITER_METRICS_NAME);
+  private void sendOrcWriterMetadataEvent() {
+    GobblinEventBuilder builder = new GobblinEventBuilder(ORC_WRITER_METRICS_NAME, ORC_WRITER_NAMESPACE);
     Map<String, String> eventMetadataMap = Maps.newHashMap();
     eventMetadataMap.put(METRICS_SCHEMA_NAME, this.inputSchema.getName());
     eventMetadataMap.put(METRICS_BYTES_WRITTEN, String.valueOf(this.bytesWritten()));
@@ -80,6 +81,6 @@ public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
     eventMetadataMap.put(METRICS_BUFFER_SIZE, String.valueOf(this.batchSize));
 
     builder.addAdditionalMetadata(eventMetadataMap);
-    return builder.build();
+    EventSubmitter.submit(metricContext, builder);
   }
 }
