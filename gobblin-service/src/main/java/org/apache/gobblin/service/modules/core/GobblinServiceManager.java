@@ -330,8 +330,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
             this.helixManager.get().isLeader());
 
-        if (configuration.isSchedulerEnabled()) {
-          LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
+        if (configuration.isSchedulerEnabled() && !configuration.isMultiActiveSchedulerEnabled()) {
+          LOGGER.info("Gobblin Service is now running in non-leader mode without multi-active scheduler enabled, "
+              + "disabling Scheduler.");
           this.scheduler.setActive(false);
         }
 
@@ -473,7 +474,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       } else {
         if (configuration.isSchedulerEnabled()) {
-          LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
+          if (configuration.isMultiActiveSchedulerEnabled()) {
+          LOGGER.info("[Init] Gobblin Service enabling scheduler for non-leader since multi-active scheduler enabled");
+          this.scheduler.setActive(true);
+          } else {
+          LOGGER.info("[Init] Gobblin Service is running in non-leader instance mode, not enabling Scheduler.");
+          }
         }
         if (helixLeaderGauges.isPresent()) {
           helixLeaderGauges.get().setState(LeaderState.SLAVE);
