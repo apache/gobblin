@@ -20,7 +20,6 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.util.Properties;
 
-import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.orc.OrcConf;
@@ -30,6 +29,7 @@ import org.apache.orc.Writer;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,22 +41,22 @@ import org.apache.gobblin.state.ConstructState;
  */
 @Slf4j
 public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
-  static final String ORC_WRITER_PREFIX = "orcWriter.";
+  public static final String ORC_WRITER_PREFIX = "orcWriter.";
   public static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
   public static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
 
-  private final OrcValueWriter<D> valueWriter;
+  protected final OrcValueWriter<D> valueWriter;
   @VisibleForTesting
   VectorizedRowBatch rowBatch;
   private final TypeDescription typeDescription;
-  private final Writer orcFileWriter;
+  protected final Writer orcFileWriter;
   private final RowBatchPool rowBatchPool;
   private final boolean enableRowBatchPool;
 
   // the close method may be invoked multiple times, but the underlying writer only supports close being called once
-  private volatile boolean closed = false;
+  protected volatile boolean closed = false;
 
-  private final int batchSize;
+  protected final int batchSize;
   protected final S inputSchema;
 
 
@@ -117,6 +117,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   }
 
   @Override
+  public long bytesWritten() {
+    return this.orcFileWriter.getRawDataSize();
+  }
+
+  @Override
   public State getFinalState() {
     /**
      * Creating {@link ConstructState} to provide overwrite of {@link WorkUnitState} from constructs.
@@ -141,15 +146,19 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     }
   }
 
-  private synchronized void closeInternal()
+  protected void recycleRowBatchPool() {
+    if (enableRowBatchPool) {
+      rowBatchPool.recycle(typeDescription, rowBatch);
+    }
+  }
+
+  protected synchronized void closeInternal()
       throws IOException {
     if (!closed) {
       this.flush();
       this.orcFileWriter.close();
       this.closed = true;
-      if (enableRowBatchPool) {
-        rowBatchPool.recycle(typeDescription, rowBatch);
-      }
+      this.recycleRowBatchPool();
     } else {
       // Throw fatal exception if there's outstanding buffered data since there's risk losing data if proceeds.
       if (rowBatch.size > 0) {

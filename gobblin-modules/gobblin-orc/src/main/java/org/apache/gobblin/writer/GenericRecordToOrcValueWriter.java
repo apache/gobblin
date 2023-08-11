@@ -31,7 +31,6 @@ import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.storage.common.type.HiveDecimal;
 import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
@@ -50,6 +49,7 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 
 /**
@@ -434,5 +434,9 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       result[c] = buildConverter(children.get(c), avroSchema.getFields().get(c).schema());
     }
     return result;
+  }
+
+  public int getResizeCount() {
+    return resizeCount;
   }
 }
