@@ -26,6 +26,7 @@ import org.testng.annotations.Test;
 
 
 public class JobSchedulerTest {
+  // This test creates two triggers with the same job key and job props, then verifies the trigger keys are unique
   @Test
   public void testCreateUniqueTriggersForJob() {
     String jobName = "flow123";
