@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -586,9 +587,13 @@ public class JobScheduler extends AbstractIdleService {
    * Get a {@link org.quartz.Trigger} from the given job configuration properties.
    */
   public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
-    // Build a trigger for the job with the given cron-style schedule
+    Random random = new Random();
+    /*
+    Build a trigger for the job with the given cron-style schedule
+    Append a random integer to job name to be able to add multiple triggers associated with the same job.
+    */
     return TriggerBuilder.newTrigger()
-        .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+        .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + random.nextInt(1000),
             Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY)))
         .forJob(jobKey)
         .withSchedule(CronScheduleBuilder.cronSchedule(jobProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))
