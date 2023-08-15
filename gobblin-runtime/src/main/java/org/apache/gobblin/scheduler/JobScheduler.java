@@ -583,16 +583,13 @@ public class JobScheduler extends AbstractIdleService {
 
   /**
    * Get a {@link org.quartz.Trigger} from the given job configuration properties. If triggerSuffix is provided, appends
-   * it to the end of the flow name.
+   * it to the end of the flow name. The suffix is used to add multiple unique triggers associated with the same job
    */
   public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps, Optional<String> triggerSuffix) {
-    /*
-    Build a trigger for the job with the given cron-style schedule
-    Append a random integer to job name to be able to add multiple triggers associated with the same job.
-    */
+    // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)
-                + (triggerSuffix.isPresent() ? "_" + triggerSuffix.get() : ""),
+            + triggerSuffix.transform(s -> "_" + s).or(""),
             Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY)))
         .forJob(jobKey)
         .withSchedule(CronScheduleBuilder.cronSchedule(jobProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))

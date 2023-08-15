@@ -201,7 +201,7 @@ public class FlowTriggerHandler {
    * @return
    */
   public static String createSuffixForJobTrigger(long eventToRevisitMillis) {
-    return "reminder_for_" + (eventToRevisitMillis);
+    return "reminder_for_" + eventToRevisitMillis;
   }
 
   /**
