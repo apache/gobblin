@@ -17,13 +17,11 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -39,16 +37,16 @@ import org.apache.hadoop.fs.Path;
 public class CopyManifest {
   private static final String MISSING_FN_MESSAGE = "fileName cannot be null";
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-  private static final Type CopyableUnitListType = new TypeToken<ArrayList<CopyableUnit>>(){}.getType();
+  private static final String COPYABLE_UNITS_KEY = "copyableUnits";
 
-  public final ArrayList<CopyableUnit> _copyableUnits;
+  /**
+   * Schema fields to SerDe
+   */
+  public Integer unitCount = 0;
+  public final ArrayList<CopyableUnit> copyableUnits;
 
   public CopyManifest() {
-    _copyableUnits = new ArrayList<>();
-  }
-
-  public CopyManifest(ArrayList<CopyableUnit> copyableUnits) {
-    _copyableUnits = copyableUnits;
+    copyableUnits = new ArrayList<>();
   }
 
   /**
@@ -56,7 +54,8 @@ public class CopyManifest {
    * @param copyableUnit
    */
   public void add(CopyManifest.CopyableUnit copyableUnit) {
-    _copyableUnits.add(copyableUnit);
+    copyableUnits.add(copyableUnit);
+    unitCount++;
   }
 
   /**
@@ -89,7 +88,7 @@ public class CopyManifest {
    */
   public static CopyManifest read(FileSystem fs, Path path) throws IOException {
     JsonReader jsonReader = new JsonReader(new InputStreamReader(fs.open(path), "UTF-8"));
-    return new CopyManifest(GSON.fromJson(jsonReader, CopyableUnitListType));
+    return GSON.fromJson(jsonReader, CopyManifest.class);
   }
 
   /**
@@ -101,7 +100,7 @@ public class CopyManifest {
   public void write(FileSystem fs, Path path) throws IOException {
     FSDataOutputStream out = null;
     try {
-      String outputJson = GSON.toJson(this._copyableUnits, CopyableUnitListType);
+      String outputJson = GSON.toJson(this);
       out = fs.create(path, true);
       out.write(outputJson.getBytes(StandardCharsets.UTF_8));
     } finally {
@@ -123,7 +122,18 @@ public class CopyManifest {
 
     public CopyableUnitIterator(FileSystem fs, Path path) throws IOException {
       reader = new JsonReader(new InputStreamReader(fs.open(path), "UTF-8"));
-      reader.beginArray();
+      // Begin reading the root object
+      reader.beginObject();
+      while (reader.hasNext()) {
+        String name = reader.nextName();
+        // Begin reading the _copyableUnits array and skip other values
+        if (name.equals(COPYABLE_UNITS_KEY)) {
+          reader.beginArray();
+          break;
+        } else {
+          reader.skipValue();
+        }
+      }
     }
 
     @Override
@@ -148,6 +158,7 @@ public class CopyManifest {
     public void close() throws IOException {
       if (reader != null) {
         reader.endArray();
+        reader.endObject();
         reader.close();
       }
     }

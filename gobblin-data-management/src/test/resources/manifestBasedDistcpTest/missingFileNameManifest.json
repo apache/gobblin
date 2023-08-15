@@ -1,7 +1,10 @@
-[
-  {
-    "id":"1",
-    "fileGroup":"/tmp/dataset",
-    "fileSizeInBytes":"1024"
-  }
-]
+{
+  "unitCount": 1,
+  "copyableUnits": [
+    {
+      "id":"1",
+      "fileGroup":"/tmp/dataset",
+      "fileSizeInBytes":"1024"
+    }
+  ]
+}

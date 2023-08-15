@@ -43,8 +43,8 @@ public class TestCopyManifest {
         getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath();
 
     CopyManifest manifest = CopyManifest.read(localFs, new Path(manifestPath));
-    Assert.assertEquals(manifest._copyableUnits.size(), 2);
-    CopyManifest.CopyableUnit cu = manifest._copyableUnits.get(0);
+    Assert.assertEquals(manifest.copyableUnits.size(), 2);
+    CopyManifest.CopyableUnit cu = manifest.copyableUnits.get(0);
     Assert.assertEquals(cu.fileName, "/tmp/dataset/test1.txt");
   }
 
@@ -53,12 +53,15 @@ public class TestCopyManifest {
     File tmpDir = Files.createTempDir();
     Path output = new Path(tmpDir.getAbsolutePath(), "test");
     CopyManifest manifest = new CopyManifest();
-    manifest.add(new CopyManifest.CopyableUnit("testfilename", null, null, null));
+    manifest.add(new CopyManifest.CopyableUnit("testfilename1", null, null, null));
+    manifest.add(new CopyManifest.CopyableUnit("testfilename2", null, null, null));
     manifest.write(localFs, output);
 
     CopyManifest readManifest = CopyManifest.read(localFs, output);
-    Assert.assertEquals(readManifest._copyableUnits.size(), 1);
-    Assert.assertEquals(readManifest._copyableUnits.get(0).fileName, "testfilename");
+    Assert.assertEquals(readManifest.unitCount.intValue(), readManifest.copyableUnits.size());
+    Assert.assertEquals(readManifest.copyableUnits.size(), 2);
+    Assert.assertEquals(readManifest.copyableUnits.get(0).fileName, "testfilename1");
+    Assert.assertEquals(readManifest.copyableUnits.get(1).fileName, "testfilename2");
   }
 
   @Test
@@ -73,12 +76,12 @@ public class TestCopyManifest {
     int count = 0;
     while (manifestIterator.hasNext()) {
       CopyManifest.CopyableUnit cu = manifestIterator.next();
-      Assert.assertEquals(cu.fileName, manifest._copyableUnits.get(count).fileName);
-      Assert.assertEquals(cu.fileGroup, manifest._copyableUnits.get(count).fileGroup);
+      Assert.assertEquals(cu.fileName, manifest.copyableUnits.get(count).fileName);
+      Assert.assertEquals(cu.fileGroup, manifest.copyableUnits.get(count).fileGroup);
       count++;
     }
     Assert.assertEquals(count, 2);
-    Assert.assertEquals(count, manifest._copyableUnits.size());
+    Assert.assertEquals(count, manifest.copyableUnits.size());
     manifestIterator.close();
   }
 
