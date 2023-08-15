@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.scheduler;
 
+import com.google.common.base.Optional;
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.junit.Assert;
@@ -26,7 +27,8 @@ import org.testng.annotations.Test;
 
 
 public class JobSchedulerTest {
-  // This test creates two triggers with the same job key and job props, then verifies the trigger keys are unique
+  // This test creates two triggers with the same job key and job props, but one should have an extra value appended to
+  // it.
   @Test
   public void testCreateUniqueTriggersForJob() {
     String jobName = "flow123";
@@ -37,9 +39,10 @@ public class JobSchedulerTest {
     jobProps.put(ConfigurationKeys.JOB_GROUP_KEY, jobGroup);
     jobProps.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?");
 
-    Trigger trigger1 = JobScheduler.createTriggerForJob(jobKey, jobProps);
-    Trigger trigger2 = JobScheduler.createTriggerForJob(jobKey, jobProps);
+    Trigger trigger1 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.absent());
+    Trigger trigger2 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.of("suffix"));
 
     Assert.assertTrue(trigger1.getKey() != trigger2.getKey());
+    Assert.assertTrue(trigger2.getKey().getName().endsWith("suffix"));
   }
 }
