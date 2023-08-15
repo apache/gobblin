@@ -33,6 +33,7 @@ import com.google.common.collect.Maps;
 
 import lombok.Getter;
 
+import org.apache.gobblin.KafkaCommonUtil;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -48,6 +49,8 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.EventBasedExtractor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY;
 
 
 /**
@@ -336,5 +339,25 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @Override
   public long getHighWatermark() {
     return 0;
+  }
+
+  public static String getKafkaBrokerSimpleName(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.KAFKA_BROKERS), String.format("%s is not defined in"
+            + " the configuration.", ConfigurationKeys.KAFKA_BROKERS));
+    List<String> kafkaBrokerUriList = state.getPropAsList(ConfigurationKeys.KAFKA_BROKERS);
+    Preconditions.checkArgument(kafkaBrokerUriList.size() == 1,
+        String.format("The %s only supports having exactly one kafka broker defined for %s. "
+                + "This is partially because the watermark implementation (e.g. %s class) does not have a schema that supports writing watermarks that contains offsets "
+                + "from multiple brokers in a single job", KafkaExtractor.class.getSimpleName(),
+            ConfigurationKeys.KAFKA_BROKERS, KafkaStreamingExtractor.KafkaWatermark.class.getName()));
+
+    String brokerUri = kafkaBrokerUriList.get(0);
+    Map<String, String> brokerToSimpleName = KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state);
+
+    Preconditions.checkArgument(brokerToSimpleName.get(brokerUri) != null,
+        String.format("Unable to find simple name for the kafka cluster broker uri in the config. Please check the map "
+            + "value of %s. brokerUri=%s, configMapValue=%s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, brokerUri, brokerToSimpleName));
+
+    return brokerToSimpleName.get(brokerUri);
   }
 }
