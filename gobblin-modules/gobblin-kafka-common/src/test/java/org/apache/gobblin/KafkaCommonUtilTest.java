@@ -36,11 +36,11 @@ public class KafkaCommonUtilTest {
     State state = new State();
     Assert.assertThrows(IllegalArgumentException.class, () -> KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state));
 
-    state.setProp(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s", brokerUri, simpleName));
+    state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s", brokerUri, simpleName));
     Assert.assertEquals(KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state),
         ImmutableMap.of(brokerUri, simpleName));
 
-    state.setProp(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY,
+    state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY,
         String.format("foobar.com:12345->foobar,%s->%s", brokerUri, simpleName));
     Assert.assertEquals(KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state),
         ImmutableMap.of(brokerUri, simpleName, "foobar.com:12345", "foobar"));

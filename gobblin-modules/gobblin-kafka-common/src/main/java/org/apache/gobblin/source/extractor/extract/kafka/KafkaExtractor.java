@@ -50,7 +50,7 @@ import org.apache.gobblin.source.extractor.extract.EventBasedExtractor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY;
+import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY;
 
 
 /**
@@ -356,7 +356,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     Preconditions.checkArgument(brokerToSimpleName.get(brokerUri) != null,
         String.format("Unable to find simple name for the kafka cluster broker uri in the config. Please check the map "
-            + "value of %s. brokerUri=%s, configMapValue=%s", KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY, brokerUri, brokerToSimpleName));
+            + "value of %s. brokerUri=%s, configMapValue=%s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, brokerUri, brokerToSimpleName));
 
     return brokerToSimpleName.get(brokerUri);
   }

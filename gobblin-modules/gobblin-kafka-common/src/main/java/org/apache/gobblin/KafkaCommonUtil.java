@@ -32,7 +32,7 @@ import com.google.common.base.Splitter;
 
 import org.apache.gobblin.configuration.State;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY;
+import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY;
 
 
 public class KafkaCommonUtil {
@@ -72,9 +72,9 @@ public class KafkaCommonUtil {
   }
 
   public static Map<String, String> getKafkaBrokerToSimpleNameMap(State state) {
-    Preconditions.checkArgument(state.contains(KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY),
-        String.format("Configuration must contain value for %s", KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY));
-    String mapStr = state.getProp(KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY);
+    Preconditions.checkArgument(state.contains(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY),
+        String.format("Configuration must contain value for %s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY));
+    String mapStr = state.getProp(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY);
     Map<String, String> kafkaBrokerUriToSimpleName = new HashMap<>();
     for (String entry : LIST_SPLITTER.splitToList(mapStr)) {
       String[] items = entry.trim().split(MAP_KEY_VALUE_DELIMITER_KEY);

@@ -42,10 +42,10 @@ public class KafkaExtractorTest {
     state.setProp(ConfigurationKeys.KAFKA_BROKERS, kafkaBrokerUri);
     Assert.assertThrows(IllegalArgumentException.class, () -> KafkaExtractor.getKafkaBrokerSimpleName(state));
 
-    state.setProp(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY, String.format("foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
+    state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
     Assert.assertThrows(IllegalArgumentException.class, () -> KafkaExtractor.getKafkaBrokerSimpleName(state));
 
-    state.setProp(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s,foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
+    state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s,foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
     Assert.assertEquals(KafkaExtractor.getKafkaBrokerSimpleName(state), kafkaBrokerSimpleName);
   }
 
@@ -53,10 +53,10 @@ public class KafkaExtractorTest {
   public void testSimpleMapKeyIsBackwardCompatible() {
     Config cfg = ConfigFactory.empty()
         .withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("kafkaBrokerUri"))
-        .withValue(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY,
+        .withValue(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY,
             ConfigValueFactory.fromAnyRef("kafkaBrokerUri->simpleName"));
 
     Assert.assertEquals(cfg.getString(ConfigurationKeys.KAFKA_BROKERS), "kafkaBrokerUri");
-    Assert.assertEquals(cfg.getString(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY), "kafkaBrokerUri->simpleName");
+    Assert.assertEquals(cfg.getString(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY), "kafkaBrokerUri->simpleName");
   }
 }
