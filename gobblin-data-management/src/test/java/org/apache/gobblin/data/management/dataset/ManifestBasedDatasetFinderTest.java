@@ -70,14 +70,22 @@ public class ManifestBasedDatasetFinderTest {
     Properties props = new Properties();
     props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
 
-    try (FileSystem destFs = Mockito.mock(FileSystem.class); FileSystem sourceFs = Mockito.mock(FileSystem.class)) {
+    try (
+        FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class);
+    ) {
       URI SRC_FS_URI = new URI("source", "the.source.org", "/", null);
+      URI MANIFEST_READ_FS_URI = new URI("manifest-read", "the.manifest-source.org", "/", null);
       URI DEST_FS_URI = new URI("dest", "the.dest.org", "/", null);
       Mockito.when(sourceFs.getUri()).thenReturn(SRC_FS_URI);
+      Mockito.when(manifestReadFs.getUri()).thenReturn(MANIFEST_READ_FS_URI);
       Mockito.when(destFs.getUri()).thenReturn(DEST_FS_URI);
       Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(manifestPath));
       Mockito.when(sourceFs.exists(any(Path.class))).thenReturn(true);
-      Mockito.when(sourceFs.open(manifestPath)).thenReturn(localFs.open(manifestPath));
+      Mockito.when(manifestReadFs.exists(any(Path.class))).thenReturn(true);
+      Mockito.when(manifestReadFs.getFileStatus(manifestPath)).thenReturn(localFs.getFileStatus(manifestPath));
+      Mockito.when(manifestReadFs.open(manifestPath)).thenReturn(localFs.open(manifestPath));
       Mockito.when(destFs.exists(any(Path.class))).thenReturn(false);
       Mockito.doAnswer(invocation -> {
         Object[] args = invocation.getArguments();
@@ -85,10 +93,15 @@ public class ManifestBasedDatasetFinderTest {
         return localFs.makeQualified(path);
       }).when(sourceFs).makeQualified(any(Path.class));
       Iterator<FileSet<CopyEntity>> fileSets =
-          new ManifestBasedDataset(sourceFs, manifestPath, props).getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+          new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
       Assert.assertEquals(fileSet.getFiles().size(), 2);
+      Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
+      Mockito.verify(manifestReadFs, Mockito.times(1)).getFileStatus(manifestPath);
+      Mockito.verify(manifestReadFs, Mockito.times(1)).open(manifestPath);
+      Mockito.verifyNoMoreInteractions(manifestReadFs);
+      Mockito.verify(sourceFs, Mockito.times(2)).exists(any(Path.class));
     }
   }
 }
