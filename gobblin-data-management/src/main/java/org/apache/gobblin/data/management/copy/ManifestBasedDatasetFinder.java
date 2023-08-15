@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +37,7 @@ import com.google.common.base.Splitter;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 
 
+@Slf4j
 public class ManifestBasedDatasetFinder implements IterableDatasetFinder<ManifestBasedDataset> {
 
   public static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".manifestBased";
@@ -54,6 +56,7 @@ public class ManifestBasedDatasetFinder implements IterableDatasetFinder<Manifes
       this.manifestReadFs = optManifestReadFsUriStr.isPresent()
           ? FileSystem.get(URI.create(optManifestReadFsUriStr.get()), new Configuration())
           : srcFs;
+      log.info("using file system to read manifest files: '{}'", this.manifestReadFs.getUri());
     } catch (final IOException | IllegalArgumentException e) {
       throw new RuntimeException("unable to create manifest-loading FS at URI '" + optManifestReadFsUriStr + "'", e);
     }
