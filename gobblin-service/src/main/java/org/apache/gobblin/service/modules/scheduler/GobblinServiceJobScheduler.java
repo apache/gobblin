@@ -458,7 +458,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
     Properties jobProps = (Properties) job.getJobDataMap().get(PROPERTIES_KEY);
     log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} - Job newly scheduled",
-         trigger.getNextFireTime());
+         trigger.getNextFireTime().getTime());
   }
 
   protected static String jobSchedulerTracePrefixBuilder(Properties jobProps) {
