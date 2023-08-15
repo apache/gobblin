@@ -30,14 +30,11 @@ import java.util.concurrent.TimeoutException;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.State;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY;
 
 
-@Slf4j
 public class KafkaCommonUtil {
   public static final long KAFKA_FLUSH_TIMEOUT_SECONDS = 15L;
   public static final String MAP_KEY_VALUE_DELIMITER_KEY = "->";

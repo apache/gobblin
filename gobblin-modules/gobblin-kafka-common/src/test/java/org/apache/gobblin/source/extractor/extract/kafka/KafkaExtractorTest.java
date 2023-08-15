@@ -20,6 +20,10 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 
@@ -43,6 +47,16 @@ public class KafkaExtractorTest {
 
     state.setProp(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s,foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
     Assert.assertEquals(KafkaExtractor.getKafkaBrokerSimpleName(state), kafkaBrokerSimpleName);
+  }
 
+  @Test
+  public void testSimpleMapKeyIsBackwardCompatible() {
+    Config cfg = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("kafkaBrokerUri"))
+        .withValue(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY,
+            ConfigValueFactory.fromAnyRef("kafkaBrokerUri->simpleName"));
+
+    Assert.assertEquals(cfg.getString(ConfigurationKeys.KAFKA_BROKERS), "kafkaBrokerUri");
+    Assert.assertEquals(cfg.getString(ConfigurationKeys.KAFKA_BROKER_TO_SIMPLE_NAME_MAP_KEY), "kafkaBrokerUri->simpleName");
   }
 }
