@@ -179,16 +179,29 @@ public class FlowTriggerHandler {
         String.valueOf(originalEventTimeMillis));
     JobKey key = new JobKey(flowAction.getFlowName(), flowAction.getFlowGroup());
     // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
-    Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps);
+    Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps,
+        Optional.of(createSuffixForJobTrigger(status.getEventTimeMillis())));
     try {
       log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} millis",
           flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
       this.schedulerService.getScheduler().scheduleJob(trigger);
     } catch (SchedulerException e) {
-      log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {} ", key, status.getEventTimeMillis(), e);
+      log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {} ", key,
+          status.getEventTimeMillis(), e);
+      // TODO: emit a metric for failed job reminders
     }
     log.info(String.format("Flow Trigger Handler - [%s, eventTimestamp: %s] - SCHEDULED REMINDER for event %s in %s millis",
         flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime()));
+  }
+
+  /**
+   * Create suffix to add to end of flow name to differentiate reminder triggers from the original job schedule trigger
+   * and ensure they are added to the scheduler.
+   * @param eventToRevisitMillis
+   * @return
+   */
+  public static String createSuffixForJobTrigger(long eventToRevisitMillis) {
+    return "reminder_for_" + eventToRevisitMillis;
   }
 
   /**
