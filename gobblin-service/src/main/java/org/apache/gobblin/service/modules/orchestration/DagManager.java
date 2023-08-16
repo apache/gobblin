@@ -497,6 +497,7 @@ public class DagManager extends AbstractIdleService {
     FlowId flowId = action.getFlowId();
     FlowSpec spec;
     try {
+      log.info("Handle launch flow event for action: {}", action);
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =

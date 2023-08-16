@@ -18,24 +18,19 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import com.google.common.base.Optional;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Random;
-
-import org.quartz.JobKey;
-import org.quartz.SchedulerException;
-import org.quartz.Trigger;
-
-import com.typesafe.config.Config;
-
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
@@ -45,10 +40,15 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
+import org.quartz.JobDataMap;
+import org.quartz.JobKey;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.quartz.impl.JobDetailImpl;
 
 
 /**
@@ -76,6 +76,8 @@ public class FlowTriggerHandler {
   private ContextAwareCounter leasedToAnotherStatusCount;
 
   private ContextAwareCounter noLongerLeasingStatusCount;
+  private ContextAwareCounter jobDoesNotExistInSchedulerCount;
+  private ContextAwareCounter failedToSetEventReminderCount;
 
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
@@ -87,10 +89,12 @@ public class FlowTriggerHandler {
     this.dagActionStore = dagActionStore;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
-    this.numFlowsSubmitted = metricContext.contextAwareMeter(RuntimeMetrics.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
+    this.numFlowsSubmitted = metricContext.contextAwareMeter(ServiceMetricNames.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
     this.leaseObtainedCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
     this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);
     this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
+    this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
+    this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
   }
 
   /**
@@ -115,14 +119,13 @@ public class FlowTriggerHandler {
         }
         // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
         // re-attempt handling the event
-        scheduleReminderForEvent(jobProps,
+        scheduleReminderForEvent(
             new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, leaseObtainedStatus.getEventTimestamp(), 0L),
             eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
         this.leasedToAnotherStatusCount.inc();
-        scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus,
-            eventTimeMillis);
+        scheduleReminderForEvent((MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
         this.noLongerLeasingStatusCount.inc();
@@ -160,38 +163,49 @@ public class FlowTriggerHandler {
   /**
    * This method is used by {@link FlowTriggerHandler.handleTriggerEvent} to schedule a self-reminder to check on
    * the other participant's progress to finish acting on a flow action after the time the lease should expire.
-   * @param jobProps
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
    * @param originalEventTimeMillis the event timestamp we were originally handling
    */
-  private void scheduleReminderForEvent(Properties jobProps, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
+  private void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
       long originalEventTimeMillis) {
     DagActionStore.DagAction flowAction = status.getFlowAction();
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     String cronExpression = createCronFromDelayPeriod(status.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis));
-    jobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
-    // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
-    // in addition to the event we want to initiate
-    jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
-        String.valueOf(status.getEventTimeMillis()));
-    jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-        String.valueOf(originalEventTimeMillis));
     JobKey key = new JobKey(flowAction.getFlowName(), flowAction.getFlowGroup());
-    // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
-    Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps,
-        Optional.of(createSuffixForJobTrigger(status.getEventTimeMillis())));
     try {
-      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} millis",
+      if (!this.schedulerService.getScheduler().checkExists(key)) {
+        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler. Key: {}", key);
+        this.jobDoesNotExistInSchedulerCount.inc();
+      }
+      JobDetailImpl prevJobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
+      JobDataMap jobDataMap = prevJobDetail.getJobDataMap();
+      Properties jobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+      jobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
+      // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
+      // in addition to the event we want to initiate
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(status.getEventTimeMillis()));
+      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+          String.valueOf(originalEventTimeMillis));
+      // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
+      Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps,
+          Optional.of(createSuffixForJobTrigger(status.getEventTimeMillis())));
+
+      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} "
+              + "millis", flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
+      // Update job data map and reset it in jobDetail
+      jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, jobProps);
+      prevJobDetail.setJobDataMap(jobDataMap);
+      this.schedulerService.getScheduler().scheduleJob(prevJobDetail, new HashSet<>(Arrays.asList(trigger)),
+          true);
+      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
           flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
-      this.schedulerService.getScheduler().scheduleJob(trigger);
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {} ", key,
           status.getEventTimeMillis(), e);
-      // TODO: emit a metric for failed job reminders
+      this.failedToSetEventReminderCount.inc();
     }
-    log.info(String.format("Flow Trigger Handler - [%s, eventTimestamp: %s] - SCHEDULED REMINDER for event %s in %s millis",
-        flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime()));
   }
 
   /**
