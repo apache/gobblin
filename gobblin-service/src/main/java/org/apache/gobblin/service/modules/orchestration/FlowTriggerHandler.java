@@ -175,7 +175,8 @@ public class FlowTriggerHandler {
     JobKey key = new JobKey(flowAction.getFlowName(), flowAction.getFlowGroup());
     try {
       if (!this.schedulerService.getScheduler().checkExists(key)) {
-        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler. Key: {}", key);
+        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler that may result in a "
+            + "duplicate job added to scheduler. Key: {}", key);
         this.jobDoesNotExistInSchedulerCount.inc();
       }
       JobDetailImpl prevJobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
