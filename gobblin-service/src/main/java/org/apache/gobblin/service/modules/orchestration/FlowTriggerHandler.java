@@ -45,6 +45,7 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -119,13 +120,14 @@ public class FlowTriggerHandler {
         }
         // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
         // re-attempt handling the event
-        scheduleReminderForEvent(
+        scheduleReminderForEvent(jobProps,
             new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, leaseObtainedStatus.getEventTimestamp(), 0L),
             eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
         this.leasedToAnotherStatusCount.inc();
-        scheduleReminderForEvent((MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
+        scheduleReminderForEvent(jobProps,
+            (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
         this.noLongerLeasingStatusCount.inc();
@@ -163,50 +165,74 @@ public class FlowTriggerHandler {
   /**
    * This method is used by {@link FlowTriggerHandler.handleTriggerEvent} to schedule a self-reminder to check on
    * the other participant's progress to finish acting on a flow action after the time the lease should expire.
+   * @param jobProps
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
    * @param originalEventTimeMillis the event timestamp we were originally handling
    */
-  private void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
+  private void scheduleReminderForEvent(Properties jobProps, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
       long originalEventTimeMillis) {
     DagActionStore.DagAction flowAction = status.getFlowAction();
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     String cronExpression = createCronFromDelayPeriod(status.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis));
-    JobKey key = new JobKey(flowAction.getFlowName(), flowAction.getFlowGroup());
+    JobKey origJobKey = new JobKey(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "<<no job name>>"),
+        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "<<no job group>>"));
+    // Triggers:job have an N:1 relationship but the job properties must remain constant between both, which does not
+    // allow us to keep track of additional properties for reminder events. By reusing the same job key, we either
+    // encounter an exception that the job already exists and cannot add it to the scheduler or have to overwrite the
+    // original job properties with the reminder event schedule. Thus, we differentiate the job and trigger key from the
+    // original event.
+    JobKey newJobKey = new JobKey(origJobKey.getName() + createSuffixForJobTrigger(status.getEventTimeMillis()),
+        origJobKey.getGroup());
     try {
-      if (!this.schedulerService.getScheduler().checkExists(key)) {
-        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler that may result in a "
-            + "duplicate job added to scheduler. Key: {}", key);
+      if (!this.schedulerService.getScheduler().checkExists(origJobKey)) {
+        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler. Key: {}", origJobKey);
         this.jobDoesNotExistInSchedulerCount.inc();
+        return;
       }
-      JobDetailImpl prevJobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
-      JobDataMap jobDataMap = prevJobDetail.getJobDataMap();
-      Properties jobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
-      jobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
-      // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
-      // in addition to the event we want to initiate
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(status.getEventTimeMillis()));
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(originalEventTimeMillis));
-      // Create a new trigger for the flow in job scheduler that is set to fire at the minimum reminder wait time calculated
-      Trigger trigger = JobScheduler.createTriggerForJob(key, jobProps,
-          Optional.of(createSuffixForJobTrigger(status.getEventTimeMillis())));
-
+      JobDetailImpl jobDetail = (JobDetailImpl) updatePropsInJobDetail(origJobKey, cronExpression,
+          status.getEventTimeMillis(), originalEventTimeMillis);
+      // Create a new trigger that is set to fire at the minimum reminder wait time calculated
+      Trigger trigger = JobScheduler.createTriggerForJob(newJobKey,
+          (Properties) jobDetail.getJobDataMap().get(GobblinServiceJobScheduler.PROPERTIES_KEY), Optional.absent());
       log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} "
               + "millis", flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
-      // Update job data map and reset it in jobDetail
-      jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, jobProps);
-      prevJobDetail.setJobDataMap(jobDataMap);
-      this.schedulerService.getScheduler().scheduleJob(prevJobDetail, new HashSet<>(Arrays.asList(trigger)),
-          true);
+      this.schedulerService.getScheduler().scheduleJob(jobDetail, trigger);
       log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
           flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
     } catch (SchedulerException e) {
-      log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {} ", key,
-          status.getEventTimeMillis(), e);
+      log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {}. Exception: {}",
+          origJobKey, status.getEventTimeMillis(), e);
       this.failedToSetEventReminderCount.inc();
     }
+  }
+
+  /**
+   * Helper function used to extract JobDetail for job identified by the key and update the Properties map to contain
+   * the cron scheduler for the reminder event and information about the event to revisit
+   * @param key
+   * @param cronExpression
+   * @param reminderTimestampMillis
+   * @param originalEventTimeMillis
+   * @return
+   * @throws SchedulerException
+   */
+  protected JobDetail updatePropsInJobDetail(JobKey key, String cronExpression, long reminderTimestampMillis,
+      long originalEventTimeMillis) throws SchedulerException {
+    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
+    JobDataMap jobDataMap = jobDetail.getJobDataMap();
+    Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+    prevJobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
+    // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
+    // in addition to the event we want to initiate
+    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
+        String.valueOf(reminderTimestampMillis));
+    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+        String.valueOf(originalEventTimeMillis));
+    // Update job data map and reset it in jobDetail
+    jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
+    jobDetail.setJobDataMap(jobDataMap);
+    return jobDetail;
   }
 
   /**
