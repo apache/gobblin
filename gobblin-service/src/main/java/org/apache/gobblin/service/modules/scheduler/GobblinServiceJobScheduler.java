@@ -291,6 +291,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    */
   @VisibleForTesting
   public static boolean isWithinRange(String cronExpression, int maxNumDaysToScheduleWithin) {
+    if (cronExpression == null || cronExpression.trim().isEmpty()) {
+      // If the cron expression is empty or null, return true to capture adhoc flows
+      return true;
+    }
     CronExpression cron = null;
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     double numMillisInADay = 86400000;
@@ -301,15 +305,17 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       if (nextValidTimeAfter == null) {
         log.warn("Calculation issue for next valid time for expression: {}. Will default to true for within range",
             cronExpression);
-        return true;
+        return false;
       }
       cal.setTime(nextValidTimeAfter);
       long diff = cal.getTimeInMillis() - System.currentTimeMillis();
       return (int) Math.round(diff / numMillisInADay) < maxNumDaysToScheduleWithin;
     } catch (ParseException e) {
       e.printStackTrace();
+      // Return false when a parsing exception occurs due to invalid cron
+      return false;
     }
-    return true;
+
   }
 
   /**
