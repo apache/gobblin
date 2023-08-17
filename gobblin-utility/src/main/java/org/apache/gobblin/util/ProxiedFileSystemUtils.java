@@ -20,9 +20,10 @@ package org.apache.gobblin.util;
 import java.io.IOException;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 
@@ -86,10 +87,10 @@ public class ProxiedFileSystemUtils {
       case TOKEN:
         Preconditions.checkArgument(properties.containsKey(AUTH_TOKEN_PATH));
         Path tokenPath = new Path(properties.getProperty(AUTH_TOKEN_PATH));
-        Optional<Token<?>> proxyToken = getTokenFromSeqFile(userNameToProxyAs, tokenPath);
-        if (proxyToken.isPresent()) {
+        List<Token<?>> proxyTokens = getTokenFromSeqFile(userNameToProxyAs, tokenPath);
+        if (proxyTokens.size() > 0) {
           try {
-            return createProxiedFileSystemUsingToken(userNameToProxyAs, proxyToken.get(), fsURI, conf);
+            return createProxiedFileSystemUsingToken(userNameToProxyAs, proxyTokens, fsURI, conf);
           } catch (InterruptedException e) {
             throw new IOException("Failed to proxy as user " + userNameToProxyAs, e);
           }
@@ -168,17 +169,19 @@ public class ProxiedFileSystemUtils {
    * method to create a {@link FileSystem}.
    *
    * @param userNameToProxyAs The name of the user the super user should proxy as
-   * @param userNameToken The {@link Token} to add to the proxied user's {@link UserGroupInformation}.
+   * @param userNameTokens List of {@link Token}s to add to the proxied user's {@link UserGroupInformation}.
    * @param fsURI The {@link URI} for the {@link FileSystem} that should be created
    * @param conf The {@link Configuration} for the {@link FileSystem} that should be created
    *
    * @return a {@link FileSystem} that can execute commands on behalf of the specified userNameToProxyAs
    */
   static FileSystem createProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs,
-      @NonNull Token<?> userNameToken, URI fsURI, Configuration conf) throws IOException, InterruptedException {
+      @NonNull List<Token<?>> userNameTokens, URI fsURI, Configuration conf) throws IOException, InterruptedException {
     UserGroupInformation ugi =
         UserGroupInformation.createProxyUser(userNameToProxyAs, UserGroupInformation.getLoginUser());
-    ugi.addToken(userNameToken);
+    for (Token<?> userNameToken : userNameTokens) {
+      ugi.addToken(userNameToken);
+    }
     return ugi.doAs(new ProxiedFileSystem(fsURI, conf));
   }
 
@@ -205,7 +208,7 @@ public class ProxiedFileSystemUtils {
    *
    * @return A {@link Token} for the given user name
    */
-  public static Optional<Token<?>> getTokenFromSeqFile(String userNameKey, Path tokenFilePath) throws IOException {
+  public static List<Token<?>> getTokenFromSeqFile(String userNameKey, Path tokenFilePath) throws IOException {
     log.info("Reading tokens from sequence file " + tokenFilePath);
 
     try (Closer closer = Closer.create()) {
@@ -218,12 +221,12 @@ public class ProxiedFileSystemUtils {
       while (tokenReader.next(key, value)) {
         log.debug("Found token for user: " + key);
         if (key.toString().equals(userNameKey)) {
-          return Optional.<Token<?>> of(value);
+          return Collections.singletonList(value);
         }
       }
     }
     log.warn("Did not find any tokens for user " + userNameKey);
-    return Optional.absent();
+    return Collections.emptyList();
   }
 
   private static UserGroupInformation loginAndProxyAsUser(@NonNull String userNameToProxyAs,
