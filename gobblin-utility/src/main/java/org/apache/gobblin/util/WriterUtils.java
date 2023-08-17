@@ -20,6 +20,7 @@ package org.apache.gobblin.util;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -364,12 +365,12 @@ public class WriterUtils {
       throws IOException {
     try {
       String user = state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME);
-      Optional<Token<?>> token = ProxiedFileSystemUtils
+      List<Token<?>> tokens = ProxiedFileSystemUtils
           .getTokenFromSeqFile(user, new Path(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_TOKEN_FILE)));
-      if (!token.isPresent()) {
+      if (tokens.isEmpty()) {
         throw new IOException("No token found for user " + user);
       }
-      return ProxiedFileSystemCache.fromToken().userNameToken(token.get())
+      return ProxiedFileSystemCache.fromTokens().userNameTokens(tokens)
           .userNameToProxyAs(state.getProp(ConfigurationKeys.FS_PROXY_AS_USER_NAME)).fsURI(uri)
           .conf(HadoopUtils.newConfiguration()).build();
     } catch (ExecutionException e) {

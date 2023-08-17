@@ -19,6 +19,8 @@ package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -205,7 +207,9 @@ public class ProxiedFileSystemCache {
 
   /**
    * Cached version of {@link ProxiedFileSystemUtils#createProxiedFileSystemUsingToken(String, Token, URI, Configuration)}.
+   * Deprecated in favor of {@link #getProxiedFileSystemUsingTokens}
    */
+  @Deprecated
   @Builder(builderClassName = "ProxiedFileSystemFromToken", builderMethodName = "fromToken")
   private static FileSystem getProxiedFileSystemUsingToken(@NonNull String userNameToProxyAs, Token<?> userNameToken,
       URI fsURI, Configuration conf, FileSystem referenceFS) throws IOException, ExecutionException {
@@ -215,7 +219,20 @@ public class ProxiedFileSystemCache {
     Configuration actualConfiguration = resolveConfiguration(conf, referenceFS);
 
     return USER_NAME_TO_FILESYSTEM_CACHE.get(getFileSystemKey(actualURI, userNameToProxyAs, referenceFS),
-        new CreateProxiedFileSystemFromToken(userNameToProxyAs, userNameToken, actualURI, actualConfiguration,
+        new CreateProxiedFileSystemFromToken(userNameToProxyAs, Collections.singletonList(userNameToken), actualURI, actualConfiguration,
+            referenceFS));
+  }
+
+  @Builder(builderClassName = "ProxiedFileSystemFromTokens", builderMethodName = "fromTokens")
+  private static FileSystem getProxiedFileSystemUsingTokens(@NonNull String userNameToProxyAs, List<Token<?>> userNameTokens,
+      URI fsURI, Configuration conf, FileSystem referenceFS) throws IOException, ExecutionException {
+    Preconditions.checkNotNull(userNameToProxyAs, "Must provide a user name to proxy as.");
+    Preconditions.checkNotNull(userNameTokens, "Must provide token for user to proxy.");
+    URI actualURI = resolveUri(fsURI, conf, referenceFS);
+    Configuration actualConfiguration = resolveConfiguration(conf, referenceFS);
+
+    return USER_NAME_TO_FILESYSTEM_CACHE.get(getFileSystemKey(actualURI, userNameToProxyAs, referenceFS),
+        new CreateProxiedFileSystemFromToken(userNameToProxyAs, userNameTokens, actualURI, actualConfiguration,
             referenceFS));
   }
 
@@ -272,7 +289,7 @@ public class ProxiedFileSystemCache {
     @NonNull
     private final String userNameToProxyAs;
     @NonNull
-    private final Token<?> userNameToken;
+    private final List<Token<?>> userNameTokens;
     @NonNull
     private final URI uri;
     @NonNull
@@ -282,7 +299,7 @@ public class ProxiedFileSystemCache {
     @Override
     public FileSystem call() throws Exception {
       FileSystem fs = ProxiedFileSystemUtils.createProxiedFileSystemUsingToken(this.userNameToProxyAs,
-          this.userNameToken, this.uri, this.configuration);
+          this.userNameTokens, this.uri, this.configuration);
       if (this.referenceFS != null) {
         return decorateFilesystemFromReferenceFS(fs, this.referenceFS);
       }
