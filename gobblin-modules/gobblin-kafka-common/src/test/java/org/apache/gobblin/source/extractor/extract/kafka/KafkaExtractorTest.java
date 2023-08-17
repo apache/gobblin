@@ -40,10 +40,10 @@ public class KafkaExtractorTest {
     final String kafkaBrokerUri = "kafka.broker.uri.com:12345";
     final String kafkaBrokerSimpleName = "simple.kafka.name";
     state.setProp(ConfigurationKeys.KAFKA_BROKERS, kafkaBrokerUri);
-    Assert.assertThrows(IllegalArgumentException.class, () -> KafkaExtractor.getKafkaBrokerSimpleName(state));
+    Assert.assertEquals("", KafkaExtractor.getKafkaBrokerSimpleName(state));
 
     state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
-    Assert.assertThrows(IllegalArgumentException.class, () -> KafkaExtractor.getKafkaBrokerSimpleName(state));
+    Assert.assertEquals("", KafkaExtractor.getKafkaBrokerSimpleName(state));
 
     state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s,foobar->foobarId", kafkaBrokerUri, kafkaBrokerSimpleName));
     Assert.assertEquals(KafkaExtractor.getKafkaBrokerSimpleName(state), kafkaBrokerSimpleName);

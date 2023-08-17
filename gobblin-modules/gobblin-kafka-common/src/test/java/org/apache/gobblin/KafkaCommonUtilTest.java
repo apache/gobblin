@@ -34,7 +34,7 @@ public class KafkaCommonUtilTest {
     String simpleName = "some-identifier";
 
     State state = new State();
-    Assert.assertThrows(IllegalArgumentException.class, () -> KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state));
+    Assert.assertEquals(KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state).size(),0);
 
     state.setProp(ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, String.format("%s->%s", brokerUri, simpleName));
     Assert.assertEquals(KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state),

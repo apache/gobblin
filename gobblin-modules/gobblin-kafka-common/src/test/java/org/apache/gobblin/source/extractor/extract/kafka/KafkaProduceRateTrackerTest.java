@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.joda.time.LocalDate;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -58,6 +59,7 @@ public class KafkaProduceRateTrackerTest {
     kafkaPartitions.add(new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build());
     this.workUnitState = new WorkUnitState();
     this.workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 5L);
+    this.workUnitState.setProp(ConfigurationKeys.KAFKA_BROKERS, "testBroker");
     this.watermarkTracker = new LastWatermarkTracker(false);
     this.extractorStatsTracker = new KafkaExtractorStatsTracker(this.workUnitState, kafkaPartitions);
   }
@@ -134,6 +136,7 @@ public class KafkaProduceRateTrackerTest {
     workUnitState.setProp(KafkaProduceRateTracker.KAFKA_PRODUCE_RATE_DISABLE_STATS_ON_HOLIDAYS_KEY, false);
     workUnitState.setProp(FlushingExtractor.FLUSH_INTERVAL_SECONDS_KEY, 1L);
     workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 5L);
+    workUnitState.setProp(ConfigurationKeys.KAFKA_BROKERS, "testBroker");
     WatermarkTracker watermarkTracker = new LastWatermarkTracker(false);
     KafkaExtractorStatsTracker extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
 
