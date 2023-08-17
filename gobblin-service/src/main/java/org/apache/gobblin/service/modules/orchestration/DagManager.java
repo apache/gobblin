@@ -494,6 +494,7 @@ public class DagManager extends AbstractIdleService {
    * the process.
    */
   public void handleLaunchFlowEvent(DagActionStore.DagAction action) {
+    log.info("Handle launch flow event for action {}", action);
     FlowId flowId = action.getFlowId();
     FlowSpec spec;
     try {
@@ -505,12 +506,15 @@ public class DagManager extends AbstractIdleService {
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
       }
+      // Upon handling the action, delete it so on leadership change this is not duplicated
+      this.dagActionStore.get().deleteDagAction(action);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {} due to exception {}", flowId, e.getMessage());
     } catch (SpecNotFoundException e) {
       log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
     } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
+      log.warn("Failed to add Job Execution Plan for flowId {} OR delete dag action from dagActionStore due to "
+          + "exception {}", flowId, e.getMessage());
     } catch (InterruptedException e) {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
     }
