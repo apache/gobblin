@@ -27,14 +27,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.State;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY;
 
-
+@Slf4j
 public class KafkaCommonUtil {
   public static final long KAFKA_FLUSH_TIMEOUT_SECONDS = 15L;
   public static final String MAP_KEY_VALUE_DELIMITER_KEY = "->";
@@ -72,10 +72,12 @@ public class KafkaCommonUtil {
   }
 
   public static Map<String, String> getKafkaBrokerToSimpleNameMap(State state) {
-    Preconditions.checkArgument(state.contains(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY),
-        String.format("Configuration must contain value for %s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY));
-    String mapStr = state.getProp(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY);
     Map<String, String> kafkaBrokerUriToSimpleName = new HashMap<>();
+    if (!state.contains(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY)) {
+        log.warn(String.format("Configuration does not contain value for %s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY));
+        return kafkaBrokerUriToSimpleName;
+    }
+    String mapStr = state.getProp(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY);
     for (String entry : LIST_SPLITTER.splitToList(mapStr)) {
       String[] items = entry.trim().split(MAP_KEY_VALUE_DELIMITER_KEY);
       kafkaBrokerUriToSimpleName.put(items[0], items[1]);

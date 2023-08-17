@@ -53,6 +53,7 @@ import org.apache.gobblin.util.TaskEventMetadataUtils;
 public class KafkaExtractorStatsTracker {
   // Constants for event submission
   public static final String TOPIC = "topic";
+  public static final String BROKER_NAME = "brokerName";
   public static final String PARTITION = "partition";
 
   private static final String EMPTY_STRING = "";
@@ -87,6 +88,7 @@ public class KafkaExtractorStatsTracker {
   private final Histogram observedLatencyHistogram;
   private boolean isSlaConfigured;
   private long recordLevelSlaMillis;
+  private String brokerName;
   //Minimum partition index processed by this task. Statistics that are aggregated across all partitions (e.g. observed latency histogram)
   // processed by the task are reported against this partition index.
   private int minPartitionIdx = Integer.MAX_VALUE;
@@ -110,6 +112,7 @@ public class KafkaExtractorStatsTracker {
 
   public KafkaExtractorStatsTracker(WorkUnitState state, List<KafkaPartition> partitions) {
     this.workUnitState = state;
+    this.brokerName = KafkaExtractor.getKafkaBrokerSimpleName(workUnitState);
     this.partitions = partitions;
     this.statsMap = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.partitions.forEach(partition -> {
@@ -495,6 +498,7 @@ public class KafkaExtractorStatsTracker {
     for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
       EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE);
       eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME));
+      eventSubmitterBuilder.addMetadata(BROKER_NAME, this.brokerName);
       eventSubmitterBuilder.build().submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
     }
   }
@@ -508,6 +512,7 @@ public class KafkaExtractorStatsTracker {
       KafkaPartition partitionKey = this.partitions.get(i);
       GobblinEventBuilder gobblinEventBuilder = new GobblinEventBuilder(KAFKA_EXTRACTOR_CONTAINER_TRANSITION_EVENT_NAME, GOBBLIN_KAFKA_NAMESPACE);
       gobblinEventBuilder.addMetadata(TOPIC, partitionKey.getTopicName());
+      gobblinEventBuilder.addMetadata(BROKER_NAME, this.brokerName);
       gobblinEventBuilder.addMetadata(PARTITION, Integer.toString(partitionKey.getId()));
       gobblinEventBuilder.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_CONTAINER_TRANSITION_EVENT_NAME));
       EventSubmitter.submit(context, gobblinEventBuilder);

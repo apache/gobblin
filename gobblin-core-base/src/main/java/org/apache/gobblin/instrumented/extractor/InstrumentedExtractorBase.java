@@ -117,7 +117,7 @@ public abstract class InstrumentedExtractorBase<S, D>
 
   @Override
   public boolean isInstrumentationEnabled() {
-    return this.instrumentationEnabled;
+    return true;
   }
 
   /** Default with no additional tags */
