@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import java.io.IOException;
@@ -219,6 +220,23 @@ public class FlowTriggerHandler {
       long originalEventTimeMillis) throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
+    jobDataMap = updatePropsInJobDataMap(jobDataMap, cronExpression, reminderTimestampMillis, originalEventTimeMillis);
+    jobDetail.setJobDataMap(jobDataMap);
+    return jobDetail;
+  }
+
+  /**
+   * Updates the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a JobDataMap
+   * provided returns the updated JobDataMap to the user
+   * @param jobDataMap
+   * @param cronExpression
+   * @param reminderTimestampMillis
+   * @param originalEventTimeMillis
+   * @return
+   */
+  @VisibleForTesting
+  public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap, String cronExpression,
+      long reminderTimestampMillis, long originalEventTimeMillis) {
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     prevJobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
     // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
@@ -229,8 +247,7 @@ public class FlowTriggerHandler {
         String.valueOf(originalEventTimeMillis));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
-    jobDetail.setJobDataMap(jobDataMap);
-    return jobDetail;
+    return jobDataMap;
   }
 
   /**
