@@ -74,7 +74,7 @@ public class KafkaCommonUtil {
   public static Map<String, String> getKafkaBrokerToSimpleNameMap(State state) {
     Map<String, String> kafkaBrokerUriToSimpleName = new HashMap<>();
     if (!state.contains(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY)) {
-        log.warn(String.format("Configuration does not contain value for %s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY));
+        log.warn("Configuration does not contain value for {}", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY);
         return kafkaBrokerUriToSimpleName;
     }
     String mapStr = state.getProp(KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY);
