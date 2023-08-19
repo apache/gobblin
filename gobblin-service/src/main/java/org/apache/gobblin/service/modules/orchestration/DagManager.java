@@ -21,6 +21,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
@@ -493,21 +494,20 @@ public class DagManager extends AbstractIdleService {
    * dagStore, we compile the flow to generate the dag before calling addDag(), handling any errors that may result in
    * the process.
    */
-  public void handleLaunchFlowEvent(DagActionStore.DagAction action) {
-    log.info("Handle launch flow event for action {}", action);
-    FlowId flowId = action.getFlowId();
-    FlowSpec spec;
+  public void handleLaunchFlowEvent(DagActionStore.DagAction launchAction) {
+    Preconditions.checkArgument(launchAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
+    log.info("Handle launch flow event for action {}", launchAction);
+    FlowId flowId = launchAction.getFlowId();
     try {
-      log.info("Handle launch flow event for action: {}", action);
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
+      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
           this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec);
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
       }
       // Upon handling the action, delete it so on leadership change this is not duplicated
-      this.dagActionStore.get().deleteDagAction(action);
+      this.dagActionStore.get().deleteDagAction(launchAction);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {} due to exception {}", flowId, e.getMessage());
     } catch (SpecNotFoundException e) {
