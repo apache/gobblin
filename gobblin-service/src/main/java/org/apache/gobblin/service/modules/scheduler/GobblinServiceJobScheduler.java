@@ -458,13 +458,25 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
     Properties jobProps = (Properties) job.getJobDataMap().get(PROPERTIES_KEY);
     log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} - Job newly scheduled",
-         trigger.getNextFireTime().getTime());
+         getMillisecondsSinceEpochInUTC(trigger.getNextFireTime()));
   }
 
   protected static String jobSchedulerTracePrefixBuilder(Properties jobProps) {
     return String.format("Scheduler trigger tracing: [flowName: %s flowGroup: %s] - ",
         jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, "<<no flow name>>"),
         jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<no flow group>>"));
+  }
+
+  /**
+   * Takes a given Date object and converts the timezone to UTC before returning the number of millseconds since epoch
+   * @param date
+   */
+  public static long getMillisecondsSinceEpochInUTC(Date date) {
+    // Create a Calendar object and set it to the given Date
+    Calendar calendar = Calendar.getInstance();
+    calendar.setTime(date);
+    calendar.setTimeZone(TimeZone.getTimeZone("UTC"));
+    return calendar.getTimeInMillis();
   }
 
   @Override
@@ -716,11 +728,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
       // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
-      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
+      long triggerTimestampMillis = getMillisecondsSinceEpochInUTC(trigger.getPreviousFireTime());
       jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
           String.valueOf(triggerTimestampMillis));
       _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
-              + "scheduler", triggerTimestampMillis, trigger.getNextFireTime().getTime());
+              + "scheduler", triggerTimestampMillis, getMillisecondsSinceEpochInUTC(trigger.getNextFireTime()));
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
