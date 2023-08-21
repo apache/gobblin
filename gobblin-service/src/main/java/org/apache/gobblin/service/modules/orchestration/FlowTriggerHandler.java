@@ -182,8 +182,8 @@ public class FlowTriggerHandler {
         return;
       }
       JobKey reminderJobKey = constructReminderJobKey(origJobKey, status.getEventTimeMillis());
-      JobDetailImpl jobDetail = updatePropsInJobDetail(origJobKey, cronExpression, status.getEventTimeMillis(),
-          originalEventTimeMillis);
+      JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, cronExpression,
+          status.getEventTimeMillis(), originalEventTimeMillis);
       // Create a new trigger that is set to fire at the minimum reminder wait time calculated
       Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey,
           (Properties) jobDetail.getJobDataMap().get(GobblinServiceJobScheduler.PROPERTIES_KEY), Optional.absent());
@@ -215,18 +215,21 @@ public class FlowTriggerHandler {
   }
 
   /**
-   * Helper function used to extract JobDetail for job identified by the key and update the Properties map to contain
-   * the cron scheduler for the reminder event and information about the event to revisit
-   * @param key
+   * Helper function used to extract JobDetail for job identified by the originalKey and update it be associated with
+   * the event to revisit. It will update the jobKey to the reminderKey provides and the Properties map to
+   * contain the cron scheduler for the reminder event and information about the event to revisit
+   * @param originalKey
+   * @param reminderKey
    * @param cronExpression
    * @param reminderTimestampMillis
    * @param originalEventTimeMillis
    * @return
    * @throws SchedulerException
    */
-  protected JobDetailImpl updatePropsInJobDetail(JobKey key, String cronExpression, long reminderTimestampMillis,
-      long originalEventTimeMillis) throws SchedulerException {
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
+  protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
+      String cronExpression, long reminderTimestampMillis, long originalEventTimeMillis) throws SchedulerException {
+    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
+    jobDetail.setKey(reminderKey);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
     jobDataMap = updatePropsInJobDataMap(jobDataMap, cronExpression, reminderTimestampMillis, originalEventTimeMillis);
     jobDetail.setJobDataMap(jobDataMap);
