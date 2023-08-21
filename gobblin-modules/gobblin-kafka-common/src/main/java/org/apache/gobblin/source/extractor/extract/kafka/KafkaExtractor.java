@@ -354,10 +354,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     String brokerUri = kafkaBrokerUriList.get(0);
     Map<String, String> brokerToSimpleName = KafkaCommonUtil.getKafkaBrokerToSimpleNameMap(state);
 
-    Preconditions.checkArgument(brokerToSimpleName.get(brokerUri) != null,
-        String.format("Unable to find simple name for the kafka cluster broker uri in the config. Please check the map "
-            + "value of %s. brokerUri=%s, configMapValue=%s", KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, brokerUri, brokerToSimpleName));
-
+    if (!brokerToSimpleName.containsKey(brokerUri)) {
+      LOG.warn("Unable to find simple name for the kafka cluster broker uri in the config. Please check the map value of {}. brokerUri={}, configMapValue=%{}",
+          KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY, brokerUri, brokerToSimpleName);
+      return "";
+    }
     return brokerToSimpleName.get(brokerUri);
   }
 }
