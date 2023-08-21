@@ -18,6 +18,9 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +42,9 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobState;
@@ -72,22 +78,32 @@ public class SingleTask {
   private JobState _jobState;
 
   // Preventing Helix calling cancel before taskAttempt is created
-  // Checking if taskAttempt is empty is not enough, since canceller runs in different thread as runner, the case to
+  // Checking if taskAttempt is empty is not enough, since canceller runs in different thread as runner, the case
   // to avoid here is taskAttempt being created and start to run after cancel has been called.
   private Condition _taskAttemptBuilt;
   private Lock _lock;
+  private String workflowId;
 
-  SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+  public SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
     this(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig, false);
+    this.workflowId = "";
+  }
+
+  public SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig, String workflowId) {
+    this(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig, false);
+    _logger.info("Gobblin task workflowid: {}", workflowId);
+    this.workflowId = workflowId;
   }
 
   /**
    * Do all heavy-lifting of initialization in constructor which could be retried if failed,
    * see the example in {@link GobblinHelixTask}.
    */
-  SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+  public SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig, boolean skipGetJobState) {
+    _logger.info("Constructing SingleTask");
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
     _jobStateFilePath = jobStateFilePath;
@@ -109,23 +125,25 @@ public class SingleTask {
     }
   }
 
-  public void run()
-      throws IOException, InterruptedException {
+  public void run() throws IOException, InterruptedException {
+    _logger.info("Running SingleTask");
 
     if (_jobState == null) {
       throw new RuntimeException("jobState is null. Task may have already been cancelled.");
     }
+
+    MetricContext metricContext = MetricContext.builder("SingleTaskContext").build();
+    EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, "gobblin.task").build();
+    submitEvent(eventSubmitter, "GobblinTaskStarted");
 
     // Add dynamic configuration to the job state
     _dynamicConfig.entrySet().forEach(e -> _jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
 
     Config jobConfig = getConfigFromJobState(_jobState);
 
-    _logger.debug("SingleTask.run: jobId {} workUnitFilePath {} jobStateFilePath {} jobState {} jobConfig {}",
-        _jobId, _workUnitFilePath, _jobStateFilePath, _jobState, jobConfig);
+    _logger.debug("SingleTask.run: jobId {} workUnitFilePath {} jobStateFilePath {} jobState {} jobConfig {}", _jobId, _workUnitFilePath, _jobStateFilePath, _jobState, jobConfig);
 
-    try (SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory
-        .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
+    try (SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(_jobState, globalBroker);
 
       // Secure atomicity of taskAttempt's execution.
@@ -135,17 +153,32 @@ public class SingleTask {
       _lock.lock();
       try {
         _taskAttemptBuilt.signal();
+        submitEvent(eventSubmitter, "GobblinTaskAttemptBuiltSignal");
       } finally {
         _lock.unlock();
       }
 
       // This is a blocking call.
-      _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+      submitEvent(eventSubmitter, "GobblinTaskAttemptRunAndOptionallyCommit");
 
+      _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
     } finally {
       _logger.info("Clearing all metrics object in cache.");
+      submitEvent(eventSubmitter, "GobblinTaskAttemptCleanMetrics");
       _taskAttempt.cleanMetrics();
     }
+  }
+
+  private void submitEvent(EventSubmitter eventSubmitter, String eventName) {
+    GobblinEventBuilder eventBuilder = new GobblinEventBuilder(eventName);
+    Instant instant = Instant.now();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        .withZone(ZoneId.systemDefault());
+    String formattedDateTime = formatter.format(instant);
+    eventBuilder.addMetadata("EventType", eventName);
+    eventBuilder.addMetadata("WorkflowId", this.workflowId);
+    eventBuilder.addMetadata("EventTime", formattedDateTime);
+    eventSubmitter.submit(eventBuilder);
   }
 
   private SharedResourcesBroker<GobblinScopeTypes> getJobBroker(JobState jobState,

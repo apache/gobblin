@@ -18,6 +18,8 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,6 +53,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerOptions;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -58,19 +61,24 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.temporal.GobblinTemporalActivityImpl;
 import org.apache.gobblin.cluster.temporal.GobblinTemporalWorkflowImpl;
 import org.apache.gobblin.cluster.temporal.Shared;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MultiReporterException;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import static org.apache.gobblin.cluster.GobblinTemporalClusterManager.createServiceStubs;
 
@@ -78,18 +86,6 @@ import static org.apache.gobblin.cluster.GobblinTemporalClusterManager.createSer
 /**
  * The main class running in the containers managing services for running Gobblin
  * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
- *
- * <p>
- *   This class presents a Helix participant that uses a to communicate with Helix.
- *   It uses Helix task execution framework and details are encapsulated in {@link TaskRunnerSuiteBase}.
- * </p>
- *
- * <p>
- *   This class responds to a graceful shutdown initiated by the {@link GobblinTemporalClusterManager} via
- *   a Helix message of subtype {@link HelixMessageSubTypes#WORK_UNIT_RUNNER_SHUTDOWN}, or it does a
- *   graceful shutdown when the shutdown hook gets called. In both cases, {@link #stop()} will be
- *   called to start the graceful shutdown.
- * </p>
  *
  * <p>
  *   If for some reason, the container exits or gets killed, the {@link GobblinTemporalClusterManager} will
@@ -106,6 +102,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   private static final Logger logger = LoggerFactory.getLogger(GobblinTemporalTaskRunner.class);
 
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
+
+  private static TaskRunnerSuiteBase.Builder builder;
   private final Optional<ContainerMetrics> containerMetrics;
   private final Path appWorkPath;
   private boolean isTaskDriver;
@@ -124,15 +122,15 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   protected final FileSystem fs;
   protected final String applicationName;
   protected final String applicationId;
+  protected final int temporalWorkerSize;
+  private final boolean isMetricReportingFailureFatal;
+  private final boolean isEventReportingFailureFatal;
 
   public GobblinTemporalTaskRunner(String applicationName,
       String applicationId,
       String taskRunnerId,
       Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
-    // overrides such as sessionTimeout. In this case, the overrides specified
-    // in the application configuration have to be extracted and set before initializing HelixManager.
     GobblinClusterUtils.setSystemProperties(config);
 
     //Add dynamic config
@@ -150,6 +148,17 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     this.containerMetrics = buildContainerMetrics();
+    this.builder = initBuilder();
+    // The default worker size would be 1
+    this.temporalWorkerSize = ConfigUtils.getInt(config, GobblinClusterConfigurationKeys.TEMPORAL_WORKER_SIZE,1);
+
+    this.isMetricReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
+        ConfigurationKeys.DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL);
+
+    this.isEventReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
+        ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL);
 
     logger.info("GobblinTaskRunner({}): applicationName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
         this.isTaskDriver ? "taskDriver" : "worker",
@@ -158,6 +167,35 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
         taskRunnerId,
         config,
         appWorkDirOptional);
+  }
+
+  public static TaskRunnerSuiteBase.Builder getBuilder() {
+    return builder;
+  }
+
+  private TaskRunnerSuiteBase.Builder initBuilder() throws ReflectiveOperationException {
+    String builderStr = ConfigUtils.getString(this.clusterConfig,
+        GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
+        TaskRunnerSuiteBase.Builder.class.getName());
+
+    String hostName = "";
+    try {
+      hostName = InetAddress.getLocalHost().getHostName();
+    } catch (UnknownHostException e) {
+      logger.warn("Cannot find host name for Helix instance: {}");
+    }
+
+    TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
+        new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
+            .resolveClass(builderStr), this.clusterConfig);
+
+    return builder.setAppWorkPath(this.appWorkPath)
+        .setContainerMetrics(this.containerMetrics)
+        .setFileSystem(this.fs)
+        .setApplicationId(applicationId)
+        .setApplicationName(applicationName)
+        .setContainerId(taskRunnerId)
+        .setHostName(hostName);
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -181,20 +219,31 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
       throws ContainerHealthCheckException {
     logger.info("Calling start method in GobblinTemporalTaskRunner");
     logger.info(String.format("Starting in container %s", this.taskRunnerId));
+
+    // Start metric reporting
+    initMetricReporter();
+
+    // Add a shutdown hook so the task scheduler gets properly shutdown
+    addShutdownHook();
+
     try {
-      initiateWorker();
+      for (int i = 0; i < this.temporalWorkerSize; i++) {
+        initiateWorker();
+      }
     }catch (Exception e) {
       logger.info(e + " for initiate workers");
       throw new RuntimeException(e);
     }
-
-    // Add a shutdown hook so the task scheduler gets properly shutdown
-    addShutdownHook();
   }
 
   private void initiateWorker() throws Exception{
     logger.info("Starting Temporal Worker");
     WorkflowServiceStubs service = createServiceStubs();
+
+    WorkerOptions workerOptions = WorkerOptions.newBuilder()
+        .setMaxConcurrentWorkflowTaskExecutionSize(1)
+        .setMaxConcurrentActivityExecutionSize(1)
+        .build();
 
     // WorkflowClient can be used to start, signal, query, cancel, and terminate Workflows.
     WorkflowClient client =
@@ -210,7 +259,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
      * Define the workflow worker. Workflow workers listen to a defined task queue and process
      * workflows and activities.
      */
-    Worker worker = factory.newWorker(Shared.HELLO_WORLD_TASK_QUEUE);
+    Worker worker = factory.newWorker(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE, workerOptions);
 
     /*
      * Register our workflow implementation with the worker.
@@ -231,6 +280,19 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
      */
     factory.start();
     logger.info("A new worker is started.");
+  }
+
+  private void initMetricReporter() {
+    if (this.containerMetrics.isPresent()) {
+      try {
+        this.containerMetrics.get()
+            .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
+      } catch (MultiReporterException ex) {
+        if (MetricReportUtils.shouldThrowException(logger, ex, this.isMetricReportingFailureFatal, this.isEventReportingFailureFatal)) {
+          throw new RuntimeException(ex);
+        }
+      }
+    }
   }
 
   public synchronized void stop() {
@@ -320,7 +382,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(RootMetricContext.get(), getClass().getPackage().getName()).build();
     GobblinEventBuilder eventBuilder = new GobblinEventBuilder(event.getClass().getSimpleName());
     State taskState = ConfigUtils.configToState(event.getConfig());
-    //Add task metadata such as Helix taskId, containerId, and workflowId if configured
+    //Add task metadata such as taskId, containerId, and workflowId if configured
     TaskEventMetadataGenerator taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(taskState);
     eventBuilder.addAdditionalMetadata(taskEventMetadataGenerator.getMetadata(taskState, event.getClass().getSimpleName()));
     eventBuilder.addAdditionalMetadata(event.getMetadata());

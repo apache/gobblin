@@ -422,12 +422,14 @@ public class YarnTemporalService extends AbstractIdleService {
    * @return whether successfully requested the target number of containers
    */
   public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
-    LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
-        yarnContainerRequestBundle.getTotalContainers(), inUseInstances.size(), this.containerMap.size());
-
     int defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys. CONTAINER_CORES_KEY);
-    int workerPoolSize = ConfigUtils.getInt(config, "temporal.workerpool.size",2);
+    // making workerPoolSize configurable, the default value would be 10
+    int workerPoolSize = ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.TEMPORAL_WORKERPOOL_SIZE,10);
+
+    LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
+        workerPoolSize, inUseInstances.size(), this.containerMap.size());
+
     requestContainers(workerPoolSize, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores));
 
     this.yarnContainerRequest = yarnContainerRequestBundle;
@@ -701,42 +703,16 @@ public class YarnTemporalService extends AbstractIdleService {
             Optional.of(completedContainerInfo.getContainer()) : Optional.absent(), newContainerResource));
   }
 
-  /**
-   * Handles containers aborted. This method handles 2 cases:
-   * <ol>
-   *   <li>
-   *     Case 1: Gobblin AM intentionally requested container to be released (often because the number of helix tasks
-   *     has decreased due to decreased traffic)
-   *   </li>
-   *   <li>
-   *     Case 2: Unexpected hardware fault and the node is lost. Need to do specific Helix logic to ensure 2 helix tasks
-   *     are not being run by the multiple containers
-   *   </li>
-   * </ol>
-   * @param containerStatus
-   * @param completedContainerInfo
-   * @param completedInstanceName
-   * @return if release request was intentionally released (Case 1)
-   */
   private boolean handleAbortedContainer(ContainerStatus containerStatus, ContainerInfo completedContainerInfo,
       String completedInstanceName) {
-
-    // Case 1: Container intentionally released
     if (this.releasedContainerCache.getIfPresent(containerStatus.getContainerId()) != null) {
       LOGGER.info("Container release requested, so not spawning a replacement for containerId {}", containerStatus.getContainerId());
       if (completedContainerInfo != null) {
         LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
         this.unusedHelixInstanceNames.add(completedInstanceName);
       }
-
       return true;
     }
-
-    // Case 2: Container release was not requested. Likely, the container was running on a node on which the NM died.
-    // In this case, RM assumes that the containers are "lost", even though the container process may still be
-    // running on the node. We need to ensure that the Helix instances running on the orphaned containers
-    // are fenced off from the Helix cluster to avoid double publishing and state being committed by the
-    // instances.
     LOGGER.info("Container {} aborted due to lost NM", containerStatus.getContainerId());
     return false;
   }
@@ -767,8 +743,6 @@ public class YarnTemporalService extends AbstractIdleService {
    * The RM can return containers that are larger (because of normalization etc).
    * Container may be larger by memory or cpu (e.g. container (1000M, 3cpu) can fit request (1000M, 1cpu) or request (500M, 3cpu).
    * <p>
-   * Thankfully since each helix tag / resource has a different priority, matching requests for one helix tag / resource
-   * have complete isolation from another helix tag / resource
    */
   private int getMatchingRequestsCount(Resource resource) {
     Integer priorityNum = resourcePriorityMap.get(resource.toString());

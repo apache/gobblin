@@ -55,7 +55,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * The Yarn ApplicationMaster class for Gobblin.
+ * The Yarn ApplicationMaster class for Gobblin using Temporal.
  *
  * <p>
  *   This class runs the {@link YarnTemporalService} for all Yarn-related stuffs like ApplicationMaster registration

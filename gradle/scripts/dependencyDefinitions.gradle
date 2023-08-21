@@ -215,7 +215,6 @@ ext.externalDependency = [
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "testContainers": "org.testcontainers:testcontainers:1.17.3",
     "testContainersMysql": "org.testcontainers:mysql:1.17.3",
-    "workflowClient.namespace": "gobblin-fastingest-internpoc",
     "xz": "org.tukaani:xz:1.8"
 ]
 

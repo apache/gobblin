@@ -15,16 +15,21 @@
  * limitations under the License.
  */
 
-// @@@SNIPSTART hello-world-project-template-java-activity-interface
 package org.apache.gobblin.cluster.temporal;
+
+import java.util.Properties;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 
 import io.temporal.activity.ActivityInterface;
 
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @ActivityInterface
 public interface GobblinTemporalActivity {
 
-    // Define your activity methods which can be called during workflow execution
     String composeGreeting(String name);
 
+    // Method to run Gobblin Task in activity
+    void run(Properties jobProps, String appWorkDir, String jobId, String workUnitFilePath, String jobStateFilePath, String workflowId)
+        throws Exception;
 }
-// @@@SNIPEND

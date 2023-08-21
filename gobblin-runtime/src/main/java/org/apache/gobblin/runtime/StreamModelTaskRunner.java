@@ -28,6 +28,11 @@ import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Futures;
 
+import io.reactivex.Flowable;
+import io.reactivex.flowables.ConnectableFlowable;
+import io.reactivex.schedulers.Schedulers;
+import lombok.AllArgsConstructor;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.fork.ForkOperator;
@@ -44,11 +49,6 @@ import org.apache.gobblin.writer.AcknowledgableWatermark;
 import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkManager;
 import org.apache.gobblin.writer.WatermarkStorage;
-
-import io.reactivex.Flowable;
-import io.reactivex.flowables.ConnectableFlowable;
-import io.reactivex.schedulers.Schedulers;
-import lombok.AllArgsConstructor;
 
 
 /**
@@ -147,7 +147,7 @@ public class StreamModelTaskRunner {
           forkedStream = forkedStream.mapStream(f -> f.observeOn(Schedulers.from(this.taskExecutor.getForkExecutor()), false, bufferSize));
         }
         Fork fork = new Fork(this.taskContext, forkedStream.getGlobalMetadata().getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
-        fork.consumeRecordStream(forkedStream);
+        // fork.consumeRecordStream(forkedStream);
         this.forks.put(Optional.of(fork), Optional.of(Futures.immediateFuture(null)));
         this.task.configureStreamingFork(fork);
       }

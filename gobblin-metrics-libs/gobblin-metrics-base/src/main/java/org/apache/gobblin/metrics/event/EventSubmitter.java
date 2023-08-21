@@ -19,14 +19,17 @@ package org.apache.gobblin.metrics.event;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
+import lombok.Getter;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-
-import lombok.Getter;
 
 
 /**
@@ -46,6 +49,8 @@ public class EventSubmitter {
   private final String namespace;
   @Getter
   private final Optional<MetricContext> metricContext;
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(EventSubmitter.class);
 
   public static class Builder {
     private final Optional<MetricContext> metricContext;

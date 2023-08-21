@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.metrics;
 
-import lombok.Getter;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
@@ -38,15 +36,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
 import com.codahale.metrics.Timer;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -58,6 +55,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.MoreExecutors;
+
+import lombok.Getter;
 
 import org.apache.gobblin.metrics.context.NameConflictException;
 import org.apache.gobblin.metrics.context.ReportableContext;
@@ -211,6 +210,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
     EventNotification notification = new EventNotification(nonReusableEvent);
     sendNotification(notification);
+    LOG.info("EventBuilder {} is submitted.", nonReusableEvent);
   }
 
   /**

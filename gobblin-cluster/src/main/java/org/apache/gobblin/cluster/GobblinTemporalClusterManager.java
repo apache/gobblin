@@ -52,10 +52,6 @@ import com.typesafe.config.ConfigValueFactory;
 
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import javax.net.ssl.KeyManagerFactory;
@@ -67,8 +63,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
-import org.apache.gobblin.cluster.temporal.GobblinTemporalWorkflow;
-import org.apache.gobblin.cluster.temporal.Shared;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.Tag;
@@ -86,21 +80,6 @@ import static org.apache.gobblin.security.ssl.SSLContextFactory.toInputStream;
 
 /**
  * The central cluster manager for Gobblin Clusters.
- *
- *
- * <p>
- *   This class will initiates a graceful shutdown of the cluster in the following conditions:
- *
- *   <ul>
- *     <li>A shutdown request is received via a Helix message of subtype
- *     {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}. Upon receiving such a message,
- *     it will call {@link #stop()} to initiate a graceful shutdown of the cluster</li>
- *     <li>The shutdown hook gets called. The shutdown hook will call {@link #stop()}, which will
- *     start a graceful shutdown of the cluster.</li>
- *   </ul>
- * </p>
- *
- * @author Yinan Li
  */
 @Alpha
 @Slf4j
@@ -136,6 +115,8 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
   @Getter
   private JobConfigurationManager jobConfigurationManager;
   @Getter
+  private GobblinTemporalJobScheduler gobblinTemporalJobScheduler;
+  @Getter
   private volatile boolean started = false;
 
   protected final String clusterName;
@@ -144,9 +125,8 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
   public GobblinTemporalClusterManager(String clusterName, String applicationId, Config sysConfig,
       Optional<Path> appWorkDirOptional) throws Exception {
-    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // Set system properties passed in via application config.
     // overrides such as sessionTimeout. In this case, the overrides specified
-    // in the application configuration have to be extracted and set before initializing HelixManager.
     GobblinClusterUtils.setSystemProperties(sysConfig);
 
     //Add dynamic config
@@ -161,7 +141,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
     this.fs = GobblinClusterUtils.buildFileSystem(this.config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, clusterName, applicationId);
-    LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
+    LOGGER.info("Configured GobblinTemporalClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
   }
@@ -195,6 +175,9 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
+    this.gobblinTemporalJobScheduler = buildGobblinTemporalJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+        schedulerService);
+    this.applicationLauncher.addService(this.gobblinTemporalJobScheduler);
     this.jobConfigurationManager = buildJobConfigurationManager(config);
     this.applicationLauncher.addService(this.jobConfigurationManager);
 
@@ -234,7 +217,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
 
   /**
-   * Start the Gobblin Cluster Manager.
+   * Start the Gobblin Temporal Cluster Manager.
    */
   // @Import(clazz = ClientSslContextFactory.class, prefix = ClientSslContextFactory.SCOPE_PREFIX)
   @Override
@@ -263,49 +246,12 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
       this.idleProcessThread.start();
 
       // Need this in case a kill is issued to the process so that the idle thread does not keep the process up
-      // since GobblinClusterManager.stop() is not called this case.
+      // since GobblinTemporalClusterManager.stop() is not called this case.
       Runtime.getRuntime().addShutdownHook(new Thread(() -> GobblinTemporalClusterManager.this.stopIdleProcessThread = true));
     } else {
       startAppLauncherAndServices();
     }
     this.started = true;
-
-    try {
-      initiateWorkflow();
-    }catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public void initiateWorkflow()
-      throws Exception {
-    LOGGER.info("Initiating Temporal Workflow");
-    WorkflowServiceStubs workflowServiceStubs = createServiceStubs();
-    WorkflowClient client =
-        WorkflowClient.newInstance(
-            workflowServiceStubs, WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build());
-
-    /*
-     * Set Workflow options such as WorkflowId and Task Queue so the worker knows where to list and which workflows to execute.
-     */
-    WorkflowOptions options = WorkflowOptions.newBuilder()
-        .setTaskQueue(Shared.HELLO_WORLD_TASK_QUEUE)
-        .build();
-
-    // Create the workflow client stub. It is used to start our workflow execution.
-    GobblinTemporalWorkflow workflow = client.newWorkflowStub(GobblinTemporalWorkflow.class, options);
-
-    /*
-     * Execute our workflow and wait for it to complete. The call to our getGreeting method is
-     * synchronous.
-     *
-     * Replace the parameter "World" in the call to getGreeting() with your name.
-     */
-    String greeting = workflow.getGreeting("World");
-
-    String workflowId = WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId();
-    // Display workflow execution results
-    LOGGER.info(workflowId + " " + greeting);
   }
 
   public static WorkflowServiceStubs createServiceStubs()
@@ -351,7 +297,6 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
     // Set trust manager from trust store
     KeyStore trustStore = KeyStore.getInstance("JKS");
     File trustStoreFile = new File(config.getString(SSL_TRUSTSTORE_LOCATION));
-    LOGGER.info("SSL_TRUSTSTORE_LOCATION " + config.getString(SSL_TRUSTSTORE_LOCATION));
 
     String trustStorePassword = config.getString(SSL_TRUSTSTORE_PASSWORD);
     trustStore.load(toInputStream(trustStoreFile), trustStorePassword.toCharArray());
@@ -365,8 +310,6 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
         .ciphers(SSL_CONFIG_DEFAULT_CIPHER_SUITES)
         .build();
 
-    LOGGER.info("SSLContext: " + sslContext);
-
     return WorkflowServiceStubs.newServiceStubs(
         WorkflowServiceStubsOptions.newBuilder()
             .setTarget("1.nephos-temporal.corp-lca1.atd.corp.linkedin.com:7233")
@@ -375,6 +318,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
             .build());
 
   }
+
   /**
    * Stop the Gobblin Cluster Manager.
    */
@@ -400,9 +344,15 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
   }
 
-  /**
-   * Get additional {@link Tag}s required for any type of reporting.
-   */
+  private GobblinTemporalJobScheduler buildGobblinTemporalJobScheduler(Config sysConfig, Path appWorkDir,
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
+    return new GobblinTemporalJobScheduler(sysConfig,
+        this.eventBus,
+        appWorkDir,
+        metadataTags,
+        schedulerService);
+  }
+
   private List<? extends Tag<?>> getMetadataTags(String applicationName, String applicationId) {
     return Tag.fromMap(
         new ImmutableMap.Builder<String, Object>().put(GobblinClusterMetricTagNames.APPLICATION_NAME, applicationName)
@@ -448,8 +398,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
   /**
    * TODO for now the cluster id is hardcoded to 1 both here and in the {@link GobblinTaskRunner}. In the future, the
-   * cluster id should be created by the {@link GobblinTemporalClusterManager} and passed to each {@link GobblinTaskRunner} via
-   * Helix (at least that would be the easiest approach, there are certainly others ways to do it).
+   * cluster id should be created by the {@link GobblinTemporalClusterManager} and passed to each {@link GobblinTaskRunner}
    */
   private static String getApplicationId() {
     return "1";
@@ -496,10 +445,10 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
             ConfigValueFactory.fromAnyRef(true));
       }
 
-      try (GobblinTemporalClusterManager gobblinClusterManager = new GobblinTemporalClusterManager(
+      try (GobblinTemporalClusterManager GobblinTemporalClusterManager = new GobblinTemporalClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
           config, Optional.<Path>absent())) {
-        gobblinClusterManager.start();
+        GobblinTemporalClusterManager.start();
       }
     } catch (ParseException pe) {
       printUsage(options);
