@@ -44,7 +44,6 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.quartz.JobDataMap;
-import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -176,29 +175,24 @@ public class FlowTriggerHandler {
         + random.nextInt(schedulerMaxBackoffMillis));
     JobKey origJobKey = new JobKey(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "<<no job name>>"),
         jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "<<no job group>>"));
-    // Triggers:job have an N:1 relationship but the job properties must remain constant between both, which does not
-    // allow us to keep track of additional properties for reminder events. By reusing the same job key, we either
-    // encounter an exception that the job already exists and cannot add it to the scheduler or have to overwrite the
-    // original job properties with the reminder event schedule. Thus, we differentiate the job and trigger key from the
-    // original event.
-    JobKey newJobKey = new JobKey(origJobKey.getName() + createSuffixForJobTrigger(status.getEventTimeMillis()),
-        origJobKey.getGroup());
     try {
       if (!this.schedulerService.getScheduler().checkExists(origJobKey)) {
-        log.warn("Attempting to set a reminder for a job that does not exist in the scheduler. Key: {}", origJobKey);
+        log.warn("Skipping setting a reminder for a job that does not exist in the scheduler. Key: {}", origJobKey);
         this.jobDoesNotExistInSchedulerCount.inc();
         return;
       }
-      JobDetailImpl jobDetail = (JobDetailImpl) updatePropsInJobDetail(origJobKey, cronExpression,
+      JobKey reminderJobKey = constructReminderJobKey(origJobKey, status.getEventTimeMillis());
+      JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, cronExpression,
           status.getEventTimeMillis(), originalEventTimeMillis);
       // Create a new trigger that is set to fire at the minimum reminder wait time calculated
-      Trigger trigger = JobScheduler.createTriggerForJob(newJobKey,
+      Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey,
           (Properties) jobDetail.getJobDataMap().get(GobblinServiceJobScheduler.PROPERTIES_KEY), Optional.absent());
-      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} in {} "
-              + "millis", flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
-      this.schedulerService.getScheduler().scheduleJob(jobDetail, trigger);
+      // TODO: remove this comment once we've confirmed this function works
+      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {}",
+          flowAction, originalEventTimeMillis, status.getEventTimeMillis());
+      this.schedulerService.getScheduler().scheduleJob(jobDetail, reminderTrigger);
       log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
-          flowAction, originalEventTimeMillis, status.getEventTimeMillis(), trigger.getNextFireTime());
+          flowAction, originalEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {}. Exception: {}",
           origJobKey, status.getEventTimeMillis(), e);
@@ -207,18 +201,35 @@ public class FlowTriggerHandler {
   }
 
   /**
-   * Helper function used to extract JobDetail for job identified by the key and update the Properties map to contain
-   * the cron scheduler for the reminder event and information about the event to revisit
-   * @param key
+   * This function constructs the JobKey for a reminder event given the original JobKey. Although multiple triggers can
+   * be created for one job, they are required to maintain the same jobProps for all triggers. This does not allow us
+   * to keep track of additional properties needed for reminder events, so we create a unique job and must differentiate
+   * the keys from the main job.
+   * @param originalJobKey
+   * @param eventToRevisitMillis
+   * @return
+   */
+  protected JobKey constructReminderJobKey(JobKey originalJobKey, long eventToRevisitMillis) {
+    return new JobKey(originalJobKey.getName() + createSuffixForJobTrigger(eventToRevisitMillis),
+        originalJobKey.getGroup());
+  }
+
+  /**
+   * Helper function used to extract JobDetail for job identified by the originalKey and update it be associated with
+   * the event to revisit. It will update the jobKey to the reminderKey provides and the Properties map to
+   * contain the cron scheduler for the reminder event and information about the event to revisit
+   * @param originalKey
+   * @param reminderKey
    * @param cronExpression
    * @param reminderTimestampMillis
    * @param originalEventTimeMillis
    * @return
    * @throws SchedulerException
    */
-  protected JobDetail updatePropsInJobDetail(JobKey key, String cronExpression, long reminderTimestampMillis,
-      long originalEventTimeMillis) throws SchedulerException {
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(key);
+  protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
+      String cronExpression, long reminderTimestampMillis, long originalEventTimeMillis) throws SchedulerException {
+    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
+    jobDetail.setKey(reminderKey);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
     jobDataMap = updatePropsInJobDataMap(jobDataMap, cronExpression, reminderTimestampMillis, originalEventTimeMillis);
     jobDetail.setJobDataMap(jobDataMap);
