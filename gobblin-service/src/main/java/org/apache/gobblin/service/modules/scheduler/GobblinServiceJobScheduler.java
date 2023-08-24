@@ -291,8 +291,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    */
   @VisibleForTesting
   public static boolean isWithinRange(String cronExpression, int maxNumDaysToScheduleWithin) {
-    if (cronExpression == null || cronExpression.trim().isEmpty()) {
-      // If the cron expression is empty or null, return true to capture adhoc flows
+    if (cronExpression.trim().isEmpty()) {
+      // If the cron expression is empty return true to capture adhoc flows
       return true;
     }
     CronExpression cron = null;
@@ -303,8 +303,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       cron.setTimeZone(TimeZone.getTimeZone("UTC"));
       Date nextValidTimeAfter = cron.getNextValidTimeAfter(new Date());
       if (nextValidTimeAfter == null) {
-        log.warn("Calculation issue for next valid time for expression: {}. Will default to true for within range",
+        log.warn("Next valid time doesn't exist since it's out of range for expression: {}. ",
             cronExpression);
+        // nextValidTimeAfter will be null in cases only when CronExpression is outdated for a given range
+        // this will cause NullPointerException while scheduling FlowSpecs from FlowCatalog
+        // Hence, returning false to avoid expired flows from being scheduled
         return false;
       }
       cal.setTime(nextValidTimeAfter);
