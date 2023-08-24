@@ -42,7 +42,7 @@ public class JobSchedulerTest {
     Trigger trigger1 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.absent());
     Trigger trigger2 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.of("suffix"));
 
-    Assert.assertTrue(trigger1.getKey() != trigger2.getKey());
+    Assert.assertFalse(trigger1.getKey().equals(trigger2.getKey()));
     Assert.assertTrue(trigger2.getKey().getName().endsWith("suffix"));
   }
 }
