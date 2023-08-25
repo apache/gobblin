@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Random;
@@ -270,14 +271,14 @@ public class FlowTriggerHandler {
       int schedulerMaxBackoffMillis) {
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
-    String cronExpression = createCronFromDelayPeriod(
-        leasedToAnotherStatus.getMinimumLingerDurationMillis()
-            + random.nextInt(schedulerMaxBackoffMillis));
+    long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
+        + random.nextInt(schedulerMaxBackoffMillis);
+    String cronExpression = createCronFromDelayPeriod(delayPeriodMillis);
     prevJobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
-    // Saves the following properties (which may have different values) in jobProps to retrieve when the trigger fires
-    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
-        String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
-    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+    // Saves the following properties in jobProps to retrieve when the trigger fires
+    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
+        String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
+    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(triggerEventTimeMillis));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
@@ -285,16 +286,31 @@ public class FlowTriggerHandler {
   }
 
   /**
-   * These methods should only be called from the Orchestrator or JobScheduler classes as it directly adds jobs to the
-   * Quartz scheduler
+   * Create a cron expression for the time that is delay milliseconds in the future
    * @param delayPeriodMillis
-   * @return
+   * @return String representing cron schedule
    */
   protected static String createCronFromDelayPeriod(long delayPeriodMillis) {
-    LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
-    LocalDateTime timeToScheduleReminder = now.plus(delayPeriodMillis, ChronoUnit.MILLIS);
+    LocalDateTime timeToScheduleReminder = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
     // TODO: investigate potentially better way of generating cron expression that does not make it US dependent
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ss mm HH dd MM ? yyyy", Locale.US);
     return timeToScheduleReminder.format(formatter);
+  }
+
+  /**
+   * Returns a LocalDateTime in UTC timezone that is delay milliseconds in the future
+   */
+  protected static LocalDateTime getLocalDateTimeFromDelayPeriod(long delayPeriodMillis) {
+    LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+    return now.plus(delayPeriodMillis, ChronoUnit.MILLIS);
+  }
+
+  /**
+   * Takes a given delay period in milliseconds and returns the number of millseconds since epoch from current time
+   */
+  protected static long getUTCTimeFromDelayPeriod(long delayPeriodMillis) {
+    LocalDateTime localDateTime = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
+    Date date = Date.from(localDateTime.atZone(ZoneId.of("UTC")).toInstant());
+    return GobblinServiceJobScheduler.asUTCEpochMillis(date);
   }
 }
