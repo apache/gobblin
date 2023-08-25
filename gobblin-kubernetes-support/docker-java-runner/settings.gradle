@@ -1,0 +1,5 @@
+rootProject.name = 'docker-java-runner'
+
+include('runner')
+include('dummy')
+
