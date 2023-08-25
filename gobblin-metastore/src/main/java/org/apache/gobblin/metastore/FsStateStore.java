@@ -95,6 +95,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
       conf = new Configuration(otherConf);
     }
 
+    conf.setClassLoader(this.getClass().getClassLoader());
     WritableShimSerialization.addToHadoopConfiguration(conf);
 
     return conf;
