@@ -237,9 +237,8 @@ public class SalesforceExtractor extends RestApiExtractor {
   public List<Command> getHighWatermarkMetadata(String schema, String entity, String watermarkColumn,
       List<Predicate> predicateList) throws HighWatermarkException {
     log.debug("Build url to retrieve high watermark");
-    String query = "SELECT " + watermarkColumn + " FROM " + entity;
-    String defaultPredicate = " " + watermarkColumn + " != null";
-    String defaultSortOrder = " ORDER BY " + watermarkColumn + " desc LIMIT 1";
+
+    String query = "SELECT MAX(" + watermarkColumn + ") FROM " + entity;
 
     String existingPredicate = "";
     if (this.updatedQuery != null) {
@@ -254,13 +253,9 @@ public class SalesforceExtractor extends RestApiExtractor {
     String limitString = getLimitFromInputQuery(query);
     query = query.replace(limitString, "");
 
-    Iterator<Predicate> i = predicateList.listIterator();
-    while (i.hasNext()) {
-      Predicate predicate = i.next();
+    for (Predicate predicate : predicateList) {
       query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
     }
-    query = SqlQueryUtils.addPredicate(query, defaultPredicate);
-    query = query + defaultSortOrder;
     log.info("getHighWatermarkMetadata - QUERY: " + query);
 
     try {
