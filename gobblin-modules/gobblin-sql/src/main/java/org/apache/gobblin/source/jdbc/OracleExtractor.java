@@ -78,8 +78,8 @@ public class OracleExtractor extends JdbcExtractor {
         "FROM " +
         "all_tab_columns " +
         "JOIN all_col_comments USING (owner, table_name, column_name) " +
-        "WHERE UPPER(owner) = (?) " +
-        "AND UPPER(table_name) = (?) " +
+        "WHERE UPPER(owner) = UPPER(?) " +
+        "AND UPPER(table_name) = UPPER(?) " +
         "ORDER BY " +
         "column_id, column_name";
 
@@ -253,8 +253,14 @@ public class OracleExtractor extends JdbcExtractor {
   public String getConnectionUrl() {
     String host = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
-    String sid = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SID).trim();
-    String url = "jdbc:oracle:thin:@" + host.trim() + (StringUtils.isEmpty(port) ? "" : ":" + port) + ":" + sid;
+    String sid = this.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_SID) ? this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SID).trim() : "";
+    String serviceName = this.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_SERVICE_NAME) ? this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_SERVICE_NAME).trim() : "";
+    String conn;
+    if(sid != null && sid.length() > 0)
+      conn = ":" + sid;
+    else
+      conn = "/" + serviceName;
+    String url = "jdbc:oracle:thin:@" + host.trim() + (StringUtils.isEmpty(port) ? "" : ":" + port) + conn;
     return url;
   }
 
