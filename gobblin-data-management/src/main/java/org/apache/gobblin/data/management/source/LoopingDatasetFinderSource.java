@@ -202,7 +202,14 @@ public abstract class LoopingDatasetFinderSource<S, D> extends DatasetFinderSour
          * efficiently determine the next dataset/partition to process in the subsequent run.
          */
         this.generatedWorkUnits++;
-        return generateNoopWorkUnit();
+        WorkUnit noopWorkUnit = generateNoopWorkUnit();
+        /**
+         * Check if we are at the end of datasets. If so, add the END_OF_DATASETS marker to the workunit.
+         */
+        if(!this.baseIterator.hasNext() && this.currentPartitionIterator != null && !this.currentPartitionIterator.hasNext()) {
+          noopWorkUnit.setProp(END_OF_DATASETS_KEY,true);
+        }
+        return noopWorkUnit;
       } else if (this.generatedWorkUnits > this.maxWorkUnits) {
         return endOfData();
       }
