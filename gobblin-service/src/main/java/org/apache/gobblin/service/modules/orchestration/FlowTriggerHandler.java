@@ -274,8 +274,7 @@ public class FlowTriggerHandler {
         leasedToAnotherStatus.getMinimumLingerDurationMillis()
             + random.nextInt(schedulerMaxBackoffMillis));
     prevJobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
-    // Ensure we save the event timestamp that we're setting reminder for to have for debugging purposes
-    // in addition to the event we want to initiate
+    // Saves the following properties (which may have different values) in jobProps to retrieve when the trigger fires
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
