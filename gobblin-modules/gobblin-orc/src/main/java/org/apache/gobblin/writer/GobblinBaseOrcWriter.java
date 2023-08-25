@@ -57,6 +57,8 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public static final int DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
   public static final int DEFAULT_MIN_ORCWRITER_ROWCHECK = 150;
   public static final int DEFAULT_MAX_ORCWRITER_ROWCHECK = 5000;
+  // TODO: Generate this from ORC configurations
+  public static final int DEFAULT_ORC_WRITER_STRIPE_SIZE = 250*1024*1000;
 
   protected final OrcValueWriter<D> valueWriter;
   @VisibleForTesting
@@ -66,7 +68,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private final RowBatchPool rowBatchPool;
   private final boolean enableRowBatchPool;
   protected long estimatedRecordSize = -1;
-  long orcWriterStripeSize = 250*1024*1000;
 
   // the close method may be invoked multiple times, but the underlying writer only supports close being called once
   protected volatile boolean closed = false;
@@ -253,7 +254,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     int currentRowBetweenCheck = Math.max(Math.min(this.batchSize * DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR, DEFAULT_MAX_ORCWRITER_ROWCHECK), DEFAULT_MIN_ORCWRITER_ROWCHECK);
     this.estimatedBytesAllocatedConverterMemory = Math.max(this.estimatedBytesAllocatedConverterMemory, this.converterMemoryManager.getConverterBufferTotalSize());
     long maxMemoryInFileWriter = this.estimatedRecordSize * currentRowBetweenCheck;
-    int newBatchSize = (int) (((this.availableMemory/MAX_CONCURRENT_WRITERS_CONTAINER - orcWriterStripeSize - maxMemoryInFileWriter
+    int newBatchSize = (int) (((this.availableMemory/MAX_CONCURRENT_WRITERS_CONTAINER - DEFAULT_ORC_WRITER_STRIPE_SIZE - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord) * DEFAULT_ORCWRITER_BATCHSIZE_MULTIPLIER);
     // Handle scenarios where new batch size can be 0 or less due to overestimating for memory usage by other writers
     newBatchSize = Math.min(Math.max(1, newBatchSize), DEFAULT_ORC_WRITER_BATCH_SIZE);
