@@ -17,21 +17,14 @@
 
 package org.apache.gobblin.rest;
 
-import java.net.URI;
-import java.util.Properties;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-
-import com.linkedin.r2.filter.compression.EncodingType;
-import com.linkedin.r2.filter.compression.ServerCompressionFilter;
 import com.linkedin.r2.filter.FilterChain;
 import com.linkedin.r2.filter.FilterChains;
+import com.linkedin.r2.filter.compression.EncodingType;
+import com.linkedin.r2.filter.compression.ServerCompressionFilter;
 import com.linkedin.r2.transport.common.bridge.server.TransportDispatcher;
 import com.linkedin.r2.transport.http.server.HttpNettyServerFactory;
 import com.linkedin.r2.transport.http.server.HttpServer;
@@ -42,54 +35,64 @@ import com.linkedin.restli.server.RestLiServer;
 import com.linkedin.restli.server.mock.InjectMockResourceFactory;
 import com.linkedin.restli.server.mock.SimpleBeanProvider;
 import com.linkedin.restli.server.resources.ResourceFactory;
-
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.JobHistoryStore;
+import org.apache.gobblin.metastore.JobStoreModule;
 import org.apache.gobblin.metastore.MetaStoreModule;
+import org.apache.gobblin.metastore.jobstore.JobStore;
+import org.apache.gobblin.util.ConfigUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.URI;
 
 
 /**
- * A server running the Rest.li resource for job execution queries.
- *
- * @author Yinan Li
+ * A server running the Rest.li resource for job Mgmt CRUD operations.
  */
-public class JobExecutionInfoServer extends AbstractIdleService {
+public class JobMgmtServer extends AbstractIdleService {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(JobExecutionInfoServer.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobMgmtServer.class);
 
   private final URI serverUri;
-  private final URI serverAdvertisedUri;
-  private final int port;
-  private final Properties properties;
   private volatile Optional<HttpServer> httpServer;
+  private final Config config;
+  private final String host;
+  private final int port;
 
-  public JobExecutionInfoServer(Properties properties) {
-    this.properties = properties;
-
-    port = getPort(properties);
-    serverUri = getServiceUri(getHost(properties), port);
-    serverAdvertisedUri = getAdvertisedUri(properties);
+  public JobMgmtServer(Config config) {
+    host = getHost(config);
+    port = getPort(config);
+    serverUri = getServiceUri(host, port);
+    this.config = config;
   }
 
   @Override
   public void startUp()
       throws Exception {
     // Server configuration
-    RestLiConfig config = new RestLiConfig();
-    config.addResourcePackageNames(JobExecutionInfoResource.class.getPackage().getName());
-    config.setServerNodeUri(serverUri);
-    config.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
+    RestLiConfig restLiConfig = new RestLiConfig();
+    restLiConfig.addResourcePackageNames(JobResource.class.getPackage().getName());
+    restLiConfig.setServerNodeUri(serverUri);
+    restLiConfig.setDocumentationRequestHandler(new DefaultDocumentationRequestHandler());
 
     // Handle dependency injection
-    Injector injector = Guice.createInjector(new MetaStoreModule(properties));
-    JobHistoryStore jobHistoryStore = injector.getInstance(JobHistoryStore.class);
+    Injector injector = Guice.createInjector(new JobStoreModule(ConfigUtils.configToProperties(config)));
+    JobStore jobStore = injector.getInstance(JobStore.class);
     SimpleBeanProvider beanProvider = new SimpleBeanProvider();
+    beanProvider.add("jobStore", jobStore);
+    // TODO: Temp until we have seperate jobExe and Jobstore service
+    Injector injectorTemp = Guice.createInjector(new MetaStoreModule(ConfigUtils.configToProperties(config)));
+    JobHistoryStore jobHistoryStore = injectorTemp.getInstance(JobHistoryStore.class);
     beanProvider.add("jobHistoryStore", jobHistoryStore);
+
     // Use InjectMockResourceFactory to keep this Spring free
     ResourceFactory factory = new InjectMockResourceFactory(beanProvider);
 
     // Create and start the HTTP server
-    TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(config, factory));
+    TransportDispatcher dispatcher = new DelegatingTransportDispatcher(new RestLiServer(restLiConfig, factory));
     String acceptedFilters = EncodingType.SNAPPY.getHttpName() + "," + EncodingType.GZIP.getHttpName();
     FilterChain filterChain = FilterChains.createRestChain(new ServerCompressionFilter(acceptedFilters));
     this.httpServer = Optional.of(new HttpNettyServerFactory(filterChain).createServer(port, dispatcher));
@@ -106,29 +109,27 @@ public class JobExecutionInfoServer extends AbstractIdleService {
     }
   }
 
-  public URI getAdvertisedServerUri() {
-    return serverAdvertisedUri;
+  private static String getHost(Config config) {
+    return ConfigUtils.getString(config, ConfigurationKeys.JOB_MGMT_SERVER_HOST_KEY, ConfigurationKeys.DEFAULT_JOB_MGMT_SERVER_HOST);
   }
 
+  private static int getPort(Config config) {
+    return Integer.parseInt(ConfigUtils.getString(config, ConfigurationKeys.JOB_SERVER_PORT_KEY, ConfigurationKeys.DEFAULT_JOB_SERVER_PORT));
+  }
   private static URI getServiceUri(String host, int port) {
     return URI.create(String.format("http://%s:%d", host, port));
   }
 
-  private static int getPort(Properties properties) {
-    return Integer.parseInt(properties.getProperty(
-            ConfigurationKeys.REST_SERVER_PORT_KEY,
-            ConfigurationKeys.DEFAULT_REST_SERVER_PORT));
-  }
-
-  private static String getHost(Properties properties) {
-    return properties.getProperty(
-            ConfigurationKeys.REST_SERVER_HOST_KEY,
-            ConfigurationKeys.DEFAULT_REST_SERVER_HOST);
-  }
-
-  private static URI getAdvertisedUri(Properties properties) {
-    return URI.create(properties.getProperty(
-            ConfigurationKeys.REST_SERVER_ADVERTISED_URI_KEY,
-            getServiceUri(getHost(properties), getPort(properties)).toString()));
+  /*
+  Main method to start the JobMgmtServer separately anywhere in the environment that has access to the metadata
+  instead of clubbing it under other Gobblin processes.
+   */
+  public static void main(String[] argv){
+    try {
+      new JobMgmtServer(ConfigFactory.load()).startUp();
+    }catch (Exception e){
+      LOGGER.error("Error: "+ e.getMessage());
+      System.exit(1);
+    }
   }
 }
