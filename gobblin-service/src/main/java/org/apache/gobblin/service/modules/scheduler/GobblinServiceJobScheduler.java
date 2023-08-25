@@ -725,12 +725,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
-      // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
-      long triggerTimestampMillis = asUTCEpochMillis(trigger.getPreviousFireTime());
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(triggerTimestampMillis));
-      _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
-              + "scheduler", triggerTimestampMillis, asUTCEpochMillis(trigger.getNextFireTime()));
+      long triggerTimestampMillis;
+      // If the trigger is a reminder type event then utilize the trigger time saved in job properties rather than the
+      // actual firing time
+      if (jobDetail.getKey().getName().contains("reminder")) {
+        triggerTimestampMillis = Long.parseLong(
+            jobProps.getProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY, "0"));
+        long eventToRevisit = Long.parseLong(
+            jobProps.getProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY, "0"));
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} eventToRevisit: {} - Reminder job "
+            + "triggered by scheduler", triggerTimestampMillis, eventToRevisit);
+      } else {
+        // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
+        triggerTimestampMillis = asUTCEpochMillis(trigger.getPreviousFireTime());
+        jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
+            String.valueOf(triggerTimestampMillis));
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+            + "scheduler", triggerTimestampMillis, asUTCEpochMillis(trigger.getNextFireTime()));
+      }
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {

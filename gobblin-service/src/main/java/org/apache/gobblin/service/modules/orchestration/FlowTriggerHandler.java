@@ -179,17 +179,7 @@ public class FlowTriggerHandler {
         this.jobDoesNotExistInSchedulerCount.inc();
         return;
       }
-      JobKey reminderJobKey = constructReminderJobKey(origJobKey, status);
-      JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status,
-          triggerEventTimeMillis, schedulerMaxBackoffMillis);
-      // Create a new trigger with a `reminder` suffix that is set to fire at the minimum reminder wait time calculated
-      Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey,
-          getJobPropertiesFromJobDetail(jobDetail), Optional.of(createSuffixForJobTrigger(status)));
-      // TODO: remove this comment once we've confirmed this function works
-      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with"
-              + "reminderJobKey {} and reminderTriggerKey {}", flowAction, triggerEventTimeMillis,
-          status.getEventTimeMillis(), reminderJobKey, reminderTrigger.getKey());
-      this.schedulerService.getScheduler().scheduleJob(jobDetail, reminderTrigger);
+      Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, triggerEventTimeMillis);
       log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
           flowAction, triggerEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
     } catch (SchedulerException e) {
@@ -199,24 +189,44 @@ public class FlowTriggerHandler {
     }
   }
 
-  public static Properties getJobPropertiesFromJobDetail(JobDetail jobDetail) {
-    return (Properties) jobDetail.getJobDataMap().get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+  /**
+   * Create a new trigger with a `reminder` suffix that is set to fire at the minimum reminder wait time calculated from
+   * the LeasedToAnotherStatus provided by the caller. The new trigger and job will store the original
+   * triggerEventTimeMillis to revisit upon firing.
+   * @param origJobKey
+   * @param status
+   * @param triggerEventTimeMillis
+   * @return Trigger for reminder
+   * @throws SchedulerException
+   */
+  protected Trigger createAndScheduleReminder(JobKey origJobKey, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
+      long triggerEventTimeMillis) throws SchedulerException {
+    // Generate a suffix to differentiate the reminder Job and Trigger from the original JobKey and Trigger, so we can
+    // allow us to keep track of additional properties needed for reminder events (all triggers associated with one job
+    // refer to the same set of jobProperties)
+    String reminderSuffix = createSuffixForJobTrigger(status);
+    JobKey reminderJobKey = new JobKey(origJobKey.getName() + reminderSuffix, origJobKey.getGroup());
+    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status,
+        triggerEventTimeMillis);
+    Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
+        Optional.of(reminderSuffix));
+    // TODO: remove this comment once we've confirmed this function works
+    log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with"
+            + "reminderJobKey {} and reminderTriggerKey {}", status.getFlowAction(), triggerEventTimeMillis,
+        status.getEventTimeMillis(), reminderJobKey, reminderTrigger.getKey());
+    this.schedulerService.getScheduler().scheduleJob(jobDetail, reminderTrigger);
+    return reminderTrigger;
   }
 
   /**
-   * This function constructs the JobKey for a reminder event given the original JobKey. Although multiple triggers can
-   * be created for one job, they are required to maintain the same jobProps for all triggers. This does not allow us
-   * to keep track of additional properties needed for reminder events, so we create a unique job and must differentiate
-   * the keys from the main job.
-   * @param originalJobKey
-   * @param status
+   * Create suffix to add to end of flow name to differentiate reminder triggers from the original job schedule trigger
+   * and ensure they are added to the scheduler.
+   * @param leasedToAnotherStatus
    * @return
    */
   @VisibleForTesting
-  public static JobKey constructReminderJobKey(JobKey originalJobKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status) {
-    return new JobKey(originalJobKey.getName() + createSuffixForJobTrigger(status),
-        originalJobKey.getGroup());
+  public static String createSuffixForJobTrigger(MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus) {
+    return "reminder_for_" + leasedToAnotherStatus.getEventTimeMillis();
   }
 
   /**
@@ -227,12 +237,11 @@ public class FlowTriggerHandler {
    * @param reminderKey
    * @param status
    * @param triggerEventTimeMillis
-   * @param schedulerMaxBackoffMillis
    * @return
    * @throws SchedulerException
    */
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status, long triggerEventTimeMillis, int schedulerMaxBackoffMillis)
+      MultiActiveLeaseArbiter.LeasedToAnotherStatus status, long triggerEventTimeMillis)
       throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
@@ -240,6 +249,10 @@ public class FlowTriggerHandler {
     jobDataMap = updatePropsInJobDataMap(jobDataMap, status, triggerEventTimeMillis, schedulerMaxBackoffMillis);
     jobDetail.setJobDataMap(jobDataMap);
     return jobDetail;
+  }
+
+  public static Properties getJobPropertiesFromJobDetail(JobDetail jobDetail) {
+    return (Properties) jobDetail.getJobDataMap().get(GobblinServiceJobScheduler.PROPERTIES_KEY);
   }
 
   /**
@@ -270,17 +283,6 @@ public class FlowTriggerHandler {
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;
-  }
-
-  /**
-   * Create suffix to add to end of flow name to differentiate reminder triggers from the original job schedule trigger
-   * and ensure they are added to the scheduler.
-   * @param leasedToAnotherStatus
-   * @return
-   */
-  @VisibleForTesting
-  public static String createSuffixForJobTrigger(MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus) {
-    return "reminder_for_" + leasedToAnotherStatus.getEventTimeMillis();
   }
 
   /**

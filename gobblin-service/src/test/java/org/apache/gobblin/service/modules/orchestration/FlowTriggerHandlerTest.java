@@ -106,14 +106,4 @@ public class FlowTriggerHandlerTest {
     String suffix = FlowTriggerHandler.createSuffixForJobTrigger(leasedToAnotherStatus);
     Assert.assertTrue(suffix.equals("reminder_for_" + eventToRevisit));
   }
-
-  /**
-   * Tests `constructReminderJobKey` to ensure the JobKey constructed as the suffix needed for reminder events
-   */
-  @Test
-  public void testConstructReminderJobKey() {
-    JobKey reminderJobKey = FlowTriggerHandler.constructReminderJobKey(origJobKey, leasedToAnotherStatus);
-    Assert.assertTrue(reminderJobKey.getName().equals(jobName + "reminder_for_" + eventToRevisit));
-    Assert.assertTrue(reminderJobKey.getGroup().equals(origJobKey.getGroup()));
-  }
 }
