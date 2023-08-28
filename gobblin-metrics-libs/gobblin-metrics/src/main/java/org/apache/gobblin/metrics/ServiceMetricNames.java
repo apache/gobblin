@@ -65,4 +65,8 @@ public class ServiceMetricNames {
   public static final String HELIX_LEADER_STATE = "HelixLeaderState";
 
   public static final String FLOWGRAPH_UPDATE_FAILED_METER = GOBBLIN_SERVICE_PREFIX + ".FlowgraphUpdateFailed";
+
+  public static final String DAG_COUNT_MYSQL_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX + ".MysqlDagStateStore" + ".totalDagCount";
+
+  public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX + ".FsDagStateStore" + ".totalDagCount";
 }

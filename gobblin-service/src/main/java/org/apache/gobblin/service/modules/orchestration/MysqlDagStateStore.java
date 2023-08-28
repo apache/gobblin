@@ -26,11 +26,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.MysqlDagStateStoreFactory;
 import org.apache.gobblin.metastore.MysqlStateStore;
 import org.apache.gobblin.metastore.MysqlStateStoreEntryManager;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -39,6 +43,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
+import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
@@ -77,7 +82,8 @@ public class MysqlDagStateStore implements DagStateStore {
   private MysqlStateStore<State> mysqlStateStore;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;
   private JobExecutionPlanDagFactory jobExecPlanDagFactory;
-
+  private MetricContext metricContext;
+  private ContextAwareCounter totalDagCount;
   public MysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
@@ -91,6 +97,10 @@ public class MysqlDagStateStore implements DagStateStore {
     }.getType();
     this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
     this.jobExecPlanDagFactory = new JobExecutionPlanDagFactory();
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
+        this.getClass());
+    this.totalDagCount = this.metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_MYSQL_DAG_STATE_COUNT);
+
   }
 
   /**
@@ -108,6 +118,7 @@ public class MysqlDagStateStore implements DagStateStore {
   public void writeCheckpoint(Dag<JobExecutionPlan> dag)
       throws IOException {
     mysqlStateStore.put(getStoreNameFromDagId(generateDagId(dag).toString()), getTableNameFromDagId(generateDagId(dag).toString()), convertDagIntoState(dag));
+    this.totalDagCount.inc();
   }
 
   @Override
@@ -120,6 +131,7 @@ public class MysqlDagStateStore implements DagStateStore {
   public void cleanUp(String dagId)
       throws IOException {
     mysqlStateStore.delete(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
+    this.totalDagCount.dec();
   }
 
   @Override
