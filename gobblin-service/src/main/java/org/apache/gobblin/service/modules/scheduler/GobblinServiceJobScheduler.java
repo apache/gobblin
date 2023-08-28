@@ -482,7 +482,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
       String triggerTimestampMillis = jobProps.getProperty(
-          ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY, "0");
+          ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
       this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
       throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
@@ -726,11 +726,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
       // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
-      long triggerTimestampMillis = asUTCEpochMillis(trigger.getPreviousFireTime());
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(triggerTimestampMillis));
-      _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
-              + "scheduler", triggerTimestampMillis, asUTCEpochMillis(trigger.getNextFireTime()));
+      long triggerTimeMillis = asUTCEpochMillis(trigger.getPreviousFireTime());
+      // If the trigger is a reminder type event then utilize the trigger time saved in job properties rather than the
+      // actual firing time
+      if (jobDetail.getKey().getName().contains("reminder")) {
+        String preservedConsensusEventTime = jobProps.getProperty(
+            ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "0");
+        String expectedReminderTime = jobProps.getProperty(
+            ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY, "0");
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} expectedReminderTime: {} - Reminder job "
+            + "triggered by scheduler at {}", preservedConsensusEventTime, expectedReminderTime, triggerTimeMillis);
+        // TODO: add a metric if expected reminder time far exceeds system time
+        jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, preservedConsensusEventTime);
+      } else {
+        jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
+            String.valueOf(triggerTimeMillis));
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+            + "scheduler", triggerTimeMillis, asUTCEpochMillis(trigger.getNextFireTime()));
+      }
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
