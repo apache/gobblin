@@ -104,6 +104,12 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
     log.info("enabledSmartSizing: {}, enlargeFactor: {}", enabledSmartSizing, enlargeFactor);
   }
 
+  /** Converts a record from the GenericRecord to the ORC ColumnVectors.
+   * Additionally, records the number of bytes converted and the number of records converted.
+   * @param value the data value to write.
+   * @param output the VectorizedRowBatch to which the output will be written.
+   * @throws IOException
+   */
   @Override
   public void write(GenericRecord value, VectorizedRowBatch output)
       throws IOException {
@@ -127,7 +133,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   static class BooleanConverter implements Converter {
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (boolean) data ? 1 : 0;
-      return 1;
+      return 4;
     }
   }
 
@@ -141,7 +147,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   static class ShortConverter implements Converter {
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (short) data;
-      return 2;
+      return 4;
     }
   }
 
