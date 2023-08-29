@@ -133,9 +133,10 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
 
 
   static class BooleanConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 1;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (boolean) data ? 1 : 0;
-      return 4;
+      return MEMORY_SIZE_BYTES;
     }
   }
 

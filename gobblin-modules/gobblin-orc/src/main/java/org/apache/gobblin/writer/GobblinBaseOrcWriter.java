@@ -66,7 +66,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public static final int DEFAULT_MAX_ORCWRITER_ROWCHECK = 5000;
   // TODO: Generate this from ORC configurations
   public static final int DEFAULT_ORC_WRITER_STRIPE_SIZE = 250*1024*1000;
-
+  public static final double DEFAULT_WRITER_AUTO_SELFTUNE_
   protected final OrcValueWriter<D> valueWriter;
   @VisibleForTesting
   VectorizedRowBatch rowBatch;
