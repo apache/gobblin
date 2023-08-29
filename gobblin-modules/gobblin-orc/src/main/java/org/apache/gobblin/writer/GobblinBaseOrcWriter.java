@@ -18,7 +18,10 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.Properties;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -50,15 +53,14 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public static final String ORC_WRITER_AUTO_SELFTUNE_ENABLED = ORC_WRITER_PREFIX + "auto.selfTune.enabled";
   public static final String ORC_WRITER_ESTIMATED_RECORD_SIZE = ORC_WRITER_PREFIX + "estimated.recordSize";
   public static final String ORC_WRITER_AUTO_SELFTUNE_FREQUENCY = ORC_WRITER_PREFIX + "auto.selfTune.frequency";
+  public static final String ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = ORC_WRITER_PREFIX + "auto.selfTune.memory.usage.factor";
   public static final int DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = 500;
   public static final String ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY = ORC_WRITER_PREFIX + "estimated.bytes.allocated.converter.memory";
-  /**
-   * This value gives an estimation on how many writers are buffering records at the same time in a container.
-   * Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
-   * usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
-   */
+   // This value gives an estimation on how many writers are buffering records at the same time in a container.
+   // Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
+   // usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
   private static final int CONCURRENT_WRITERS_DEFAULT = 3;
-  public static final double DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.6; // 60% of the available memory
+  public static final double DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.5;
   public static final int DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
   public static final int DEFAULT_MIN_ORCWRITER_ROWCHECK = 150;
   public static final int DEFAULT_MAX_ORCWRITER_ROWCHECK = 5000;
@@ -82,9 +84,10 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
 
   private final boolean selfTuningWriter;
   private int selfTuneRowsBetweenCheck;
+  private double batchSizeMemoryUsageFactor;
   private int nextSelfTune;
   private boolean initialEstimatingRecordSizePhase = false;
-  private int tuneCheckCounter = 0;
+  private Queue<Integer> initialSelfTuneCheckpoints = new LinkedList<>(Arrays.asList(10, 100, 500));
   private AtomicInteger recordCounter = new AtomicInteger(0);
   private long availableMemory = -1;
   // Holds the maximum size of the previous run's maximum buffer or the max of the current run's maximum buffer
@@ -103,11 +106,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.typeDescription = getOrcSchema();
     this.valueWriter = getOrcValueWriter(typeDescription, this.inputSchema, properties);
     this.selfTuningWriter = properties.getPropAsBoolean(ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
-    this.batchSize = this.selfTuningWriter ? properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE) : DEFAULT_ORC_WRITER_BATCH_SIZE;
+    this.batchSize = this.selfTuningWriter ? DEFAULT_ORC_WRITER_BATCH_SIZE : properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
     this.rowBatchPool = RowBatchPool.instance(properties);
     this.enableRowBatchPool = properties.getPropAsBoolean(RowBatchPool.ENABLE_ROW_BATCH_POOL, false);
     this.selfTuneRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_AUTO_SELFTUNE_FREQUENCY, DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK);
-    // First tune is at 5
+    this.batchSizeMemoryUsageFactor = properties.getPropAsDouble(ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR, DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
     this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
     this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch);
     // Create file-writer
@@ -127,11 +130,12 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       if (properties.contains(ORC_WRITER_ESTIMATED_RECORD_SIZE)) {
         this.estimatedRecordSizeBytes = properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE);
         this.estimatedBytesAllocatedConverterMemory = properties.getPropAsLong(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, -1);
-        this.tuneBatchSize(estimatedRecordSizeBytes);
+        // Use the last run's rows between check value for the underlying file size writer, if it exists. Otherwise it will default to 5000
+        log.info("Using previously stored properties to calculate new batch size, ORC Estimated Record size is : {}, e"
+                + "estimated bytes converter allocated is : {}, ORC rows between check is {}",
+            this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute()));
+        this.tuneBatchSize(estimatedRecordSizeBytes, properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute()));
         this.nextSelfTune = this.selfTuneRowsBetweenCheck;
-        initializeOrcFileWriter();
-        log.info("Using previously stored properties, ORC Estimated Record size is : {}, estimated bytes converter allocated is : {}",
-            this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory);
       } else {
         // We will need to incrementally tune the writer based on the first few records
         this.nextSelfTune = 5;
@@ -195,17 +199,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   @Override
   public void flush()
       throws IOException {
-    try {
-      this.orcFileWriterLock.readLock().lock();
-      if (rowBatch.size > 0) {
-        if (this.orcFileWriter == null) {
-          initializeOrcFileWriter();
-        }
-        orcFileWriter.addRowBatch(rowBatch);
-        rowBatch.reset();
-      }
-    } finally {
-      this.orcFileWriterLock.readLock().unlock();
+    if (rowBatch.size > 0) {
+      orcFileWriter.addRowBatch(rowBatch);
+      rowBatch.reset();
     }
   }
 
@@ -246,42 +242,56 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       throws IOException {
     closeInternal();
     super.commit();
-    properties.setProp(ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(estimatedRecordSizeBytes));
-    properties.setProp(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, String.valueOf(this.converterMemoryManager.getConverterBufferTotalSize()));
+    if (this.selfTuningWriter) {
+      properties.setProp(ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(estimatedRecordSizeBytes));
+      properties.setProp(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, String.valueOf(this.converterMemoryManager.getConverterBufferTotalSize()));
+      properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.batchSize * calculateOrcFileWriterRowsBetweenCheck()));
+    }
   }
 
   /**
    * Modifies the size of the writer buffer based on the average size of the records written so far, the amount of available memory during initialization, and the number of concurrent writers.
    * The new batch size is calculated as follows:
-   * 1. Memory available = (available memory during startup)/(concurrent writers) - memory used by ORCFile writer and its buffer
+   * 1. Memory available = (available memory during startup)/(concurrent writers) - (memory used by ORCFile writer)
    * 2. Average file size, estimated during Avro -> ORC conversion
    * 3. Estimate of memory used by the converter lists, as during resize the internal buffer size can grow large
-   * 4. New batch size = (Memory available - Estimated memory used by converter lists) / Average file size * DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR
-   * If the new batch size varies significantly from the current batch size, the current batch size is flushed.
+   * 4. New batch size = (Memory available - Estimated memory used by converter lists) / Average file size * memory buffer
+   * Generally in this writer, the memory the converter uses for large arrays is the leading cause of OOM in streaming, along with the records stored in the rowBatch
+   * Another potential approach is to also check the memory available before resizing the converter lists, and to flush the batch whenever a resize is needed.
    */
-  void tuneBatchSize(long averageSizePerRecord) throws IOException {
-    int currentRowBetweenCheck = Math.max(Math.min(this.batchSize * DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR, DEFAULT_MAX_ORCWRITER_ROWCHECK), DEFAULT_MIN_ORCWRITER_ROWCHECK);
+  void tuneBatchSize(long averageSizePerRecord, int orcFileWriterRowsBetweenCheck) throws IOException {
     this.estimatedBytesAllocatedConverterMemory = Math.max(this.estimatedBytesAllocatedConverterMemory, this.converterMemoryManager.getConverterBufferTotalSize());
-    long maxMemoryInFileWriter = this.estimatedRecordSizeBytes * currentRowBetweenCheck;
     int currentConcurrentWriters = this.properties.getPropAsInt(PartitionedDataWriter.CURRENT_PARTITIONED_WRITERS_COUNTER, CONCURRENT_WRITERS_DEFAULT);
-    int newBatchSize = (int) Math.round(((this.availableMemory/currentConcurrentWriters - DEFAULT_ORC_WRITER_STRIPE_SIZE - maxMemoryInFileWriter
-        - this.estimatedBytesAllocatedConverterMemory) * DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR) / averageSizePerRecord);
-    // Handle scenarios where new batch size can be 0 or less due to overestimating for memory usage by other writers
+    // In the native ORC writer implementation, it will flush the writer if the internal memory exceeds the size of a stripe after rows between check
+    // So worst case the most memory the writer can hold is the size of a stripe plus size of records * number of records between checks
+    // Note that this is an overestimate as the native ORC file writer should have some compression ratio
+    long maxMemoryInFileWriter = this.estimatedRecordSizeBytes * orcFileWriterRowsBetweenCheck + DEFAULT_ORC_WRITER_STRIPE_SIZE;
+
+    int newBatchSize = (int) Math.round(((this.availableMemory/currentConcurrentWriters - maxMemoryInFileWriter
+        - this.estimatedBytesAllocatedConverterMemory) * this.batchSizeMemoryUsageFactor) / averageSizePerRecord);
+    // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), DEFAULT_ORC_WRITER_BATCH_SIZE);
-    log.info("Tuning ORC writer batch size from {} to {} based on average byte size per record: {} with available memory {} and {} bytes of allocated memory in converter buffers, with {} concurrent writers",
-        batchSize, newBatchSize, averageSizePerRecord, availableMemory, estimatedBytesAllocatedConverterMemory, currentConcurrentWriters);
     // TODO: Consider using a more sophisticated check to determine if the batch size should be changed
     if (Math.abs(newBatchSize - this.batchSize) > 0.2 * this.batchSize) {
-      log.info("Since the new batch size differs significantly than the old batch size, we will flush the current batch and reset the batch size to the new value");
+      log.info("Tuning ORC writer batch size from {} to {} based on average byte size per record: {} with available memory {} and {} bytes of allocated memory in converter buffers, with {} concurrent writers",
+          batchSize, newBatchSize, averageSizePerRecord, availableMemory, estimatedBytesAllocatedConverterMemory, currentConcurrentWriters);
       this.batchSize = newBatchSize;
+      // We only initialize the native ORC file writer once to avoid creating too many small files, as reconfiguring rows between memory check
+      // requires one to close the writer and start a new file
+      if (this.orcFileWriter == null) {
+        initializeOrcFileWriter();
+      }
       this.flush();
       this.rowBatch.ensureSize(this.batchSize);
+    }
+    if (this.orcFileWriter == null) {
+      initializeOrcFileWriter();
     }
   }
 
   void initializeOrcFileWriter() {
     try {
-      int rowBetweenCheck = Math.max(Math.min(this.batchSize * DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR, DEFAULT_MAX_ORCWRITER_ROWCHECK), DEFAULT_MIN_ORCWRITER_ROWCHECK);
+      int rowBetweenCheck = calculateOrcFileWriterRowsBetweenCheck();
       this.writerConfig.set(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(rowBetweenCheck));
       log.info("Created ORC writer, batch size: {}, {}: {}",
           this.batchSize, OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(),
@@ -296,6 +306,10 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     }
   }
 
+  int calculateOrcFileWriterRowsBetweenCheck() {
+    return Math.max(Math.min(this.batchSize * DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR, DEFAULT_MAX_ORCWRITER_ROWCHECK), DEFAULT_MIN_ORCWRITER_ROWCHECK);
+  }
+
   /*
    * Note: orc.rows.between.memory.checks is the configuration available to tune memory-check sensitivity in ORC-Core
    * library. By default it is set to 5000. If the user-application is dealing with large-row Kafka topics for example,
@@ -305,26 +319,17 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public void write(D record)
       throws IOException {
     Preconditions.checkState(!closed, "Writer already closed");
-    try {
-      this.orcFileWriterLock.readLock().lock();
-      this.valueWriter.write(record, this.rowBatch);
-    } finally {
-      this.orcFileWriterLock.readLock().unlock();
-    }
+    this.valueWriter.write(record, this.rowBatch);
     int recordCount = this.recordCounter.incrementAndGet();
     if (this.selfTuningWriter && recordCount == this.nextSelfTune) {
-      try {
-        this.orcFileWriterLock.writeLock().lock();
-        this.tuneCheckCounter = Math.min(this.tuneCheckCounter + 1, 5);
-        long totalBytes = ((GenericRecordToOrcValueWriter) valueWriter).getTotalBytesConverted();
-        long totalRecords = ((GenericRecordToOrcValueWriter) valueWriter).getTotalRecordsConverted();
-        this.estimatedRecordSizeBytes = totalRecords == 0 ? 0 : totalBytes / totalRecords;
-        this.tuneBatchSize(this.estimatedRecordSizeBytes);
-        if (this.initialEstimatingRecordSizePhase) {
-          this.nextSelfTune = Math.min(this.nextSelfTune + (int) Math.pow(10, this.tuneCheckCounter), this.nextSelfTune + this.selfTuneRowsBetweenCheck);
-        }
-      } finally {
-        this.orcFileWriterLock.writeLock().unlock();
+      long totalBytes = ((GenericRecordToOrcValueWriter) valueWriter).getTotalBytesConverted();
+      long totalRecords = ((GenericRecordToOrcValueWriter) valueWriter).getTotalRecordsConverted();
+      this.estimatedRecordSizeBytes = totalRecords == 0 ? 0 : totalBytes / totalRecords;
+      this.tuneBatchSize(this.estimatedRecordSizeBytes, this.calculateOrcFileWriterRowsBetweenCheck());
+      if (this.initialEstimatingRecordSizePhase && !initialSelfTuneCheckpoints.isEmpty()) {
+        this.nextSelfTune = initialSelfTuneCheckpoints.poll();
+      } else {
+        this.nextSelfTune += this.selfTuneRowsBetweenCheck;
       }
     }
     if (rowBatch.size == this.batchSize) {

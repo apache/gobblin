@@ -55,6 +55,8 @@ import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 /**
  * The converter for buffering rows and forming columnar batch.
+ * Additionally, records the estimated size of the data converted in bytes
+ * TODO: consider using the record size provided by the extractor instead of the converter as it may be more available and accurate
  */
 @Slf4j
 public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericRecord> {
@@ -138,44 +140,50 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   }
 
   static class ByteConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 1;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (byte) data;
-      return 1;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
   static class ShortConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 4;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (short) data;
-      return 4;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
   static class IntConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 4;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (int) data;
-      return 4;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
   static class LongConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 8;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (long) data;
-      return 8;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
   static class FloatConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 4;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (float) data;
-      return 4;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
   static class DoubleConverter implements Converter {
+    private static final int MEMORY_SIZE_BYTES = 8;
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (double) data;
-      return 8;
+      return MEMORY_SIZE_BYTES;
     }
   }
 
@@ -207,11 +215,13 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
         value = (byte[]) data;
       }
       ((BytesColumnVector) output).setRef(rowId, value, 0, value.length);
-      return 1;
+      return value.length;
     }
   }
 
   static class DecimalConverter implements Converter {
+    // This is a naive estimation
+    private static final int MEMORY_SIZE_BYTES = 17;
     private final int scale;
 
     public DecimalConverter(int scale) {
@@ -220,7 +230,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
 
     public long addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DecimalColumnVector) output).vector[rowId].set(getHiveDecimalFromByteBuffer((ByteBuffer) data));
-      return 1;
+      return MEMORY_SIZE_BYTES;
     }
 
     /**
