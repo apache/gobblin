@@ -107,6 +107,7 @@ import org.apache.gobblin.hive.HiveLock;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.writer.HiveMetadataWriter;
 import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.gobblin.hive.writer.MetadataWriterKeys;
 import org.apache.gobblin.iceberg.Utils.IcebergUtils;
@@ -813,7 +814,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     if (tableMetadata.dataOffsetRange.isPresent() && tableMetadata.dataOffsetRange.get().size() != 0) {
       String topicPartitionString = tableMetadata.dataOffsetRange.get().keySet().iterator().next();
       //In case the topic name is not the table name or the topic name contains '-'
-      return topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
+      return HiveMetadataWriter.parseTopicNameFromOffsetRangeKey(topicPartitionString);
     }
     return tableMetadata.newProperties.or(
         Maps.newHashMap(tableMetadata.lastProperties.or(getIcebergTable(tid).properties()))).get(TOPIC_NAME_KEY);

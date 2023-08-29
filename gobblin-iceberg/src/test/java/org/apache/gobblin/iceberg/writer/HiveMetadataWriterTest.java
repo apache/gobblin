@@ -109,6 +109,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
 
   private GobblinMCEWriter gobblinMCEWriter;
 
+  GobblinMetadataChangeEvent.Builder gmceBuilder;
   GobblinMetadataChangeEvent gmce;
   static File tmpDir;
   static File dataDir;
@@ -163,7 +164,7 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     writeRecord(dailyDataFile);
     Map<String, String> registrationState = new HashMap();
     registrationState.put("hive.database.name", dbName);
-    gmce = GobblinMetadataChangeEvent.newBuilder()
+    gmceBuilder = GobblinMetadataChangeEvent.newBuilder()
         .setDatasetIdentifier(DatasetIdentifier.newBuilder()
             .setDataOrigin(DataOrigin.EI)
             .setDataPlatformUrn("urn:namespace:dataPlatform:hdfs")
@@ -183,13 +184,14 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
         .setPartitionColumns(Lists.newArrayList("testpartition"))
         .setRegistrationPolicy(TestHiveRegistrationPolicy.class.getName())
         .setRegistrationProperties(registrationState)
-        .setAllowedMetadataWriters(Collections.singletonList(HiveMetadataWriter.class.getName()))
-        .build();
+        .setAllowedMetadataWriters(Collections.singletonList(TestHiveMetadataWriter.class.getName()));
+    gmce = gmceBuilder.build();
+
     state.setProp(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS,
         KafkaStreamTestUtils.MockSchemaRegistry.class.getName());
     state.setProp("default.hive.registration.policy",
         TestHiveRegistrationPolicy.class.getName());
-    state.setProp("gmce.metadata.writer.classes", "org.apache.gobblin.hive.writer.HiveMetadataWriter");
+    state.setProp("gmce.metadata.writer.classes", TestHiveMetadataWriter.class.getName());
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
   }
 
@@ -401,6 +403,21 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertThrows(IllegalStateException.class, () -> updateLatestSchema.apply(nameOfTableThatHasNoSchemaLiteral));
   }
 
+  @Test
+  public void testGetTopicName() {
+    final String expectedTopicName = "123-topic-Name-123_v2";
+    Function<String, GobblinMetadataChangeEvent> getGmce = (offsetRangeKey) -> {
+      Map<String, String> offsetRangeMap = new HashMap<>();
+      offsetRangeMap.put(String.format(offsetRangeKey, expectedTopicName), "0-100");
+      return GobblinMetadataChangeEvent.newBuilder(gmceBuilder).setTopicPartitionOffsetsRange(offsetRangeMap).build();
+    };
+
+    TestHiveMetadataWriter hiveWriter = (TestHiveMetadataWriter) gobblinMCEWriter.getMetadataWriters().get(0);
+    Assert.assertEquals(hiveWriter.getTopicName(getGmce.apply("%s-0")), expectedTopicName);
+    Assert.assertEquals(hiveWriter.getTopicName(getGmce.apply("kafkaIdentifier.%s-0")), expectedTopicName);
+    Assert.assertEquals(hiveWriter.getTopicName(getGmce.apply("kafkaIdentifier.foobar.%s-0")), expectedTopicName);
+  }
+
   private String writeRecord(File file) throws IOException {
     GenericData.Record record = new GenericData.Record(avroDataSchema);
     record.put("id", 1L);
@@ -425,6 +442,10 @@ public class HiveMetadataWriterTest extends HiveMetastoreTest {
   public static class TestHiveMetadataWriter extends HiveMetadataWriter {
     public TestHiveMetadataWriter(State state) throws IOException {
       super(state);
+    }
+
+    public String getTopicName(GobblinMetadataChangeEvent gmce) {
+      return super.getTopicName(gmce);
     }
 
     public static boolean updateLatestSchemaMapWithExistingSchema(
