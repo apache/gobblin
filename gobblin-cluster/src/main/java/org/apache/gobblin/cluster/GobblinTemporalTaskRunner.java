@@ -33,6 +33,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.gobblin.cluster.temporal.NestingExecWorker;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -81,6 +82,8 @@ import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import static org.apache.gobblin.cluster.GobblinTemporalClusterManager.createServiceStubs;
+import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
+import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
 
 
 /**
@@ -238,47 +241,17 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
   private void initiateWorker() throws Exception{
     logger.info("Starting Temporal Worker");
-    WorkflowServiceStubs service = createServiceStubs();
+
+    WorkflowServiceStubs service = createServiceInstance();
+    WorkflowClient client = createClientInstance(service);
 
     WorkerOptions workerOptions = WorkerOptions.newBuilder()
         .setMaxConcurrentWorkflowTaskExecutionSize(1)
         .setMaxConcurrentActivityExecutionSize(1)
         .build();
 
-    // WorkflowClient can be used to start, signal, query, cancel, and terminate Workflows.
-    WorkflowClient client =
-        WorkflowClient.newInstance(
-            service, WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build());
-
-    /*
-     * Define the workflow factory. It is used to create workflow workers that poll specific Task Queues.
-     */
-    WorkerFactory factory = WorkerFactory.newInstance(client);
-
-    /*
-     * Define the workflow worker. Workflow workers listen to a defined task queue and process
-     * workflows and activities.
-     */
-    Worker worker = factory.newWorker(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE, workerOptions);
-
-    /*
-     * Register our workflow implementation with the worker.
-     * Workflow implementations must be known to the worker at runtime in
-     * order to dispatch workflow tasks.
-     */
-    worker.registerWorkflowImplementationTypes(GobblinTemporalWorkflowImpl.class);
-
-    /*
-     * Register our Activity Types with the Worker. Since Activities are stateless and thread-safe,
-     * the Activity Type is a shared instance.
-     */
-    worker.registerActivitiesImplementations(new GobblinTemporalActivityImpl());
-
-    /*
-     * Start all the workers registered for a specific task queue.
-     * The started workers then start polling for workflows and activities.
-     */
-    factory.start();
+    NestingExecWorker worker = new NestingExecWorker(client, Shared.GOBBLIN_TEMPORAL_TASK_QUEUE);
+    worker.start();
     logger.info("A new worker is started.");
   }
 

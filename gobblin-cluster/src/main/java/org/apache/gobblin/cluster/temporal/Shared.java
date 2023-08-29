@@ -21,5 +21,4 @@ public interface Shared {
 
     // Define the task queue name
     final String GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
-
 }

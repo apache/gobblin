@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Optional;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,6 +52,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.temporal.GobblinTemporalWorkflow;
 import org.apache.gobblin.cluster.temporal.Shared;
+import org.apache.gobblin.cluster.temporal.IllustrationTask;
+import org.apache.gobblin.cluster.temporal.Workload;
+import org.apache.gobblin.cluster.temporal.SimpleGeneratedWorkload;
+import org.apache.gobblin.cluster.temporal.NestingExecWorkflow;
+import org.apache.gobblin.cluster.temporal.WFAddr;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.Tag;
@@ -76,7 +82,8 @@ import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 import static org.apache.gobblin.cluster.GobblinTemporalClusterManager.createServiceStubs;
-
+import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
+import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
@@ -150,10 +157,8 @@ public class GobblinTemporalJobLauncher extends AbstractJobLauncher {
         new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, this.eventSubmitter,
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
 
-    this.workflowServiceStubs = createServiceStubs();
-    this.client = WorkflowClient.newInstance(
-            workflowServiceStubs, WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build());
-
+    this.workflowServiceStubs = createServiceInstance();
+    this.client = createClientInstance(workflowServiceStubs);
     /*
      * Set Workflow options such as WorkflowId and Task Queue so the worker knows where to list and which workflows to execute.
      */
@@ -246,27 +251,50 @@ public class GobblinTemporalJobLauncher extends AbstractJobLauncher {
       String jobStateFilePathStr = jobStateFilePath.toString();
 
       List<CompletableFuture<Void>> futures = new ArrayList<>();
-      AtomicInteger multiTaskIdSequence = new AtomicInteger(0);
-      AtomicInteger workflowCount = new AtomicInteger(0);
-      int workflowSize = 100;
-      ExecutorService executor = Executors.newFixedThreadPool(workflowSize);
-
-      for (int i = 0; i < workflowSize; i++) {
-        WorkUnit workUnit = workUnits.get(i);
+      boolean fastIngest = false;
+      if (fastIngest) {
+        AtomicInteger multiTaskIdSequence = new AtomicInteger(0);
+        AtomicInteger workflowCount = new AtomicInteger(0);
+        int workflowSize = 100;
+        ExecutorService executor = Executors.newFixedThreadPool(workflowSize);
+        for (int i = 0; i < workflowSize; i++) {
+          WorkUnit workUnit = workUnits.get(i);
+          futures.add(CompletableFuture.runAsync(() -> {
+            try {
+              if (workUnit instanceof MultiWorkUnit) {
+                workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence.getAndIncrement()));
+              }
+              String workUnitFilePathStr = persistWorkUnit(new Path(this.inputWorkUnitDir, this.jobContext.getJobId()), workUnit, stateSerDeRunner);
+              String workflowId = workUnit.getProp(KafkaSource.TOPIC_NAME) + "_" + workflowCount.getAndIncrement();
+              WorkflowOptions options = WorkflowOptions.newBuilder()
+                      .setTaskQueue(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE)
+                      .setWorkflowId(workflowId)
+                      .build();
+              // TODO(yiyang): change up the workflow
+              GobblinTemporalWorkflow workflow = this.client.newWorkflowStub(GobblinTemporalWorkflow.class, options);
+              LOGGER.info("Setting up temporal workflow {}", workflowId);
+              workflow.runTask(jobProps, appWorkDir.toString(), getJobId(), workUnitFilePathStr, jobStateFilePathStr);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          }, executor));
+        }
+      } else {
+        // TODO(yiyang): how do we determine 100 tasks in total. what if more tasks come in
+        int numTasks = 100;
+        int maxBranchesPerTree = 20;
+        int maxSubTreesPerTree = 5;
+        // TODO(yiyang): workflow size is also variable but we fix our thread pool ahead of time
+        ExecutorService executor = Executors.newFixedThreadPool(100);
         futures.add(CompletableFuture.runAsync(() -> {
           try {
-            if (workUnit instanceof MultiWorkUnit) {
-              workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence.getAndIncrement()));
-            }
-            String workUnitFilePathStr = persistWorkUnit(new Path(this.inputWorkUnitDir, this.jobContext.getJobId()), workUnit, stateSerDeRunner);
-            String workflowId = workUnit.getProp(KafkaSource.TOPIC_NAME) + "_" + workflowCount.getAndIncrement();
-            WorkflowOptions options = WorkflowOptions.newBuilder()
-                .setTaskQueue(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE)
-                .setWorkflowId(workflowId)
-                .build();
-            GobblinTemporalWorkflow workflow = this.client.newWorkflowStub(GobblinTemporalWorkflow.class, options);
-            LOGGER.info("Setting up temporal workflow {}", workflowId);
-            workflow.runTask(jobProps, appWorkDir.toString(), getJobId(), workUnitFilePathStr, jobStateFilePathStr);
+            Workload<IllustrationTask> workload = SimpleGeneratedWorkload.createAs(numTasks);
+            // WARNING: although type param must agree w/ that of `workload`, it's entirely unverified by type checker!
+            // ...and more to the point, mismatch would occur at runtime (`performWork` on whichever workflow underpins stub)!
+            WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE).build();
+            NestingExecWorkflow<IllustrationTask> workflow =
+                    this.client.newWorkflowStub(NestingExecWorkflow.class, options);
+            workflow.performWork(WFAddr.ROOT, workload, 0, maxBranchesPerTree, maxSubTreesPerTree, Optional.empty());
           } catch (Exception e) {
             throw new RuntimeException(e);
           }
