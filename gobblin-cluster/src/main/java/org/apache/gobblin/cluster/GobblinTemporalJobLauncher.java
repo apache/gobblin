@@ -285,7 +285,7 @@ public class GobblinTemporalJobLauncher extends AbstractJobLauncher {
         int maxBranchesPerTree = 20;
         int maxSubTreesPerTree = 5;
         // TODO(yiyang): workflow size is also variable but we fix our thread pool ahead of time
-        ExecutorService executor = Executors.newFixedThreadPool(100);
+        ExecutorService executor = Executors.newFixedThreadPool(1);
         futures.add(CompletableFuture.runAsync(() -> {
           try {
             Workload<IllustrationTask> workload = SimpleGeneratedWorkload.createAs(numTasks);

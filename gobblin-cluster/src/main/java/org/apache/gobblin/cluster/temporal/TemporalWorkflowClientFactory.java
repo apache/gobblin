@@ -86,7 +86,7 @@ public class TemporalWorkflowClientFactory {
     }
 
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service) {
-        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace("gobblin-gaas-poc").build();
+        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build();
         return WorkflowClient.newInstance(service, options);
     }
 }
