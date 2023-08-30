@@ -141,6 +141,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
             this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute()));
         this.orcFileWriterRowsBetweenCheck = properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute());
         this.tuneBatchSize(estimatedRecordSizeBytes);
+        log.info("Initialized batch size at {}", this.batchSize);
         this.nextSelfTune = this.selfTuneRowsBetweenCheck;
       } else {
         // We will need to incrementally tune the writer based on the first few records
