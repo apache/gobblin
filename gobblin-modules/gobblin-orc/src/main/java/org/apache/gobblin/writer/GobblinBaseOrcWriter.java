@@ -51,7 +51,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public static final String ORC_WRITER_AUTO_SELFTUNE_ENABLED = ORC_WRITER_PREFIX + "auto.selfTune.enabled";
   public static final String ORC_WRITER_ESTIMATED_RECORD_SIZE = ORC_WRITER_PREFIX + "estimated.recordSize";
   public static final String ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = ORC_WRITER_PREFIX + "auto.selfTune.rowsBetweenCheck";
-  public static final String ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = ORC_WRITER_PREFIX + "auto.selfTune.memory.usage.factor";
+  public static final String ORCWRITER_ROWBATCH_MEMORY_USAGE_FACTOR = ORC_WRITER_PREFIX + "auto.selfTune.memory.usage.factor";
   public static final int DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = 500;
   public static final String ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY = ORC_WRITER_PREFIX + "estimated.bytes.allocated.converter.memory";
   public static final String ORC_WRITER_CONCURRENT_TASKS = ORC_WRITER_PREFIX + "auto.selfTune.concurrent.tasks";
@@ -84,7 +84,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
 
   private final boolean selfTuningWriter;
   private int selfTuneRowsBetweenCheck;
-  private double batchSizeMemoryUsageFactor;
+  private double rowBatchMemoryUsageFactor;
   private int nextSelfTune;
   private boolean initialEstimatingRecordSizePhase = false;
   private Queue<Integer> initialSelfTuneCheckpoints = new LinkedList<>(Arrays.asList(10, 100, 500));
@@ -112,7 +112,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.rowBatchPool = RowBatchPool.instance(properties);
     this.enableRowBatchPool = properties.getPropAsBoolean(RowBatchPool.ENABLE_ROW_BATCH_POOL, false);
     this.selfTuneRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK);
-    this.batchSizeMemoryUsageFactor = properties.getPropAsDouble(ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR, DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
+    this.rowBatchMemoryUsageFactor = properties.getPropAsDouble(ORCWRITER_ROWBATCH_MEMORY_USAGE_FACTOR, DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
     this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
     this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch);
     this.orcWriterStripeSizeBytes = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
@@ -279,7 +279,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     // Note that this is an overestimate as the native ORC file writer should have some compression ratio
     long maxMemoryInFileWriter = this.estimatedRecordSizeBytes * this.orcFileWriterRowsBetweenCheck + this.orcWriterStripeSizeBytes;
 
-    int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.batchSizeMemoryUsageFactor - maxMemoryInFileWriter
+    int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.rowBatchMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), DEFAULT_ORC_WRITER_BATCH_SIZE);
