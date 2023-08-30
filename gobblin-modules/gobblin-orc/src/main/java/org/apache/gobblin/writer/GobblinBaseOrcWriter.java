@@ -276,7 +276,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     // Note that this is an overestimate as the native ORC file writer should have some compression ratio
     long maxMemoryInFileWriter = this.estimatedRecordSizeBytes * this.orcFileWriterRowsBetweenCheck + this.orcWriterStripeSizeBytes;
 
-    int newBatchSize = (int) ((this.availableMemory / currentPartitionedWriters * this.batchSizeMemoryUsageFactor - maxMemoryInFileWriter
+    int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.batchSizeMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), DEFAULT_ORC_WRITER_BATCH_SIZE);

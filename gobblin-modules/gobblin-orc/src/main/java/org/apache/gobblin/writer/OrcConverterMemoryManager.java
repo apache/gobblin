@@ -39,6 +39,11 @@ public class OrcConverterMemoryManager {
     this.rowBatch = rowBatch;
   }
 
+  /**
+   * Calculates the maximum number of elements of lists and maps in a column
+   * @param col
+   * @return
+   */
   public long calculateSizeOfColHelper(ColumnVector col) {
     long converterBufferColSize = 0;
     if (col instanceof ListColumnVector) {
@@ -64,7 +69,11 @@ public class OrcConverterMemoryManager {
     return converterBufferColSize;
   }
 
-  // TODO: Consider calculating this value on the fly everytime a resize is called
+  /**
+   * Returns the total size of all variable length columns in a {@link VectorizedRowBatch}
+   * TODO: Consider calculating this value on the fly everytime a resize is called
+   * @return
+   */
   public long getConverterBufferTotalSize() {
     long converterBufferTotalSize = 0;
     ColumnVector[] cols = this.rowBatch.cols;
