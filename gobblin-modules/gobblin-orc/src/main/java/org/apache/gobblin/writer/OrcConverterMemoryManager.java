@@ -33,46 +33,44 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 public class OrcConverterMemoryManager {
 
   private VectorizedRowBatch rowBatch;
-  long converterBufferTotalSize;
 
   // TODO: Consider moving the resize algorithm from the converter to this class
   OrcConverterMemoryManager(VectorizedRowBatch rowBatch) {
     this.rowBatch = rowBatch;
   }
 
-   // TODO: consider performing this calculation live whenever a resize is done
-   private void calculateResizeSpaceOfArrayBuffers() {
-    ColumnVector[] cols = this.rowBatch.cols;
-    for (int i = 0; i < cols.length; i++) {
-      calculateSizeOfColHelper(cols[i]);
-    }
-  }
-
-  public void calculateSizeOfColHelper(ColumnVector col) {
+  public long calculateSizeOfColHelper(ColumnVector col) {
+    long converterBufferColSize = 0;
     if (col instanceof ListColumnVector) {
       ListColumnVector listColumnVector = (ListColumnVector) col;
-      converterBufferTotalSize += listColumnVector.child.isNull.length;
-      calculateSizeOfColHelper(listColumnVector.child);
+      converterBufferColSize += listColumnVector.child.isNull.length;
+      converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
     } else if (col instanceof MapColumnVector) {
       MapColumnVector mapColumnVector = (MapColumnVector) col;
-      converterBufferTotalSize += mapColumnVector.keys.isNull.length + mapColumnVector.values.isNull.length;
-      calculateSizeOfColHelper(mapColumnVector.keys);
-      calculateSizeOfColHelper(mapColumnVector.values);
+      converterBufferColSize += mapColumnVector.keys.isNull.length + mapColumnVector.values.isNull.length;
+      converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.keys);
+      converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.values);
     } else if (col instanceof StructColumnVector) {
       StructColumnVector structColumnVector = (StructColumnVector) col;
       for (int j = 0; j < structColumnVector.fields.length; j++) {
-        calculateSizeOfColHelper(structColumnVector.fields[j]);
+        converterBufferColSize += calculateSizeOfColHelper(structColumnVector.fields[j]);
       }
     } else if (col instanceof UnionColumnVector) {
       UnionColumnVector unionColumnVector = (UnionColumnVector) col;
       for (int j = 0; j < unionColumnVector.fields.length; j++) {
-        calculateSizeOfColHelper(unionColumnVector.fields[j]);
+        converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
       }
     }
+    return converterBufferColSize;
   }
 
+  // TODO: Consider calculating this value on the fly everytime a resize is called
   public long getConverterBufferTotalSize() {
-    this.calculateResizeSpaceOfArrayBuffers();
+    long converterBufferTotalSize = 0;
+    ColumnVector[] cols = this.rowBatch.cols;
+    for (int i = 0; i < cols.length; i++) {
+      converterBufferTotalSize += calculateSizeOfColHelper(cols[i]);
+    }
     return converterBufferTotalSize;
   }
 
