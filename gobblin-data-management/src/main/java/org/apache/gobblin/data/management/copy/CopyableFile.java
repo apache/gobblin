@@ -29,7 +29,10 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.AclEntryScope;
+import org.apache.hadoop.fs.permission.AclEntryType;
 import org.apache.hadoop.fs.permission.AclStatus;
+import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
@@ -441,7 +444,33 @@ public class CopyableFile extends CopyEntity implements File {
 
   private static List<AclEntry> getAclEntries(FileSystem srcFs, Path path) throws IOException {
     AclStatus aclStatus = srcFs.getAclStatus(path);
-    return aclStatus.getEntries();
+    return addOthersEntryTypeToAclEntriesIfMissing(aclStatus.getEntries());
+  }
+  /*
+   * When we get AclEntry from org.apache.hadoop.fs.permission.AclStatus, it's missing AclEntryType.OTHER.
+   * This causes AclTransformation validation to fail on the list of AclEntries. As a result, adding this helper
+   * method to provide DEFAULT scope in cases where AclEntryType.OTHER is absent
+   */
+  private static List<AclEntry> addOthersEntryTypeToAclEntriesIfMissing(List<AclEntry> aclEntries) {
+    // Check if "others" entry is missing
+    boolean othersAclEntryTypeMissing = true;
+
+    for (AclEntry aclEntry : aclEntries) {
+      if (aclEntry.getType() == AclEntryType.OTHER) {
+        othersAclEntryTypeMissing = false;
+        break;
+      }
+    }
+    // If "others" entry is missing, add it
+    if (othersAclEntryTypeMissing) {
+      AclEntry othersEntry = new AclEntry.Builder().setType(AclEntryType.OTHER).setScope(AclEntryScope.DEFAULT)
+          .setPermission(FsAction.READ_EXECUTE).build();
+
+      // Modify the ACL entries to include the new "others" entry
+      aclEntries.add(othersEntry);
+    }
+    return aclEntries;
+
   }
 
   @Override

@@ -361,8 +361,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       if (targetOwnerAndPermission.getFsPermission() != null) {
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
-      if (!ownerAndPermission.getAclEntries().isEmpty()) {
-        fs.setAcl(path, ownerAndPermission.getAclEntries());
+      if (!targetOwnerAndPermission.getAclEntries().isEmpty()) {
+        fs.setAcl(path, targetOwnerAndPermission.getAclEntries());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
