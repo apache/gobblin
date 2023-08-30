@@ -57,11 +57,13 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public static final String ORC_WRITER_CONCURRENT_TASKS = ORC_WRITER_PREFIX + "auto.selfTune.concurrent.tasks";
 
   // This value gives an estimation on how many writers are buffering records at the same time in a container.
-   // Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
-   // usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
+  // Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
+  // usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
   private static final int CONCURRENT_WRITERS_DEFAULT = 3;
   public static final double DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.5;
   public static final int DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
+  // Tune iff the new batch size is 10% different from the current batch size
+  public static final double DEFAULT_ORCWRITER_TUNE_BATCHSIZE_SENSITIVITY = 0.1;
   public static final int DEFAULT_MIN_ORCWRITER_ROWCHECK = 150;
   public static final int DEFAULT_MAX_ORCWRITER_ROWCHECK = 5000;
 
@@ -114,7 +116,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
     this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch);
     this.orcWriterStripeSizeBytes = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
-    // Track the number of parallel writer tasks running on the same container
+    // Track the number of other writer tasks from different datasets ingesting on the same container
     this.concurrentWriterTasks = properties.getPropAsInt(ORC_WRITER_CONCURRENT_TASKS, 1);
     // Create file-writer
     this.writerConfig = new Configuration();
@@ -280,8 +282,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), DEFAULT_ORC_WRITER_BATCH_SIZE);
-    // TODO: Consider using a more sophisticated check to determine if the batch size should be changed
-    if (Math.abs(newBatchSize - this.batchSize) > 0.1 * this.batchSize) {
+    if (Math.abs(newBatchSize - this.batchSize) > DEFAULT_ORCWRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
       log.info("Tuning ORC writer batch size from {} to {} based on average byte size per record: {} with available memory {} and {} bytes "
               + "of allocated memory in converter buffers, with {} partitioned writers",
           batchSize, newBatchSize, averageSizePerRecord, availableMemory,
