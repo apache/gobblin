@@ -108,6 +108,26 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    * @return deserialize {@link State} into a {@link JobStatus}.
    */
   protected JobStatus getJobStatus(State jobState) {
+    JobStatus.JobStatusBuilder jobStatusBuilder = createJobStatusBuilderFromState(jobState);
+
+    String contextId = TroubleshooterUtils.getContextIdForJob(jobState.getProperties());
+
+    Supplier<List<Issue>> jobIssues = Suppliers.memoize(() -> {
+      List<Issue> issues;
+      try {
+        issues = issueRepository.getAll(contextId);
+      } catch (TroubleshooterException e) {
+        log.warn("Cannot retrieve job issues", e);
+        issues = Collections.emptyList();
+      }
+      return issues;
+    });
+
+    jobStatusBuilder.issues(jobIssues);
+    return jobStatusBuilder.build();
+  }
+
+  public static JobStatus.JobStatusBuilder createJobStatusBuilderFromState(State jobState) {
     String flowGroup = getFlowGroup(jobState);
     String flowName = getFlowName(jobState);
     long flowExecutionId = getFlowExecutionId(jobState);
@@ -130,48 +150,35 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     int progressPercentage = jobState.getPropAsInt(TimingEvent.JOB_COMPLETION_PERCENTAGE, 0);
     long lastProgressEventTime = jobState.getPropAsLong(TimingEvent.JOB_LAST_PROGRESS_EVENT_TIME, 0);
 
-    String contextId = TroubleshooterUtils.getContextIdForJob(jobState.getProperties());
-
-    Supplier<List<Issue>> jobIssues = Suppliers.memoize(() -> {
-      List<Issue> issues;
-      try {
-        issues = issueRepository.getAll(contextId);
-      } catch (TroubleshooterException e) {
-        log.warn("Cannot retrieve job issues", e);
-        issues = Collections.emptyList();
-      }
-      return issues;
-    });
-
-    return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
-        jobName(jobName).jobGroup(jobGroup).jobTag(jobTag).jobExecutionId(jobExecutionId).eventName(eventName).
-        lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime).
-        message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts).currentGeneration(currentGeneration).
-        shouldRetry(shouldRetry).progressPercentage(progressPercentage).lastProgressEventTime(lastProgressEventTime).
-        issues(jobIssues).build();
+    return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).jobName(jobName)
+        .jobGroup(jobGroup).jobTag(jobTag).jobExecutionId(jobExecutionId).eventName(eventName).lowWatermark(lowWatermark)
+        .highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime)
+        .message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts)
+        .currentGeneration(currentGeneration).shouldRetry(shouldRetry).progressPercentage(progressPercentage)
+        .lastProgressEventTime(lastProgressEventTime);
   }
 
-  protected final String getFlowGroup(State jobState) {
+  protected static final String getFlowGroup(State jobState) {
     return jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
   }
 
-  protected final String getFlowName(State jobState) {
+  protected static final String getFlowName(State jobState) {
     return jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
   }
 
-  protected final long getFlowExecutionId(State jobState) {
+  protected static final long getFlowExecutionId(State jobState) {
     return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
   }
 
-  protected final String getJobGroup(State jobState) {
+  protected static final String getJobGroup(State jobState) {
     return jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
   }
 
-  protected final String getJobName(State jobState) {
+  protected static final String getJobName(State jobState) {
     return jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
   }
 
-  protected final long getJobExecutionId(State jobState) {
+  protected static final long getJobExecutionId(State jobState) {
     return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
   }
 
@@ -183,7 +190,9 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     return flowExecutionGroupings.stream().map(exec -> {
       List<JobStatus> jobStatuses = ImmutableList.copyOf(asJobStatuses(exec.getJobStates().stream().sorted(
           // rationalized order, to facilitate test assertions
-          Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
+          Comparator.comparing(JobStatusRetriever::getJobGroup)
+              .thenComparing(JobStatusRetriever::getJobName)
+              .thenComparing(JobStatusRetriever::getJobExecutionId)
       ).collect(Collectors.toList())));
       return new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(), jobStatuses.iterator(),
             getFlowStatusFromJobStatuses(dagManagerEnabled, jobStatuses.iterator()));
@@ -201,10 +210,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   protected List<FlowExecutionJobStateGrouping> groupByFlowExecutionAndRetainLatest(
       String flowGroup, List<State> jobStatusStates, int maxCountPerFlowName) {
-    Map<String, Map<Long, List<State>>> statesByFlowExecutionIdByName =
-        jobStatusStates.stream().collect(Collectors.groupingBy(
-            this::getFlowName,
-            Collectors.groupingBy(this::getFlowExecutionId)));
+    Map<String, Map<Long, List<State>>> statesByFlowExecutionIdByName = jobStatusStates.stream().collect(
+        Collectors.groupingBy(JobStatusRetriever::getFlowName, Collectors.groupingBy(JobStatusRetriever::getFlowExecutionId)));
 
     return statesByFlowExecutionIdByName.entrySet().stream().sorted(Map.Entry.comparingByKey()).flatMap(flowNameEntry -> {
       String flowName = flowNameEntry.getKey();

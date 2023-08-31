@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -31,12 +25,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.eventbus.EventBus;
+import com.typesafe.config.Config;
+
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -58,17 +66,17 @@ import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -84,6 +92,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final SpecCompiler specCompiler;
   protected final Optional<TopologyCatalog> topologyCatalog;
   protected final Optional<DagManager> dagManager;
+  protected final Optional<DagManagement> dagManagement;
+  protected final Optional<DagProcessingEngine> dagProcessingEngine;
 
   protected final MetricContext metricContext;
 
@@ -103,6 +113,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
   private Optional<FlowTriggerHandler> flowTriggerHandler;
   private Optional<FlowCatalog> flowCatalog;
+  private EventBus eventBus;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
@@ -111,15 +122,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
       Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
-      Optional<FlowCatalog> flowCatalog) {
+      Optional<FlowCatalog> flowCatalog, Optional<DagProcessingEngine> dagProcessingEngine,
+      Optional<DagManagement> dagManagement, EventBus eventBus) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
+    this.dagManagement = dagManagement;
+    this.dagProcessingEngine = dagProcessingEngine;
     this.flowStatusGenerator = flowStatusGenerator;
     this.flowTriggerHandler = flowTriggerHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
+    this.eventBus = eventBus;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -165,11 +180,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<Logger> log, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog) {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
+      Optional<DagProcessingEngine> dagProcessingEngine, Optional<DagManagement> dagManagement,
+      @Named(GobblinServiceManager.SERVICE_EVENT_BUS_NAME) EventBus eventBus) {
     this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, flowTriggerHandler,
-        sharedFlowMetricsSingleton, flowCatalog);
+        sharedFlowMetricsSingleton, flowCatalog, dagProcessingEngine, dagManagement, eventBus);
   }
-
 
   @VisibleForTesting
   public SpecCompiler getSpecCompiler() {
@@ -393,11 +409,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
     if (spec instanceof FlowSpec) {
+      URI specUri = spec.getUri();
       //Send the dag to the DagManager to stop it.
       //Also send it to the SpecProducer to do any cleanup tasks on SpecExecutor.
       if (this.dagManager.isPresent()) {
-        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
-        this.dagManager.get().stopDag(spec.getUri());
+        _log.info("Forwarding cancel request for flow URI {} to DagManager.", specUri);
+        this.dagManager.get().stopDag(specUri);
+      }
+      if (this.dagProcessingEngine.isPresent()) {
+        String flowGroup = FlowSpec.Utils.getFlowGroup(specUri);
+        String flowName = FlowSpec.Utils.getFlowName(specUri);
+        this.eventBus.post(new KillFlowEvent(flowGroup, flowName, null));
       }
       // We need to recompile the flow to find the spec producer,
       // If compilation result is different, its remove request can go to some different spec producer

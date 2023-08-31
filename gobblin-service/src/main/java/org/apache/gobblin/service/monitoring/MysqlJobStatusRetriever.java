@@ -115,8 +115,9 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   }
 
   private List<Long> getLatestExecutionIds(List<State> jobStatusStates, int count) {
-    // `distinct()`, to avoid each flow execution ID replicating as many times as it has child jobs
-    Iterator<Long> flowExecutionIds = jobStatusStates.stream().map(this::getFlowExecutionId).distinct().iterator();
+    // `distinct()`, to avoid each flow execution ID replicating as many times as it
+    // has child jobs
+    Iterator<Long> flowExecutionIds = jobStatusStates.stream().map(JobStatusRetriever::getFlowExecutionId).distinct().iterator();
     return Ordering.<Long>natural().greatestOf(flowExecutionIds, count);
   }
 }

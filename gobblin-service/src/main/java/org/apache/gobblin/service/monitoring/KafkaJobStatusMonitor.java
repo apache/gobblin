@@ -30,17 +30,19 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
-import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.Retryer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import com.google.common.annotations.VisibleForTesting;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,11 +62,15 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.monitoring.event.JobStatusEvent;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.*;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 
 /**
@@ -94,6 +100,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @Getter
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
+  @Getter(AccessLevel.PUBLIC)
+  protected static final EventBus eventBus = new EventBus(KafkaJobStatusMonitor.class.getSimpleName());
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
       RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
@@ -109,7 +117,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final JobIssueEventHandler jobIssueEventHandler;
   private final Retryer<Void> persistJobStatusRetryer;
   private final GaaSObservabilityEventProducer eventProducer;
-
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSObservabilityEventProducer observabilityEventProducer)
@@ -138,7 +145,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
-        this.eventProducer = observabilityEventProducer;
+    this.eventProducer = observabilityEventProducer;
   }
 
   @Override
@@ -191,6 +198,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         if (jobStatus != null) {
           try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
             addJobStatusToStateStore(jobStatus, this.stateStore, this.eventProducer);
+            //TODO: Add Advance and CleanUp DagTask to DagTaskStream
           }
         }
         return null;
@@ -276,6 +284,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       stateStore.put(storeName, tableName, jobStatus);
       if (isNewStateTransitionToFinal(jobStatus, states)) {
         eventProducer.emitObservabilityEvent(jobStatus);
+        eventBus.post(new JobStatusEvent(jobStatus));
       }
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "

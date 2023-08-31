@@ -17,6 +17,13 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -24,16 +31,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Collection;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -45,7 +48,10 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -95,12 +101,15 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
   protected DagActionStore dagActionStore;
+  private final DagProcessingEngine dagProcessingEngine;
+  private final DagTaskStream dagTaskStream;
+  private final boolean dagProcessingEngineEnabled;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
-      boolean isMultiActiveSchedulerEnabled) {
+      boolean isMultiActiveSchedulerEnabled, DagTaskStream dagTaskStream, DagProcessingEngine dagProcessingEngine) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
@@ -110,6 +119,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.orchestrator = orchestrator;
     this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+    this.dagProcessingEngine = dagProcessingEngine;
+    this.dagTaskStream = dagTaskStream;
+    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, DagProcessingEngine.DAG_PROCESSING_ENGINE_ENABLED, false);
 
     /*
     Metrics need to be created before initializeMonitor() below is called (or more specifically handleDagAction() is
@@ -235,10 +247,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.RESUME)) {
       dagManager.handleResumeFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
           Long.parseLong(dagAction.getFlowExecutionId()));
+      if (dagProcessingEngineEnabled) {
+        this.dagTaskStream.addDagAction(dagAction);
+      }
       this.resumesInvoked.mark();
     } else if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.KILL)) {
       dagManager.handleKillFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
           Long.parseLong(dagAction.getFlowExecutionId()));
+      if (dagProcessingEngineEnabled) {
+        this.dagTaskStream.addDagAction(dagAction);
+      }
       this.killsInvoked.mark();
     } else if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.LAUNCH)) {
       // If multi-active scheduler is NOT turned on we should not receive these type of events

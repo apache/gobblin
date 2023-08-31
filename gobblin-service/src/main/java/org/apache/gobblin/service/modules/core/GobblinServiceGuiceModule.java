@@ -19,18 +19,6 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
-import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
-import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,13 +37,18 @@ import com.typesafe.config.Config;
 import javax.inject.Singleton;
 
 import org.apache.gobblin.restli.EmbeddedRestliServer;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
@@ -74,18 +67,32 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.InMemoryDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.NewDagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandler;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
-import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
@@ -168,16 +175,28 @@ public class GobblinServiceGuiceModule implements Module {
 
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
     OptionalBinder.newOptionalBinder(binder, FlowTriggerHandler.class);
+    OptionalBinder.newOptionalBinder(binder, DagManagement.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcFactory.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
+    OptionalBinder.newOptionalBinder(binder, DagManagementStateStore.class);
+    OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
+
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowTriggerHandler.class);
+      if(serviceConfig.isDagProcessingEngineEnabled()) {
+        binder.bind(DagManagement.class).to(NewDagManager.class);
+        binder.bind(DagManagementStateStore.class).to(InMemoryDagManagementStateStore.class);
+        binder.bind(DagProcFactory.class);
+        binder.bind(DagProcessingEngine.class);
+        binder.bind(DagTaskStream.class);
+      }
     }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
     binder.bind(FlowStatusResource.class);
     binder.bind(FlowExecutionResource.class);
-
     binder.bind(FlowConfigResourceLocalHandler.class);
     binder.bind(FlowConfigV2ResourceLocalHandler.class);
     binder.bind(FlowExecutionResourceLocalHandler.class);

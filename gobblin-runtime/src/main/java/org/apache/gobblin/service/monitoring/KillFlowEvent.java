@@ -26,5 +26,6 @@ import lombok.Data;
 public class KillFlowEvent {
   private String flowGroup;
   private String flowName;
+  // null flow execution id will be treated as a request to kill all executions with the given flow group / flow name
   private Long flowExecutionId;
 }

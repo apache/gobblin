@@ -17,18 +17,28 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Optional;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.typesafe.config.Config;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Optional;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -46,15 +56,8 @@ import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
 
 
 public class OrchestratorTest {
@@ -109,7 +112,9 @@ public class OrchestratorTest {
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
          Optional.of(this._mockFlowTriggerHandler), new SharedFlowMetricsSingleton(
-             ConfigUtils.propertiesToConfig(orchestratorProperties)), Optional.of(mock(FlowCatalog.class)));
+             ConfigUtils.propertiesToConfig(orchestratorProperties)), Optional.of(mock(FlowCatalog.class)),
+        Optional.absent(), Optional.absent(), null);
+
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

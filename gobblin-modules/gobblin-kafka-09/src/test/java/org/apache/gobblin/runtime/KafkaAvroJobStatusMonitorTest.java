@@ -49,7 +49,6 @@ import com.typesafe.config.ConfigValueFactory;
 
 import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
-
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;

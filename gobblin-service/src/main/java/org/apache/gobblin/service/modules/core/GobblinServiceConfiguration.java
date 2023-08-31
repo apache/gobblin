@@ -28,6 +28,7 @@ import lombok.Getter;
 import lombok.ToString;
 
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -80,6 +81,9 @@ public class GobblinServiceConfiguration {
   private final boolean onlyAnnounceLeader;
 
   @Getter
+  private final boolean isDagProcessingEngineEnabled;
+
+  @Getter
   private final Config innerConfig;
 
   @Getter
@@ -124,5 +128,6 @@ public class GobblinServiceConfiguration {
     this.isTopologySpecFactoryEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY, true);
     this.onlyAnnounceLeader = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER, false);
+    this.isDagProcessingEngineEnabled = ConfigUtils.getBoolean(config, DagProcessingEngine.DAG_PROCESSING_ENGINE_ENABLED, false);
   }
 }
