@@ -45,9 +45,9 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   public LaunchDagProc(LaunchDagTask launchDagTask) {
     this.launchDagTask = launchDagTask;
     this.orchestrationDelayCounter = new AtomicLong(0);
-    ContextAwareGauge<Long> orchestrationDelayMetric = this.metricContext.newContextAwareGauge
+    ContextAwareGauge<Long> orchestrationDelayMetric = metricContext.newContextAwareGauge
         (ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get);
-    this.metricContext.register(orchestrationDelayMetric);
+    metricContext.register(orchestrationDelayMetric);
   }
 
   @Override

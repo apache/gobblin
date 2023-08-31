@@ -70,8 +70,8 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   FlowCatalog flowCatalog;
 
   @Inject
-  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog) throws IOException {
-    this.quotaManager = new MysqlUserQuotaManager(config);
+  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager) {
+    this.quotaManager = userQuotaManager;
     this.config = config;
     this.flowCatalog = flowCatalog;
    }

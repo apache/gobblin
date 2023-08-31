@@ -79,7 +79,7 @@ public class DagProcessingEngineTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null);
+    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty());

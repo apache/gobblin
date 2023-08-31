@@ -67,8 +67,15 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementTaskStreamImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -83,6 +90,7 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
+import org.apache.gobblin.service.monitoring.DagProcEngineEnabledDagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
@@ -173,6 +181,12 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowTriggerHandler.class);
     }
 
+    binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
+    binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
+    binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
+    binder.bind(DagProcFactory.class);
+    binder.bind(DagProcessingEngine.class);
+
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
     binder.bind(FlowStatusResource.class);
@@ -248,7 +262,12 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
-      binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+      if (serviceConfig.isDagProcessingEngineEnabled()) {
+        binder.bind(DagActionStoreChangeMonitor.class)
+            .toProvider(DagProcEngineEnabledDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+      } else {
+        binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+      }
     }
 
     binder.bind(GobblinServiceManager.class);

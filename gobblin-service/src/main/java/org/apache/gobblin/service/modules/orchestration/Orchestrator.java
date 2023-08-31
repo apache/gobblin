@@ -112,11 +112,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
+  private final DagManagement dagManagement;
+  private final boolean dagProcessingEngineEnabled;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog) {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog, DagManagement dagManagement,
+      DagManagementStateStore dagManagementStateStore) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -140,7 +143,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
+    this.dagManagement = dagManagement;
+    ((MostlyMySqlDagManagementStateStore) dagManagementStateStore).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
+    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
     this.flowOrchestrationFailedMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER);

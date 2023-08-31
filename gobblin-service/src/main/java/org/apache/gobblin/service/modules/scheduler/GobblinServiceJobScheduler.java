@@ -69,6 +69,7 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -83,7 +84,10 @@ import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -120,7 +124,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<UserQuotaManager> quotaManager;
   protected final Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
-  protected final Map<String, Spec> scheduledFlowSpecs;
+  protected final Map<String, FlowSpec> scheduledFlowSpecs;
   @Getter
   protected final Map<String, Long> lastUpdatedTimeForFlowSpec;
   protected volatile int loadSpecsBatchSize = -1;
@@ -168,6 +172,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * so only they would be loaded during DR handling.
    */
   public static final String DR_FILTER_TAG = "dr";
+  private final boolean dagProcessingEngineEnabled;
+  private final DagManagement dagManagement;
 
   @Inject
   public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName,
@@ -175,7 +181,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
       @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
+      Optional<FlowTriggerHandler> flowTriggerHandler, DagManagement dagManagement) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -208,18 +214,20 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       metricContext.register(this.totalAddSpecTimeNanos);
       metricContext.register(this.numJobsScheduledDuringStartup);
     }
+    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
+    this.dagManagement = dagManagement;
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
       DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton)
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, DagManagement dagManagement, DagManagementStateStore dagManagementStateStore)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog,
         new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerHandler,
-            sharedFlowMetricsSingleton, flowCatalog),
-        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
+            sharedFlowMetricsSingleton, flowCatalog, dagManagement, dagManagementStateStore),
+        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler, dagManagement);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -502,14 +510,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
-      Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+      FlowSpec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
       // The trigger event time will be missing for adhoc and run-immediately flows, so we set the default here
       String triggerTimestampMillis = jobProps.getProperty(
           ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
           ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_DEFAULT_VAL);
       boolean isReminderEvent =
           Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, "false"));
-      this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis), isReminderEvent);
+      if (this.dagProcessingEngineEnabled) {
+        Config flowConfig = flowSpec.getConfig();
+        String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+        String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+        String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
+        DagActionStore.DagAction dagAction =
+            new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+        this.dagManagement.addDagAction(dagAction);
+      } else {
+        this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis), isReminderEvent);
+      }
     } catch (Exception e) {
       String exceptionPrefix = "Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
       log.warn(exceptionPrefix + " because", e);
@@ -597,7 +615,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     // todo : we should probably not schedule a flow if it is a runOnce flow
-    this.scheduledFlowSpecs.put(flowSpecUri.toString(), addedSpec);
+    this.scheduledFlowSpecs.put(flowSpecUri.toString(), flowSpec);
     this.lastUpdatedTimeForFlowSpec.put(flowSpecUri.toString(), modificationTime);
 
     if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
