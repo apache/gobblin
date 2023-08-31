@@ -135,11 +135,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       if (properties.contains(ORC_WRITER_ESTIMATED_RECORD_SIZE) && properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE) != -1) {
         this.estimatedRecordSizeBytes = properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE);
         this.estimatedBytesAllocatedConverterMemory = properties.getPropAsLong(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, -1);
+        this.orcFileWriterRowsBetweenCheck = properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), (int) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue());
         // Use the last run's rows between check value for the underlying file size writer, if it exists. Otherwise it will default to 5000
         log.info("Using previously stored properties to calculate new batch size, ORC Estimated Record size is : {},"
                 + "estimated bytes converter allocated is : {}, ORC rows between check is {}",
-            this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute()));
-        this.orcFileWriterRowsBetweenCheck = properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute());
+            this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, this.orcFileWriterRowsBetweenCheck);
         this.tuneBatchSize(estimatedRecordSizeBytes);
         log.info("Initialized batch size at {}", this.batchSize);
         this.nextSelfTune = this.selfTuneRowsBetweenCheck;
@@ -277,7 +277,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     // In the native ORC writer implementation, it will flush the writer if the internal memory exceeds the size of a stripe after rows between check
     // So worst case the most memory the writer can hold is the size of a stripe plus size of records * number of records between checks
     // Note that this is an overestimate as the native ORC file writer should have some compression ratio
-    long maxMemoryInFileWriter = this.estimatedRecordSizeBytes * this.orcFileWriterRowsBetweenCheck + this.orcWriterStripeSizeBytes;
+    long maxMemoryInFileWriter = averageSizePerRecord * this.orcFileWriterRowsBetweenCheck + this.orcWriterStripeSizeBytes;
 
     int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.rowBatchMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
@@ -288,9 +288,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
               + "of allocated memory in converter buffers, with {} partitioned writers",
           batchSize, newBatchSize, averageSizePerRecord, availableMemory,
           estimatedBytesAllocatedConverterMemory, currentPartitionedWriters);
-      if (newBatchSize < this.batchSize) {
-        this.flush();
-      }
+      // We need to always flush because ORC VectorizedRowBatch.ensureSize() does not provide an option to preserve data, refer to
+      // https://orc.apache.org/api/hive-storage-api/org/apache/hadoop/hive/ql/exec/vector/VectorizedRowBatch.html
+      this.flush();
       this.batchSize = newBatchSize;
       this.rowBatch.ensureSize(this.batchSize);
     }

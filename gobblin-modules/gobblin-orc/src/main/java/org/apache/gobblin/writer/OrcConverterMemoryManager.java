@@ -17,8 +17,12 @@
 
 package org.apache.gobblin.writer;
 
+import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
 import org.apache.orc.storage.ql.exec.vector.ColumnVector;
+import org.apache.orc.storage.ql.exec.vector.DecimalColumnVector;
+import org.apache.orc.storage.ql.exec.vector.DoubleColumnVector;
 import org.apache.orc.storage.ql.exec.vector.ListColumnVector;
+import org.apache.orc.storage.ql.exec.vector.LongColumnVector;
 import org.apache.orc.storage.ql.exec.vector.MapColumnVector;
 import org.apache.orc.storage.ql.exec.vector.StructColumnVector;
 import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
@@ -40,7 +44,11 @@ public class OrcConverterMemoryManager {
   }
 
   /**
-   * Calculates the maximum number of elements of lists and maps in a column
+   * Estimates the approximate size in bytes of elements in a column
+   * This takes into account the default null values of different ORC ColumnVectors and approximates their sizes
+   * Although its a rough calculation, it can accurately depict the weight of resizes in a column for very large arrays and maps
+   * Which tend to dominate the size of the buffer overall
+   * TODO: Clean this method up considerably and refactor resize logic here
    * @param col
    * @return
    */
@@ -48,11 +56,9 @@ public class OrcConverterMemoryManager {
     long converterBufferColSize = 0;
     if (col instanceof ListColumnVector) {
       ListColumnVector listColumnVector = (ListColumnVector) col;
-      converterBufferColSize += listColumnVector.child.isNull.length;
       converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
     } else if (col instanceof MapColumnVector) {
       MapColumnVector mapColumnVector = (MapColumnVector) col;
-      converterBufferColSize += mapColumnVector.keys.isNull.length + mapColumnVector.values.isNull.length;
       converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.keys);
       converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.values);
     } else if (col instanceof StructColumnVector) {
@@ -65,7 +71,21 @@ public class OrcConverterMemoryManager {
       for (int j = 0; j < unionColumnVector.fields.length; j++) {
         converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
       }
+    } else if (col instanceof LongColumnVector) {
+      // Memory space in bytes of native type
+      converterBufferColSize += col.isNull.length * 8;
+    } else if (col instanceof DoubleColumnVector) {
+      converterBufferColSize += col.isNull.length * 8;
+    } else if (col instanceof BytesColumnVector) {
+      // Contains two integer list references of size vector for tracking so will use that as null size
+      converterBufferColSize += ((BytesColumnVector) col).vector.length * 8;
+    } else if (col instanceof DecimalColumnVector) {
+      // Null values are represented as longs
+      converterBufferColSize += col.isNull.length * 8;
     }
+    // Calculate overhead of the column's own null reference
+    converterBufferColSize += col.isNull.length;
+    System.out.println("Size of col: " + converterBufferColSize);
     return converterBufferColSize;
   }
 
