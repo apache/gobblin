@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.hive.spec;
 
+import com.google.common.base.MoreObjects;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -71,7 +71,7 @@ public class SimpleHiveSpec
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this).omitNullValues().add("path", this.path.toString())
+    return MoreObjects.toStringHelper(this).omitNullValues().add("path", this.path.toString())
         .add("db", this.table.getDbName()).add("table", this.table.getTableName())
         .add("partition", this.partition.orNull()).toString();
   }
