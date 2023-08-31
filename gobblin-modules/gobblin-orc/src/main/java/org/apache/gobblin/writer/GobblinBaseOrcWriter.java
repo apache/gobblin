@@ -89,7 +89,8 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private boolean initialEstimatingRecordSizePhase = false;
   private Queue<Integer> initialSelfTuneCheckpoints = new LinkedList<>(Arrays.asList(10, 100, 500));
   private AtomicInteger recordCounter = new AtomicInteger(0);
-  private long availableMemory = -1;
+  @VisibleForTesting
+  long availableMemory = -1;
   private long orcWriterStripeSizeBytes;
   private int concurrentWriterTasks;
   private int orcFileWriterRowsBetweenCheck;
