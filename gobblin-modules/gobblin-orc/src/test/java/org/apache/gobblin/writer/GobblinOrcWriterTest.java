@@ -276,8 +276,8 @@ public class GobblinOrcWriterTest {
     orcWriter.tuneBatchSize(10);
     // Given that the amount of available memory is low, the resulting batchsize should be 1
     Assert.assertTrue(orcWriter.batchSize == 1);
-    orcWriter.availableMemory = 100000000;
-    orcWriter.rowBatch.ensureSize(100000000);
+    orcWriter.availableMemory = 10000;
+    orcWriter.rowBatch.ensureSize(10000);
     // Since the rowBatch is large, the resulting batchsize should still be 1 even with more memory
     orcWriter.tuneBatchSize(10);
     Assert.assertTrue(orcWriter.batchSize == 1);
