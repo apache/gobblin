@@ -22,7 +22,7 @@ import java.net.URISyntaxException;
 
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
@@ -70,7 +70,7 @@ public class HadoopFsReplicaConfig {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this.getClass()).add("colo", this.colo).add("name", this.clustername)
+    return MoreObjects.toStringHelper(this.getClass()).add("colo", this.colo).add("name", this.clustername)
         .add("FilesystemURI", this.fsURI).add("rootPath", this.path).toString();
   }
 

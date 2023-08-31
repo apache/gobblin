@@ -16,9 +16,8 @@
  */
 package org.apache.gobblin.runtime.api;
 
+import com.google.common.base.MoreObjects;
 import java.net.URI;
-
-import com.google.common.base.Objects;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.util.callbacks.Callback;
@@ -49,7 +48,7 @@ public interface JobCatalogListener {
   public static class AddJobCallback extends Callback<JobCatalogListener, Void> {
     private final JobSpec _addedJob;
     public AddJobCallback(JobSpec addedJob) {
-      super(Objects.toStringHelper("onAddJob").add("addedJob", addedJob).toString());
+      super(MoreObjects.toStringHelper("onAddJob").add("addedJob", addedJob).toString());
       _addedJob = addedJob;
     }
 
@@ -65,7 +64,7 @@ public interface JobCatalogListener {
     private final String _deletedJobVersion;
 
     public DeleteJobCallback(URI deletedJobURI, String deletedJobVersion) {
-      super(Objects.toStringHelper("onDeleteJob")
+      super(MoreObjects.toStringHelper("onDeleteJob")
                    .add("deletedJobURI", deletedJobURI)
                    .add("deletedJobVersion", deletedJobVersion)
                    .toString());
@@ -83,7 +82,7 @@ public interface JobCatalogListener {
     private final URI _cancelledJobURI;
 
     public CancelJobCallback(URI cancelledJobURI) {
-      super(Objects.toStringHelper("onCancelJob").add("cancelJob", cancelledJobURI).toString());
+      super(MoreObjects.toStringHelper("onCancelJob").add("cancelJob", cancelledJobURI).toString());
       _cancelledJobURI = cancelledJobURI;
     }
 
@@ -97,7 +96,7 @@ public interface JobCatalogListener {
   public static class UpdateJobCallback extends Callback<JobCatalogListener, Void> {
     private final JobSpec _updatedJob;
     public UpdateJobCallback(JobSpec updatedJob) {
-      super(Objects.toStringHelper("onUpdateJob")
+      super(MoreObjects.toStringHelper("onUpdateJob")
                    .add("updatedJob", updatedJob).toString());
       _updatedJob = updatedJob;
     }

@@ -27,7 +27,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.source.extractor.Watermark;
@@ -57,7 +57,7 @@ public class WatermarkMetadataGenerationCommitStep implements CommitStep {
 
   @Override
   public String toString(){
-    return Objects.toStringHelper(this.getClass())
+    return MoreObjects.toStringHelper(this.getClass())
         .add("metafile",new Path(this.targetDirPath, ReplicaHadoopFsEndPoint.WATERMARK_FILE))
         .add("file system uri", this.fsUriString)
         .add("watermark class", this.watermark.getClass().getCanonicalName())

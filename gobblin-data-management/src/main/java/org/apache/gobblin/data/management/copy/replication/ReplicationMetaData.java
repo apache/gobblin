@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
@@ -60,6 +60,6 @@ public class ReplicationMetaData {
   public String toString() {
     Joiner.MapJoiner mapJoiner = Joiner.on(',').withKeyValueSeparator("=");
 
-    return Objects.toStringHelper(this.getClass()).add("metadata", mapJoiner.join(this.values.get())).toString();
+    return MoreObjects.toStringHelper(this.getClass()).add("metadata", mapJoiner.join(this.values.get())).toString();
   }
 }
