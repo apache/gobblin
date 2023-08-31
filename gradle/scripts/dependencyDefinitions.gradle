@@ -51,7 +51,7 @@ ext.externalDependency = [
     "datanucleusRdbms": "org.datanucleus:datanucleus-rdbms:3.2.9",
     "errorProne": "com.google.errorprone:error_prone_annotations:2.0.15",
     "eventhub": "com.microsoft.azure:azure-eventhubs:0.9.0",
-    "guava": "com.google.guava:guava:20.0",
+    "guava": "com.google.guava:guava:21.0",
     "groovy": "org.codehaus.groovy:groovy:2.4.8",
     "gson": "com.google.code.gson:gson:2.6.2",
     "gsonJavatimeSerialisers": "com.fatboyindustrial.gson-javatime-serialisers:gson-javatime-serialisers:1.1.1",
