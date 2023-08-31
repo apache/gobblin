@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.Timer;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -55,6 +56,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.event.JobStatusEvent;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
@@ -132,6 +134,14 @@ public class DagManagerUtils {
 
   public static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
+  }
+
+  public static String generateDagNodeId(JobStatusEvent jobStatusEvent) {
+    return generateDagNodeId(jobStatusEvent.getFlowGroup(), jobStatusEvent.getFlowName(), jobStatusEvent.getFlowExecutionId(), jobStatusEvent.getJobGroup(), jobStatusEvent.getJobName());
+  }
+
+  public static String generateDagNodeId(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
+    return calcJobId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
   }
 
   /**
@@ -353,7 +363,7 @@ public class DagManagerUtils {
     return dagNode.getValue().getSpecExecutor().getUri().toString();
   }
 
-  static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+  public static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
       Config config = getDagJobConfig(dag);
