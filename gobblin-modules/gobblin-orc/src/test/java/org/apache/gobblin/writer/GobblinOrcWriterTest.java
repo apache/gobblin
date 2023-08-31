@@ -208,15 +208,15 @@ public class GobblinOrcWriterTest {
     dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
     dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
     dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, "1");
-    // Use a very small record size to force a large starting batch size of the default value
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_ESTIMATED_RECORD_SIZE, "1");
     when(mockBuilder.getFileName(dummyState)).thenReturn("file");
     Path outputFilePath = new Path(outputDir, "selfTune/file");
 
     // Having a closer to manage the life-cycle of the writer object.
     Closer closer = Closer.create();
     GobblinOrcWriter orcWriter = closer.register(new GobblinOrcWriter(mockBuilder, dummyState));
-    Assert.assertEquals(orcWriter.batchSize, GobblinBaseOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE);
+    // Force a larger initial batchSize that can be tuned down
+    orcWriter.batchSize = 10;
+    orcWriter.rowBatch.ensureSize(10);
 
     for (GenericRecord record : recordList) {
       orcWriter.write(record);

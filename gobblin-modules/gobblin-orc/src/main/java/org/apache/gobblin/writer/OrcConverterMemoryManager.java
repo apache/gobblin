@@ -85,7 +85,6 @@ public class OrcConverterMemoryManager {
     }
     // Calculate overhead of the column's own null reference
     converterBufferColSize += col.isNull.length;
-    System.out.println("Size of col: " + converterBufferColSize);
     return converterBufferColSize;
   }
 
