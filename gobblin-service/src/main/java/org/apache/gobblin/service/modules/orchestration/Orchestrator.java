@@ -104,6 +104,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
+  private final long TRIGGER_EVENT_TIME_NEVER_SET_VALUE = -1L;
+
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
       Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton) {
@@ -250,7 +252,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
       if (flowTriggerHandler.isPresent()) {
         // If triggerTimestampMillis is -1, then it was not set by the job trigger handler, and we cannot handle this event
-        if (triggerTimestampMillis == -1L) {
+        if (triggerTimestampMillis == TRIGGER_EVENT_TIME_NEVER_SET_VALUE) {
           _log.warn("Skipping execution of spec: {} because missing trigger timestamp in job properties",
               jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow orchestration skipped because no trigger timestamp "
