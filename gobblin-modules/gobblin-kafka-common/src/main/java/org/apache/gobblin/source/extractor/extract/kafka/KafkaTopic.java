@@ -23,6 +23,9 @@ import java.util.List;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 import org.apache.gobblin.configuration.State;
 
 
@@ -32,6 +35,8 @@ import org.apache.gobblin.configuration.State;
  * @author Ziyang Liu
  *
  */
+@EqualsAndHashCode
+@ToString
 public final class KafkaTopic {
   private final String name;
   private final List<KafkaPartition> partitions;

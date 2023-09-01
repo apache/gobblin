@@ -115,6 +115,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String PREVIOUS_LATEST_OFFSET = "previousLatestOffset";
   public static final String OFFSET_FETCH_EPOCH_TIME = "offsetFetchEpochTime";
   public static final String PREVIOUS_OFFSET_FETCH_EPOCH_TIME = "previousOffsetFetchEpochTime";
+  public static final String ALLOW_PERIOD_IN_TOPIC_NAME = "gobblin.kafka.allowPeriodInTopicName";
   public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
@@ -801,7 +802,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   protected List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    return this.kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
+    if (!state.getPropAsBoolean(KafkaSource.ALLOW_PERIOD_IN_TOPIC_NAME, true)) {
+      blacklist.add(Pattern.compile(".*\\..*"));
+    }
+    return kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
   }
 
   @Override
