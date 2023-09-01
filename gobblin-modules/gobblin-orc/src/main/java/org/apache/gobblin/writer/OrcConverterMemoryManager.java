@@ -71,17 +71,12 @@ public class OrcConverterMemoryManager {
       for (int j = 0; j < unionColumnVector.fields.length; j++) {
         converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
       }
-    } else if (col instanceof LongColumnVector) {
+    } else if (col instanceof LongColumnVector || col instanceof DoubleColumnVector || col instanceof DecimalColumnVector) {
       // Memory space in bytes of native type
-      converterBufferColSize += col.isNull.length * 8;
-    } else if (col instanceof DoubleColumnVector) {
       converterBufferColSize += col.isNull.length * 8;
     } else if (col instanceof BytesColumnVector) {
       // Contains two integer list references of size vector for tracking so will use that as null size
       converterBufferColSize += ((BytesColumnVector) col).vector.length * 8;
-    } else if (col instanceof DecimalColumnVector) {
-      // Null values are represented as longs
-      converterBufferColSize += col.isNull.length * 8;
     }
     // Calculate overhead of the column's own null reference
     converterBufferColSize += col.isNull.length;
