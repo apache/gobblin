@@ -491,7 +491,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
       String triggerTimestampMillis = jobProps.getProperty(
-          ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
+          ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "-1");
       this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
       throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
@@ -600,6 +600,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     } else {
       _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
+      // Use 0 for trigger event time of an adhoc flow
+      jobConfig.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
       this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
     }
 

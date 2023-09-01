@@ -249,8 +249,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
       if (flowTriggerHandler.isPresent()) {
-        // If triggerTimestampMillis is 0, then it was not set by the job trigger handler, and we cannot handle this event
-        if (triggerTimestampMillis == 0L) {
+        // If triggerTimestampMillis is -1, then it was not set by the job trigger handler, and we cannot handle this event
+        if (triggerTimestampMillis == -1L) {
           _log.warn("Skipping execution of spec: {} because missing trigger timestamp in job properties",
               jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow orchestration skipped because no trigger timestamp "
