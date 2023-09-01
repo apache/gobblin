@@ -87,7 +87,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = Long.MAX_VALUE;
   public static final String PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS = "partitionedDataWriter.write.timeout.seconds";
   public static final Long DEFAULT_PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS = Long.MAX_VALUE;
-
+  public static final String CURRENT_PARTITIONED_WRITERS_COUNTER = "partitionedDataWriter.counter";
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
@@ -176,6 +176,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                       log.info(String.format("Adding one more writer to loading cache of existing writer "
                           + "with size = %d", partitionWriters.size()));
                       Future<DataWriter<D>> future = createWriterPool.submit(() -> createPartitionWriter(key));
+                      state.setProp(CURRENT_PARTITIONED_WRITERS_COUNTER, partitionWriters.size() + 1);
                       return future.get(writeTimeoutInterval, TimeUnit.SECONDS);
                     } catch (ExecutionException | InterruptedException e) {
                       throw new RuntimeException("Error creating writer", e);

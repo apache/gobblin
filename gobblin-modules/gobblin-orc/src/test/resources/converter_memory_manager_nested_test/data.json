@@ -1,0 +1,38 @@
+{
+  "parentList": [
+    [
+        {
+          "nestedField1": "A",
+          "nestedField2": "B",
+          "deeplyNestedList": [1,2,3,4,5]
+        },
+        {
+          "nestedField1": "A",
+          "nestedField2": "B",
+          "deeplyNestedList": [1,2,3,4,5,6,7,8,9,10]
+        },
+        {
+          "nestedField1": "A",
+          "nestedField2": "B",
+          "deeplyNestedList": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+        }
+    ],
+    [
+      {
+        "nestedField1": "A",
+        "nestedField2": "B",
+        "deeplyNestedList": [1,2,3,4,5]
+      },
+      {
+        "nestedField1": "A",
+        "nestedField2": "B",
+        "deeplyNestedList": [1,2,3,4,5,6,7,8,9,10]
+      },
+      {
+        "nestedField1": "A",
+        "nestedField2": "B",
+        "deeplyNestedList": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+      }
+    ]
+  ]
+}
