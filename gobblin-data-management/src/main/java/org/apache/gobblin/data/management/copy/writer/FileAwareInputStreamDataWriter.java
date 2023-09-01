@@ -362,7 +362,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
       if (!targetOwnerAndPermission.getAclEntries().isEmpty()) {
-        fs.setAcl(path, targetOwnerAndPermission.getAclEntries());
+        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
+        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
+        fs.modifyAclEntries(path, targetOwnerAndPermission.getAclEntries());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
@@ -519,7 +521,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
       }
       if (!aclEntries.isEmpty()) {
-        fs.setAcl(path, aclEntries);
+        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
+        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
+        fs.modifyAclEntries(path, aclEntries);
       }
     } else {
       fs.mkdirs(path);
