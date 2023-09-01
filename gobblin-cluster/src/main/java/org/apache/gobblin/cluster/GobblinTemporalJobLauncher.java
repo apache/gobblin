@@ -270,7 +270,6 @@ public class GobblinTemporalJobLauncher extends AbstractJobLauncher {
                       .setTaskQueue(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE)
                       .setWorkflowId(workflowId)
                       .build();
-              // TODO(yiyang): change up the workflow
               GobblinTemporalWorkflow workflow = this.client.newWorkflowStub(GobblinTemporalWorkflow.class, options);
               LOGGER.info("Setting up temporal workflow {}", workflowId);
               workflow.runTask(jobProps, appWorkDir.toString(), getJobId(), workUnitFilePathStr, jobStateFilePathStr);
@@ -280,9 +279,11 @@ public class GobblinTemporalJobLauncher extends AbstractJobLauncher {
           }, executor));
         }
       } else {
-        int numTasks = 100;
-        int maxBranchesPerTree = 20;
-        int maxSubTreesPerTree = 5;
+        // l0: (root)workflow
+        // l1: act0, act2, .... act14, (sub)workflow0, ... (sub)workflow4
+        int numTasks = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.size", 100);
+        int maxBranchesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.maxBranchesPerTree", 20);
+        int maxSubTreesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.maxSubTreesPerTree", 5);
         ExecutorService executor = Executors.newFixedThreadPool(1);
         futures.add(CompletableFuture.runAsync(() -> {
           try {
