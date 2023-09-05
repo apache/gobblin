@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogReader;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -50,6 +51,7 @@ public class KafkaExtractorStatsTrackerTest {
     this.workUnitState = new WorkUnitState();
     this.workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 10L);
     this.workUnitState.setProp(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, true);
+    this.workUnitState.setProp(ConfigurationKeys.KAFKA_BROKERS, "testBroker");
     this.extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
   }
 

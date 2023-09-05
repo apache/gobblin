@@ -101,8 +101,14 @@ public class ConfigurationKeys {
   public static final String DEFAULT_MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE = "gobblin_multi_active_scheduler_constants_store";
   public static final String SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".schedulerLeaseArbiter.store.db.table";
   public static final String DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE = "gobblin_scheduler_lease_determination_store";
-  public static final String SCHEDULER_EVENT_TO_REVISIT_TIMESTAMP_MILLIS_KEY = "eventToRevisitTimestampMillis";
-  public static final String SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY = "triggerEventTimestampMillis";
+  // Refers to the event we originally tried to acquire a lease which achieved `consensus` among participants through
+  // the database
+  public static final String SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY = "preservedConsensusEventTimeMillis";
+  // Time the reminder event Trigger is supposed to fire from the scheduler
+  public static final String SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY = "expectedReminderTimeMillis";
+  // Event time of flow action to orchestrate using the multi-active lease arbiter
+  public static final String ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY = "orchestratorTriggerEventTimeMillis";
+  public static final String ORCHESTRATOR_TRIGGER_EVENT_TIME_NEVER_SET_VAL = "-1";
   public static final String SCHEDULER_EVENT_EPSILON_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".epsilonMillis";
   public static final int DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS = 5000;
   // Note: linger should be on the order of seconds even though we measure in millis
@@ -916,6 +922,7 @@ public class ConfigurationKeys {
    * Kafka job configurations.
    */
   public static final String KAFKA_BROKERS = "kafka.brokers";
+  public static final String KAFKA_BROKERS_TO_SIMPLE_NAME_MAP_KEY = "kafka.brokersToSimpleNameMap";
   public static final String KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS = "kafka.source.work.units.creation.threads";
   public static final int KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT = 30;
   public static final String KAFKA_SOURCE_SHARE_CONSUMER_CLIENT = "kafka.source.shareConsumerClient";

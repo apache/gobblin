@@ -52,7 +52,6 @@ import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.UnableToInterruptJobException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -396,7 +395,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      Trigger trigger = createTriggerForJob(job.getKey(), jobProps);
+      Trigger trigger = createTriggerForJob(job.getKey(), jobProps, Optional.absent());
       this.scheduler.getScheduler().scheduleJob(job, trigger);
       logNewlyScheduledJob(job, trigger);
     } catch (SchedulerException se) {
@@ -583,12 +582,14 @@ public class JobScheduler extends AbstractIdleService {
   }
 
   /**
-   * Get a {@link org.quartz.Trigger} from the given job configuration properties.
+   * Get a {@link org.quartz.Trigger} from the given job configuration properties. If triggerSuffix is provided, appends
+   * it to the end of the flow name. The suffix is used to add multiple unique triggers associated with the same job
    */
-  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps) {
+  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps, Optional<String> triggerSuffix) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
-        .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY),
+        .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)
+            + triggerSuffix.transform(s -> "_" + s).or(""),
             Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY)))
         .forJob(jobKey)
         .withSchedule(CronScheduleBuilder.cronSchedule(jobProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))

@@ -27,7 +27,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -119,7 +119,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this.getClass())
+    return MoreObjects.toStringHelper(this.getClass())
         .add("is source", this.isSource())
         .add("end point name", this.getEndPointName())
         .add("hadoopfs config", this.rc)

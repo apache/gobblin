@@ -273,7 +273,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           ResultSet resultSet = getInfoStatement.executeQuery();
           try {
             if (!resultSet.next()) {
-              return Optional.absent();
+              return Optional.<GetEventInfoResult>absent();
             }
             return Optional.of(createGetInfoResult(resultSet));
           } finally {

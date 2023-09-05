@@ -61,14 +61,19 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   // Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
   // usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
   private static final int DEFAULT_CONCURRENT_WRITERS = 3;
-  public static final double DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.3;
-  public static final int DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
+  public static final double DEFAULT_ORC_WRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.3;
+  public static final int DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
   public static final int DEFAULT_MAX_ORC_WRITER_BATCH_SIZE = DEFAULT_ORC_WRITER_BATCH_SIZE;
   public static final int DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = 500;
+  // This value gives an estimation on how many writers are buffering records at the same time in a container.
+  // Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
+  // usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
+  private static final int CONCURRENT_WRITERS_DEFAULT = 3;
+
   // Tune iff the new batch size is 10% different from the current batch size
-  public static final double DEFAULT_ORCWRITER_TUNE_BATCHSIZE_SENSITIVITY = 0.1;
-  public static final int DEFAULT_MIN_ORCWRITER_ROWCHECK = 150;
-  public static final int DEFAULT_MAX_ORCWRITER_ROWCHECK = 5000;
+  public static final double DEFAULT_ORC_WRITER_TUNE_BATCHSIZE_SENSITIVITY = 0.1;
+  public static final int DEFAULT_MIN_ORC_WRITER_ROWCHECK = 150;
+  public static final int DEFAULT_MAX_ORC_WRITER_ROWCHECK = 5000;
   public static final String ORC_WRITER_MIN_ROWCHECK = ORC_WRITER_PREFIX + "min.rows.between.memory.checks";
   public static final String ORC_WRITER_MAX_ROWCHECK = ORC_WRITER_PREFIX + "max.rows.between.memory.checks";
 
@@ -105,6 +110,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private int maxOrcBatchSize;
 
   private int concurrentWriterTasks;
+  private long orcWriterStripeSizeBytes;
   // Holds the maximum size of the previous run's maximum buffer or the max of the current run's maximum buffer
   private long estimatedBytesAllocatedConverterMemory = -1;
   private OrcConverterMemoryManager converterMemoryManager;
@@ -126,14 +132,14 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.rowBatchPool = RowBatchPool.instance(properties);
     this.enableRowBatchPool = properties.getPropAsBoolean(RowBatchPool.ENABLE_ROW_BATCH_POOL, false);
     this.selfTuneRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK);
-    this.rowBatchMemoryUsageFactor = properties.getPropAsDouble(ORC_WRITER_ROWBATCH_MEMORY_USAGE_FACTOR, DEFAULT_ORCWRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
+    this.rowBatchMemoryUsageFactor = properties.getPropAsDouble(ORC_WRITER_ROWBATCH_MEMORY_USAGE_FACTOR, DEFAULT_ORC_WRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
     this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
     this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch);
     // Track the number of other writer tasks from different datasets ingesting on the same container
     this.concurrentWriterTasks = properties.getPropAsInt(ORC_WRITER_CONCURRENT_TASKS, 1);
     this.orcStripeSize = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
-    this.orcFileWriterMinRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_MIN_ROWCHECK, DEFAULT_MIN_ORCWRITER_ROWCHECK);
-    this.orcFileWriterMaxRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_MAX_ROWCHECK, DEFAULT_MAX_ORCWRITER_ROWCHECK);
+    this.orcFileWriterMinRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_MIN_ROWCHECK, DEFAULT_MIN_ORC_WRITER_ROWCHECK);
+    this.orcFileWriterMaxRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_MAX_ROWCHECK, DEFAULT_MAX_ORC_WRITER_ROWCHECK);
     // Create file-writer
     this.writerConfig = new Configuration();
     // Populate job Configurations into Conf as well so that configurations related to ORC writer can be tuned easily.
@@ -306,7 +312,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize);
-    if (Math.abs(newBatchSize - this.batchSize) > DEFAULT_ORCWRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
+    if (Math.abs(newBatchSize - this.batchSize) > DEFAULT_ORC_WRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
       // Add a factor when tuning up the batch size to prevent large sudden increases in memory usage
       if (newBatchSize > this.batchSize) {
         newBatchSize = (newBatchSize - this.batchSize) / 2 + this.batchSize;
@@ -326,7 +332,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   void initializeOrcFileWriter() {
     try {
       this.orcFileWriterRowsBetweenCheck = Math.max(
-          Math.min(this.batchSize * DEFAULT_ORCWRITER_BATCHSIZE_ROWCHECK_FACTOR, this.orcFileWriterMaxRowsBetweenCheck),
+          Math.min(this.batchSize * DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, this.orcFileWriterMaxRowsBetweenCheck),
           this.orcFileWriterMinRowsBetweenCheck
       );
       this.writerConfig.set(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));

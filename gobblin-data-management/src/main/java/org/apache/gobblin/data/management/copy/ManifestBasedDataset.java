@@ -53,15 +53,17 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private static final String PERMISSION_CACHE_TTL_SECONDS = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".permission.cache.ttl.seconds";
   private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
-  private final FileSystem fs;
+  private final FileSystem srcFs;
+  private final FileSystem manifestReadFs;
   private final Path manifestPath;
   private final Properties properties;
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
   private final int permissionCacheTTLSeconds;
 
-  public ManifestBasedDataset(final FileSystem fs, Path manifestPath, Properties properties) {
-    this.fs = fs;
+  public ManifestBasedDataset(final FileSystem srcFs, final FileSystem manifestReadFs, final Path manifestPath, final Properties properties) {
+    this.srcFs = srcFs;
+    this.manifestReadFs = manifestReadFs;
     this.manifestPath = manifestPath;
     this.properties = properties;
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
@@ -77,20 +79,21 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   @Override
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
-    if (!fs.exists(manifestPath)) {
+    if (!manifestReadFs.exists(manifestPath)) {
       throw new IOException(String.format("Manifest path %s does not exist on filesystem %s, skipping this manifest"
-          + ", probably due to wrong configuration of %s", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
-    } else if (fs.getFileStatus(manifestPath).isDirectory()) {
+          + ", probably due to wrong configuration of %s or %s", manifestPath.toString(), manifestReadFs.getUri().toString(),
+          ManifestBasedDatasetFinder.MANIFEST_LOCATION, ManifestBasedDatasetFinder.MANIFEST_READ_FS_URI));
+    } else if (manifestReadFs.getFileStatus(manifestPath).isDirectory()) {
       throw new IOException(String.format("Manifest path %s on filesystem %s is a directory, which is not supported. Please set the manifest file locations in"
-          + "%s, you can specify multi locations split by '',", manifestPath.toString(), fs.getUri().toString(), ManifestBasedDatasetFinder.MANIFEST_LOCATION));
+          + "%s, you can specify multi locations split by '',", manifestPath.toString(), manifestReadFs.getUri().toString(),
+          ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
     CopyManifest.CopyableUnitIterator manifests = null;
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<FileStatus> toDelete = Lists.newArrayList();
-    //todo: put permission preserve logic here?
     try {
       long startTime = System.currentTimeMillis();
-      manifests = CopyManifest.getReadIterator(this.fs, this.manifestPath);
+      manifests = CopyManifest.getReadIterator(this.manifestReadFs, this.manifestPath);
       Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(permissionCacheTTLSeconds, TimeUnit.SECONDS).build();
       int numFiles = 0;
       while (manifests.hasNext()) {
@@ -99,21 +102,21 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         //todo: We can use fileSet to partition the data in case of some softbound issue
         //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
         Path fileToCopy = new Path(file.fileName);
-        if (fs.exists(fileToCopy)) {
+        if (srcFs.exists(fileToCopy)) {
           boolean existOnTarget = targetFs.exists(fileToCopy);
-          FileStatus srcFile = fs.getFileStatus(fileToCopy);
-          OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(fs, srcFile, configuration);
+          FileStatus srcFile = srcFs.getFileStatus(fileToCopy);
+          OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, srcFile, configuration);
           if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
             CopyableFile.Builder copyableFileBuilder =
-                CopyableFile.fromOriginAndDestination(fs, srcFile, fileToCopy, configuration)
+                CopyableFile.fromOriginAndDestination(srcFs, srcFile, fileToCopy, configuration)
                     .fileSet(datasetURN())
                     .datasetOutputPath(fileToCopy.toString())
                     .ancestorsOwnerAndPermission(
-                        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(fs, fileToCopy.getParent(),
+                        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(srcFs, fileToCopy.getParent(),
                             new Path(commonFilesParent), configuration, permissionMap))
                     .destinationOwnerAndPermission(replicatedPermission);
             CopyableFile copyableFile = copyableFileBuilder.build();
-            copyableFile.setFsDatasets(fs, targetFs);
+            copyableFile.setFsDatasets(srcFs, targetFs);
             copyEntities.add(copyableFile);
             if (existOnTarget && srcFile.isFile()) {
               // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
@@ -131,14 +134,14 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
       log.info(String.format("Workunits calculation took %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
-    } catch (JsonIOException| JsonSyntaxException e) {
+    } catch (JsonIOException | JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
       log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
           + " {type:array, items:{type: object, properties:{id:{type:String}, fileName:{type:String}, fileGroup:{type:String}, fileSizeInBytes: {type:Long}}}}",
-          manifestPath.toString(), fs.getUri().toString()), e);
+          manifestPath.toString(), manifestReadFs.getUri().toString()), e);
       throw new IOException(e);
-    } catch (Exception e ) {
-      log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(), fs.getUri().toString()), e);
+    } catch (Exception e) {
+      log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(), manifestReadFs.getUri().toString()), e);
       throw new IOException(e);
     } finally {
       if (manifests != null) {

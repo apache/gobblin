@@ -17,9 +17,19 @@
 
 package org.apache.gobblin.service.modules.scheduler;
 
+import com.codahale.metrics.MetricFilter;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -28,10 +38,44 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
-
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.inject.Singleton;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.scheduler.BaseGobblinJob;
+import org.apache.gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.helix.HelixManager;
 import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
@@ -45,50 +89,6 @@ import org.quartz.Trigger;
 import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.codahale.metrics.MetricFilter;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecCatalogListener;
-import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
-import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.scheduler.BaseGobblinJob;
-import org.apache.gobblin.scheduler.JobScheduler;
-import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 
@@ -291,6 +291,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    */
   @VisibleForTesting
   public static boolean isWithinRange(String cronExpression, int maxNumDaysToScheduleWithin) {
+    if (cronExpression.trim().isEmpty()) {
+      // If the cron expression is empty return true to capture adhoc flows
+      return true;
+    }
     CronExpression cron = null;
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     double numMillisInADay = 86400000;
@@ -299,17 +303,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       cron.setTimeZone(TimeZone.getTimeZone("UTC"));
       Date nextValidTimeAfter = cron.getNextValidTimeAfter(new Date());
       if (nextValidTimeAfter == null) {
-        log.warn("Calculation issue for next valid time for expression: {}. Will default to true for within range",
+        log.warn("Next valid time doesn't exist since it's out of range for expression: {}. ",
             cronExpression);
-        return true;
+        // nextValidTimeAfter will be null in cases only when CronExpression is outdated for a given range
+        // this will cause NullPointerException while scheduling FlowSpecs from FlowCatalog
+        // Hence, returning false to avoid expired flows from being scheduled
+        return false;
       }
       cal.setTime(nextValidTimeAfter);
       long diff = cal.getTimeInMillis() - System.currentTimeMillis();
       return (int) Math.round(diff / numMillisInADay) < maxNumDaysToScheduleWithin;
     } catch (ParseException e) {
       e.printStackTrace();
+      // Return false when a parsing exception occurs due to invalid cron
+      return false;
     }
-    return true;
+
   }
 
   /**
@@ -458,7 +467,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
     Properties jobProps = (Properties) job.getJobDataMap().get(PROPERTIES_KEY);
     log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} - Job newly scheduled",
-         trigger.getNextFireTime());
+         asUTCEpochMillis(trigger.getNextFireTime()));
   }
 
   protected static String jobSchedulerTracePrefixBuilder(Properties jobProps) {
@@ -467,12 +476,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<no flow group>>"));
   }
 
+  /**
+   * Takes a given Date object and converts the timezone to UTC before returning the number of millseconds since epoch
+   * @param date
+   */
+  public static long asUTCEpochMillis(Date date) {
+    return ZonedDateTime.of(
+        LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()),
+        ZoneOffset.UTC).toInstant().toEpochMilli();
+  }
+
   @Override
   public void runJob(Properties jobProps, JobListener jobListener) throws JobException {
     try {
       Spec flowSpec = this.scheduledFlowSpecs.get(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+      // We always expect the trigger event time to be set so the flow will be skipped by the orchestrator if it is not
       String triggerTimestampMillis = jobProps.getProperty(
-          ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY, "0");
+          ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
+          ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_NEVER_SET_VAL);
       this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
       throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
@@ -581,6 +602,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     } else {
       _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
+      // Use 0 for trigger event time of an adhoc flow
+      jobConfig.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
       this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
     }
 
@@ -716,11 +739,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Obtain trigger timestamp from trigger to pass to jobProps
       Trigger trigger = context.getTrigger();
       // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
-      long triggerTimestampMillis = trigger.getPreviousFireTime().getTime();
-      jobProps.setProperty(ConfigurationKeys.SCHEDULER_EVENT_TO_TRIGGER_TIMESTAMP_MILLIS_KEY,
-          String.valueOf(triggerTimestampMillis));
-      _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
-              + "scheduler", triggerTimestampMillis, trigger.getNextFireTime().getTime());
+      long triggerTimeMillis = asUTCEpochMillis(trigger.getPreviousFireTime());
+      // If the trigger is a reminder type event then utilize the trigger time saved in job properties rather than the
+      // actual firing time
+      if (jobDetail.getKey().getName().contains("reminder")) {
+        String preservedConsensusEventTime = jobProps.getProperty(
+            ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "0");
+        String expectedReminderTime = jobProps.getProperty(
+            ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY, "0");
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} expectedReminderTime: {} - Reminder job "
+            + "triggered by scheduler at {}", preservedConsensusEventTime, expectedReminderTime, triggerTimeMillis);
+        // TODO: add a metric if expected reminder time far exceeds system time
+        jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, preservedConsensusEventTime);
+      } else {
+        jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
+            String.valueOf(triggerTimeMillis));
+        _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+            + "scheduler", triggerTimeMillis, asUTCEpochMillis(trigger.getNextFireTime()));
+      }
       try {
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {

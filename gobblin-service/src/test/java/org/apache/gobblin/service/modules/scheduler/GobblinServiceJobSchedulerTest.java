@@ -95,6 +95,11 @@ public class GobblinServiceJobSchedulerTest {
     Assert.assertTrue(GobblinServiceJobScheduler.isWithinRange("0 * 4 ? * 1,2", thresholdToSkipScheduling));
     // For adhoc flows schedule is empty string
     Assert.assertTrue(GobblinServiceJobScheduler.isWithinRange("", thresholdToSkipScheduling));
+    // Schedule for midnight of the current day which is in the past if threshold is set to zero (today)
+    Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 * * ?", 0));
+    // Capture invalid schedules in the past
+    Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 ? * 6L 2022", thresholdToSkipScheduling));
+
   }
 
   /**
