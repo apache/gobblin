@@ -715,11 +715,13 @@ public class ConfigurationKeys {
   public static final String MR_JARS_BASE_DIR = "mr.jars.base.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
   public static final String MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY = "mr.job.map.failure.is.fatal";
+  public static final String MR_PERSIST_WORK_UNITS_THEN_CANCEL_KEY = "mr.persist.workunits.then.cancel";
   public static final String MR_TARGET_MAPPER_SIZE = "mr.target.mapper.size";
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
   public static final boolean DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL = false;
+  public static final boolean DEFAULT_MR_PERSIST_WORK_UNITS_THEN_CANCEL = false;
   public static final String DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = "false";
 
   /**
