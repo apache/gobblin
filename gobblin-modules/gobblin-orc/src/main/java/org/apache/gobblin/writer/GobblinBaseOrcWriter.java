@@ -127,7 +127,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.selfTuningWriter = properties.getPropAsBoolean(ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
     this.maxOrcBatchSize = properties.getPropAsInt(ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE, DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ? properties.getPropAsInt(ORC_WRITER_PREVIOUS_BATCH_SIZE, DEFAULT_MAX_ORC_WRITER_BATCH_SIZE) :
-        properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
+        properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
     this.rowBatchPool = RowBatchPool.instance(properties);
     this.enableRowBatchPool = properties.getPropAsBoolean(RowBatchPool.ENABLE_ROW_BATCH_POOL, false);
     this.selfTuneRowsBetweenCheck = properties.getPropAsInt(ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK);
@@ -172,7 +172,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         this.prevOrcWriterMaxUnderlyingMemory = this.orcStripeSize;
       }
     } else {
-      this.batchSize = properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
       log.info("Created ORC writer, batch size: {}, {}: {}",
           this.batchSize, OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(),
           this.writerConfig.get(
