@@ -271,7 +271,9 @@ public class GobblinOrcWriterTest {
     orcWriter.availableMemory = 100000000;
     // Given the amount of available memory and a low stripe size, and estimated rowBatchSize, the resulting batchsize should be maxed out
     orcWriter.tuneBatchSize(10);
-    Assert.assertTrue(orcWriter.batchSize == GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE);
+    System.out.println(orcWriter.batchSize);
+    // Take into account that increases in batchsize are multiplied by a factor to prevent large jumps in batchsize
+    Assert.assertTrue(orcWriter.batchSize == (GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE+10)/2);
     orcWriter.availableMemory = 100;
     orcWriter.tuneBatchSize(10);
     // Given that the amount of available memory is low, the resulting batchsize should be 1
@@ -281,5 +283,43 @@ public class GobblinOrcWriterTest {
     // Since the rowBatch is large, the resulting batchsize should still be 1 even with more memory
     orcWriter.tuneBatchSize(10);
     Assert.assertTrue(orcWriter.batchSize == 1);
+  }
+
+  @Test
+  public void testStatePersistenceWhenClosingWriter() throws IOException {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("orc_writer_test/schema.avsc"));
+    List<GenericRecord> recordList = deserializeAvroRecords(this.getClass(), schema, "orc_writer_test/data_multi.json");
+
+    // Mock WriterBuilder, bunch of mocking behaviors to work-around precondition checks in writer builder
+    FsDataWriterBuilder<Schema, GenericRecord> mockBuilder =
+        (FsDataWriterBuilder<Schema, GenericRecord>) Mockito.mock(FsDataWriterBuilder.class);
+    when(mockBuilder.getSchema()).thenReturn(schema);
+
+    State dummyState = new WorkUnit();
+    String stagingDir = Files.createTempDir().getAbsolutePath();
+    String outputDir = Files.createTempDir().getAbsolutePath();
+    dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
+    dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
+    dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
+    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(OrcConf.STRIPE_SIZE.getAttribute(), "100");
+    when(mockBuilder.getFileName(dummyState)).thenReturn("file");
+
+    // Having a closer to manage the life-cycle of the writer object.
+    Closer closer = Closer.create();
+    GobblinOrcWriter orcWriter = closer.register(new GobblinOrcWriter(mockBuilder, dummyState));
+    for (GenericRecord record : recordList) {
+      orcWriter.write(record);
+    }
+    // Hard code the batchsize here as tuning batch size is dependent on the runtime environment
+    orcWriter.batchSize = 10;
+    orcWriter.commit();
+
+    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_ESTIMATED_RECORD_SIZE), "9");
+    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_PREVIOUS_BATCH_SIZE), "10");
+    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY), "18000");
+    Assert.assertNotNull(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_NATIVE_WRITER_MEMORY));
+    Assert.assertNotNull(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute());
   }
 }

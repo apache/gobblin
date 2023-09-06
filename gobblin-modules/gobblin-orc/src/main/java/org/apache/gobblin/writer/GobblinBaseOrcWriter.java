@@ -84,7 +84,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   protected Writer orcFileWriter;
   private final RowBatchPool rowBatchPool;
   private final boolean enableRowBatchPool;
-  protected long estimatedRecordSizeBytes = -1;
 
   // the close method may be invoked multiple times, but the underlying writer only supports close being called once
   protected volatile boolean closed = false;
@@ -155,15 +154,15 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
 
     if (this.selfTuningWriter) {
       if (properties.contains(ORC_WRITER_ESTIMATED_RECORD_SIZE) && properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE) != -1) {
-        this.estimatedRecordSizeBytes = properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE);
+        long estimatedRecordSizeBytes = properties.getPropAsLong(ORC_WRITER_ESTIMATED_RECORD_SIZE);
         this.estimatedBytesAllocatedConverterMemory = properties.getPropAsLong(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, -1);
         this.orcFileWriterRowsBetweenCheck = properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), (int) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue());
         this.prevOrcWriterMaxUnderlyingMemory = properties.getPropAsLong(ORC_WRITER_NATIVE_WRITER_MEMORY, this.orcStripeSize);
         // Use the last run's rows between check value for the underlying file size writer, if it exists. Otherwise it will default to 5000
         log.info("Using previously stored properties to calculate new batch size, ORC Estimated Record size is : {},"
                 + "estimated bytes converter allocated is : {}, ORC rows between check is {}, native ORC writer estimated size is {}",
-            this.estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, this.orcFileWriterRowsBetweenCheck, this.prevOrcWriterMaxUnderlyingMemory);
-        this.tuneBatchSize(this.estimatedRecordSizeBytes);
+            estimatedRecordSizeBytes, this.estimatedBytesAllocatedConverterMemory, this.orcFileWriterRowsBetweenCheck, this.prevOrcWriterMaxUnderlyingMemory);
+        this.tuneBatchSize(estimatedRecordSizeBytes);
         log.info("Initialized batch size at {}", this.batchSize);
         this.nextSelfTune = this.selfTuneRowsBetweenCheck;
       } else {
@@ -279,7 +278,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     closeInternal();
     super.commit();
     if (this.selfTuningWriter) {
-      properties.setProp(ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(estimatedRecordSizeBytes));
+      properties.setProp(ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(getEstimatedRecordSizeBytes()));
       properties.setProp(ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY, String.valueOf(this.converterMemoryManager.getConverterBufferTotalSize()));
       properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
       properties.setProp(ORC_WRITER_PREVIOUS_BATCH_SIZE, this.batchSize);
@@ -349,6 +348,12 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     }
   }
 
+  private long getEstimatedRecordSizeBytes() {
+    long totalBytes = ((GenericRecordToOrcValueWriter) valueWriter).getTotalBytesConverted();
+    long totalRecords = ((GenericRecordToOrcValueWriter) valueWriter).getTotalRecordsConverted();
+    return totalBytes / totalRecords;
+  }
+
   /*
    * Note: orc.rows.between.memory.checks is the configuration available to tune memory-check sensitivity in ORC-Core
    * library. By default it is set to 5000. If the user-application is dealing with large-row Kafka topics for example,
@@ -360,10 +365,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.valueWriter.write(record, this.rowBatch);
     int recordCount = this.recordCounter.incrementAndGet();
     if (this.selfTuningWriter && recordCount == this.nextSelfTune) {
-      long totalBytes = ((GenericRecordToOrcValueWriter) valueWriter).getTotalBytesConverted();
-      long totalRecords = ((GenericRecordToOrcValueWriter) valueWriter).getTotalRecordsConverted();
-      this.estimatedRecordSizeBytes = totalRecords == 0 ? 0 : totalBytes / totalRecords;
-      this.tuneBatchSize(this.estimatedRecordSizeBytes);
+      this.tuneBatchSize(this.getEstimatedRecordSizeBytes());
       if (this.initialEstimatingRecordSizePhase && !initialSelfTuneCheckpoints.isEmpty()) {
         this.nextSelfTune = initialSelfTuneCheckpoints.poll();
       } else {
