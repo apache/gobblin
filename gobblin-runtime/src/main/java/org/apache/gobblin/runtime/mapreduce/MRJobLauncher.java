@@ -316,7 +316,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       prepareHadoopJob(workUnits);
       if (this.shouldPersistWorkUnitsThenCancel) {
-        LOG.info("Cancelling job after persisting WorkUnits beneath: " + this.jobInputPath);
+        LOG.info("Cancelling job after persisting workunits beneath: " + this.jobInputPath);
         jobState.setState(JobState.RunningState.CANCELLED);
         return;
       }
@@ -714,7 +714,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     try {
       if (this.fs.exists(this.mrJobDir)) {
         if (this.shouldPersistWorkUnitsThenCancel) {
-          LOG.info("Preserving persisted WorkUnits beneath: " + this.jobInputPath);
+          LOG.info("Preserving persisted workunits beneath: " + this.jobInputPath);
         } else {
           this.fs.delete(this.mrJobDir, true);
           LOG.info("Deleted working directory " + this.mrJobDir);
