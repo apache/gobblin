@@ -58,7 +58,7 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
     // If a valid mapping is provided in config, then we overwrite all the default values.
     if (config.hasPath(ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_HOST_TO_BIT_MASK_MAP)) {
       String stringMap = config.getString(ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_HOST_TO_BIT_MASK_MAP);
-      Optional<HashMap<InetAddress,Integer>> addressToBitMapOptional = validateStringMap(stringMap);
+      Optional<HashMap<InetAddress,Integer>> addressToBitMapOptional = validateStringMap(stringMap, bitMaskLength);
       if (addressToBitMapOptional.isPresent()) {
         for (InetAddress inetAddress : addressToBitMapOptional.get().keySet()) {
           hostIdToBitMask.put(getHostIdFromAddress(inetAddress), addressToBitMapOptional.get().get(inetAddress));
@@ -141,7 +141,7 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
   public boolean recordLeaseSuccess(LeaseObtainedStatus status) throws IOException {
     // Get host bit mask
     int bitMask = getBitMaskForHost();
-    if (shouldFailLeaseCompletionAttempt(status, bitMask)) {
+    if (shouldFailLeaseCompletionAttempt(status, bitMask, bitMaskLength)) {
       log.info("Multi-active lease arbiter lease attempt: [{}, eventTimestamp: {}] - FAILED to complete in testing "
           + "scenario");
       return false;
