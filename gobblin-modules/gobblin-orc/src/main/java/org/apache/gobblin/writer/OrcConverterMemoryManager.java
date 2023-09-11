@@ -54,6 +54,32 @@ public class OrcConverterMemoryManager {
    */
   public long calculateSizeOfColHelper(ColumnVector col) {
     long converterBufferColSize = 0;
+    switch (col.type) {
+      case LIST:
+        ListColumnVector listColumnVector = (ListColumnVector) col;
+        converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
+      case MAP:
+        MapColumnVector mapColumnVector = (MapColumnVector) col;
+        converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.keys);
+        converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.values);
+      case STRUCT:
+        StructColumnVector structColumnVector = (StructColumnVector) col;
+        for (int j = 0; j < structColumnVector.fields.length; j++) {
+          converterBufferColSize += calculateSizeOfColHelper(structColumnVector.fields[j]);
+        }
+      case UNION:
+        UnionColumnVector unionColumnVector = (UnionColumnVector) col;
+        for (int j = 0; j < unionColumnVector.fields.length; j++) {
+          converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
+        }
+      case DECIMAL:
+        DecimalColumnVector decimalColumnVector = (DecimalColumnVector) col;
+        converterBufferColSize += decimalColumnVector.precision;
+      case DOUBLE:
+        DoubleColumnVector doubleColumnVector = (DoubleColumnVector) col;
+        converterBufferColSize += doubleColumnVector.vector.length * 8;
+      case :
+    }
     if (col instanceof ListColumnVector) {
       ListColumnVector listColumnVector = (ListColumnVector) col;
       converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
