@@ -16,8 +16,8 @@ import org.apache.gobblin.util.HostUtils;
 
 /**
  * This class is a decorator for {@link MysqlMultiActiveLeaseArbiter} used to model scenarios where a lease owner fails
- * to complete a lease successfully intermittently (representing a variety of slowness or failure cases that can result
- * on the participant side, network connectivity, or database).
+ * to complete a lease intermittently (representing a variety of slowness or failure cases that can result on the
+ * participant side, network connectivity, or database).
  *
  * It will fail on calls to {@link MysqlMultiActiveLeaseArbiter.recordLeaseSuccess()} where a function of the lease
  * obtained timestamp matches a bitmask of the host. Ideally, each participant should fail on different calls (with
@@ -30,6 +30,7 @@ import org.apache.gobblin.util.HostUtils;
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActiveLeaseArbiter {
   private final int bitMaskLength;
+  private final int numHosts;
   private final HashMap<Integer, Integer> hostIdToBitMask = new HashMap();
 
   @Inject
@@ -37,6 +38,8 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
     super(config);
     bitMaskLength = ConfigUtils.getInt(config, ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_BIT_MASK_LENGTH,
         ConfigurationKeys.DEFAULT_MULTI_ACTIVE_LEASE_ARBITER_BIT_MASK_LENGTH);
+    numHosts = ConfigUtils.getInt(config, ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_TESTING_DECORATOR_NUM_HOSTS,
+        ConfigurationKeys.DEFAULT_MULTI_ACTIVE_LEASE_ARBITER_TESTING_DECORATOR_NUM_HOSTS);
     initializeHostToBitMaskMap(config);
   }
 
@@ -45,11 +48,12 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
    * does not have overlapping bits between two hosts so that a given status will not fail on multiple hosts.
    * @param config expected to contain a mapping of host address to bitmap in format
    *              "host1:bitMask1,host2:bitMask2,...,hostN:bitMaskN"
-   * Note: that if the mapping format is incorrect or there are fewer than 4 mappings provide we utilize the default to
-   *       prevent unintended consequences of overlapping bit masks.
+   * Note: that if the mapping format is incorrect or there are fewer than `bitMaskLength` mappings provide we utilize
+   *               the default to prevent unintended consequences of overlapping bit masks.
    */
   protected void initializeHostToBitMaskMap(Config config) {
-    // Set default bit masks for each hosts (assumes 4 hosts)
+    // Set default bit masks for each hosts
+    // TODO: change this to parse default from Configuration.Keys property or is that unnecessary?
     hostIdToBitMask.put(1, 0b0001);
     hostIdToBitMask.put(2, 0b0010);
     hostIdToBitMask.put(3, 0b0100);
@@ -58,7 +62,7 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
     // If a valid mapping is provided in config, then we overwrite all the default values.
     if (config.hasPath(ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_HOST_TO_BIT_MASK_MAP)) {
       String stringMap = config.getString(ConfigurationKeys.MULTI_ACTIVE_LEASE_ARBITER_HOST_TO_BIT_MASK_MAP);
-      Optional<HashMap<InetAddress,Integer>> addressToBitMapOptional = validateStringMap(stringMap, bitMaskLength);
+      Optional<HashMap<InetAddress,Integer>> addressToBitMapOptional = validateStringMap(stringMap, numHosts, bitMaskLength);
       if (addressToBitMapOptional.isPresent()) {
         for (InetAddress inetAddress : addressToBitMapOptional.get().keySet()) {
           hostIdToBitMask.put(getHostIdFromAddress(inetAddress), addressToBitMapOptional.get().get(inetAddress));
@@ -67,12 +71,13 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
     }
   }
 
-  protected static Optional<HashMap<InetAddress,Integer>> validateStringMap(String stringMap, int bitMaskLength) {
+  protected static Optional<HashMap<InetAddress,Integer>> validateStringMap(String stringMap, int numHosts, int bitMaskLength) {
     // TODO: Refactor to increase abstraction
     String[] hostAddressToMap = stringMap.split(",");
-    if (hostAddressToMap.length < bitMaskLength) {
+    if (hostAddressToMap.length < numHosts) {
       log.warn("Host address to bit mask map expected to be in format "
-          + "`host1:bitMask1,host2:bitMask2,...,hostN:bitMaskN` with at least 4 hosts necessary. Using default.");
+          + "`host1:bitMask1,host2:bitMask2,...,hostN:bitMaskN` with at least " + numHosts + " hosts necessary. Using "
+          + "default.");
       return Optional.absent();
     }
     HashMap<InetAddress,Integer> addressToBitmap = new HashMap<>();
@@ -110,11 +115,11 @@ public class MysqlMultiActiveLeaseArbiterTestingDecorator extends MysqlMultiActi
   }
 
   /**
-   * Retrieve the host id as a number between 1 through 4 by using the host address's hashcode.
+   * Retrieve the host id as a number between 1 through `numHosts` by using the host address's hashcode.
    * @return
    */
   protected int getHostIdFromAddress(InetAddress address) {
-      return (address.hashCode() % 4) + 1;
+      return (address.hashCode() % numHosts) + 1;
   }
 
   /**
