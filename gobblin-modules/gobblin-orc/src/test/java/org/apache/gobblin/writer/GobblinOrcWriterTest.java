@@ -158,7 +158,7 @@ public class GobblinOrcWriterTest {
     dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
     dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
     dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
     when(mockBuilder.getFileName(dummyState)).thenReturn("file");
     Path outputFilePath = new Path(outputDir, "selfTune/file");
 
@@ -207,8 +207,8 @@ public class GobblinOrcWriterTest {
     dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
     dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
     dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, "1");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK, "1");
     when(mockBuilder.getFileName(dummyState)).thenReturn("file");
     Path outputFilePath = new Path(outputDir, "selfTune/file");
 
@@ -258,7 +258,7 @@ public class GobblinOrcWriterTest {
     dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
     dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
     dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
     dummyState.setProp(OrcConf.STRIPE_SIZE.getAttribute(), "100");
     when(mockBuilder.getFileName(dummyState)).thenReturn("file");
 
@@ -273,7 +273,7 @@ public class GobblinOrcWriterTest {
     orcWriter.tuneBatchSize(10);
     System.out.println(orcWriter.batchSize);
     // Take into account that increases in batchsize are multiplied by a factor to prevent large jumps in batchsize
-    Assert.assertTrue(orcWriter.batchSize == (GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE+10)/2);
+    Assert.assertTrue(orcWriter.batchSize == (GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCH_SIZE+10)/2);
     orcWriter.availableMemory = 100;
     orcWriter.tuneBatchSize(10);
     // Given that the amount of available memory is low, the resulting batchsize should be 1
@@ -302,7 +302,7 @@ public class GobblinOrcWriterTest {
     dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
     dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
     dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
-    dummyState.setProp(GobblinBaseOrcWriter.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
     dummyState.setProp(OrcConf.STRIPE_SIZE.getAttribute(), "100");
     when(mockBuilder.getFileName(dummyState)).thenReturn("file");
 
@@ -316,10 +316,10 @@ public class GobblinOrcWriterTest {
     orcWriter.batchSize = 10;
     orcWriter.commit();
 
-    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_ESTIMATED_RECORD_SIZE), "9");
-    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_PREVIOUS_BATCH_SIZE), "10");
-    Assert.assertEquals(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY), "18000");
-    Assert.assertNotNull(dummyState.getProp(GobblinBaseOrcWriter.ORC_WRITER_NATIVE_WRITER_MEMORY));
+    Assert.assertEquals(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_RECORD_SIZE), "9");
+    Assert.assertEquals(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_PREVIOUS_BATCH_SIZE), "10");
+    Assert.assertEquals(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY), "18000");
+    Assert.assertNotNull(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY));
     Assert.assertNotNull(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute());
   }
 }
