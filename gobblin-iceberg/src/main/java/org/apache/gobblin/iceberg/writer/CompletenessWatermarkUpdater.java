@@ -242,8 +242,8 @@ public class CompletenessWatermarkUpdater {
           updatedWatermark);
 
       if (updatedWatermark > this.previousWatermark) {
-        log.info(String.format("Updating %s for %s to %s", COMPLETION_WATERMARK_KEY,
-            this.tableMetadata.table.get().name(), updatedWatermark));
+        log.info(String.format("Updating %s for %s from %s to %s", COMPLETION_WATERMARK_KEY,
+            this.tableMetadata.table.get().name(), this.previousWatermark, updatedWatermark));
         this.propsToUpdate.put(COMPLETION_WATERMARK_KEY, String.valueOf(updatedWatermark));
         this.propsToUpdate.put(COMPLETION_WATERMARK_TIMEZONE_KEY, this.timeZone);
 
@@ -273,8 +273,8 @@ public class CompletenessWatermarkUpdater {
           updatedWatermark);
 
       if (updatedWatermark > previousWatermark) {
-        log.info(String.format("Updating %s for %s to %s", TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
-            this.tableMetadata.table.get().name(), updatedWatermark));
+        log.info(String.format("Updating %s for %s from %s to %s", TOTAL_COUNT_COMPLETION_WATERMARK_KEY,
+            this.tableMetadata.table.get().name(), previousWatermark, updatedWatermark));
         this.propsToUpdate.put(TOTAL_COUNT_COMPLETION_WATERMARK_KEY, String.valueOf(updatedWatermark));
         tableMetadata.totalCountCompletionWatermark = updatedWatermark;
       }

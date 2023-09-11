@@ -16,8 +16,7 @@
  */
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.base.Objects;
-
+import com.google.common.base.MoreObjects;
 import org.apache.gobblin.util.callbacks.Callback;
 
 /**
@@ -37,7 +36,7 @@ public interface JobSpecSchedulerListener {
     private final JobSpecSchedule _jobSchedule;
 
     public JobScheduledCallback(JobSpecSchedule jobSchedule) {
-      super(Objects.toStringHelper("onJobScheduled").add("jobSchedule", jobSchedule).toString());
+      super(MoreObjects.toStringHelper("onJobScheduled").add("jobSchedule", jobSchedule).toString());
       _jobSchedule = jobSchedule;
     }
 
@@ -51,7 +50,7 @@ public interface JobSpecSchedulerListener {
     private final JobSpecSchedule _jobSchedule;
 
     public JobUnscheduledCallback(JobSpecSchedule jobSchedule) {
-      super(Objects.toStringHelper("onJobUnscheduled").add("jobSchedule", jobSchedule).toString());
+      super(MoreObjects.toStringHelper("onJobUnscheduled").add("jobSchedule", jobSchedule).toString());
       _jobSchedule = jobSchedule;
     }
 
@@ -65,7 +64,7 @@ public interface JobSpecSchedulerListener {
     private final JobSpec _jobSpec;
 
     public JobTriggeredCallback(JobSpec jobSpec) {
-      super(Objects.toStringHelper("onJobTriggered").add("jobSpec", jobSpec).toString());
+      super(MoreObjects.toStringHelper("onJobTriggered").add("jobSpec", jobSpec).toString());
       _jobSpec = jobSpec;
     }
 

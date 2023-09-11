@@ -647,7 +647,7 @@ public class FileAwareInputStreamDataWriterTest {
   protected class TestLocalFileSystem extends LocalFileSystem {
     private final ConcurrentHashMap<Path, List<AclEntry>> pathToAclEntries = new ConcurrentHashMap<>();
     @Override
-    public void setAcl(Path path, List<AclEntry> aclEntries) {
+    public void modifyAclEntries(Path path, List<AclEntry> aclEntries) {
       pathToAclEntries.put(path, aclEntries);
     }
     public ImmutableMap<Path, List<AclEntry>> getPathToAclEntries() {

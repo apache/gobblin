@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.hive.spec;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.spec.activity.DropPartitionActivity;
@@ -59,7 +59,7 @@ public class SimpleHiveSpecTest {
         Assert.assertEquals(0, simpleHiveSpec.getPredicates().size());
         Assert.assertEquals(Optional.absent(), simpleHiveSpec.getPartition());
 
-        String actualString = Objects.toStringHelper(simpleHiveSpec).omitNullValues().add("path", pathString)
+        String actualString = MoreObjects.toStringHelper(simpleHiveSpec).omitNullValues().add("path", pathString)
                 .add("db", dbName).add("table", tableName)
                 .add("partition", Optional.absent().orNull()).toString();
         Assert.assertEquals(actualString, simpleHiveSpec.toString());

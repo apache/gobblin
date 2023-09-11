@@ -513,8 +513,8 @@ public class DagManager extends AbstractIdleService {
     } catch (SpecNotFoundException e) {
       log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
     } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flowId {} OR delete dag action from dagActionStore due to "
-          + "exception {}", flowId, e.getMessage());
+      log.warn("Failed to add Job Execution Plan for flowId {} OR delete dag action from dagActionStore (check "
+          + "stacktrace) due to exception {}", flowId, e.getMessage());
     } catch (InterruptedException e) {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
     }

@@ -267,16 +267,21 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   @Nullable
-  private String getTopicName(GobblinMetadataChangeEvent gmce) {
+  protected String getTopicName(GobblinMetadataChangeEvent gmce) {
     //Calculate the topic name from gmce, fall back to topic.name in hive spec which can also be null
     //todo: make topicName fall back to topic.name in hive spec so that we can also get schema for re-write operation
     String topicName = null;
     if (gmce.getTopicPartitionOffsetsRange() != null && !gmce.getTopicPartitionOffsetsRange().isEmpty()) {
+      // In case the topic name is not the table name or the topic name contains '-'
       String topicPartitionString = gmce.getTopicPartitionOffsetsRange().keySet().iterator().next();
-      //In case the topic name is not the table name or the topic name contains '-'
-      topicName = topicPartitionString.substring(0, topicPartitionString.lastIndexOf('-'));
+      topicName = parseTopicNameFromOffsetRangeKey(topicPartitionString);
     }
     return topicName;
+  }
+
+  public static String parseTopicNameFromOffsetRangeKey(String offsetRangeKey) {
+    int startOfTopicName = offsetRangeKey.lastIndexOf('.') + 1;
+    return offsetRangeKey.substring(startOfTopicName, offsetRangeKey.lastIndexOf('-'));
   }
 
   /**

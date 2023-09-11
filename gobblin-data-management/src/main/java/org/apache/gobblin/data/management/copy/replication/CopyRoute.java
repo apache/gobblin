@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.replication;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -31,7 +31,7 @@ public class CopyRoute {
 
   @Override
   public String toString() {
-    return Objects.toStringHelper(this.getClass()).add("copyFrom", this.getCopyFrom()).add("copyTo", this.getCopyTo())
+    return MoreObjects.toStringHelper(this.getClass()).add("copyFrom", this.getCopyFrom()).add("copyTo", this.getCopyTo())
         .toString();
   }
 }

@@ -110,6 +110,9 @@ class FileSystemDecorator extends FileSystem implements Decorator {
   public void setAcl(Path path, List<AclEntry> aclSpec) throws IOException {
     this.underlyingFs.setAcl(path, aclSpec);
   }
+  public void modifyAclEntries(Path path, List<AclEntry> aclSpec) throws IOException {
+    this.underlyingFs.modifyAclEntries(path, aclSpec);
+  }
 
   public FsStatus getStatus() throws java.io.IOException {
     return this.underlyingFs.getStatus();

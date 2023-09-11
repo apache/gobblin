@@ -33,6 +33,10 @@ public class ClustersNamesTest {
                 "cluster1");
         Assert.assertEquals(clustersNames.getClusterName("http://cluster2-rm.some.company.com:12345"),
                 "cluster2");
+        Assert.assertEquals(clustersNames.getClusterName("http://coloc1-some-identifier.some.company.com:8032"),
+            "cluster-no-scheme-with-port");
+        Assert.assertEquals(clustersNames.getClusterName("https://coloc1-some-identifier.some.company.com:8032"),
+            "cluster-no-scheme-with-port");
     }
 
     @Test
@@ -41,6 +45,8 @@ public class ClustersNamesTest {
                 "cluster1-rm.some.company.com");
         Assert.assertEquals(clustersNames.getClusterName("cluster-host-name-4.some.company.com"),
                 "cluster4");
+        Assert.assertEquals(clustersNames.getClusterName("coloc1-some-identifier.some.company.com:8032"),
+            "cluster-no-scheme-with-port");
     }
 
     @Test

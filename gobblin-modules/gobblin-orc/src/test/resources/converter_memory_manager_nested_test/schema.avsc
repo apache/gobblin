@@ -1,0 +1,37 @@
+{
+  "type" : "record",
+  "name" : "parentRecordName",
+  "fields" : [
+    {
+      "name": "parentList",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "name": "nestedList",
+          "items": {
+            "type": "record",
+            "name": "nestedRecordName",
+            "fields": [
+              {
+                "name": "nestedField1",
+                "type": "string"
+              },
+              {
+                "name": "nestedField2",
+                "type": "string"
+              },
+              {
+                "name": "deeplyNestedList",
+                "type": {
+                  "type": "array",
+                  "items": "int"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

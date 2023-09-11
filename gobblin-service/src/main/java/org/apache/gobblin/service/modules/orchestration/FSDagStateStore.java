@@ -41,6 +41,10 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -48,6 +52,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha
@@ -58,6 +63,10 @@ public class FSDagStateStore implements DagStateStore {
 
   private final String dagCheckpointDir;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;
+
+  private MetricContext metricContext;
+
+  private ContextAwareCounter totalDagCount;
 
   public FSDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.dagCheckpointDir = config.getString(DAG_STATESTORE_DIR);
@@ -77,6 +86,9 @@ public class FSDagStateStore implements DagStateStore {
      * */
     Type typeToken = new TypeToken<List<JobExecutionPlan>>(){}.getType();
     this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
+    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
+        this.getClass());
+    this.totalDagCount = this.metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_FS_DAG_STATE_COUNT);
   }
 
   /**
@@ -94,6 +106,7 @@ public class FSDagStateStore implements DagStateStore {
 
     Files.write(serializedDag, tmpCheckpointFile, Charsets.UTF_8);
     Files.move(tmpCheckpointFile, checkpointFile);
+    this.totalDagCount.inc();
   }
 
   /**
@@ -115,6 +128,9 @@ public class FSDagStateStore implements DagStateStore {
     File checkpointFile = new File(this.dagCheckpointDir, fileName);
     if (!checkpointFile.delete()) {
       log.error("Could not delete checkpoint file: {}", checkpointFile.getName());
+    } else {
+
+      this.totalDagCount.dec();
     }
   }
 

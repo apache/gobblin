@@ -22,7 +22,7 @@ import java.util.List;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
 import lombok.Data;
@@ -64,7 +64,7 @@ public class DataFlowTopology {
           }
         };
 
-    return Objects.toStringHelper(this.getClass())
+    return MoreObjects.toStringHelper(this.getClass())
         .add("dataFlows:", Joiner.on(",").join(Lists.transform(this.dataFlowPaths, func))).toString();
   }
 
@@ -83,7 +83,7 @@ public class DataFlowTopology {
             }
           };
 
-      return Objects.toStringHelper(this.getClass())
+      return MoreObjects.toStringHelper(this.getClass())
           .add("copyPairs:", Joiner.on(",").join(Lists.transform(this.copyRoutes, func))).toString();
     }
   }
