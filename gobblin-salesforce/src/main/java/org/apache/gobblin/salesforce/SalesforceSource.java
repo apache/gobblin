@@ -293,9 +293,9 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     // Only support time related watermark
     if (watermarkType == WatermarkType.SIMPLE || Strings.isNullOrEmpty(watermarkColumn) || !state.getPropAsBoolean(
-        ENABLE_DYNAMIC_PARTITIONING) || maxPartitions <= 1) {
+        ENABLE_DYNAMIC_PARTITIONING)) {
       List<WorkUnit> workUnits = super.generateWorkUnits(sourceEntity, state, previousWatermark);
-      workUnits.stream().forEach(x -> x.setProp(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, disableSoft));
+      workUnits.forEach(x -> x.setProp(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, disableSoft));
       return workUnits;
     }
 
