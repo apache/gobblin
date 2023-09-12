@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
 import org.apache.gobblin.writer.GobblinOrcMemoryManager;
-import org.apache.gobblin.writer.GobblinOrcWriter;
+import org.apache.gobblin.writer.GobblinOrcWriterConfigs;
 
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
 
@@ -70,7 +70,7 @@ public class OrcKeyCompactorOutputFormat extends OrcOutputFormat {
     Path filename = getDefaultWorkFile(taskAttemptContext, extension);
     Writer writer = OrcFile.createWriter(filename,
         org.apache.orc.mapred.OrcOutputFormat.buildOptions(conf).memory(new GobblinOrcMemoryManager(conf)));
-    int rowBatchSize = conf.getInt(GobblinOrcWriter.ORC_WRITER_BATCH_SIZE, GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE);
+    int rowBatchSize = conf.getInt(GobblinOrcWriterConfigs.ORC_WRITER_BATCH_SIZE, GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCH_SIZE);
     log.info("Creating OrcMapreduceRecordWriter with row batch size = {}", rowBatchSize);
     return new OrcMapreduceRecordWriter(writer, rowBatchSize);
   }

@@ -60,9 +60,9 @@ import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
  */
 @Slf4j
 public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericRecord> {
-  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "enabledMulValueColumnVectorSmartSizing";
+  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriterConfigs.ORC_WRITER_PREFIX + "enabledMulValueColumnVectorSmartSizing";
   private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
-  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
+  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriterConfigs.ORC_WRITER_PREFIX + "enlargeFactor";
   private static final int DEFAULT_ENLARGE_FACTOR = 3;
 
   private boolean enabledSmartSizing;
