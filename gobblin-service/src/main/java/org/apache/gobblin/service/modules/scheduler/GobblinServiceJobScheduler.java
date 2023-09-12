@@ -762,7 +762,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
         if (t instanceof NullPointerException) {
-          log.warn("NullPointerException encountered while trying to execute flow: " + t.getMessage());
+          log.warn("NullPointerException encountered while trying to execute flow. Message: " + t.getMessage() +
+          " Stacktrace: " + t.getStackTrace());
         }
         throw new JobExecutionException(t);
       } finally {
