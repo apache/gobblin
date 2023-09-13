@@ -37,6 +37,7 @@ dependencies {
     compile externalDependency.salesforcePartner
 
     testCompile externalDependency.testng
+    testCompile externalDependency.mockito
 }
 
 configurations {
