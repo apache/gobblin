@@ -40,6 +40,7 @@ import com.linkedin.data.template.StringMap;
 
 import javax.annotation.Nullable;
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -89,15 +90,27 @@ public class TaskState extends WorkUnitState implements TaskProgress {
    */
   private static final String BYTES_PER_SECOND = "bytesPerSec";
 
+  /** ID of the job this {@link TaskState} is for */
+  @Getter @Setter
   private String jobId;
+  /** ID of the task this {@link TaskState} is for */
+  @Getter @Setter
   private String taskId;
+  /** sequence number of the task this {@link TaskState} is for */
+  @Getter
   private String taskKey;
   @Getter
   private Optional<String> taskAttemptId;
 
+  /** task start time in milliseconds */
+  @Getter @Setter
   private long startTime = 0;
+  /** task end time in milliseconds */
+  @Getter @Setter
   private long endTime = 0;
-  private long duration;
+  /** task duration in milliseconds */
+  @Getter @Setter
+  private long taskDuration;
 
   // Needed for serialization/deserialization
   public TaskState() {}
@@ -121,105 +134,6 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     this.taskId = taskState.getProp(ConfigurationKeys.TASK_ID_KEY);
     this.taskAttemptId = taskState.getTaskAttemptId();
     this.setId(this.taskId);
-  }
-
-  /**
-   * Get the ID of the job this {@link TaskState} is for.
-   *
-   * @return ID of the job this {@link TaskState} is for
-   */
-  public String getJobId() {
-    return this.jobId;
-  }
-
-  /**
-   * Set the ID of the job this {@link TaskState} is for.
-   *
-   * @param jobId ID of the job this {@link TaskState} is for
-   */
-  public void setJobId(String jobId) {
-    this.jobId = jobId;
-  }
-
-  /**
-   * Get the sequence number of the task this {@link TaskState} is for.
-   *
-   * @return Sequence number of the task this {@link TaskState} is for
-   */
-  public String getTaskKey() {
-    return this.taskKey;
-  }
-
-  /**
-   * Get the ID of the task this {@link TaskState} is for.
-   *
-   * @return ID of the task this {@link TaskState} is for
-   */
-  public String getTaskId() {
-    return this.taskId;
-  }
-
-  /**
-   * Set the ID of the task this {@link TaskState} is for.
-   *
-   * @param taskId ID of the task this {@link TaskState} is for
-   */
-  public void setTaskId(String taskId) {
-    this.taskId = taskId;
-  }
-
-  /**
-   * Get task start time in milliseconds.
-   *
-   * @return task start time in milliseconds
-   */
-  public long getStartTime() {
-    return this.startTime;
-  }
-
-  /**
-   * Set task start time in milliseconds.
-   *
-   * @param startTime task start time in milliseconds
-   */
-  public void setStartTime(long startTime) {
-    this.startTime = startTime;
-  }
-
-  /**
-   * Get task end time in milliseconds.
-   *
-   * @return task end time in milliseconds
-   */
-  public long getEndTime() {
-    return this.endTime;
-  }
-
-  /**
-   * set task end time in milliseconds.
-   *
-   * @param endTime task end time in milliseconds
-   */
-  public void setEndTime(long endTime) {
-    this.endTime = endTime;
-  }
-
-  /**
-   * Get task duration in milliseconds.
-   *
-   * @return task duration in milliseconds
-   */
-  public long getTaskDuration() {
-    return this.duration;
-  }
-
-  /**
-   * Set task duration in milliseconds.
-   *
-   * @param duration task duration in milliseconds
-   */
-  public void setTaskDuration(long duration) {
-    this.duration = duration;
   }
 
   /**
@@ -348,7 +262,7 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     this.setId(this.taskId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();
-    this.duration = in.readLong();
+    this.taskDuration = in.readLong();
     super.readFields(in);
   }
 
@@ -361,7 +275,7 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     text.write(out);
     out.writeLong(this.startTime);
     out.writeLong(this.endTime);
-    out.writeLong(this.duration);
+    out.writeLong(this.taskDuration);
     super.write(out);
   }
 
@@ -432,7 +346,7 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     if (this.endTime > 0) {
       taskExecutionInfo.setEndTime(this.endTime);
     }
-    taskExecutionInfo.setDuration(this.duration);
+    taskExecutionInfo.setDuration(this.taskDuration);
     taskExecutionInfo.setState(TaskStateEnum.valueOf(getWorkingState().name()));
     if (this.contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
       taskExecutionInfo.setFailureException(this.getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));

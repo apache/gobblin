@@ -55,6 +55,9 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 @Slf4j
 public class JobLauncherUtils {
 
+  public static final String WORK_UNIT_FILE_EXTENSION = ".wu";
+  public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
   // A cache for proxied FileSystems by owners
   private static Cache<String, FileSystem> fileSystemCacheByOwners = CacheBuilder.newBuilder().build();
 
@@ -121,6 +124,20 @@ public class JobLauncherUtils {
       }
     }
     return flattenedWorkUnits;
+  }
+
+  /** @return flattened list of {@link WorkUnit}s loaded from `path`, which may possibly hold a multi-work unit */
+  public static List<WorkUnit> loadFlattenedWorkUnits(FileSystem fs, Path path) throws IOException {
+    WorkUnit workUnit = path.getName().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)
+        ? MultiWorkUnit.createEmpty()
+        : WorkUnit.createEmpty();
+    SerializationUtils.deserializeState(fs, path, workUnit);
+
+    if (workUnit instanceof MultiWorkUnit) {
+      return JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
+    } else {
+      return Lists.newArrayList(workUnit);
+    }
   }
 
   /**

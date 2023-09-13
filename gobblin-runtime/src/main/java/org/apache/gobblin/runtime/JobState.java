@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.job.JobProgress;
 
@@ -127,12 +130,22 @@ public class JobState extends SourceState implements JobProgress {
     }
   }
 
+  @Getter @Setter
   private String jobName;
+  @Getter @Setter
   private String jobId;
+  /** job start time in milliseconds */
+  @Getter @Setter
   private long startTime = 0;
+  /** job end time in milliseconds */
+  @Getter @Setter
   private long endTime = 0;
+  /** job duration in milliseconds */
+  @Getter @Setter
   private long duration = 0;
   private RunningState state = RunningState.PENDING;
+  /** the number of tasks this job consists of */
+  @Getter @Setter
   private int taskCount = 0;
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
   // Skipped task states shouldn't be exposed to publisher, but they need to be in JobState and DatasetState so that they can be written to StateStore.
@@ -149,7 +162,7 @@ public class JobState extends SourceState implements JobProgress {
     this.setId(jobId);
   }
 
-  public JobState(State properties,String jobName, String jobId) {
+  public JobState(State properties, String jobName, String jobId) {
     super(properties);
     this.jobName = jobName;
     this.jobId = jobId;
@@ -189,69 +202,6 @@ public class JobState extends SourceState implements JobProgress {
   }
 
   /**
-   * Get job name.
-   *
-   * @return job name
-   */
-  public String getJobName() {
-    return this.jobName;
-  }
-
-  /**
-   * Set job name.
-   *
-   * @param jobName job name
-   */
-  public void setJobName(String jobName) {
-    this.jobName = jobName;
-  }
-
-  /**
-   * Get job ID.
-   *
-   * @return job ID
-   */
-  public String getJobId() {
-    return this.jobId;
-  }
-
-  /**
-   * Set job ID.
-   *
-   * @param jobId job ID
-   */
-  public void setJobId(String jobId) {
-    this.jobId = jobId;
-  }
-
-  /**
-   * Get job start time.
-   *
-   * @return job start time
-   */
-  public long getStartTime() {
-    return this.startTime;
-  }
-
-  /**
-   * Set job start time.
-   *
-   * @param startTime job start time
-   */
-  public void setStartTime(long startTime) {
-    this.startTime = startTime;
-  }
-
-  /**
-   * Get job end time.
-   *
-   * @return job end time
-   */
-  public long getEndTime() {
-    return this.endTime;
-  }
-
-  /**
    * Get the currently elapsed time for this job.
    * @return
    */
@@ -263,33 +213,6 @@ public class JobState extends SourceState implements JobProgress {
       return System.currentTimeMillis() - this.startTime;
     }
     return 0;
-  }
-
-  /**
-   * Set job end time.
-   *
-   * @param endTime job end time
-   */
-  public void setEndTime(long endTime) {
-    this.endTime = endTime;
-  }
-
-  /**
-   * Get job duration in milliseconds.
-   *
-   * @return job duration in milliseconds
-   */
-  public long getDuration() {
-    return this.duration;
-  }
-
-  /**
-   * Set job duration in milliseconds.
-   *
-   * @param duration job duration in milliseconds
-   */
-  public void setDuration(long duration) {
-    this.duration = duration;
   }
 
   /**
@@ -308,24 +231,6 @@ public class JobState extends SourceState implements JobProgress {
    */
   public synchronized void setState(RunningState state) {
     this.state = state;
-  }
-
-  /**
-   * Get the number of tasks this job consists of.
-   *
-   * @return number of tasks this job consists of
-   */
-  public int getTaskCount() {
-    return this.taskCount;
-  }
-
-  /**
-   * Set the number of tasks this job consists of.
-   *
-   * @param taskCount number of tasks this job consists of
-   */
-  public void setTaskCount(int taskCount) {
-    this.taskCount = taskCount;
   }
 
   /**

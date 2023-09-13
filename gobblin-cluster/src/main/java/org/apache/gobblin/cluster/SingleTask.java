@@ -39,7 +39,6 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.util.StateStores;
@@ -184,7 +183,7 @@ public class SingleTask {
     WorkUnit workUnit;
 
     try {
-      if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+      if (_workUnitFilePath.getName().endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION)) {
         workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
       } else {
         workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);

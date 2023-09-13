@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -56,7 +57,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -523,19 +523,18 @@ public class MRJobLauncher extends AbstractJobLauncher {
     mrJobSetupTimer.stop();
   }
 
-  static boolean isSpeculativeExecutionEnabled(Properties props) {
-    return Boolean.valueOf(
-        props.getProperty(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION));
-  }
-
-  static boolean isCustomizedProgressReportEnabled(Properties properties) {
-    return properties.containsKey(ENABLED_CUSTOMIZED_PROGRESS)
-        && Boolean.parseBoolean(properties.getProperty(ENABLED_CUSTOMIZED_PROGRESS));
-  }
-
   static boolean isBooleanPropEnabled(Properties props, String propKey, Optional<Boolean> optDefault) {
     return (props.containsKey(propKey) && Boolean.parseBoolean(props.getProperty(propKey)))
         || (optDefault.isPresent() && optDefault.get());
+  }
+
+  static boolean isSpeculativeExecutionEnabled(Properties props) {
+    return isBooleanPropEnabled(props, JobContext.MAP_SPECULATIVE,
+        Optional.of(ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION));
+  }
+
+  static boolean isCustomizedProgressReportEnabled(Properties properties) {
+    return isBooleanPropEnabled(properties, ENABLED_CUSTOMIZED_PROGRESS, Optional.empty());
   }
 
   static boolean isMapperFailureFatalEnabled(Properties props) {
@@ -690,9 +689,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
         String workUnitFileName;
         if (workUnit instanceof MultiWorkUnit) {
           workUnitFileName = JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
-              + MULTI_WORK_UNIT_FILE_EXTENSION;
+              + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
         } else {
-          workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + WORK_UNIT_FILE_EXTENSION;
+          workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
         }
         Path workUnitFile = new Path(this.jobInputPath, workUnitFileName);
         LOG.debug("Writing work unit file " + workUnitFileName);
@@ -731,7 +730,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
    */
   @VisibleForTesting
   void countersToMetrics(GobblinMetrics metrics) throws IOException {
-    Optional<Counters> counters = Optional.fromNullable(this.job.getCounters());
+    Optional<Counters> counters = Optional.ofNullable(this.job.getCounters());
 
     if (counters.isPresent()) {
       // Write job-level counters
@@ -772,7 +771,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private TaskExecutor taskExecutor;
     private TaskStateTracker taskStateTracker;
     private ServiceManager serviceManager;
-    private Optional<JobMetrics> jobMetrics = Optional.absent();
+    private Optional<JobMetrics> jobMetrics = Optional.empty();
     private boolean isSpeculativeEnabled;
     private boolean customizedProgressEnabled;
     private final JobState jobState = new JobState();
@@ -809,24 +808,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
-
         String jobStateFileName = context.getConfiguration().get(ConfigurationKeys.JOB_STATE_DISTRIBUTED_CACHE_NAME);
-        boolean foundStateFile = false;
-        for (Path dcPath : DistributedCache.getLocalCacheFiles(context.getConfiguration())) {
-          if (dcPath.getName().equals(jobStateFileName)) {
-            SerializationUtils.deserializeStateFromInputStream(
-                closer.register(new FileInputStream(dcPath.toUri().getPath())), this.jobState);
-            foundStateFile = true;
-            break;
-          }
-        }
-        if (!foundStateFile) {
-          throw new IOException("Job state file not found.");
+        Optional<URI> jobStateFileUri = getStateFileUriForJob(context.getConfiguration(), jobStateFileName);
+        if (jobStateFileUri.isPresent()) {
+          SerializationUtils.deserializeStateFromInputStream(
+                closer.register(new FileInputStream(jobStateFileUri.get().getPath())), this.jobState);
+        } else {
+          throw new IOException("Job state file not found: '" + jobStateFileName + "'.");
         }
       } catch (IOException | ReflectiveOperationException e) {
         throw new RuntimeException("Failed to setup the mapper task", e);
       }
-
 
       // load dynamic configuration to add to the job configuration
       Configuration configuration = context.getConfiguration();
@@ -989,17 +981,17 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
     @Override
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-      WorkUnit workUnit = (value.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit.createEmpty()
-          : WorkUnit.createEmpty());
-      SerializationUtils.deserializeState(this.fs, new Path(value.toString()), workUnit);
+      this.workUnits.addAll(JobLauncherUtils.loadFlattenedWorkUnits(this.fs, new Path(value.toString())));
+    }
 
-      if (workUnit instanceof MultiWorkUnit) {
-        List<WorkUnit> flattenedWorkUnits =
-            JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
-        this.workUnits.addAll(flattenedWorkUnits);
-      } else {
-        this.workUnits.add(workUnit);
+    /** @return {@link URI} if a distributed cache file matches `jobStateFileName` */
+    protected Optional<URI> getStateFileUriForJob(Configuration conf, String jobStateFileName) throws IOException {
+      for (Path dcPath : DistributedCache.getLocalCacheFiles(conf)) {
+        if (dcPath.getName().equals(jobStateFileName)) {
+          return Optional.of(dcPath.toUri());
+        }
       }
+      return Optional.empty();
     }
 
     /**

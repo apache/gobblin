@@ -110,8 +110,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
 
-  private static final String WORK_UNIT_FILE_EXTENSION = ".wu";
-
   private final HelixManager helixManager;
   private final TaskDriver helixTaskDriver;
   private final String helixWorkFlowName;
@@ -539,7 +537,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     Path workUnitFile = new Path(workUnitFilePath);
     final String fileName = workUnitFile.getName();
     final String storeName = workUnitFile.getParent().getName();
-    if (fileName.endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)) {
+    if (fileName.endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION)) {
       stateStore = stateStores.getMwuStateStore();
     } else {
       stateStore = stateStores.getWuStateStore();
@@ -562,10 +560,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     String workUnitFileName = workUnit.getId();
 
     if (workUnit instanceof MultiWorkUnit) {
-      workUnitFileName += MULTI_WORK_UNIT_FILE_EXTENSION;
+      workUnitFileName += JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
       stateStore = stateStores.getMwuStateStore();
     } else {
-      workUnitFileName += WORK_UNIT_FILE_EXTENSION;
+      workUnitFileName += JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
       stateStore = stateStores.getWuStateStore();
     }
 
