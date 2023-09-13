@@ -253,7 +253,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   @Override
   public void commit()
       throws IOException {
-    // Capture memory in the writer before commit as a flush in closeInternal() will reset the internal buffer of the native ORC writer
     closeInternal();
     super.commit();
     if (this.selfTuningWriter) {
