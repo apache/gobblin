@@ -185,7 +185,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // The following insert will fail since the eventTimestamp does not match
     int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfMatchingAllStatement, resumeDagAction, true, true,
-        new Timestamp(99999), new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis()));
+        new Timestamp(99999), new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertEquals(numRowsUpdated, 0);
 
     // The following insert will fail since the leaseAcquisitionTimestamp does not match
@@ -198,7 +198,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfMatchingAllStatement, resumeDagAction, true, true,
         new Timestamp(selectInfoResult.getEventTimeMillis()),
-        new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis()));
+        new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertEquals(numRowsUpdated, 1);
   }
 
@@ -215,7 +215,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
         this.mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
     boolean markedSuccess = this.mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
-        resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis()));
+        resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
     mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction, Optional.absent());

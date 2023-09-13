@@ -375,8 +375,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         }
         long eventTimeMillis = resultSet.getTimestamp(1).getTime();
         // Lease acquisition timestamp is null if another participant has completed the lease
-        long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2) != null ?
-            resultSet.getTimestamp(2).getTime() : SelectInfoResult.LEASE_COMPLETED_VALUE;
+        Optional<Long> leaseAcquisitionTimeMillis = resultSet.getTimestamp(2) == null ? Optional.absent() :
+            Optional.of(resultSet.getTimestamp(2).getTime());
         int dbLinger = resultSet.getInt(3);
         return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
       } catch (SQLException e) {
@@ -408,17 +408,17 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       log.debug("Obtained lease for [{}, eventTimestamp: {}] successfully!", flowAction,
           selectInfoResult.eventTimeMillis);
       return new LeaseObtainedStatus(flowAction, selectInfoResult.eventTimeMillis,
-          selectInfoResult.getLeaseAcquisitionTimeMillis());
+          selectInfoResult.getLeaseAcquisitionTimeMillis().get());
     }
     log.debug("Another participant acquired lease in between for [{}, eventTimestamp: {}] - num rows updated: ",
         flowAction, selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant won the lease in between
-    if (selectInfoResult.getLeaseAcquisitionTimeMillis() == SelectInfoResult.LEASE_COMPLETED_VALUE) {
+    if (!selectInfoResult.getLeaseAcquisitionTimeMillis().isPresent()) {
       return new NoLongerLeasingStatus();
     }
     // Another participant acquired lease in between
     return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
-        selectInfoResult.getLeaseAcquisitionTimeMillis() + selectInfoResult.getDbLinger()
+        selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()
             - (dbCurrentTimestamp.isPresent() ? dbCurrentTimestamp.get().getTime() : System.currentTimeMillis()));
   }
 
@@ -553,9 +553,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   */
   @Data
   static class SelectInfoResult {
-    public static final long LEASE_COMPLETED_VALUE = -1;
     private final long eventTimeMillis;
-    private final long leaseAcquisitionTimeMillis;
+    private final Optional<Long> leaseAcquisitionTimeMillis;
     private final int dbLinger;
   }
 }
