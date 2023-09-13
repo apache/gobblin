@@ -211,6 +211,13 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         initializeOrcFileWriter();
       }
       orcFileWriter.addRowBatch(rowBatch);
+      // Depending on the orcFileWriter orc.rows.between.memory.check, this may be an underestimate depending on if it flushed right after
+      // adding the rows or not. However, since the rowBatch is reset and that buffer is cleared, this should still be safe to use as an estimate
+      // We can also explore checking to see if rowBatch size is greater than orc.rows.between.memory check, add just the maximum amount of rows
+      // such that the native file writer is saturated but not flushed, record that memory then flush after. But that may be overkill for the time being.
+      if (this.selfTuningWriter) {
+        this.currentOrcWriterMaxUnderlyingMemory = Math.max(this.currentOrcWriterMaxUnderlyingMemory, orcFileWriter.estimateMemory());
+      }
       rowBatch.reset();
     }
   }
@@ -258,8 +265,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
           String.valueOf(this.converterMemoryManager.getConverterBufferTotalSize()));
       properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_PREVIOUS_BATCH_SIZE, this.batchSize);
-      properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY,
-          this.currentOrcWriterMaxUnderlyingMemory != -1 ? this.currentOrcWriterMaxUnderlyingMemory : orcFileWriter.estimateMemory());
+      properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY, this.currentOrcWriterMaxUnderlyingMemory);
     }
   }
 
