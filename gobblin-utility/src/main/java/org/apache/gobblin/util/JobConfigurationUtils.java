@@ -92,7 +92,10 @@ public class JobConfigurationUtils {
    */
   public static void putStateIntoConfiguration(State state, Configuration configuration) {
     for (String key : state.getPropertyNames()) {
-      configuration.set(key, state.getProp(key));
+      String value = state.getProp(key);
+      if (value != null) { // ignore `null`, to prevent `IllegalArgumentException` from `Configuration::set`
+        configuration.set(key, value);
+      }
     }
   }
 

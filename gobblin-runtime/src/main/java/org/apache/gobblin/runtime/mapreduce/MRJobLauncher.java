@@ -316,7 +316,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       prepareHadoopJob(workUnits);
       if (this.shouldPersistWorkUnitsThenCancel) {
-        LOG.info("Cancelling job after persisting workunits beneath: " + this.jobInputPath);
+        // NOTE: `warn` level is hack for including path among automatic troubleshooter 'issues'
+        LOG.warn("Cancelling job after persisting workunits beneath: " + this.jobInputPath);
         jobState.setState(JobState.RunningState.CANCELLED);
         return;
       }
