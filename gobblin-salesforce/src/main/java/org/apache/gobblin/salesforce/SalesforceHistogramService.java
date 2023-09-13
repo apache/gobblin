@@ -35,7 +35,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.exception.RestApiClientException;
 import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
@@ -72,11 +71,12 @@ public class SalesforceHistogramService {
   private static final String PROBE_PARTITION_QUERY_TEMPLATE = "SELECT count(${column}) cnt FROM ${table} "
       + "WHERE ${column} ${greater} ${start} AND ${column} ${less} ${end}";
 
-  protected SalesforceConnector salesforceConnector = null;
+  protected SalesforceConnector salesforceConnector;
   private final SfConfig sfConfig;
 
-  SalesforceHistogramService(SfConfig sfConfig) {
+  SalesforceHistogramService(SfConfig sfConfig, SalesforceConnector connector) {
     this.sfConfig = sfConfig;
+    salesforceConnector = connector;
   }
 
   /**
@@ -84,17 +84,16 @@ public class SalesforceHistogramService {
    */
   Histogram getHistogram(String entity, String watermarkColumn, SourceState state,
       Partition partition) {
-    SalesforceConnector connector = getConnector(state);
 
     try {
-      if (!connector.connect()) {
+      if (!salesforceConnector.connect()) {
         throw new RuntimeException("Failed to connect.");
       }
     } catch (RestApiConnectionException e) {
       throw new RuntimeException("Failed to connect.", e);
     }
 
-    Histogram histogram = getHistogramByDayBucketing(connector, entity, watermarkColumn, partition);
+    Histogram histogram = getHistogramByDayBucketing(salesforceConnector, entity, watermarkColumn, partition);
 
     // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
     // in the range of generated partitions
@@ -105,7 +104,7 @@ public class SalesforceHistogramService {
 
     // refine the histogram
     if (state.getPropAsBoolean(SalesforceSource.ENABLE_DYNAMIC_PROBING)) {
-      histogram = getRefinedHistogram(connector, entity, watermarkColumn, state, partition, histogram);
+      histogram = getRefinedHistogram(salesforceConnector, entity, watermarkColumn, state, partition, histogram);
     }
 
     return histogram;
@@ -158,13 +157,6 @@ public class SalesforceHistogramService {
     }
 
     return histogram;
-  }
-
-  protected SalesforceConnector getConnector(State state) {
-    if (this.salesforceConnector == null) {
-      this.salesforceConnector = new SalesforceConnector(state);
-    }
-    return this.salesforceConnector;
   }
 
   /**

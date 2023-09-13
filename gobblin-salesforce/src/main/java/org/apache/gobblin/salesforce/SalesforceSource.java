@@ -17,37 +17,29 @@
 
 package org.apache.gobblin.salesforce;
 
-import com.google.common.collect.Lists;
-import java.io.IOException;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import java.util.stream.Collectors;
-import lombok.SneakyThrows;
-import org.apache.commons.lang3.text.StrSubstitutor;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.math.DoubleMath;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
+import java.io.IOException;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -55,10 +47,9 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.source.extractor.DataRecordException;
+import org.apache.gobblin.salesforce.SalesforceExtractor.BatchIdAndResultId;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
-import org.apache.gobblin.source.extractor.exception.RestApiClientException;
 import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
 import org.apache.gobblin.source.extractor.exception.RestApiProcessingException;
 import org.apache.gobblin.source.extractor.extract.Command;
@@ -73,15 +64,8 @@ import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
-
-import org.apache.gobblin.salesforce.SalesforceExtractor.BatchIdAndResultId;
 
 /**
  * An implementation of {@link QueryBasedSource} for salesforce data sources.
@@ -149,9 +133,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
   @Override
   protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
+    SalesforceConnector connector = getConnector(state);
+
     SfConfig sfConfig = new SfConfig(state.getProperties());
     if (salesforceHistogramService == null) {
-      salesforceHistogramService = new SalesforceHistogramService(sfConfig);
+      salesforceHistogramService = new SalesforceHistogramService(sfConfig, connector);
     }
 
     List<WorkUnit> workUnits;
