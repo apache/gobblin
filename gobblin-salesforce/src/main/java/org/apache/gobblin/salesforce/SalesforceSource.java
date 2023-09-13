@@ -475,7 +475,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     return result;
   }
 
-  SalesforceConnector getConnector(State state) {
+  protected SalesforceConnector getConnector(State state) {
     if (this.salesforceConnector == null) {
       this.salesforceConnector = new SalesforceConnector(state);
     }

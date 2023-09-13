@@ -50,6 +50,10 @@ import org.apache.gobblin.source.extractor.utils.Utils;
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 
 
+/**
+ * This class encapsulates everything related to histogram calculation for Salesforce. A histogram here refers to a
+ * mapping of number of records to be fetched by time intervals.
+ */
 @Slf4j
 public class SalesforceHistogramService {
   private static final int MIN_SPLIT_TIME_MILLIS = 1000;
@@ -156,7 +160,7 @@ public class SalesforceHistogramService {
     return histogram;
   }
 
-  SalesforceConnector getConnector(State state) {
+  protected SalesforceConnector getConnector(State state) {
     if (this.salesforceConnector == null) {
       this.salesforceConnector = new SalesforceConnector(state);
     }
