@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -218,7 +218,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
         resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
-    mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction, Optional.absent());
+    mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction, Optional.empty());
 
     // Sleep enough time for event to be considered distinct
     Thread.sleep(LINGER);
