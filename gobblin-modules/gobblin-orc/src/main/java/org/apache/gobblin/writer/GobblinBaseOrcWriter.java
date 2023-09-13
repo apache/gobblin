@@ -211,6 +211,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         initializeOrcFileWriter();
       }
       orcFileWriter.addRowBatch(rowBatch);
+      if (this.selfTuningWriter) {
+        this.currentOrcWriterMaxUnderlyingMemory = Math.max(this.currentOrcWriterMaxUnderlyingMemory, orcFileWriter.estimateMemory());
+      }
       rowBatch.reset();
     }
   }
@@ -251,7 +254,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public void commit()
       throws IOException {
     // Capture memory in the writer before commit as a flush in closeInternal() will reset the internal buffer of the native ORC writer
-    long memoryInWriterBeforeCommit = orcFileWriter.estimateMemory();
     closeInternal();
     super.commit();
     if (this.selfTuningWriter) {
@@ -260,8 +262,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
           String.valueOf(this.converterMemoryManager.getConverterBufferTotalSize()));
       properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_PREVIOUS_BATCH_SIZE, this.batchSize);
-      properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY,
-          Math.max(this.currentOrcWriterMaxUnderlyingMemory, memoryInWriterBeforeCommit));
+      properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY, this.currentOrcWriterMaxUnderlyingMemory);
     }
   }
 
