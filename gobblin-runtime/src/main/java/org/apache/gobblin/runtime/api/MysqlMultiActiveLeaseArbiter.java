@@ -367,11 +367,16 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected static SelectInfoResult createSelectInfoResult(ResultSet resultSet) throws IOException {
       try {
         if (!resultSet.next()) {
-          throw new IOException("Expected num rows and lease_acquisition_timestamp returned from query but received nothing, so "
-              + "providing empty result to lease evaluation code");
+          throw new IOException("Expected resultSet containing row information for the lease that was attempted but "
+              + "received nothing.");
+        }
+        if (resultSet.getTimestamp(1) == null) {
+          throw new IOException("event_timestamp should never be null (it is always set to current timestamp)");
         }
         long eventTimeMillis = resultSet.getTimestamp(1).getTime();
-        long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
+        // Lease acquisition timestamp is null if another participant has completed the lease
+        long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2) != null ?
+            resultSet.getTimestamp(2).getTime() : SelectInfoResult.LEASE_COMPLETED_VALUE;
         int dbLinger = resultSet.getInt(3);
         return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
       } catch (SQLException e) {
@@ -407,6 +412,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
     log.debug("Another participant acquired lease in between for [{}, eventTimestamp: {}] - num rows updated: ",
         flowAction, selectInfoResult.eventTimeMillis, numRowsUpdated);
+    // Another participant won the lease in between
+    if (selectInfoResult.getLeaseAcquisitionTimeMillis() == SelectInfoResult.LEASE_COMPLETED_VALUE) {
+      return new NoLongerLeasingStatus();
+    }
     // Another participant acquired lease in between
     return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
         selectInfoResult.getLeaseAcquisitionTimeMillis() + selectInfoResult.getDbLinger()
@@ -544,6 +553,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   */
   @Data
   static class SelectInfoResult {
+    public static final long LEASE_COMPLETED_VALUE = -1;
     private final long eventTimeMillis;
     private final long leaseAcquisitionTimeMillis;
     private final int dbLinger;

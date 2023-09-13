@@ -17,8 +17,10 @@
 
 package org.apache.gobblin.runtime.api;
 
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.config.ConfigBuilder;
@@ -207,13 +209,16 @@ public class MysqlMultiActiveLeaseArbiterTest {
   its prior lease, encouraging the current participant to acquire a lease for its event.
    */
   @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFMatchingAllColsStatement")
-  public void testConditionallyAcquireLeaseIfFinishedLeasingStatement() throws IOException, InterruptedException {
+  public void testConditionallyAcquireLeaseIfFinishedLeasingStatement()
+      throws IOException, InterruptedException, SQLException {
     // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
         this.mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
     boolean markedSuccess = this.mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
         resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis()));
     Assert.assertTrue(markedSuccess);
+    // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
+    mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction, Optional.absent());
 
     // Sleep enough time for event to be considered distinct
     Thread.sleep(LINGER);
