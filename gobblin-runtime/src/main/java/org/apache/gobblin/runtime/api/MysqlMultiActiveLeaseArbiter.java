@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 import com.zaxxer.hikari.HikariDataSource;
@@ -28,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Timestamp;
+import java.util.Optional;
 import javax.sql.DataSource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -200,7 +200,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, eventTimestamp: {}] - CASE 1: no existing row for this flow action, then go"
                 + " ahead and insert", flowAction, eventTimeMillis);
         int numRowsUpdated = attemptLeaseIfNewRow(flowAction);
-       return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.absent());
+       return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.empty());
       }
 
       // Extract values from result set
@@ -273,7 +273,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           ResultSet resultSet = getInfoStatement.executeQuery();
           try {
             if (!resultSet.next()) {
-              return Optional.<GetEventInfoResult>absent();
+              return Optional.<GetEventInfoResult>empty();
             }
             return Optional.of(createGetInfoResult(resultSet));
           } finally {
@@ -367,11 +367,16 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected static SelectInfoResult createSelectInfoResult(ResultSet resultSet) throws IOException {
       try {
         if (!resultSet.next()) {
-          throw new IOException("Expected num rows and lease_acquisition_timestamp returned from query but received nothing, so "
-              + "providing empty result to lease evaluation code");
+          throw new IOException("Expected resultSet containing row information for the lease that was attempted but "
+              + "received nothing.");
+        }
+        if (resultSet.getTimestamp(1) == null) {
+          throw new IOException("event_timestamp should never be null (it is always set to current timestamp)");
         }
         long eventTimeMillis = resultSet.getTimestamp(1).getTime();
-        long leaseAcquisitionTimeMillis = resultSet.getTimestamp(2).getTime();
+        // Lease acquisition timestamp is null if another participant has completed the lease
+        Optional<Long> leaseAcquisitionTimeMillis = resultSet.getTimestamp(2) == null ? Optional.empty() :
+            Optional.of(resultSet.getTimestamp(2).getTime());
         int dbLinger = resultSet.getInt(3);
         return new SelectInfoResult(eventTimeMillis, leaseAcquisitionTimeMillis, dbLinger);
       } catch (SQLException e) {
@@ -399,17 +404,21 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       throws SQLException, IOException {
     // Fetch values in row after attempted insert
     SelectInfoResult selectInfoResult = getRowInfo(flowAction);
+    // Another participant won the lease in between
+    if (!selectInfoResult.getLeaseAcquisitionTimeMillis().isPresent()) {
+      return new NoLongerLeasingStatus();
+    }
     if (numRowsUpdated == 1) {
       log.debug("Obtained lease for [{}, eventTimestamp: {}] successfully!", flowAction,
           selectInfoResult.eventTimeMillis);
       return new LeaseObtainedStatus(flowAction, selectInfoResult.eventTimeMillis,
-          selectInfoResult.getLeaseAcquisitionTimeMillis());
+          selectInfoResult.getLeaseAcquisitionTimeMillis().get());
     }
     log.debug("Another participant acquired lease in between for [{}, eventTimestamp: {}] - num rows updated: ",
         flowAction, selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant acquired lease in between
     return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
-        selectInfoResult.getLeaseAcquisitionTimeMillis() + selectInfoResult.getDbLinger()
+        selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()
             - (dbCurrentTimestamp.isPresent() ? dbCurrentTimestamp.get().getTime() : System.currentTimeMillis()));
   }
 
@@ -545,7 +554,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   @Data
   static class SelectInfoResult {
     private final long eventTimeMillis;
-    private final long leaseAcquisitionTimeMillis;
+    private final Optional<Long> leaseAcquisitionTimeMillis;
     private final int dbLinger;
   }
 }

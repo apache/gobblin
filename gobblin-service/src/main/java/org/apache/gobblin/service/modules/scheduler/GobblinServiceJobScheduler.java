@@ -496,7 +496,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_NEVER_SET_VAL);
       this.orchestrator.orchestrate(flowSpec, jobProps, Long.parseLong(triggerTimestampMillis));
     } catch (Exception e) {
-      throw new JobException("Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      String exceptionPrefix = "Failed to run Spec: " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+      log.warn(exceptionPrefix + " because", e);
+      throw new JobException(exceptionPrefix, e);
     }
   }
 
