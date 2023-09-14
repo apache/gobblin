@@ -58,7 +58,7 @@ public class SalesforceSourceTest {
   @Test
   void testGenerateSpecifiedPartitionFromSinglePointHistogram() {
     Histogram histogram = new Histogram();
-    histogram.add(new HistogramGroup("2014-02-13-00:00:00", 10));
+    histogram.add(new Histogram.Group("2014-02-13-00:00:00", 10));
     SalesforceSource source = new SalesforceSource();
 
     long expectedHighWatermark = 20170407152123L;
@@ -114,13 +114,13 @@ public class SalesforceSourceTest {
     state.setProp(SalesforceSource.EARLY_STOP_TOTAL_RECORDS_LIMIT, earlyStopRecordCount);
     long previousWtm = 20140213000000L;
 
-    SalesforceHistogramService salesforceHistogramService = mock(SalesforceHistogramService.class);
+    RecordModTimeHistogramService histogramService = mock(RecordModTimeHistogramService.class);
     String deltaFieldKey = state.getProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY);
     Partition partition = new Partitioner(state).getGlobalPartition(previousWtm);
-    when(salesforceHistogramService.getHistogram(sourceEntity.getSourceEntityName(), deltaFieldKey, state, partition))
+    when(histogramService.getHistogram(sourceEntity.getSourceEntityName(), deltaFieldKey, state, partition))
         .thenReturn(getHistogram());
 
-    List<WorkUnit> actualWorkUnits =  new SalesforceSource(salesforceHistogramService).generateWorkUnitsHelper(sourceEntity, state, previousWtm);
+    List<WorkUnit> actualWorkUnits =  new SalesforceSource(histogramService).generateWorkUnitsHelper(sourceEntity, state, previousWtm);
     Assert.assertEquals(actualWorkUnits.size(), 1);
     double actualHighWtm = (double) new Gson().fromJson(actualWorkUnits.get(0).getExpectedHighWatermark(), HashMap.class).get("value");
     Assert.assertEquals(actualHighWtm, Double.parseDouble(String.valueOf(expectedHighWtm)));
@@ -139,7 +139,7 @@ public class SalesforceSourceTest {
     Histogram histogram = new Histogram();
     for (String group: HISTOGRAM.split(", ")) {
       String[] groupInfo = group.split("::");
-      histogram.add(new HistogramGroup(groupInfo[0], Integer.parseInt(groupInfo[1])));
+      histogram.add(new Histogram.Group(groupInfo[0], Integer.parseInt(groupInfo[1])));
     }
     return histogram;
   }
