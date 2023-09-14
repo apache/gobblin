@@ -25,7 +25,9 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
 import org.apache.gobblin.source.extractor.exception.RestApiClientException;
 import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommandOutput;
 import org.apache.gobblin.source.extractor.partition.Partition;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
@@ -105,5 +107,33 @@ public class SalesforceExtractorTest {
     Assert.assertEquals(commandsActual.size(), 1);
     Assert.assertEquals(commandsActual.get(0).getCommandType(), commandsExpected.get(0).getCommandType());
     Assert.assertEquals(commandsActual.get(0).getParams(), commandsExpected.get(0).getParams());
+  }
+
+  @DataProvider
+  private Object[][] provideGetHighWatermarkTestData() {
+    return new Object[][] {
+        {
+            "{}",
+            -1L
+        },
+        {
+            "{'records': [{}]}",
+            -1L
+        },
+        {
+            String.format("{'records': [{'%s': 20230914100900}]}", DEFAULT_WATERMARK_COLUMN),
+            20230914100900L
+        }
+    };
+  }
+
+  @Test(dataProvider = "provideGetHighWatermarkTestData")
+  public void testGetHighWatermark(String commandOutputAsStr, long expectedHwm) throws HighWatermarkException {
+    CommandOutput<RestApiCommand, String> response = new RestApiCommandOutput();
+    RestApiCommand command = new RestApiCommand();
+    response.put(command, commandOutputAsStr);
+    long actualHighWtm =
+        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, DEFAULT_WATERMARK_VALUE_FORMAT);
+    Assert.assertEquals(actualHighWtm, expectedHwm);
   }
 }

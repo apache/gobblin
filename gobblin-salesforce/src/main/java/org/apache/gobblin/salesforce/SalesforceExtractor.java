@@ -282,12 +282,19 @@ public class SalesforceExtractor extends RestApiExtractor {
     long highTs;
     try {
       JsonObject jsonObject = element.getAsJsonObject();
+      log.info("High watermark json object: {}", jsonObject.toString());
+
       JsonArray jsonArray = jsonObject.getAsJsonArray("records");
-      if (jsonArray.size() == 0) {
+      if (jsonArray == null || jsonArray.size() == 0) {
         return -1;
       }
 
-      String value = jsonObject.getAsJsonArray("records").get(0).getAsJsonObject().get(watermarkColumn).getAsString();
+      JsonElement hwmJsonElement = jsonArray.get(0).getAsJsonObject().get(watermarkColumn);
+      if (hwmJsonElement == null) {
+        return -1;
+      }
+
+      String value = hwmJsonElement.getAsString();
       if (format != null) {
         SimpleDateFormat inFormat = new SimpleDateFormat(format);
         Date date = null;
