@@ -14,20 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 
 /**
- * Interface defining {@link DagTask} based on the type of visitor.
- * @param <T>
+ * Custom Annotation for classes that are under development.
+ * It will make the classes available only during compilation phase, and not in the build.
  */
-@WorkInProgress
-public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask)
-      throws IOException, InstantiationException, IllegalAccessException;
-  T meet(KillDagTask killDagTask) throws IOException;
-  T meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException;
+@Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.TYPE)
+public @interface WorkInProgress {
+  String value() default "This class/interface is a work in progress.";
 }
+

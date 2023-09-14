@@ -41,8 +41,15 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagTask;
+import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
+import org.apache.gobblin.service.modules.orchestration.KillDagTask;
+import org.apache.gobblin.service.modules.orchestration.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.ResumeDagTask;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -80,6 +87,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected Orchestrator orchestrator;
   protected boolean isMultiActiveSchedulerEnabled;
   protected FlowCatalog flowCatalog;
+  private DagTaskStream dagTaskStream;
+  private boolean isRefactoredDagManagerEnabled;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -94,6 +103,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+    // instantiating using default ctor; subsequent PR will handle instantiating with multi-args ctor
+    this.dagTaskStream = new DagTaskStream();
+    this.isRefactoredDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, false);
   }
 
   @Override
@@ -136,14 +148,26 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
+
       if (operation.equals("INSERT")) {
         if (dagActionType.equals(DagActionStore.FlowActionType.RESUME)) {
           log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
+          //TODO: add a flag for if condition only if multi-active is enabled
+          if(isRefactoredDagManagerEnabled) {
+            ResumeDagTask resumeDagTask = new ResumeDagTask(new DagManager.DagId(flowGroup, flowName, flowExecutionId));
+            dagTaskStream.resumeFlow(resumeDagTask);
+          }
+
           this.resumesInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
           log.info("Received insert dag action and about to send kill flow request");
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
+          //TODO: add a flag for if condition only if multi-active is enabled
+          if(isRefactoredDagManagerEnabled) {
+            KillDagTask killDagTask = new KillDagTask(new DagManager.DagId(flowGroup, flowName, flowExecutionId));
+            dagTaskStream.killFlow(killDagTask);
+          }
           this.killsInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
           // If multi-active scheduler is NOT turned on we should not receive these type of events
@@ -155,6 +179,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           }
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManagerHelper(flowGroup, flowName);
+          if(isRefactoredDagManagerEnabled) {
+            LaunchDagTask launchDagTask = new LaunchDagTask(flowGroup, flowName);
+            dagTaskStream.launchFlow(launchDagTask);
+          }
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();

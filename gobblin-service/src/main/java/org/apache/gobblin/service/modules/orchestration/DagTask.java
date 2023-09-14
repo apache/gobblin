@@ -17,6 +17,13 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
+import java.util.Properties;
+
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+
+
 /**
  * Defines an individual task or job in a Dag.
  * It carries the state information required by {@link DagProc} to for its processing.
@@ -24,9 +31,21 @@ package org.apache.gobblin.service.modules.orchestration;
  * acquired by {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter} as complete
  * @param <T>
  */
-abstract class DagTask<T> {
+@WorkInProgress
+public abstract class DagTask<T> {
 
-  abstract void initialize();
+  protected Properties jobProps;
+  protected DagActionStore.DagAction flowAction;
+  protected long triggerTimeStamp;
+
+  protected MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
+  abstract void initialize(Object state, long triggerTimeStamp);
+
+  /**
+   * Currently, I don't see any need for having to mark conclusion of {@link DagTask}.
+   * Each task submits an event after processing, resulting in change in status for that job.
+   *
+   */
   abstract void conclude();
-  abstract T host(DagTaskVisitor<T> visitor);
+  abstract DagProc host(DagTaskVisitor<T> visitor) throws IOException, InstantiationException, IllegalAccessException;
 }

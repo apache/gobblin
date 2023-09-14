@@ -17,16 +17,38 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatus;
+
+
 /**
  * Responsible for defining the behavior of {@link DagTask} handling scenarios for launch, resume, kill, job start
  * and flow completion deadlines
  *
  */
+@WorkInProgress
 public interface DagManagement {
+  /**
+   * Currently, it is handling just the launch of a {@link Dag} request via REST client for adhoc flows
+   * @param launchDagTask
+   */
+  void launchFlow(LaunchDagTask launchDagTask);
+  /**
+   * Currently, it is handling just the resume of a {@link Dag} request via REST client for adhoc flows
+   * @param resumeDagTask
+   */
+  void resumeFlow(ResumeDagTask resumeDagTask) throws IOException;
+  /**
+   * Currently, it is handling just the kill/cancel of a {@link Dag} request via REST client for adhoc flows
+   * @param killDagTask
+   */
+  void killFlow(KillDagTask killDagTask);
 
-  void launchFlow();
-  void resumeFlow();
-  void killFlow();
-  void enforceFlowCompletionDeadline();
-  void enforceJobStartDeadline();
+  boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException;
+
+  boolean enforceJobStartDeadline(Dag.DagNode<JobExecutionPlan> node, JobStatus jobStatus) throws ExecutionException, InterruptedException;
 }

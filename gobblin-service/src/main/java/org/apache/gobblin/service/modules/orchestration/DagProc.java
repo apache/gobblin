@@ -17,22 +17,27 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
 
 
 /**
  * Responsible to performing the actual work for a given {@link DagTask}.
  * It processes the {@link DagTask} by first initializing its state, performing actions
- * like updating {@link DagStateStore} and finally submiting an event to the executor.
+ * based on the type of {@link DagTask} and finally submitting an event to the executor.
  * @param <S> current state of the dag node
  * @param <R> result after processing the dag node
  */
+@WorkInProgress
 public abstract class DagProc<S, R> {
   abstract protected S initialize() throws MaybeRetryableException;
-  abstract protected R act(S state) throws MaybeRetryableException;
+  abstract protected R act(S state) throws ExecutionException, InterruptedException, IOException;
   abstract protected void sendNotification(R result) throws MaybeRetryableException;
 
-  final void process() {
+  void process(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus) {
   throw new UnsupportedOperationException(" Process unsupported");
   }
 }

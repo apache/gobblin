@@ -396,7 +396,7 @@ public class JobScheduler extends AbstractIdleService {
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
       Trigger trigger = createTriggerForJob(job.getKey(), jobProps, Optional.absent());
-      this.scheduler.getScheduler().scheduleJob(job, trigger);
+      this.scheduler.getScheduler().scheduleJob(job, trigger); //quartz scheduler; calls runJob()
       logNewlyScheduledJob(job, trigger);
     } catch (SchedulerException se) {
       LOG.error("Failed to schedule job " + jobName, se);

@@ -17,13 +17,34 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
+
+import com.google.common.base.Optional;
+
+import org.apache.gobblin.metrics.event.EventSubmitter;
+
+
 /**
- * Factory for creating {@link DagProc} based on the visitor type {@link DagTask}.
+ * Factory for creating {@link DagProc} based on the visitor type for a given {@link DagTask}.
  */
-public interface DagProcFactory extends DagTaskVisitor<DagProc> {
-  DagProc meet(LaunchDagTask ldt);
-  DagProc meet(KillDagTask kdt);
-  DagProc meet(ResumeDagTask rdt);
-  DagProc createFor(DagTask t);
+@WorkInProgress
+public class DagProcFactory implements DagTaskVisitor<DagProc> {
+  @Override
+  public DagProc meet(LaunchDagTask launchDagTask) throws IOException, InstantiationException, IllegalAccessException {
+    LaunchDagProc launchDagProc = new LaunchDagProc(launchDagTask.flowGroup, launchDagTask.flowName);
+    return launchDagProc;
+  }
+
+  @Override
+  public DagProc meet(KillDagTask killDagTask) throws IOException {
+    KillDagProc killDagProc = new KillDagProc(killDagTask.killDagId);
+    return killDagProc;
+  }
+
+  @Override
+  public DagProc meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException {
+    ResumeDagProc resumeDagProc = new ResumeDagProc(resumeDagTask.resumeDagId);
+    return resumeDagProc;
+  }
 }
 

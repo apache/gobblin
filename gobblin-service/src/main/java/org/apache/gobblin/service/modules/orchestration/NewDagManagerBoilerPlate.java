@@ -17,20 +17,46 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.base.Optional;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@WorkInProgress
+@Slf4j
+@AllArgsConstructor
 public class NewDagManagerBoilerPlate {
-
   private DagTaskStream dagTaskStream;
-  private DagProc dagProc;
+  private DagProcFactory dagProcFactory;
+  private DagManager.DagManagerThread [] dagManagerThreads;
+  //TODO instantiate DMT
 
-  public DagTask getNextTask() {
-    return dagTaskStream.next();
-  }
-
+  @WorkInProgress
+  @AllArgsConstructor
   public static class DagManagerThread implements Runnable {
-
+    private DagTaskStream dagTaskStream;
+    private DagProcFactory dagProcFactory;
     @Override
     public void run() {
-      submitNextDagTask();
+      try {
+        while (dagTaskStream.hasNext()) {
+          Optional<DagTask> dagTask = getNextTask();
+          if (dagTask.isPresent()) {
+            DagProc dagProc = dagTask.get().host(dagProcFactory);
+            dagProc.process(dagTask.get().leaseAttemptStatus);
+            //TODO: Handle cleaning up of Dags
+            cleanUpDagTask();
+          }
+        }
+      } catch (Exception ex) {
+        log.error(String.format("Exception encountered in %s", getClass().getName()), ex);
+      }
+    }
+    public Optional<DagTask> getNextTask() {
+      return dagTaskStream.next();
+    }
+    public void cleanUpDagTask() {
+      throw new UnsupportedOperationException("Not yet supported");
     }
   }
 
