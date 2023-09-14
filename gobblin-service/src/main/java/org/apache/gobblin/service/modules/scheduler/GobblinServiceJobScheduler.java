@@ -466,7 +466,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Override
   protected void logNewlyScheduledJob(JobDetail job, Trigger trigger) {
     Properties jobProps = (Properties) job.getJobDataMap().get(PROPERTIES_KEY);
-    log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} localConversionTriggerTime:{} - Job newly "
+    log.info(jobSchedulerTracePrefixBuilder(jobProps) + "nextTriggerTime: {} localTZNextTriggerTime:{} - Job newly "
             + "scheduled", utcDateAsUTCEpochMillis(trigger.getNextFireTime()),
         systemDefaultZoneDateAsUTCEpochMillis(trigger.getNextFireTime()));
   }
@@ -754,7 +754,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         Trigger trigger = context.getTrigger();
         // THIS current event has already fired if this method is called, so it now exists in <previousFireTime>
         long triggerTimeMillis = utcDateAsUTCEpochMillis(trigger.getPreviousFireTime());
-        long localConversionTriggerTimeMillis = systemDefaultZoneDateAsUTCEpochMillis(trigger.getPreviousFireTime());
+        long localTZTriggerTimeMillis = systemDefaultZoneDateAsUTCEpochMillis(trigger.getPreviousFireTime());
         // If the trigger is a reminder type event then utilize the trigger time saved in job properties rather than the
         // actual firing time
         if (jobDetail.getKey().getName().contains("reminder")) {
@@ -770,9 +770,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
               String.valueOf(triggerTimeMillis));
           _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} "
-              + "localConversionTriggerTime: {} localConversionNextTriggerTime: {}- Job triggered by "
-              + "scheduler", triggerTimeMillis, utcDateAsUTCEpochMillis(trigger.getNextFireTime()),
-              localConversionTriggerTimeMillis, systemDefaultZoneDateAsUTCEpochMillis(trigger.getNextFireTime()));
+              + "localTZTriggerTime: {} localTZNextTriggerTime: {}- Job triggered by scheduler", triggerTimeMillis,
+              utcDateAsUTCEpochMillis(trigger.getNextFireTime()), localTZTriggerTimeMillis,
+              systemDefaultZoneDateAsUTCEpochMillis(trigger.getNextFireTime()));
         }
         jobScheduler.runJob(jobProps, jobListener);
       } catch (Throwable t) {
