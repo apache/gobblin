@@ -61,7 +61,6 @@ public class StateStoreWatermarkStorageTest {
     taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "zk");
     taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_CONFIG_PREFIX +
       ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY, testingServer.getConnectString());
-    taskState.setProp()
     StateStoreBasedWatermarkStorage watermarkStorage = new StateStoreBasedWatermarkStorage(taskState);
 
     watermarkStorage.commitWatermarks(ImmutableList.of(watermark));
