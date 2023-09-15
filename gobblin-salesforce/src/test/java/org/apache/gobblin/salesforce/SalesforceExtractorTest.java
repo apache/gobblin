@@ -38,8 +38,6 @@ import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.salesforce.SalesforceExtractor.*;
-
 
 public class SalesforceExtractorTest {
 
@@ -50,7 +48,7 @@ public class SalesforceExtractorTest {
   private static final String LTE_OPERATOR = "<=";
   private static final long LWM_VALUE_1 = 20131212121212L;
   private static final long HWM_VALUE_1 = 20231212121212L;
-  private static final String DEFAULT_WATERMARK_VALUE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
+  private static final String DEFAULT_WATERMARK_VALUE_FORMAT = "yyyyMMddHHmmss";
 
   private SalesforceExtractor _classUnderTest;
 
@@ -161,7 +159,7 @@ public class SalesforceExtractorTest {
     RestApiCommand command = new RestApiCommand();
     response.put(command, commandOutputAsStr);
     long actualHighWtm =
-        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, SALESFORCE_TIMESTAMP_FORMAT);
+        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
     Assert.assertEquals(actualHighWtm, expectedHwm);
   }
 }
