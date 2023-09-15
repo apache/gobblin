@@ -16,9 +16,16 @@
  */
 package org.apache.gobblin.salesforce;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.List;
+
+import org.testng.Assert;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableList;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -33,10 +40,6 @@ import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.testng.Assert;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 
 public class SalesforceExtractorTest {
@@ -114,16 +117,42 @@ public class SalesforceExtractorTest {
     return new Object[][] {
         {
             "{}",
-            -1L
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
         },
         {
-            "{'records': [{}]}",
-            -1L
+            "{\"records\": [{}]}",
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
         },
         {
-            String.format("{'records': [{'%s': 20230914100900}]}", DEFAULT_WATERMARK_COLUMN),
-            20230914100900L
-        }
+            "{"
+                + "    \"totalSize\": 1,"
+                + "    \"done\": true,"
+                + "    \"records\": ["
+                + "        {"
+                + "            \"attributes\": {"
+                + "                \"type\": \"AggregateResult\""
+                + "            },"
+                + "            \"expr0\": null"
+                + "        }"
+                + "    ]"
+                + "}",
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+        },
+        {
+            "{"
+                + "    \"totalSize\": 1,"
+                + "    \"done\": true,"
+                + "    \"records\": ["
+                + "        {"
+                + "            \"attributes\": {"
+                + "                \"type\": \"AggregateResult\""
+                + "            },"
+                + "            \"expr0\": \"2023-09-15T05:21:41.000Z\""
+                + "        }"
+                + "    ]"
+                + "}",
+            20230915052141L
+        },
     };
   }
 
@@ -133,7 +162,7 @@ public class SalesforceExtractorTest {
     RestApiCommand command = new RestApiCommand();
     response.put(command, commandOutputAsStr);
     long actualHighWtm =
-        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, DEFAULT_WATERMARK_VALUE_FORMAT);
+        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
     Assert.assertEquals(actualHighWtm, expectedHwm);
   }
 }
