@@ -17,31 +17,9 @@
 
 package org.apache.gobblin.salesforce;
 
-import com.google.common.collect.Iterators;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.net.URI;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import org.apache.commons.lang.StringUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.message.BasicNameValuePair;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -59,7 +37,23 @@ import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.ws.ConnectorConfig;
-
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
+import java.net.URI;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.password.PasswordManager;
@@ -71,7 +65,6 @@ import org.apache.gobblin.source.extractor.exception.RestApiConnectionException;
 import org.apache.gobblin.source.extractor.exception.SchemaException;
 import org.apache.gobblin.source.extractor.extract.Command;
 import org.apache.gobblin.source.extractor.extract.CommandOutput;
-import org.apache.gobblin.source.jdbc.SqlQueryUtils;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiConnector;
@@ -80,10 +73,13 @@ import org.apache.gobblin.source.extractor.schema.Schema;
 import org.apache.gobblin.source.extractor.utils.Utils;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.jdbc.SqlQueryUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
-
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.message.BasicNameValuePair;
 
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
 
@@ -98,6 +94,13 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final String SALESFORCE_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SALESFORCE_HOUR_FORMAT = "HH";
   private static final String SALESFORCE_SOAP_SERVICE = "/services/Soap/u";
+
+  /*
+  This is the key in the response of the aggregate MAX query, and the corresponding
+  value is the column value on which MAX is applied.
+   */
+  private static final String MAX_QUERY_RESPONSE_KEY = "expr0";
+
   private static final Gson GSON = new Gson();
   private static final int MAX_RETRY_INTERVAL_SECS = 600;
 
@@ -286,12 +289,12 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       JsonArray jsonArray = jsonObject.getAsJsonArray("records");
       if (jsonArray == null || jsonArray.size() == 0) {
-        return -1;
+        return ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
       }
 
-      JsonElement hwmJsonElement = jsonArray.get(0).getAsJsonObject().get(watermarkColumn);
-      if (hwmJsonElement == null) {
-        return -1;
+      JsonElement hwmJsonElement = jsonArray.get(0).getAsJsonObject().get(MAX_QUERY_RESPONSE_KEY);
+      if (hwmJsonElement == null || hwmJsonElement.isJsonNull()) {
+        return ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
       }
 
       String value = hwmJsonElement.getAsString();
