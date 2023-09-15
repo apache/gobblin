@@ -17,6 +17,28 @@
 
 package org.apache.gobblin.salesforce;
 
+import java.io.ByteArrayInputStream;
+import java.io.FileNotFoundException;
+import java.net.URI;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.message.BasicNameValuePair;
+
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -37,23 +59,10 @@ import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
 import com.sforce.ws.ConnectorConfig;
-import java.io.ByteArrayInputStream;
-import java.io.FileNotFoundException;
-import java.net.URI;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.password.PasswordManager;
@@ -75,13 +84,10 @@ import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.jdbc.SqlQueryUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.http.HttpEntity;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
-import org.apache.http.message.BasicNameValuePair;
 
-import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
+import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.PK_CHUNKING_BATCH_RESULT_ID_PAIRS;
+import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.PK_CHUNKING_JOB_ID;
+import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED;
 
 /**
  * An implementation of salesforce extractor for extracting data from SFDC
