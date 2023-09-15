@@ -311,6 +311,6 @@ public class FlowTriggerHandler {
   protected static long getUTCTimeFromDelayPeriod(long delayPeriodMillis) {
     LocalDateTime localDateTime = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
     Date date = Date.from(localDateTime.atZone(ZoneId.of("UTC")).toInstant());
-    return GobblinServiceJobScheduler.asUTCEpochMillis(date);
+    return GobblinServiceJobScheduler.utcDateAsUTCEpochMillis(date);
   }
 }
