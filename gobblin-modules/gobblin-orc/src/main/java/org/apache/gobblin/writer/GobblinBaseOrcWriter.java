@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.util.JobConfigurationUtils;
 
 /**
  * A wrapper for ORC-core writer without dependency on Hive SerDe library.
@@ -117,9 +118,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     // Create file-writer
     this.writerConfig = new Configuration();
     // Populate job Configurations into Conf as well so that configurations related to ORC writer can be tuned easily.
-    for (Object key : properties.getProperties().keySet()) {
-      this.writerConfig.set((String) key, properties.getProp((String) key));
-    }
+    JobConfigurationUtils.putStateIntoConfiguration(properties, this.writerConfig);
     OrcFile.WriterOptions options = OrcFile.writerOptions(properties.getProperties(), this.writerConfig);
     options.setSchema(typeDescription);
 
