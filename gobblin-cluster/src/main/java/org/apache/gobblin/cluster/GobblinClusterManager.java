@@ -31,6 +31,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.cluster.temporal.GobblinTemporalJobScheduler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -79,7 +80,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * The central cluster manager for Gobblin Clusters.
  *
  * <p>
- *   This class runs the {@link GobblinHelixJobScheduler} for scheduling and running Gobblin jobs.
+ *   This class runs the {@link GobblinHelixJobScheduler} or {@link GobblinTemporalJobScheduler} for scheduling
+ *   and running Gobblin jobs.
  *   This class serves as the Helix controller and it uses a {@link HelixManager} to work with Helix.
  * </p>
  *
@@ -132,6 +134,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private MutableJobCatalog jobCatalog;
   @Getter
   private GobblinHelixJobScheduler jobScheduler;
+  @Getter
+  private GobblinTemporalJobScheduler temporalJobScheduler;
   @Getter
   private JobConfigurationManager jobConfigurationManager;
   @Getter
@@ -199,6 +203,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
         schedulerService);
     this.applicationLauncher.addService(this.jobScheduler);
+    this.temporalJobScheduler = buildGobblinTemporalJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+            schedulerService);
+    this.applicationLauncher.addService(this.temporalJobScheduler);
     this.jobConfigurationManager = buildJobConfigurationManager(config);
     this.applicationLauncher.addService(this.jobConfigurationManager);
 
@@ -377,6 +384,18 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
+   * Build the {@link GobblinTemporalJobScheduler} for the Application Master.
+   */
+  private GobblinTemporalJobScheduler buildGobblinTemporalJobScheduler(Config sysConfig, Path appWorkDir,
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
+    return new GobblinTemporalJobScheduler(sysConfig,
+            this.eventBus,
+            appWorkDir,
+            metadataTags,
+            schedulerService);
+  }
+
+  /**
    * Build the {@link JobConfigurationManager} for the Application Master.
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
@@ -487,6 +506,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     List<StandardMetrics> list = new ArrayList();
     list.addAll(this.jobScheduler.getStandardMetricsCollection());
+    list.addAll(this.temporalJobScheduler.getStandardMetricsCollection());
     list.addAll(this.multiManager.getStandardMetricsCollection());
     list.addAll(this.jobCatalog.getStandardMetricsCollection());
     list.addAll(this.jobConfigurationManager.getStandardMetricsCollection());

@@ -151,4 +151,5 @@ public class GobblinYarnConfigurationKeys {
   //Config to control Heartbeat interval for Yarn AMRM client.
   public static final String AMRM_HEARTBEAT_INTERVAL_SECS = GOBBLIN_YARN_PREFIX + "amRmHeartbeatIntervalSecs";
   public static final Integer DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS = 15;
+  public static final String TEMPORAL_WORKERPOOL_SIZE = "temporal.workerpool.size";
 }

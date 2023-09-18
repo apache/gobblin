@@ -27,6 +27,8 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 
 import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -38,7 +40,7 @@ import lombok.Getter;
  *
  */
 public class EventSubmitter {
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(EventSubmitter.class);
   public static final String EVENT_TYPE = "eventType";
 
   private final Map<String, String> metadata;

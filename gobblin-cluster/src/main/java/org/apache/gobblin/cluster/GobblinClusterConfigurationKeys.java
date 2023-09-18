@@ -234,5 +234,5 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY = "helix.job.scheduling.throttle.timeout.seconds";
   public static final long DEFAULT_HELIX_JOB_SCHEDULING_THROTTLE_TIMEOUT_SECONDS_KEY = Duration.ofMinutes(40).getSeconds();;
-
+  public static final String TEMPORAL_WORKER_SIZE = "temporal.worker.size";
 }
