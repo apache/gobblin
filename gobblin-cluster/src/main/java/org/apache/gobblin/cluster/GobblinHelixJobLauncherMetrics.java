@@ -28,7 +28,7 @@ import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 /**
  * Metrics that relates to jobs launched by {@link GobblinHelixJobLauncher}.
  */
-class GobblinHelixJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
+public class GobblinHelixJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
     private final String metricsName;
 
     final ContextAwareMeter numJobsLaunched;

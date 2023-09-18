@@ -33,7 +33,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 
-class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetrics {
+public class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetrics {
   public static final String SCHEDULE_CANCELLATION_START = "scheduleCancellationStart";
   public static final String SCHEDULE_CANCELLATION_END = "scheduleCancellationEnd";
   public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";
@@ -74,21 +74,21 @@ class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetr
     this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.EXECUTOR_QUEUE_SIZE, ()->this.threadPoolExecutor.getQueue().size()));
   }
 
-  void updateTimeBeforeJobScheduling (Properties jobProps) {
+  public void updateTimeBeforeJobScheduling (Properties jobProps) {
     long jobCreationTime = Long.parseLong(jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "0"));
     Instrumented.updateTimer(Optional.of(timeBeforeJobScheduling),
         System.currentTimeMillis() - jobCreationTime,
         TimeUnit.MILLISECONDS);
   }
 
-  void updateTimeBeforeJobLaunching (Properties jobProps) {
+  public void updateTimeBeforeJobLaunching (Properties jobProps) {
     long jobCreationTime = Long.parseLong(jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "0"));
     Instrumented.updateTimer(Optional.of(timeBeforeJobLaunching),
         System.currentTimeMillis() - jobCreationTime,
         TimeUnit.MILLISECONDS);
   }
 
-  void updateTimeBetweenJobSchedulingAndJobLaunching (long scheduledTime, long launchingTime) {
+  public void updateTimeBetweenJobSchedulingAndJobLaunching (long scheduledTime, long launchingTime) {
     Instrumented.updateTimer(Optional.of(timeBetwenJobSchedulingAndLaunching),
         launchingTime - scheduledTime,
         TimeUnit.MILLISECONDS);
