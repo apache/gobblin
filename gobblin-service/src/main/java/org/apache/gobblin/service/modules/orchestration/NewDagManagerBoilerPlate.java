@@ -17,25 +17,32 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.base.Optional;
+
+import java.util.Optional;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@WorkInProgress
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+
+
+@Alpha
 @Slf4j
 @AllArgsConstructor
 public class NewDagManagerBoilerPlate {
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
   private DagManager.DagManagerThread [] dagManagerThreads;
+  private MultiActiveLeaseArbiter multiActiveLeaseArbiter;
   //TODO instantiate DMT
 
-  @WorkInProgress
   @AllArgsConstructor
   public static class DagManagerThread implements Runnable {
     private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
+
+    private MultiActiveLeaseArbiter multiActiveLeaseArbiter;
     @Override
     public void run() {
       try {
@@ -43,12 +50,13 @@ public class NewDagManagerBoilerPlate {
           Optional<DagTask> dagTask = getNextTask();
           if (dagTask.isPresent()) {
             DagProc dagProc = dagTask.get().host(dagProcFactory);
-            dagProc.process(dagTask.get().leaseAttemptStatus);
-            //TODO: Handle cleaning up of Dags
-            cleanUpDagTask();
+            dagProc.process();
+            //marks lease success and releases it
+            dagTask.get().conclude(multiActiveLeaseArbiter);
           }
         }
       } catch (Exception ex) {
+        //TODO: need to handle exceptions gracefully
         log.error(String.format("Exception encountered in %s", getClass().getName()), ex);
       }
     }

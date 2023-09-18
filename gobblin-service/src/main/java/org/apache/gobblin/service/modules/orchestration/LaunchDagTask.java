@@ -18,8 +18,9 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.util.List;
 
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -27,35 +28,30 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 /**
  * A {@link DagTask} responsible to handle launch tasks.
  */
-@WorkInProgress
+@Alpha
 public class LaunchDagTask extends DagTask {
   String flowGroup;
   String flowName;
 
-  public LaunchDagTask(String flowGroup, String flowName) {
+  String flowExecutionId;
+
+  public LaunchDagTask(String flowGroup, String flowName, String flowExecutionId) {
     this.flowGroup = flowGroup;
     this.flowName = flowName;
+    this.flowExecutionId = flowExecutionId;
   }
 
   /**
    * initializes the job properties associated with a {@link DagTask}
-   * @param dagNodes
+   * @param dag
    * @param triggerTimeStamp
    */
   @Override
-  void initialize(Object dagNodes, long triggerTimeStamp) {
-    List<Dag.DagNode<JobExecutionPlan>> dagNodesToKill = (List<Dag.DagNode<JobExecutionPlan>>) dagNodes;
-    for (Dag.DagNode<JobExecutionPlan> dagNodeToKill : dagNodesToKill) {
-      //this overrides to the last value in the list of dagNode avoiding multi-hop flows
-      //TODO: handle to take in a list of job props for multi-hop flows
-      this.jobProps = dagNodeToKill.getValue().getJobSpec().getConfigAsProperties();
-    }
+  void initialize(Object dag, long triggerTimeStamp) {
+    Dag<JobExecutionPlan> launchDag = (Dag<JobExecutionPlan>) dag;
+    this.flowAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+    this.jobProps = launchDag.getStartNodes().get(0).getValue().getJobSpec().getConfigAsProperties();
     this.triggerTimeStamp = triggerTimeStamp;
-  }
-
-  @Override
-  void conclude() {
-
   }
 
   @Override

@@ -29,11 +29,11 @@ import com.google.api.client.util.Lists;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -55,7 +55,7 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
  * An implementation of {@link DagProc} for killing {@link DagTask}.
  */
 @Slf4j
-@WorkInProgress
+@Alpha
 public final class KillDagProc extends DagProc {
 
   private DagManager.DagId killDagId;
@@ -76,18 +76,6 @@ public final class KillDagProc extends DagProc {
 
   }
 
-  @Override
-  public void process(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus) {
-    try {
-      Object state = this.initialize();
-      Object result = this.act(state);
-      this.sendNotification(result);
-      this.multiActiveLeaseArbiter.recordLeaseSuccess((MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseStatus);
-      log.info("Successfully processed Kill Dag Request");
-    } catch (Exception | MaybeRetryableException ex) {
-      log.info("Need to handle the exception here");
-    }
-  }
   @Override
   protected List<Dag.DagNode<JobExecutionPlan>> initialize() {
     Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = this.dagManagementStateStore.getDagToJobs();
@@ -119,10 +107,10 @@ public final class KillDagProc extends DagProc {
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
       killDagNode(dagNodeToCancel);
     }
-    this.dagManagementStateStore.getDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
-    this.dagManagementStateStore.getDags().get(dagToCancel).setMessage("Flow killed by request");
+    this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+    this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setMessage("Flow killed by request");
     this.dagManagementStateStore.removeDagActionFromStore(killDagId, DagActionStore.FlowActionType.KILL);
-    return this.dagManagementStateStore.getDags().get(dagToCancel);
+    return this.dagManagementStateStore.getDagIdToDags().get(dagToCancel);
 
   }
 

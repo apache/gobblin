@@ -20,7 +20,9 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
 
 
@@ -31,13 +33,23 @@ import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryable
  * @param <S> current state of the dag node
  * @param <R> result after processing the dag node
  */
-@WorkInProgress
+@Alpha
+@Slf4j
 public abstract class DagProc<S, R> {
-  abstract protected S initialize() throws MaybeRetryableException;
+  abstract protected S initialize()
+      throws MaybeRetryableException, IOException;
   abstract protected R act(S state) throws ExecutionException, InterruptedException, IOException;
   abstract protected void sendNotification(R result) throws MaybeRetryableException;
 
-  void process(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus) {
-  throw new UnsupportedOperationException(" Process unsupported");
+  public void process() {
+    try {
+      S state = this.initialize();
+      R result = this.act(state);
+      this.sendNotification(result);
+      log.info("Successfully processed Dag Request");
+    } catch (Exception | MaybeRetryableException ex) {
+      //TODO: need to add exception handling
+      log.info("Need to handle the exception here");
+    }
   }
 }

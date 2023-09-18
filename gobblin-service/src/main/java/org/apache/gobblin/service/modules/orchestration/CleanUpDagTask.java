@@ -14,21 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 
 /**
- * Custom Annotation for classes that are under development.
- * It will make the classes available only during compilation phase, and not in the build.
+ * An implementation of {@link DagTask} that is responsible for clean up {@link Dag} that has been completed
+ * or has reached an end state likewise: FAILED, COMPLETE or CANCELED. It is added to the {@link DagTaskStream}
+ * by the {@link org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor} after it consumes the appropriate
+ * {@link org.apache.gobblin.metrics.GobblinTrackingEvent}.
+ *
  */
-@Retention(RetentionPolicy.SOURCE)
-@Target(ElementType.TYPE)
-public @interface WorkInProgress {
-  String value() default "This class/interface is a work in progress.";
-}
+@Alpha
+public class CleanUpDagTask extends DagTask {
 
+  protected DagManager.DagId cleanUpDagId;
+
+  @Override
+  void initialize(Object state, long triggerTimeStamp) {
+
+  }
+
+  @Override
+  CleanUpDagProc host(DagTaskVisitor visitor) {
+    return (CleanUpDagProc) visitor.meet(this);
+  }
+}

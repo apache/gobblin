@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutionException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
@@ -39,7 +40,8 @@ import static org.apache.gobblin.service.ExecutionStatus.PENDING_RESUME;
  * Currently, I have this boilerplate code, but can decide if it makes have a separate procedure for completion of
  * PENDING_RESUME events.
  */
-@WorkInProgress
+
+@Alpha
 @Slf4j
 public class FinishResumeDagProc extends DagProc {
   private DagManagementStateStore dagManagementStateStore = new DagManagementStateStore();
@@ -55,7 +57,7 @@ public class FinishResumeDagProc extends DagProc {
 
   @Override
   protected Object act(Object state) throws ExecutionException, InterruptedException, IOException {
-    for (Map.Entry<String, Dag<JobExecutionPlan>> dag : this.dagManagementStateStore.getResumingDags().entrySet()) {
+    for (Map.Entry<String, Dag<JobExecutionPlan>> dag : this.dagManagementStateStore.getDagIdToResumingDags().entrySet()) {
       JobStatus flowStatus = this.dagTaskStream.pollFlowStatus(dag.getValue());
       if (flowStatus == null || !flowStatus.getEventName().equals(PENDING_RESUME.name())) {
         continue;
@@ -73,10 +75,9 @@ public class FinishResumeDagProc extends DagProc {
       if (dagReady) {
         this.dagStateStore.writeCheckpoint(dag.getValue());
         this.failedDagStateStore.cleanUp(dag.getValue());
-//        removeDagActionFromStore(DagManagerUtils.generateDagId(dag.getValue()), DagActionStore.FlowActionType.RESUME);
+        this.dagManagementStateStore.removeDagActionFromStore(DagManagerUtils.generateDagId(dag.getValue()), DagActionStore.FlowActionType.RESUME);
         this.dagManagementStateStore.getFailedDagIds().remove(dag.getKey());
-        this.dagManagementStateStore.getResumingDags().remove(dag.getKey());
-//        initialize(dag.getValue());
+        this.dagManagementStateStore.getDagIdToResumingDags().remove(dag.getKey());
       }
     }
     return null;

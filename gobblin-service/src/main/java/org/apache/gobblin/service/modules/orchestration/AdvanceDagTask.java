@@ -23,18 +23,24 @@ import org.apache.gobblin.annotation.Alpha;
 
 
 /**
- * Interface defining {@link DagTask} based on the type of visitor.
- * @param <T>
+ * An implementation of {@link DagTask} that is responsible for advancing the dag to the next node based
+ * on its current flow and job status. It is added to the {@link DagTaskStream} by the
+ * {@link org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor} after it consumes the appropriate
+ * {@link org.apache.gobblin.metrics.GobblinTrackingEvent} for the {@link org.apache.gobblin.service.modules.flowgraph.Dag}
  */
+
 @Alpha
-public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask)
-      throws IOException, InstantiationException, IllegalAccessException;
-  T meet(KillDagTask killDagTask) throws IOException;
-  T meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException;
+public class AdvanceDagTask extends DagTask {
 
-  T meet(AdvanceDagTask advanceDagTask)
-      throws IOException;
+  protected DagManager.DagId advanceDagId;
 
-  T meet(CleanUpDagTask cleanUpDagTask);
+  @Override
+  void initialize(Object state, long triggerTimeStamp) {
+
+  }
+
+  @Override
+  AdvanceDagProc host(DagTaskVisitor visitor) throws IOException, InstantiationException, IllegalAccessException {
+    return (AdvanceDagProc) visitor.meet(this);
+  }
 }

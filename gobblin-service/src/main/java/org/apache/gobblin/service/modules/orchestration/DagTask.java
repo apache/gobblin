@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 
@@ -31,7 +32,8 @@ import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
  * acquired by {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter} as complete
  * @param <T>
  */
-@WorkInProgress
+
+@Alpha
 public abstract class DagTask<T> {
 
   protected Properties jobProps;
@@ -39,13 +41,17 @@ public abstract class DagTask<T> {
   protected long triggerTimeStamp;
 
   protected MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
+
   abstract void initialize(Object state, long triggerTimeStamp);
 
   /**
-   * Currently, I don't see any need for having to mark conclusion of {@link DagTask}.
-   * Each task submits an event after processing, resulting in change in status for that job.
-   *
+   * Currently, conclusion of {@link DagTask} marks and records a successful release of lease.
+   * It is involved after {@link DagProc#process()} is completed successfully.
    */
-  abstract void conclude();
+
+  public void conclude(MultiActiveLeaseArbiter multiActiveLeaseArbiter) throws IOException {
+    MultiActiveLeaseArbiter.LeaseObtainedStatus status = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
+    multiActiveLeaseArbiter.recordLeaseSuccess(status);
+  }
   abstract DagProc host(DagTaskVisitor<T> visitor) throws IOException, InstantiationException, IllegalAccessException;
 }

@@ -19,15 +19,14 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
  * Factory for creating {@link DagProc} based on the visitor type for a given {@link DagTask}.
  */
-@WorkInProgress
+
+@Alpha
 public class DagProcFactory implements DagTaskVisitor<DagProc> {
   @Override
   public DagProc meet(LaunchDagTask launchDagTask) throws IOException, InstantiationException, IllegalAccessException {
@@ -45,6 +44,18 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   public DagProc meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException {
     ResumeDagProc resumeDagProc = new ResumeDagProc(resumeDagTask.resumeDagId);
     return resumeDagProc;
+  }
+
+  @Override
+  public DagProc meet(AdvanceDagTask advanceDagTask) throws IOException {
+    AdvanceDagProc advanceDagProc = new AdvanceDagProc();
+    return advanceDagProc;
+  }
+
+  @Override
+  public DagProc meet(CleanUpDagTask cleanUpDagTask) {
+    CleanUpDagProc cleanUpDagProc = new CleanUpDagProc();
+    return cleanUpDagProc;
   }
 }
 

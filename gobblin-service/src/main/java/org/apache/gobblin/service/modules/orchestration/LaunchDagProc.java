@@ -18,8 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map;
 
 import com.google.api.client.util.Lists;
@@ -30,6 +28,7 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -38,13 +37,10 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
@@ -60,7 +56,7 @@ import static org.apache.gobblin.service.ExecutionStatus.PENDING;
  * An implmentation of {@link DagProc} for launching {@link DagTask}.
  */
 @Slf4j
-@WorkInProgress
+@Alpha
 public final class LaunchDagProc extends DagProc {
   private String flowGroup;
   private String flowName;
@@ -104,19 +100,7 @@ public final class LaunchDagProc extends DagProc {
     this.dagManagerMetrics = new DagManagerMetrics();
   }
 
-  @Override
-  public void process(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus) {
-    try {
-      Object state = this.initialize();
-      Object result = this.act(state);
-      this.sendNotification(result);
-      this.multiActiveLeaseArbiter.recordLeaseSuccess((MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseStatus);
-      log.info("Successfully processed Pending Resume Dag Request");
-    } catch (Exception | MaybeRetryableException ex) {
-      log.info("Need to handle the exception here");
-      return;
-    }
-  }
+
   @Override
   protected Object initialize() {
     return null;

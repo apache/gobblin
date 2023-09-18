@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
@@ -30,23 +31,37 @@ import org.apache.gobblin.service.monitoring.JobStatus;
  * and flow completion deadlines
  *
  */
-@WorkInProgress
+@Alpha
 public interface DagManagement {
+
   /**
    * Currently, it is handling just the launch of a {@link Dag} request via REST client for adhoc flows
-   * @param launchDagTask
+   * @param flowGroup
+   * @param flowName
+   * @param triggerTimeStamp
    */
-  void launchFlow(LaunchDagTask launchDagTask);
+  void launchFlow(String flowGroup, String flowName, long  triggerTimeStamp);
+
   /**
    * Currently, it is handling just the resume of a {@link Dag} request via REST client for adhoc flows
-   * @param resumeDagTask
+   * @param flowGroup
+   * @param flowName
+   * @param flowExecutionId
+   * @param triggerTimeStamp
+   * @throws IOException
    */
-  void resumeFlow(ResumeDagTask resumeDagTask) throws IOException;
+  void resumeFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp)
+      throws IOException, InterruptedException;
+
   /**
    * Currently, it is handling just the kill/cancel of a {@link Dag} request via REST client for adhoc flows
-   * @param killDagTask
+   * @param flowGroup
+   * @param flowName
+   * @param flowExecutionId
+   * @param triggerTimeStamp
    */
-  void killFlow(KillDagTask killDagTask);
+  void killFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp)
+      throws InterruptedException;
 
   boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException;
 

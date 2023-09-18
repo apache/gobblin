@@ -155,8 +155,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           //TODO: add a flag for if condition only if multi-active is enabled
           if(isRefactoredDagManagerEnabled) {
-            ResumeDagTask resumeDagTask = new ResumeDagTask(new DagManager.DagId(flowGroup, flowName, flowExecutionId));
-            dagTaskStream.resumeFlow(resumeDagTask);
+            dagTaskStream.resumeFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
           }
 
           this.resumesInvoked.mark();
@@ -165,8 +164,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           //TODO: add a flag for if condition only if multi-active is enabled
           if(isRefactoredDagManagerEnabled) {
-            KillDagTask killDagTask = new KillDagTask(new DagManager.DagId(flowGroup, flowName, flowExecutionId));
-            dagTaskStream.killFlow(killDagTask);
+            dagTaskStream.killFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
           }
           this.killsInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
@@ -180,8 +178,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManagerHelper(flowGroup, flowName);
           if(isRefactoredDagManagerEnabled) {
-            LaunchDagTask launchDagTask = new LaunchDagTask(flowGroup, flowName);
-            dagTaskStream.launchFlow(launchDagTask);
+            dagTaskStream.launchFlow(flowGroup, flowName, produceTimestamp);
           }
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);

@@ -22,13 +22,15 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
 import lombok.Getter;
+import lombok.Synchronized;
 
+import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -42,27 +44,27 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * Going forward, each of these in-memory references will be read/write from MySQL store.
  * Thus, the {@link DagManager} would then be stateless and operate independently.
  */
-@Getter
-@WorkInProgress
+@Getter(onMethod_={@Synchronized})
+@Alpha
 public class DagManagementStateStore {
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
-  private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
+  private final Map<String, Dag<JobExecutionPlan>> dagIdToDags = new HashMap<>();
   private final Set<String> failedDagIds = new HashSet<>();
-  private final Map<String, Dag<JobExecutionPlan>> resumingDags = new HashMap<>();
+  private final Map<String, Dag<JobExecutionPlan>> dagIdToResumingDags = new HashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
   final Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
   final Map<String, Long> dagToSLA = new HashMap<>();
   private final Set<String> dagIdstoClean = new HashSet<>();
   private Optional<DagActionStore> dagActionStore;
 
-  protected void deleteJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+  protected synchronized void deleteJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
     this.jobToDag.remove(dagNode);
     this.dagToJobs.get(dagId).remove(dagNode);
     this.dagToSLA.remove(dagId);
   }
 
-  protected void addJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
-    Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+  protected synchronized void addJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+    Dag<JobExecutionPlan> dag = this.dagIdToDags.get(dagId);
     this.jobToDag.put(dagNode, dag);
     if (this.dagToJobs.containsKey(dagId)) {
       this.dagToJobs.get(dagId).add(dagNode);
@@ -73,11 +75,11 @@ public class DagManagementStateStore {
     }
   }
 
-  protected boolean hasRunningJobs(String dagId) {
+  protected synchronized boolean hasRunningJobs(String dagId) {
     List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
     return dagNodes != null && !dagNodes.isEmpty();
   }
-  protected void removeDagActionFromStore(DagManager.DagId dagId, DagActionStore.FlowActionType flowActionType) throws IOException {
+  protected synchronized void removeDagActionFromStore(DagManager.DagId dagId, DagActionStore.FlowActionType flowActionType) throws IOException {
     if (this.dagActionStore.isPresent()) {
       this.dagActionStore.get().deleteDagAction(
           new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, flowActionType));
