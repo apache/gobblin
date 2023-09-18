@@ -31,7 +31,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.cluster.temporal.GobblinTemporalJobScheduler;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -379,18 +378,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Build the {@link GobblinTemporalJobScheduler} for the Application Master.
-   */
-  private GobblinTemporalJobScheduler buildGobblinTemporalJobScheduler(Config sysConfig, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
-    return new GobblinTemporalJobScheduler(sysConfig,
-            this.eventBus,
-            appWorkDir,
-            metadataTags,
-            schedulerService);
-  }
-
-  /**
    * Build the {@link JobConfigurationManager} for the Application Master.
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
@@ -501,7 +488,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     List<StandardMetrics> list = new ArrayList();
     list.addAll(this.jobScheduler.getStandardMetricsCollection());
-    list.addAll(this.temporalJobScheduler.getStandardMetricsCollection());
     list.addAll(this.multiManager.getStandardMetricsCollection());
     list.addAll(this.jobCatalog.getStandardMetricsCollection());
     list.addAll(this.jobConfigurationManager.getStandardMetricsCollection());
