@@ -41,7 +41,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
  *
  * @author Yinan Li
  */
-class GobblinYarnLogSource {
+public class GobblinYarnLogSource {
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
   private static final Configuration AUTO_CLOSE_CONFIG = new Configuration();
 
@@ -54,7 +54,7 @@ class GobblinYarnLogSource {
    *
    * @return {@code true} if the log source is present and {@code false} otherwise
    */
-  protected boolean isLogSourcePresent() {
+  public boolean isLogSourcePresent() {
     return System.getenv().containsKey(ApplicationConstants.Environment.LOG_DIRS.toString());
   }
 
@@ -69,7 +69,7 @@ class GobblinYarnLogSource {
    * @return a {@link LogCopier} instance
    * @throws IOException if it fails on any IO operation
    */
-  protected LogCopier buildLogCopier(Config config, String containerId, FileSystem destFs, Path appWorkDir)
+  public LogCopier buildLogCopier(Config config, String containerId, FileSystem destFs, Path appWorkDir)
       throws IOException {
     LogCopier.Builder builder = LogCopier.newBuilder()
         .useDestFsSupplier(new FileSystemSupplier() {

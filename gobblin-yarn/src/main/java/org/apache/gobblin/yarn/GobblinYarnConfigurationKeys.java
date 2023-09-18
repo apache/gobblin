@@ -103,6 +103,10 @@ public class GobblinYarnConfigurationKeys {
   public static final String HELIX_PURGE_POLLING_RATE_MILLIS = HELIX_PURGE_PREFIX + "pollingRateMs";
   public static final long DEFAULT_HELIX_PURGE_POLLING_RATE_MILLIS = Duration.ofSeconds(5).toMillis();
 
+  public static final String APP_MASTER_CLASS = GOBBLIN_YARN_PREFIX + "app.master.class";
+
+  public static final String DEFAULT_APP_MASTER_CLASS = GobblinApplicationMaster.class.getName();
+
   // Security and authentication configuration properties.
   public static final String SECURITY_MANAGER_CLASS = GOBBLIN_YARN_PREFIX + "security.manager.class";
   public static final String DEFAULT_SECURITY_MANAGER_CLASS = "org.apache.gobblin.yarn.YarnAppSecurityManagerWithKeytabs";
@@ -154,4 +158,5 @@ public class GobblinYarnConfigurationKeys {
   //Config to control Heartbeat interval for Yarn AMRM client.
   public static final String AMRM_HEARTBEAT_INTERVAL_SECS = GOBBLIN_YARN_PREFIX + "amRmHeartbeatIntervalSecs";
   public static final Integer DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS = 15;
+  public static final String TEMPORAL_WORKERPOOL_SIZE = "temporal.workerpool.size";
 }

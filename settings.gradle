@@ -87,3 +87,5 @@ if (file('gobblin-restli').exists()) {
     }
   }
 }
+include 'gobblin-temporal'
+

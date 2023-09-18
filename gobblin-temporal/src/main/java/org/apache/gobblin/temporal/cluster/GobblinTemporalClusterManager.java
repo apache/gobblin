@@ -15,14 +15,17 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
+package org.apache.gobblin.temporal.cluster;
 
+import java.io.File;
 import java.io.IOException;
+import java.security.KeyStore;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.cli.CommandLine;
@@ -31,21 +34,14 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.cluster.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.Criteria;
-import org.apache.helix.HelixManager;
-import org.apache.helix.InstanceType;
-import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
-import org.apache.helix.model.ClusterConfig;
-import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -55,6 +51,12 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -74,35 +76,17 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+import static org.apache.gobblin.security.ssl.SSLContextFactory.toInputStream;
+
 
 /**
  * The central cluster manager for Gobblin Clusters.
- *
- * <p>
- *   This class runs the {@link GobblinHelixJobScheduler} for scheduling
- *   and running Gobblin jobs.
- *   This class serves as the Helix controller and it uses a {@link HelixManager} to work with Helix.
- * </p>
- *
- * <p>
- *   This class will initiates a graceful shutdown of the cluster in the following conditions:
- *
- *   <ul>
- *     <li>A shutdown request is received via a Helix message of subtype
- *     {@link HelixMessageSubTypes#APPLICATION_MASTER_SHUTDOWN}. Upon receiving such a message,
- *     it will call {@link #stop()} to initiate a graceful shutdown of the cluster</li>
- *     <li>The shutdown hook gets called. The shutdown hook will call {@link #stop()}, which will
- *     start a graceful shutdown of the cluster.</li>
- *   </ul>
- * </p>
- *
- * @author Yinan Li
  */
 @Alpha
 @Slf4j
-public class GobblinClusterManager implements ApplicationLauncher, StandardMetricsBridge, LeadershipChangeAwareComponent {
+public class GobblinTemporalClusterManager implements ApplicationLauncher, StandardMetricsBridge, LeadershipChangeAwareComponent {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTemporalClusterManager.class);
 
   private StopStatus stopStatus = new StopStatus(false);
 
@@ -110,7 +94,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   // An EventBus used for communications between services running in the ApplicationMaster
   @Getter(AccessLevel.PUBLIC)
-  protected final EventBus eventBus = new EventBus(GobblinClusterManager.class.getSimpleName());
+  protected final EventBus eventBus = new EventBus(GobblinTemporalClusterManager.class.getSimpleName());
 
   protected final Path appWorkDir;
 
@@ -128,13 +112,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private final boolean isStandaloneMode;
 
   @Getter
-  protected GobblinHelixMultiManager multiManager;
-  @Getter
   private MutableJobCatalog jobCatalog;
   @Getter
-  private GobblinHelixJobScheduler jobScheduler;
-  @Getter
   private JobConfigurationManager jobConfigurationManager;
+  @Getter
+  private GobblinTemporalJobScheduler gobblinTemporalJobScheduler;
   @Getter
   private volatile boolean started = false;
 
@@ -142,11 +124,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @Getter
   protected final Config config;
 
-  public GobblinClusterManager(String clusterName, String applicationId, Config sysConfig,
+  public GobblinTemporalClusterManager(String clusterName, String applicationId, Config sysConfig,
       Optional<Path> appWorkDirOptional) throws Exception {
-    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // Set system properties passed in via application config.
     // overrides such as sessionTimeout. In this case, the overrides specified
-    // in the application configuration have to be extracted and set before initializing HelixManager.
     GobblinClusterUtils.setSystemProperties(sysConfig);
 
     //Add dynamic config
@@ -158,12 +139,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.applicationId = applicationId;
 
-    initializeHelixManager();
-
     this.fs = GobblinClusterUtils.buildFileSystem(this.config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, clusterName, applicationId);
-    LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
+    LOGGER.info("Configured GobblinTemporalClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
   }
@@ -197,9 +176,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
-    this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
+    this.gobblinTemporalJobScheduler = buildGobblinTemporalJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
         schedulerService);
-    this.applicationLauncher.addService(this.jobScheduler);
+    this.applicationLauncher.addService(this.gobblinTemporalJobScheduler);
     this.jobConfigurationManager = buildJobConfigurationManager(config);
     this.applicationLauncher.addService(this.jobConfigurationManager);
 
@@ -237,57 +216,24 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
   }
 
-  /**
-   * Configure Helix quota-based task scheduling.
-   * This config controls the number of tasks that are concurrently assigned to a single Helix instance.
-   * Reference: https://helix.apache.org/1.0.3-docs/quota_scheduling.html
-   */
-  @VisibleForTesting
-  void configureHelixQuotaBasedTaskScheduling() {
-    // set up the cluster quota config
-    List<String> quotaConfigList = ConfigUtils.getStringList(this.config,
-        GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY);
-
-    if (quotaConfigList.isEmpty()) {
-      return;
-    }
-
-    // retrieve the cluster config for updating
-    ClusterConfig clusterConfig = this.multiManager.getJobClusterHelixManager().getConfigAccessor()
-        .getClusterConfig(this.clusterName);
-    clusterConfig.resetTaskQuotaRatioMap();
-
-    for (String entry : quotaConfigList) {
-      List<String> quotaConfig = Splitter.on(":").limit(2).trimResults().omitEmptyStrings().splitToList(entry);
-
-      if (quotaConfig.size() < 2) {
-        throw new IllegalArgumentException(
-            "Quota configurations must be of the form <key1>:<value1>,<key2>:<value2>,...");
-      }
-
-      clusterConfig.setTaskQuotaRatio(quotaConfig.get(0), Integer.parseInt(quotaConfig.get(1)));
-    }
-
-    this.multiManager.getJobClusterHelixManager().getConfigAccessor()
-        .setClusterConfig(this.clusterName, clusterConfig); // Set the new ClusterConfig
-  }
 
   /**
-   * Start the Gobblin Cluster Manager.
+   * Start the Gobblin Temporal Cluster Manager.
    */
+  // @Import(clazz = ClientSslContextFactory.class, prefix = ClientSslContextFactory.SCOPE_PREFIX)
   @Override
-  public synchronized void start() {
-    LOGGER.info("Starting the Gobblin Cluster Manager");
+  public void start() {
+    // temporal workflow
+    LOGGER.info("Starting the Gobblin Temporal Cluster Manager");
 
     this.eventBus.register(this);
-    setupHelix();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
       this.idleProcessThread = new Thread(new Runnable() {
         @Override
         public void run() {
-          while (!GobblinClusterManager.this.stopStatus.isStopInProgress() && !GobblinClusterManager.this.stopIdleProcessThread) {
+          while (!GobblinTemporalClusterManager.this.stopStatus.isStopInProgress() && !GobblinTemporalClusterManager.this.stopIdleProcessThread) {
             try {
               Thread.sleep(300);
             } catch (InterruptedException e) {
@@ -301,24 +247,77 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       this.idleProcessThread.start();
 
       // Need this in case a kill is issued to the process so that the idle thread does not keep the process up
-      // since GobblinClusterManager.stop() is not called this case.
-      Runtime.getRuntime().addShutdownHook(new Thread(() -> GobblinClusterManager.this.stopIdleProcessThread = true));
+      // since GobblinTemporalClusterManager.stop() is not called this case.
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> GobblinTemporalClusterManager.this.stopIdleProcessThread = true));
     } else {
       startAppLauncherAndServices();
     }
     this.started = true;
   }
 
-  public synchronized void setupHelix() {
-    this.multiManager.connect();
+  public static WorkflowServiceStubs createServiceStubs()
+      throws Exception {
+    GobblinClusterUtils.setSystemProperties(ConfigFactory.load());
+    Config config = GobblinClusterUtils.addDynamicConfig(ConfigFactory.load());
+    String SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT = "gobblin.kafka.sharedConfig.";
+    String SSL_KEYMANAGER_ALGORITHM = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keymanager.algorithm";
+    String SSL_KEYSTORE_TYPE = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keystore.type";
+    String SSL_KEYSTORE_LOCATION = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keystore.location";
+    String SSL_KEY_PASSWORD = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.key.password";
+    String SSL_TRUSTSTORE_LOCATION = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.truststore.location";
+    String SSL_TRUSTSTORE_PASSWORD = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.truststore.password";
 
-    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
-    // mode, such as YARN mode
-    if (!this.isStandaloneMode) {
-      this.multiManager.cleanUpJobs();
-    }
+    List<String> SSL_CONFIG_DEFAULT_SSL_PROTOCOLS = Collections.unmodifiableList(
+        Arrays.asList("TLSv1.2"));
+    List<String> SSL_CONFIG_DEFAULT_CIPHER_SUITES = Collections.unmodifiableList(Arrays.asList(
+        // The following list is from https://github.com/netty/netty/blob/4.1/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2SecurityUtil.java#L50
+        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
 
-    configureHelixQuotaBasedTaskScheduling();
+        /* REQUIRED BY HTTP/2 SPEC */
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        /* REQUIRED BY HTTP/2 SPEC */
+
+        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+        "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+        "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+    ));
+
+    String keyStoreType = config.getString(SSL_KEYSTORE_TYPE);
+    File keyStoreFile = new File(config.getString(SSL_KEYSTORE_LOCATION));
+    String keyStorePassword = config.getString(SSL_KEY_PASSWORD);
+
+    KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+    keyStore.load(toInputStream(keyStoreFile), keyStorePassword.toCharArray());
+
+    // Set key manager from key store
+    String sslKeyManagerAlgorithm = config.getString(SSL_KEYMANAGER_ALGORITHM);
+    KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(sslKeyManagerAlgorithm);
+    keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
+
+    // Set trust manager from trust store
+    KeyStore trustStore = KeyStore.getInstance("JKS");
+    File trustStoreFile = new File(config.getString(SSL_TRUSTSTORE_LOCATION));
+
+    String trustStorePassword = config.getString(SSL_TRUSTSTORE_PASSWORD);
+    trustStore.load(toInputStream(trustStoreFile), trustStorePassword.toCharArray());
+    TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("SunX509");
+    trustManagerFactory.init(trustStore);
+
+    SslContext sslContext = GrpcSslContexts.forClient()
+        .keyManager(keyManagerFactory)
+        .trustManager(trustManagerFactory)
+        .protocols(SSL_CONFIG_DEFAULT_SSL_PROTOCOLS)
+        .ciphers(SSL_CONFIG_DEFAULT_CIPHER_SUITES)
+        .build();
+
+    return WorkflowServiceStubs.newServiceStubs(
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("1.nephos-temporal.corp-lca1.atd.corp.linkedin.com:7233")
+            .setEnableHttps(true)
+            .setSslContext(sslContext)
+            .build());
+
   }
 
   /**
@@ -342,39 +341,23 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       }
     }
 
-    // Send a shutdown request to all GobblinTaskRunners unless running in standalone mode.
-    // In standalone mode a failing manager should not stop the whole cluster.
-    if (!this.isStandaloneMode) {
-      sendShutdownRequest();
-    }
-
     stopAppLauncherAndServices();
 
-    this.multiManager.disconnect();
   }
 
-  /**
-   * Get additional {@link Tag}s required for any type of reporting.
-   */
+  private GobblinTemporalJobScheduler buildGobblinTemporalJobScheduler(Config sysConfig, Path appWorkDir,
+      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
+    return new GobblinTemporalJobScheduler(sysConfig,
+        this.eventBus,
+        appWorkDir,
+        metadataTags,
+        schedulerService);
+  }
+
   private List<? extends Tag<?>> getMetadataTags(String applicationName, String applicationId) {
     return Tag.fromMap(
         new ImmutableMap.Builder<String, Object>().put(GobblinClusterMetricTagNames.APPLICATION_NAME, applicationName)
             .put(GobblinClusterMetricTagNames.APPLICATION_ID, applicationId).build());
-  }
-
-  /**
-   * Build the {@link GobblinHelixJobScheduler} for the Application Master.
-   */
-  private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config sysConfig, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
-    return new GobblinHelixJobScheduler(sysConfig,
-        this.multiManager.getJobClusterHelixManager(),
-        this.multiManager.getTaskDriverHelixManager(),
-        this.eventBus,
-        appWorkDir,
-        metadataTags,
-        schedulerService,
-        this.jobCatalog);
   }
 
   /**
@@ -401,84 +384,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     stop();
   }
 
-  /**
-   * Creates and returns a {@link MultiTypeMessageHandlerFactory} for handling of Helix
-   * {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}s.
-   *
-   * @returns a {@link MultiTypeMessageHandlerFactory}.
-   */
-  protected MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
-    return new GobblinHelixMultiManager.ControllerUserDefinedMessageHandlerFactory();
-  }
-
-  @VisibleForTesting
-  void connectHelixManager() {
-    this.multiManager.connect();
-  }
-
-  @VisibleForTesting
-  void disconnectHelixManager() {
-    this.multiManager.disconnect();
-  }
-
-  @VisibleForTesting
-  boolean isHelixManagerConnected() {
-    return this.multiManager.isConnected();
-  }
-
-  /**
-   * In separate controller mode, one controller will manage manager's HA, the other will handle the job dispatching and
-   * work unit assignment.
-   */
-  @VisibleForTesting
-  void initializeHelixManager() {
-    this.multiManager = createMultiManager();
-    this.multiManager.addLeadershipChangeAwareComponent(this);
-  }
-
-  /***
-   * Can be overriden to inject mock GobblinHelixMultiManager
-   * @return a new GobblinHelixMultiManager
-   */
-  public GobblinHelixMultiManager createMultiManager() {
-    return new GobblinHelixMultiManager(this.config, aVoid -> GobblinClusterManager.this.getUserDefinedMessageHandlerFactory(), this.eventBus, stopStatus);
-  }
-
-  @VisibleForTesting
-  void sendShutdownRequest() {
-    Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
-    criteria.setResource("%");
-    criteria.setPartition("%");
-    criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
-    // #HELIX-0.6.7-WORKAROUND
-    // Add this back when messaging to instances is ported to 0.6 branch
-    //criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
-    criteria.setSessionSpecific(true);
-
-    Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
-        HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
-    shutdownRequest.setMsgSubType(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
-    shutdownRequest.setMsgState(Message.MessageState.NEW);
-
-    // Wait for 5 minutes
-    final int timeout = 300000;
-
-    // #HELIX-0.6.7-WORKAROUND
-    // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
-    // for messaging to instances
-    //int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest,
-    //    new NoopReplyHandler(), timeout);
-    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(this.multiManager.getJobClusterHelixManager());
-
-    int messagesSent = messagingService.send(criteria, shutdownRequest,
-            new NoopReplyHandler(), timeout);
-    if (messagesSent == 0) {
-      LOGGER.error(String.format("Failed to send the %s message to the participants", shutdownRequest.getMsgSubType()));
-    }
-  }
-
   @Override
   public void close() throws IOException {
     this.applicationLauncher.close();
@@ -487,8 +392,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     List<StandardMetrics> list = new ArrayList();
-    list.addAll(this.jobScheduler.getStandardMetricsCollection());
-    list.addAll(this.multiManager.getStandardMetricsCollection());
     list.addAll(this.jobCatalog.getStandardMetricsCollection());
     list.addAll(this.jobConfigurationManager.getStandardMetricsCollection());
     return list;
@@ -496,8 +399,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   /**
    * TODO for now the cluster id is hardcoded to 1 both here and in the {@link GobblinTaskRunner}. In the future, the
-   * cluster id should be created by the {@link GobblinClusterManager} and passed to each {@link GobblinTaskRunner} via
-   * Helix (at least that would be the easiest approach, there are certainly others ways to do it).
+   * cluster id should be created by the {@link GobblinTemporalClusterManager} and passed to each {@link GobblinTaskRunner}
    */
   private static String getApplicationId() {
     return "1";
@@ -513,7 +415,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private static void printUsage(Options options) {
     HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp(GobblinClusterManager.class.getSimpleName(), options);
+    formatter.printHelp(GobblinTemporalClusterManager.class.getSimpleName(), options);
   }
 
   public static void main(String[] args) throws Exception {
@@ -544,21 +446,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
             ConfigValueFactory.fromAnyRef(true));
       }
 
-      try (GobblinClusterManager gobblinClusterManager = new GobblinClusterManager(
+      try (GobblinTemporalClusterManager GobblinTemporalClusterManager = new GobblinTemporalClusterManager(
           cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
           config, Optional.<Path>absent())) {
-
-        // In AWS / Yarn mode, the cluster Launcher takes care of setting up Helix cluster
-        /// .. but for Standalone mode, we go via this main() method, so setup the cluster here
-        if (isStandaloneClusterManager) {
-          // Create Helix cluster and connect to it
-          String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-          String helixClusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-          HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
-          LOGGER.info("Created Helix cluster " + helixClusterName);
-        }
-
-        gobblinClusterManager.start();
+        GobblinTemporalClusterManager.start();
       }
     } catch (ParseException pe) {
       printUsage(options);
@@ -596,3 +487,4 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
   }
 }
+

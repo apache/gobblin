@@ -820,7 +820,7 @@ public class GobblinYarnAppLauncher {
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(logFileName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
-        .append(" ").append(appMasterClass.getName())
+        .append(" ").append(appMasterClass)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)

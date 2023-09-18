@@ -1,0 +1,145 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
+    id 'com.github.johnrengelman.shadow' version '5.2.0'
+}
+
+apply plugin: 'java'
+
+dependencies {
+    implementation project(path: ':gobblin-yarn')
+    compile project(":gobblin-api")
+    compile project(":gobblin-cluster")
+    compile project(":gobblin-core")
+    compile project(":gobblin-metrics-libs:gobblin-metrics")
+    compile project(":gobblin-metastore")
+    compile project(":gobblin-runtime")
+    compile project(":gobblin-utility")
+    compile project(":gobblin-yarn")
+    compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
+    compile project(":gobblin-rest-service:gobblin-rest-server")
+
+    compile externalDependency.avro
+    compile externalDependency.commonsConfiguration
+    compile externalDependency.quartz
+    compile externalDependency.guava
+    compile externalDependency.commonsLang
+    compile externalDependency.slf4j
+
+    compile externalDependency.commonsCli
+    compile externalDependency.gson
+    compile externalDependency.hiveCommon
+    compile externalDependency.metricsCore
+    compile externalDependency.metricsJvm
+    compile externalDependency.commonsIo
+    compile externalDependency.commonsEmail
+    compile externalDependency.pegasus.data
+    compile externalDependency.typesafeConfig
+    compile externalDependency.hadoopClientCommon
+    compile externalDependency.hadoopCommon
+    compile externalDependency.hadoopYarnApi
+    compile externalDependency.hadoopYarnCommon
+    compile externalDependency.hadoopYarnClient
+    compile externalDependency.avroMapredH2
+    compile externalDependency.findBugsAnnotations
+    compile (externalDependency.helix) {
+        exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
+    }
+    compile externalDependency."temporal-sdk"
+    testCompile project(path: ':gobblin-cluster', configuration: 'tests')
+    testCompile project(":gobblin-example")
+
+    testCompile externalDependency.testng
+    testCompile externalDependency.mockito
+    testCompile externalDependency.hadoopYarnMiniCluster
+    testCompile externalDependency.curatorFramework
+    testCompile externalDependency.curatorTest
+
+    testCompile ('com.google.inject:guice:3.0') {
+        force = true
+    }
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+    baseName = "test-${project.archivesBaseName}"
+    from sourceSets.test.output
+}
+
+// This line is added as a work around to fix a bug. Without this line, the build
+// might fail intermittently with a 'Could not find property mavenDeployer' error.
+// More details: check TOOLS-123257
+tasks.remove(tasks.uploadShadow)
+
+// create a single Jar with all dependencies
+shadowJar {
+    zip64 true
+    dependencies {
+        exclude dependency('org.eclipse.jetty:.*')
+        exclude dependency('org.mortbay.jetty:.*')
+        exclude dependency('org.projectlombok:.*')
+        exclude dependency('org.codehaus.groovy:.*')
+        exclude dependency('org.apache.kafka:.*')
+        exclude dependency('mysql:.*')
+        exclude dependency('com.linkedin.pegasus:.*')
+        exclude dependency('org.bouncycastle:.*')
+        exclude dependency('org.testng:.*')
+        exclude dependency('org.mockito:.*')
+        exclude dependency('org.datanucleus:.*')
+        exclude dependency('org.apache.hive:.*')
+        exclude dependency('com.linkedin.hive:.*')
+        exclude dependency('org.scala-lang:scala-library:.*')
+        exclude dependency('org.apache.derby:.*')
+    }
+    mergeServiceFiles()
+}
+
+configurations {
+    tests
+}
+
+configurations {
+    compile {
+        transitive = false
+    }
+
+    testRuntime {
+        resolutionStrategy {
+            force 'com.google.inject:guice:3.0'
+            force 'org.apache.hadoop:hadoop-yarn-server-resourcemanager:'+hadoopVersion
+        }
+    }
+}
+
+artifacts {
+    tests testJar
+}
+
+test {
+    dependsOn shadowJar
+    workingDir rootProject.rootDir
+    maxParallelForks = 1
+    forkEvery = 1
+}
+
+clean {
+    delete "../gobblin-test/locks"
+    delete "../gobblin-test/basicTest"
+}
+
+ext.classification="library"

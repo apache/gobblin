@@ -33,12 +33,12 @@ import org.apache.gobblin.runtime.listeners.JobListener;
  * The {@link GobblinHelixJobLauncherMetrics} will always be passed in because
  * it will be be updated accordingly.
  */
-class GobblinHelixJobLauncherListener extends AbstractJobListener {
+public class GobblinHelixJobLauncherListener extends AbstractJobListener {
 
   private final GobblinHelixJobLauncherMetrics jobLauncherMetrics;
   private static final String JOB_START_TIME = "jobStartTime";
 
-  GobblinHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics) {
+  public GobblinHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics) {
     this.jobLauncherMetrics = jobLauncherMetrics;
   }
 
