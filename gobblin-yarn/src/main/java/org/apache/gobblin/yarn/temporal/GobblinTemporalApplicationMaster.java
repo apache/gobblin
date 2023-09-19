@@ -25,6 +25,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.temporal.GobblinTemporalClusterManager;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -66,7 +67,7 @@ import org.apache.gobblin.yarn.YarnTemporalAppMasterSecurityManager;
  * @author Yinan Li
  */
 @Alpha
-public class GobblinTemporalApplicationMaster extends GobblinClusterManager {
+public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTemporalApplicationMaster.class);
 
   @Getter
