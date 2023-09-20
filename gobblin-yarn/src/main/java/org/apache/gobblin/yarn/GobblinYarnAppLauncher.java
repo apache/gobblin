@@ -801,23 +801,25 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   protected String buildApplicationMasterCommand(String applicationId, int memoryMbs) {
-    String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
+    String appMasterClass = ConfigUtils.getString(
+       config, GobblinYarnConfigurationKeys.APP_MASTER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_CLASS);
+    String logFileName = GobblinApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append((int) (memoryMbs * this.jvmMemoryXmxRatio) - this.jvmMemoryOverheadMbs).append("M")
         .append(" -D").append(GobblinYarnConfigurationKeys.JVM_USER_TIMEZONE_CONFIG).append("=").append(this.containerTimezone)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
-        .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
+        .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(logFileName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
-        .append(" ").append(GobblinApplicationMaster.class.getName())
+        .append(" ").append(appMasterClass)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)
         .append(" ").append(applicationId)
         .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
-            appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
+            logFileName).append(".").append(ApplicationConstants.STDOUT)
         .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
-            appMasterClassName).append(".").append(ApplicationConstants.STDERR)
+            logFileName).append(".").append(ApplicationConstants.STDERR)
         .toString();
   }
 
