@@ -15,11 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration.exception;
+package org.apache.gobblin.service.modules.orchestration.task;
+
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+
 
 /**
- * Extension of {@link MaybeRetryableException} marking it as retryable.
+ * A {@link DagTask} responsible to handle resume tasks.
  */
-public final class RetryableException extends MaybeRetryableException {
 
+@Slf4j
+@Alpha
+public class ResumeDagTask extends DagTask {
+
+  @Override
+  public Object host(DagTaskVisitor visitor) throws Exception {
+    throw new UnsupportedOperationException("Not supported");
+  }
 }

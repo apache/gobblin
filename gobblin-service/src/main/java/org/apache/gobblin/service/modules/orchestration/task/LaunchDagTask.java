@@ -15,31 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
+
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 
 
 /**
- * An implementation of {@link DagTask} that is responsible for clean up {@link Dag} that has been completed
- * or has reached an end state likewise: FAILED, COMPLETE or CANCELED. It is added to the {@link DagTaskStream}
- * by the {@link org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor} after it consumes the appropriate
- * {@link org.apache.gobblin.metrics.GobblinTrackingEvent}.
- *
+ * A {@link DagTask} responsible to handle launch tasks.
  */
+
+@Slf4j
 @Alpha
-public class CleanUpDagTask extends DagTask {
-
-  protected DagManager.DagId cleanUpDagId;
+public class LaunchDagTask extends DagTask {
 
   @Override
-  void initialize(Object state, long triggerTimeStamp) {
+  public Object host(DagTaskVisitor visitor) throws Exception {
+    throw new UnsupportedOperationException("Not supported");
 
-  }
-
-  @Override
-  CleanUpDagProc host(DagTaskVisitor visitor) {
-    return (CleanUpDagProc) visitor.meet(this);
   }
 }

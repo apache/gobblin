@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
@@ -61,7 +62,7 @@ public interface DagManagement {
    * @param triggerTimeStamp
    */
   void killFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp)
-      throws InterruptedException;
+      throws InterruptedException, IOException;
 
   boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException;
 

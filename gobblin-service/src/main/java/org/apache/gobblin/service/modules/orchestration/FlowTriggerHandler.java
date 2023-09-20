@@ -317,33 +317,34 @@ public class FlowTriggerHandler {
   }
 
   /**
-   * Attempts to acquire lease for a given {@link DagTask} through lease arbitration
-   * @param dagTask for which we want to attempt to acquire a lease
-   * @return true if successfully acquired lease, or else false
+   * Attempts to acquire lease for a given {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}
+   * through lease arbitration and if it fails, it will create and schedule a reminder trigger to check back again.
+   * @param jobProps
+   * @param flowAction
+   * @param eventTimeMillis
+   * @return optionally leaseObtainedStatus if acquired; otherwise schedule reminder to check back again.
    * @throws IOException
    */
-  public boolean attemptDagTaskLeaseAcquisition(DagTask dagTask) throws IOException {
+  public Optional<MultiActiveLeaseArbiter.LeaseObtainedStatus> getLeaseOnDagAction(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis) throws IOException {
     if (multiActiveLeaseArbiter.isPresent()) {
-      Properties jobProps = dagTask.jobProps;
-      DagActionStore.DagAction flowAction = dagTask.flowAction;
-      long eventTimeMillis = dagTask.triggerTimeStamp;
+
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(flowAction, eventTimeMillis);
-      dagTask.leaseAttemptStatus = leaseAttemptStatus;
+
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
         MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
         this.leaseObtainedCount.inc();
         log.info("Successfully acquired lease for dag action: {}", flowAction);
-        return true;
+        return Optional.of(leaseObtainedStatus);
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
         this.leasedToAnotherStatusCount.inc();
         scheduleReminderForEvent(jobProps,
             (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
-        return false;
+        return Optional.absent();
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
         this.noLongerLeasingStatusCount.inc();
         log.debug("Received type of leaseAttemptStatus: [{}, eventTimestamp: {}] ", leaseAttemptStatus.getClass().getName(),
             eventTimeMillis);
-        return false;
+        return Optional.absent();
       }
       throw new RuntimeException(String.format("Received type of leaseAttemptStatus: %s not handled by this method",
           leaseAttemptStatus.getClass().getName()));
@@ -351,6 +352,5 @@ public class FlowTriggerHandler {
       throw new RuntimeException(String.format("Multi-active scheduler is not enabled so trigger event should not be "
           + "handled with this method."));
     }
-
   }
 }

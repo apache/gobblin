@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.processor;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
 /**
@@ -36,14 +37,13 @@ import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryable
 @Alpha
 @Slf4j
 public abstract class DagProc<S, R> {
-  abstract protected S initialize()
-      throws MaybeRetryableException, IOException;
-  abstract protected R act(S state) throws ExecutionException, InterruptedException, IOException;
-  abstract protected void sendNotification(R result) throws MaybeRetryableException;
+  abstract protected S initialize(DagManagementStateStore dagManagementStateStore) throws MaybeRetryableException, IOException;
+  abstract protected R act(S state) throws MaybeRetryableException, Exception;
+  abstract protected void sendNotification(R result) throws MaybeRetryableException, IOException;
 
-  public void process() {
+  public void process(DagManagementStateStore dagManagementStateStore) {
     try {
-      S state = this.initialize();
+      S state = this.initialize(dagManagementStateStore);
       R result = this.act(state);
       this.sendNotification(result);
       log.info("Successfully processed Dag Request");

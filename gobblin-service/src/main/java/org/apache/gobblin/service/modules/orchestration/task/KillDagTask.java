@@ -15,14 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
 
-import java.io.IOException;
+import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 
 
 /**
@@ -30,27 +32,20 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 @Alpha
 public class KillDagTask extends DagTask {
-  protected DagManager.DagId killDagId;
-  public KillDagTask(DagManager.DagId killDagId) {
-    this.killDagId = killDagId;
-  }
 
-  /**
-   * initializes the job properties associated with a {@link DagTask}
-   * @param dag
-   * @param triggerTimeStamp
-   */
-  @Override
-  void initialize(Object dag, long triggerTimeStamp) {
-    Dag<JobExecutionPlan> killDag = (Dag<JobExecutionPlan>) dag;
-    this.flowAction = new DagActionStore.DagAction(killDagId.getFlowGroup(), killDagId.getFlowName(),
-        killDagId.getFlowExecutionId(), DagActionStore.FlowActionType.KILL);
-    this.jobProps = killDag.getStartNodes().get(0).getValue().getJobSpec().getConfigAsProperties();
-    this.triggerTimeStamp = triggerTimeStamp;
+  @Getter
+  private final DagManager.DagId killDagId;
+  protected final DagActionStore.DagAction killAction;
+
+  public KillDagTask(DagActionStore.DagAction killAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+
+    this.killAction = killAction;
+    this.leaseObtainedStatusStatus = leaseObtainedStatus;
+    this.killDagId = DagManagerUtils.generateDagId(killAction.getFlowGroup(), killAction.getFlowName(), killAction.getFlowExecutionId());
   }
 
   @Override
-  KillDagProc host(DagTaskVisitor visitor) throws IOException {
-    return (KillDagProc) visitor.meet(this);
+  public Object host(DagTaskVisitor visitor) throws Exception {
+    return visitor.meet(this);
   }
 }

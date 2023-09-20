@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.processor;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -29,24 +29,23 @@ import com.google.api.client.util.Lists;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 
@@ -58,29 +57,28 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 @Alpha
 public final class KillDagProc extends DagProc {
 
-  private DagManager.DagId killDagId;
+  private KillDagTask killDagTask;
   private DagManagementStateStore dagManagementStateStore;
   private MetricContext metricContext;
   private Optional<EventSubmitter> eventSubmitter;
-  private MultiActiveLeaseArbiter multiActiveLeaseArbiter;
 
 
-  public KillDagProc(DagManager.DagId killDagId) throws IOException {
-    this.killDagId = killDagId;
-    //TODO: add this to dagproc factory
-    this.dagManagementStateStore = new DagManagementStateStore();
-    //TODO: add this to dagproc factory
-    this.multiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(ConfigBuilder.create().build());
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
-    this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
+  public KillDagProc(KillDagTask killDagTask, DagManagementStateStore dagManagementStateStore, MetricContext metricContext, Optional<EventSubmitter> eventSubmitter) throws IOException {
+    this.killDagTask = killDagTask;
+    this.dagManagementStateStore = dagManagementStateStore;
+    this.metricContext = metricContext;
+    this.eventSubmitter = eventSubmitter;
+  }
 
+  public KillDagProc(KillDagTask killDagTask) {
+    this.killDagTask = killDagTask;
   }
 
   @Override
-  protected List<Dag.DagNode<JobExecutionPlan>> initialize() {
-    Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = this.dagManagementStateStore.getDagToJobs();
-    if(dagToJobs.containsKey(killDagId.toString())) {
-      return dagToJobs.get(killDagId.toString());
+  protected List<Dag.DagNode<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore) {
+    Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = dagManagementStateStore.getDagToJobs();
+    if(dagToJobs.containsKey(this.killDagTask.getKillDagId().toString())) {
+      return dagToJobs.get(this.killDagTask.getKillDagId().toString());
     }
     return Lists.newArrayList();
   }
@@ -97,11 +95,10 @@ public final class KillDagProc extends DagProc {
    * @throws IOException
    */
   @Override
-  protected Object act(Object state) throws InterruptedException, ExecutionException, IOException {
+  protected Object act(Object state) throws Exception {
     List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = (List<Dag.DagNode<JobExecutionPlan>>)state;
-    //TODO: add a preconditions check for empty lists
     Preconditions.checkArgument(!dagNodesToCancel.isEmpty(), "Dag doesn't contain any DagNodes to be cancelled");
-    String dagToCancel = killDagId.toString();
+    String dagToCancel = this.killDagTask.getKillDagId().toString();
 
     log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
@@ -109,7 +106,7 @@ public final class KillDagProc extends DagProc {
     }
     this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
     this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setMessage("Flow killed by request");
-    this.dagManagementStateStore.removeDagActionFromStore(killDagId, DagActionStore.FlowActionType.KILL);
+    this.dagManagementStateStore.removeDagActionFromStore(this.killDagTask.getKillDagId(), DagActionStore.FlowActionType.KILL);
     return this.dagManagementStateStore.getDagIdToDags().get(dagToCancel);
 
   }
@@ -122,7 +119,7 @@ public final class KillDagProc extends DagProc {
     }
   }
 
-  protected static void killDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
+  public static void killDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
     Properties props = new Properties();
     if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
       Future future = dagNodeToCancel.getValue().getJobFuture().get();

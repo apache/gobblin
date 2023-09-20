@@ -20,6 +20,12 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.CleanUpDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 
 
 /**
@@ -28,13 +34,9 @@ import org.apache.gobblin.annotation.Alpha;
  */
 @Alpha
 public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask)
-      throws IOException, InstantiationException, IllegalAccessException;
+  T meet(LaunchDagTask launchDagTask) throws IOException;
   T meet(KillDagTask killDagTask) throws IOException;
-  T meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException;
-
-  T meet(AdvanceDagTask advanceDagTask)
-      throws IOException;
-
-  T meet(CleanUpDagTask cleanUpDagTask);
+  T meet(ResumeDagTask resumeDagTask) throws IOException;
+  T meet(AdvanceDagTask advanceDagTask) throws IOException;
+  T meet(CleanUpDagTask cleanUpDagTask) throws IOException;
 }

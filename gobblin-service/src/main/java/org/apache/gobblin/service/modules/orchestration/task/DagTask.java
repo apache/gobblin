@@ -15,20 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
 
 import java.io.IOException;
-import java.util.Properties;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
 
 
 /**
  * Defines an individual task or job in a Dag.
- * It carries the state information required by {@link DagProc} to for its processing.
- * Upon completion of the {@link DagProc#process()} it will mark the lease
+ * Upon completion of the {@link DagProc#process(DagManagementStateStore)} it will mark the lease
  * acquired by {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter} as complete
  * @param <T>
  */
@@ -36,22 +36,17 @@ import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 @Alpha
 public abstract class DagTask<T> {
 
-  protected Properties jobProps;
-  protected DagActionStore.DagAction flowAction;
-  protected long triggerTimeStamp;
-
-  protected MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
-
-  abstract void initialize(Object state, long triggerTimeStamp);
+  protected MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatusStatus;
 
   /**
    * Currently, conclusion of {@link DagTask} marks and records a successful release of lease.
-   * It is involved after {@link DagProc#process()} is completed successfully.
+   * It is invoked after {@link DagProc#process(DagManagementStateStore)} is completed successfully.
+   * @param multiActiveLeaseArbiter
+   * @throws IOException
    */
-
   public void conclude(MultiActiveLeaseArbiter multiActiveLeaseArbiter) throws IOException {
-    MultiActiveLeaseArbiter.LeaseObtainedStatus status = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
-    multiActiveLeaseArbiter.recordLeaseSuccess(status);
+    multiActiveLeaseArbiter.recordLeaseSuccess(leaseObtainedStatusStatus);
   }
-  abstract DagProc host(DagTaskVisitor<T> visitor) throws IOException, InstantiationException, IllegalAccessException;
+
+  public abstract T host(DagTaskVisitor<T> visitor) throws Exception;
 }

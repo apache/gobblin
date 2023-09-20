@@ -108,7 +108,7 @@ public class DagManagerUtils {
     return generateDagId(flowGroup, flowName, String.valueOf(flowExecutionId));
   }
 
-  static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
+  public static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
   }
 
@@ -173,7 +173,7 @@ public class DagManagerUtils {
     return dagNode.getValue().getJobSpec().getConfig();
   }
 
-  static SpecProducer<Spec> getSpecProducer(DagNode<JobExecutionPlan> dagNode)
+  public static SpecProducer<Spec> getSpecProducer(DagNode<JobExecutionPlan> dagNode)
       throws ExecutionException, InterruptedException {
     return dagNode.getValue().getSpecExecutor().getProducer().get();
   }

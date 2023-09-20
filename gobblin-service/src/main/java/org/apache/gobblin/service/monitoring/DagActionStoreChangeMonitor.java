@@ -43,12 +43,8 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagTask;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
-import org.apache.gobblin.service.modules.orchestration.KillDagTask;
-import org.apache.gobblin.service.modules.orchestration.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.service.modules.orchestration.ResumeDagTask;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -154,9 +150,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           //TODO: add a flag for if condition only if multi-active is enabled
-          if(isRefactoredDagManagerEnabled) {
-            dagTaskStream.resumeFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
-          }
+//          if(isRefactoredDagManagerEnabled) {
+//            dagTaskStream.resumeFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
+//          }
 
           this.resumesInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
@@ -177,9 +173,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           }
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManagerHelper(flowGroup, flowName);
-          if(isRefactoredDagManagerEnabled) {
-            dagTaskStream.launchFlow(flowGroup, flowName, produceTimestamp);
-          }
+//          if(isRefactoredDagManagerEnabled) {
+//            dagTaskStream.launchFlow(flowGroup, flowName, produceTimestamp);
+//          }
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();

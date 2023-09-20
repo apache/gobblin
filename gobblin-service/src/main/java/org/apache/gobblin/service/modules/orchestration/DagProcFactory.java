@@ -17,9 +17,30 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
+import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
+import org.apache.gobblin.service.modules.orchestration.processor.KillDagProc;
+import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.CleanUpDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -27,35 +48,65 @@ import org.apache.gobblin.annotation.Alpha;
  */
 
 @Alpha
+@Slf4j
 public class DagProcFactory implements DagTaskVisitor<DagProc> {
+
+  private DagManagementStateStore dagManagementStateStore;
+  private JobStatusRetriever jobStatusRetriever;
+  private FlowStatusGenerator flowStatusGenerator;
+  private UserQuotaManager quotaManager;
+  private SpecCompiler specCompiler;
+  private FlowCatalog flowCatalog;
+  private FlowCompilationValidationHelper flowCompilationValidationHelper;
+  private Config config;
+  private Optional<EventSubmitter> eventSubmitter;
+  private boolean instrumentationEnabled;
+
+  public DagProcFactory(Config config, DagManagementStateStore dagManagementStateStore, JobStatusRetriever jobStatusRetriever,
+      FlowStatusGenerator flowStatusGenerator, UserQuotaManager quotaManager, SpecCompiler specCompiler, FlowCatalog flowCatalog, FlowCompilationValidationHelper flowCompilationValidationHelper, boolean instrumentationEnabled) {
+
+    this.config = config;
+    this.dagManagementStateStore = dagManagementStateStore;
+    this.jobStatusRetriever = jobStatusRetriever;
+    this.flowStatusGenerator = flowStatusGenerator;
+    this.quotaManager = quotaManager;
+    this.specCompiler = specCompiler;
+    this.flowCatalog = flowCatalog;
+    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+    this.instrumentationEnabled = instrumentationEnabled;
+    MetricContext metricContext = null;
+    if (instrumentationEnabled) {
+      metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+      this.eventSubmitter = Optional.of(new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build());
+    } else {
+      this.eventSubmitter = Optional.absent();
+    }
+  }
+
+
   @Override
-  public DagProc meet(LaunchDagTask launchDagTask) throws IOException, InstantiationException, IllegalAccessException {
-    LaunchDagProc launchDagProc = new LaunchDagProc(launchDagTask.flowGroup, launchDagTask.flowName);
-    return launchDagProc;
+  public DagProc meet(LaunchDagTask launchDagTask) {
+    throw new UnsupportedOperationException("Currently cannot provide launch proc");
   }
 
   @Override
-  public DagProc meet(KillDagTask killDagTask) throws IOException {
-    KillDagProc killDagProc = new KillDagProc(killDagTask.killDagId);
-    return killDagProc;
+  public DagProc meet(KillDagTask killDagTask) {
+    return new KillDagProc(killDagTask);
   }
 
   @Override
-  public DagProc meet(ResumeDagTask resumeDagTask) throws IOException, InstantiationException, IllegalAccessException {
-    ResumeDagProc resumeDagProc = new ResumeDagProc(resumeDagTask.resumeDagId);
-    return resumeDagProc;
+  public DagProc meet(ResumeDagTask resumeDagTask) {
+    throw new UnsupportedOperationException("Currently cannot provide resume proc");
   }
 
   @Override
-  public DagProc meet(AdvanceDagTask advanceDagTask) throws IOException {
-    AdvanceDagProc advanceDagProc = new AdvanceDagProc();
-    return advanceDagProc;
+  public DagProc meet(AdvanceDagTask advanceDagTask) {
+    throw new UnsupportedOperationException("Currently cannot provide advance proc");
   }
 
   @Override
   public DagProc meet(CleanUpDagTask cleanUpDagTask) {
-    CleanUpDagProc cleanUpDagProc = new CleanUpDagProc();
-    return cleanUpDagProc;
+    throw new UnsupportedOperationException("Currently cannot provide clean up proc");
   }
 }
 

@@ -18,19 +18,19 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import com.codahale.metrics.Timer;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,12 +39,13 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.processor.KillDagProc;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatus;
@@ -62,25 +63,14 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 
 @Alpha
 @Slf4j
+@AllArgsConstructor
 public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement {
+
   @Getter
-  private final BlockingDeque<DagTask> taskQueue = new LinkedBlockingDeque<>();
-  private JobStatusRetriever jobStatusRetriever;
-  private Optional<Timer> jobStatusPolledTimer;
-
-  private DagManagerMetrics dagManagerMetrics;
-
-  private DagManagementStateStore dagManagementStateStore;
-
-  private Long defaultJobStartSlaTimeMillis;
+  private final BlockingDeque<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingDeque<>();
   private FlowTriggerHandler flowTriggerHandler;
-
-  private Optional<DagActionStore> dagActionStore;
-  private DagStateStore failedDagStateStore;
-  private FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private FlowCatalog flowCatalog = new FlowCatalog(ConfigBuilder.create().build());
-
-  //TODO: add ctor for instantiating the attributes (will be handled in the subsequent PR)
+  private DagManagementStateStore dagManagementStateStore;
+  private DagManagerMetrics dagManagerMetrics;
 
 
   @Override
@@ -92,74 +82,68 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
   @Override
   public Optional<DagTask> next() {
 
-    DagTask dagTask = taskQueue.peek();
-
+    DagActionStore.DagAction dagAction = dagActionQueue.peek();
     try {
-      if(flowTriggerHandler.attemptDagTaskLeaseAcquisition(dagTask)) {
-        return Optional.of(taskQueue.poll());
+      Preconditions.checkArgument(dagAction != null, "No Dag Action found in the queue");
+      Properties jobProps = getJobProperties(dagAction);
+      Optional<MultiActiveLeaseArbiter.LeaseObtainedStatus> leaseObtainedStatus =
+          flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis()).toJavaUtil();
+      if(leaseObtainedStatus.isPresent()) {
+        DagTask dagTask = createDagTask(dagAction, leaseObtainedStatus.get());
+        return Optional.of(dagTask);
       }
-    } catch (IOException e) {
+    } catch (Exception ex) {
       //TODO: need to handle exceptions gracefully
-      throw new RuntimeException(e);
+      throw new RuntimeException(ex);
     }
     return Optional.empty();
   }
 
-  public void addDagTaskToStream(DagTask dagTask) throws InterruptedException {
-    this.taskQueue.put(dagTask);
+  public boolean add(DagActionStore.DagAction dagAction) throws IOException {
+    return this.dagActionQueue.offer(dagAction);
+  }
+
+  public DagActionStore.DagAction take() {
+    return this.dagActionQueue.poll();
+  }
+
+  public DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+    DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
+    switch (flowActionType) {
+      case KILL:
+        return new KillDagTask(dagAction, leaseObtainedStatus);
+      case RESUME:
+      case LAUNCH:
+      case ADVANCE:
+      default:
+        log.warn("It should not reach here. Yet to provide implementation.");
+        return null;
+    }
   }
 
   @Override
   public void launchFlow(String flowGroup, String flowName, long  triggerTimeStamp) {
-    FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    try {
-      URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec).toJavaUtil();
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
-      FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, optionalJobExecutionPlanDag.get());
-      String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-      LaunchDagTask launchDagTask = new LaunchDagTask(flowGroup, flowName, flowExecutionId);
-      launchDagTask.initialize(optionalJobExecutionPlanDag.get().getNodes(), triggerTimeStamp);
-      addDagTaskToStream(launchDagTask);
-    } catch (URISyntaxException e) {
-      log.warn("Could not create URI object for flowId {} due to exception {}", flowId, e.getMessage());
-    } catch (SpecNotFoundException e) {
-      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-    } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flowId {} OR delete dag action from dagActionStore (check "
-          + "stacktrace) due to exception {}", flowId, e.getMessage());
-    } catch (InterruptedException e) {
-      log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
-    }
+    //TODO: provide implementation after finalizing code flow
+    throw new UnsupportedOperationException("Currently launch flow is not supported.");
   }
 
   @Override
   public void resumeFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp) throws IOException, InterruptedException {
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
-    Dag<JobExecutionPlan> dag = this.failedDagStateStore.getDag(dagId.toString());
-    if (dag == null) {
-      log.error("Dag " + dagId + " was found in memory but not found in failed dag state store");
-      return;
-    }
-    ResumeDagTask resumeDagTask = new ResumeDagTask(dagId);
-    resumeDagTask.initialize(dag, triggerTimeStamp);
-    addDagTaskToStream(resumeDagTask);
+    //TODO: provide implementation after finalizing code flow
+    throw new UnsupportedOperationException("Currently launch flow is not supported.");
   }
 
   @Override
-  public void killFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp) throws InterruptedException {
+  public void killFlow(String flowGroup, String flowName, String flowExecutionId, long  produceTimestamp) throws IOException {
     DagManager.DagId dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
     if(!this.dagManagementStateStore.getDagIdToDags().containsKey(dagId.toString())) {
       log.info("Invalid dag since not present in map. Hence cannot cancel it");
       return;
     }
-    Dag<JobExecutionPlan> killDag = this.dagManagementStateStore.getDagIdToDags().get(dagId.toString());
-    KillDagTask killDagTask = new KillDagTask(dagId);
-    killDagTask.initialize(killDag, triggerTimeStamp);
-    addDagTaskToStream(killDagTask);
-
+    DagActionStore.DagAction killAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
+      if(!add(killAction)) {
+        throw new IOException("Could not add kill dag action: " + killAction + " to the queue.");
+      }
   }
   /**
    * Check if the SLA is configured for the flow this job belongs to.
@@ -225,7 +209,8 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
       return false;
     }
     ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
-    long timeOutForJobStart = DagManagerUtils.getJobStartSla(node, this.defaultJobStartSlaTimeMillis);
+    //TODO: initialize default job sla in millis via configs
+    long timeOutForJobStart = DagManagerUtils.getJobStartSla(node, System.currentTimeMillis());
     long jobOrchestratedTime = jobStatus.getOrchestratedTime();
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestratedTime > timeOutForJobStart) {
       log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
@@ -249,7 +234,7 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
    * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
    */
 
-  protected JobStatus pollJobStatus(Dag.DagNode<JobExecutionPlan> dagNode) {
+  protected JobStatus retrieveJobStatus(Dag.DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -257,13 +242,13 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
     String jobGroup = jobConfig.getString(ConfigurationKeys.JOB_GROUP_KEY);
     String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
 
-    return pollStatus(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
+    return getStatus(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
   }
 
   /**
    * Retrieve the flow's {@link JobStatus} (i.e. job status with {@link JobStatusRetriever#NA_KEY} as job name/group) from a dag
    */
-  protected JobStatus pollFlowStatus(Dag<JobExecutionPlan> dag) {
+  protected JobStatus retrieveFlowStatus(Dag<JobExecutionPlan> dag) {
     if (dag == null || dag.isEmpty()) {
       return null;
     }
@@ -272,19 +257,17 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
 
-    return pollStatus(flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY);
+    return getStatus(flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY);
   }
 
-  protected JobStatus pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
-    long pollStartTime = System.nanoTime();
-    Iterator<JobStatus> jobStatusIterator =
-        this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
-//    Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
+  private JobStatus getStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
+    throw new UnsupportedOperationException("Currently retrieval of flow/job status is not supported");
+  }
 
-    if (jobStatusIterator.hasNext()) {
-      return jobStatusIterator.next();
-    } else {
-      return null;
-    }
+  private Properties getJobProperties(DagActionStore.DagAction dagAction) {
+    String dagId = String.valueOf(
+        DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId()));
+    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDagIdToDags().get(dagId);
+    return dag.getStartNodes().get(0).getValue().getJobSpec().getConfigAsProperties();
   }
 }

@@ -15,32 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
 
-import java.io.IOException;
 
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 
 
 /**
  * An implementation of {@link DagTask} that is responsible for advancing the dag to the next node based
- * on its current flow and job status. It is added to the {@link DagTaskStream} by the
- * {@link org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor} after it consumes the appropriate
+ * on its current flow and job status. It is added to the {@link org.apache.gobblin.service.modules.orchestration.DagTaskStream}
+ * by the {@link org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor} after it consumes the appropriate
  * {@link org.apache.gobblin.metrics.GobblinTrackingEvent} for the {@link org.apache.gobblin.service.modules.flowgraph.Dag}
  */
 
 @Alpha
+@Slf4j
 public class AdvanceDagTask extends DagTask {
 
-  protected DagManager.DagId advanceDagId;
-
   @Override
-  void initialize(Object state, long triggerTimeStamp) {
-
-  }
-
-  @Override
-  AdvanceDagProc host(DagTaskVisitor visitor) throws IOException, InstantiationException, IllegalAccessException {
-    return (AdvanceDagProc) visitor.meet(this);
+  public Object host(DagTaskVisitor visitor) throws Exception {
+    throw new UnsupportedOperationException("Not supported");
   }
 }

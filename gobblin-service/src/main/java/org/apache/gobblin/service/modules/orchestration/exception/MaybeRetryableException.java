@@ -17,8 +17,12 @@
 
 package org.apache.gobblin.service.modules.orchestration.exception;
 
+import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
+
+
 /**
- * Exception defined for handling the retries while processing {@link org.apache.gobblin.service.modules.orchestration.DagProc}
+ * Exception defined for handling the retries while processing {@link DagProc}
  */
+
 public abstract class MaybeRetryableException extends Throwable {
 }
