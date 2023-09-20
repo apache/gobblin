@@ -15,20 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.cluster;
+package org.apache.gobblin.temporal.joblauncher;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
-import org.apache.gobblin.cluster.GobblinJobLauncher;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.workflows.IllustrationTask;
 import org.apache.gobblin.temporal.workflows.NestingExecWorkflow;
 import org.apache.gobblin.temporal.workflows.SimpleGeneratedWorkload;
@@ -37,19 +49,12 @@ import org.apache.gobblin.temporal.workflows.Workload;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.SerializationUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-import java.util.concurrent.*;
-
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
+import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.TEMPORAL_TASK_MAX_BRANCHES_PER_TREE;
+import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.TEMPORAL_TASK_MAX_SUB_TREES_PER_TREE;
+import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.TEMPORAL_TASK_SIZE;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createServiceInstance;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
@@ -69,9 +74,6 @@ import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.
 @Alpha
 @Slf4j
 public class GobblinTemporalJobLauncher extends GobblinJobLauncher {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTemporalJobLauncher.class);
-
   private WorkflowServiceStubs workflowServiceStubs;
   private WorkflowClient client;
 
@@ -79,7 +81,7 @@ public class GobblinTemporalJobLauncher extends GobblinJobLauncher {
                                     List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
           throws Exception {
     super(jobProps, appWorkDir, metadataTags, runningMap);
-    LOGGER.debug("GobblinTemporalJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
+    log.debug("GobblinTemporalJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
     this.workflowServiceStubs = createServiceInstance();
     this.client = createClientInstance(workflowServiceStubs);
 
@@ -110,18 +112,15 @@ public class GobblinTemporalJobLauncher extends GobblinJobLauncher {
       // Block on persistence of all workunits to be finished.
       stateSerDeRunner.waitForTasks(Long.MAX_VALUE);
 
-      LOGGER.debug("GobblinTemporalJobLauncher.createTemporalJob: jobStateFilePath {}, jobState {} jobProperties {}",
+      log.debug("GobblinTemporalJobLauncher.createTemporalJob: jobStateFilePath {}, jobState {} jobProperties {}",
               jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
 
-      String jobStateFilePathStr = jobStateFilePath.toString();
+      int numTasks = PropertiesUtils.getPropAsInt(this.jobProps, TEMPORAL_TASK_SIZE, 100);
+      int maxBranchesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, TEMPORAL_TASK_MAX_BRANCHES_PER_TREE, 20);
+      int maxSubTreesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, TEMPORAL_TASK_MAX_SUB_TREES_PER_TREE, 5);
 
-      List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-      int numTasks = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.size", 100);
-      int maxBranchesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.maxBranchesPerTree", 20);
-      int maxSubTreesPerTree = PropertiesUtils.getPropAsInt(this.jobProps, "temporal.task.maxSubTreesPerTree", 5);
       ExecutorService executor = Executors.newFixedThreadPool(1);
-      futures.add(CompletableFuture.runAsync(() -> {
+      CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
         try {
           Workload<IllustrationTask> workload = SimpleGeneratedWorkload.createAs(numTasks);
           // WARNING: although type param must agree w/ that of `workload`, it's entirely unverified by type checker!
@@ -133,22 +132,22 @@ public class GobblinTemporalJobLauncher extends GobblinJobLauncher {
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
-      }, executor));
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+      }, executor);
+      future.join();
     }
   }
 
   @Override
   protected void executeCancellation() {
-    LOGGER.info("Cancel temporal workflow");
+    log.info("Cancel temporal workflow");
   }
 
   @Override
   protected void removeTasksFromCurrentJob(List<String> workUnitIdsToRemove) {
-    LOGGER.info("Temporal removeTasksFromCurrentJob");
+    log.info("Temporal removeTasksFromCurrentJob");
   }
 
   protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) {
-    LOGGER.info("Temporal addTasksToCurrentJob");
+    log.info("Temporal addTasksToCurrentJob");
   }
 }

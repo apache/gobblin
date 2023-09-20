@@ -15,15 +15,28 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows;
+package org.apache.gobblin.temporal.cluster;
 
-import lombok.extern.slf4j.Slf4j;
+import com.typesafe.config.Config;
 
-@Slf4j
-public class IllustrationTaskActivityImpl implements IllustrationTaskActivity {
+import io.temporal.client.WorkflowClient;
+
+import org.apache.gobblin.temporal.workflows.IllustrationTaskActivityImpl;
+import org.apache.gobblin.temporal.workflows.NestingExecWorkflowImpl;
+
+
+public class NestingExecWorker extends AbstractTemporalWorker {
+    public NestingExecWorker(Config config, WorkflowClient workflowClient) {
+        super(config, workflowClient);
+    }
+
     @Override
-    public String doTask(final IllustrationTask task) {
-        log.info("Now performing - '" + task.getName() + "'");
-        return task.getName();
+    protected Class<?>[] getWorkflowImplClasses() {
+        return new Class[] { NestingExecWorkflowImpl.class };
+    }
+
+    @Override
+    protected Object[] getActivityImplInstances() {
+        return new Object[] { new IllustrationTaskActivityImpl() };
     }
 }

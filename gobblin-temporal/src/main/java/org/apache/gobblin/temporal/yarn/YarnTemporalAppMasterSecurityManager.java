@@ -17,32 +17,36 @@
 
 package org.apache.gobblin.temporal.yarn;
 
-import java.io.IOException;
-
-import org.apache.gobblin.yarn.YarnContainerSecurityManager;
-import org.apache.hadoop.fs.FileSystem;
-
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
+import java.io.IOException;
 
 import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.yarn.YarnContainerSecurityManager;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
+import org.apache.hadoop.fs.FileSystem;
 
+
+/**
+ * Copied from {@link org.apache.gobblin.yarn.YarnAppMasterSecurityManager} that uses the {@link YarnService}
+ *
+ * This class was created for a fast way to start building out Gobblin on temporal without affecting mainline Yarn/Helix code
+ */
 public class YarnTemporalAppMasterSecurityManager extends YarnContainerSecurityManager {
 
-  private YarnTemporalService _yarnTemporalService;
-  public YarnTemporalAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier, YarnTemporalService yarnTemporalService) {
+  private YarnService _yarnService;
+  public YarnTemporalAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier, YarnService yarnService) {
     super(config, fs, eventBus, logCopier);
-    this._yarnTemporalService = yarnTemporalService;
+    this._yarnService = yarnService;
   }
 
   @Override
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     super.handleTokenFileUpdatedEvent(delegationTokenUpdatedEvent);
     try {
-      _yarnTemporalService.updateToken();
+      _yarnService.updateToken();
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }

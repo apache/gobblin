@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.temporal.cluster;
 
-import java.io.File;
 import java.io.IOException;
-import java.security.KeyStore;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,7 +30,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.cluster.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,18 +46,19 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
-import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.TrustManagerFactory;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.ContainerHealthMetricsService;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinTaskRunner;
+import org.apache.gobblin.cluster.JobConfigurationManager;
+import org.apache.gobblin.cluster.LeadershipChangeAwareComponent;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
@@ -72,11 +68,10 @@ import org.apache.gobblin.runtime.app.ApplicationException;
 import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import static org.apache.gobblin.security.ssl.SSLContextFactory.toInputStream;
 
 
 /**
@@ -220,104 +215,14 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
   /**
    * Start the Gobblin Temporal Cluster Manager.
    */
-  // @Import(clazz = ClientSslContextFactory.class, prefix = ClientSslContextFactory.SCOPE_PREFIX)
   @Override
   public void start() {
     // temporal workflow
     LOGGER.info("Starting the Gobblin Temporal Cluster Manager");
 
     this.eventBus.register(this);
-
-    if (this.isStandaloneMode) {
-      // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
-      this.idleProcessThread = new Thread(new Runnable() {
-        @Override
-        public void run() {
-          while (!GobblinTemporalClusterManager.this.stopStatus.isStopInProgress() && !GobblinTemporalClusterManager.this.stopIdleProcessThread) {
-            try {
-              Thread.sleep(300);
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              break;
-            }
-          }
-        }
-      });
-
-      this.idleProcessThread.start();
-
-      // Need this in case a kill is issued to the process so that the idle thread does not keep the process up
-      // since GobblinTemporalClusterManager.stop() is not called this case.
-      Runtime.getRuntime().addShutdownHook(new Thread(() -> GobblinTemporalClusterManager.this.stopIdleProcessThread = true));
-    } else {
-      startAppLauncherAndServices();
-    }
+    startAppLauncherAndServices();
     this.started = true;
-  }
-
-  public static WorkflowServiceStubs createServiceStubs()
-      throws Exception {
-    GobblinClusterUtils.setSystemProperties(ConfigFactory.load());
-    Config config = GobblinClusterUtils.addDynamicConfig(ConfigFactory.load());
-    String SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT = "gobblin.kafka.sharedConfig.";
-    String SSL_KEYMANAGER_ALGORITHM = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keymanager.algorithm";
-    String SSL_KEYSTORE_TYPE = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keystore.type";
-    String SSL_KEYSTORE_LOCATION = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.keystore.location";
-    String SSL_KEY_PASSWORD = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.key.password";
-    String SSL_TRUSTSTORE_LOCATION = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.truststore.location";
-    String SSL_TRUSTSTORE_PASSWORD = SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT + "ssl.truststore.password";
-
-    List<String> SSL_CONFIG_DEFAULT_SSL_PROTOCOLS = Collections.unmodifiableList(
-        Arrays.asList("TLSv1.2"));
-    List<String> SSL_CONFIG_DEFAULT_CIPHER_SUITES = Collections.unmodifiableList(Arrays.asList(
-        // The following list is from https://github.com/netty/netty/blob/4.1/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2SecurityUtil.java#L50
-        "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-
-        /* REQUIRED BY HTTP/2 SPEC */
-        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-        /* REQUIRED BY HTTP/2 SPEC */
-
-        "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
-        "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
-        "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
-        "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
-    ));
-
-    String keyStoreType = config.getString(SSL_KEYSTORE_TYPE);
-    File keyStoreFile = new File(config.getString(SSL_KEYSTORE_LOCATION));
-    String keyStorePassword = config.getString(SSL_KEY_PASSWORD);
-
-    KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-    keyStore.load(toInputStream(keyStoreFile), keyStorePassword.toCharArray());
-
-    // Set key manager from key store
-    String sslKeyManagerAlgorithm = config.getString(SSL_KEYMANAGER_ALGORITHM);
-    KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(sslKeyManagerAlgorithm);
-    keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
-
-    // Set trust manager from trust store
-    KeyStore trustStore = KeyStore.getInstance("JKS");
-    File trustStoreFile = new File(config.getString(SSL_TRUSTSTORE_LOCATION));
-
-    String trustStorePassword = config.getString(SSL_TRUSTSTORE_PASSWORD);
-    trustStore.load(toInputStream(trustStoreFile), trustStorePassword.toCharArray());
-    TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("SunX509");
-    trustManagerFactory.init(trustStore);
-
-    SslContext sslContext = GrpcSslContexts.forClient()
-        .keyManager(keyManagerFactory)
-        .trustManager(trustManagerFactory)
-        .protocols(SSL_CONFIG_DEFAULT_SSL_PROTOCOLS)
-        .ciphers(SSL_CONFIG_DEFAULT_CIPHER_SUITES)
-        .build();
-
-    return WorkflowServiceStubs.newServiceStubs(
-        WorkflowServiceStubsOptions.newBuilder()
-            .setTarget("1.nephos-temporal.corp-lca1.atd.corp.linkedin.com:7233")
-            .setEnableHttps(true)
-            .setSslContext(sslContext)
-            .build());
-
   }
 
   /**
@@ -398,6 +303,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
   }
 
   /**
+   * comment lifted from {@link org.apache.gobblin.cluster.GobblinClusterManager}
    * TODO for now the cluster id is hardcoded to 1 both here and in the {@link GobblinTaskRunner}. In the future, the
    * cluster id should be created by the {@link GobblinTemporalClusterManager} and passed to each {@link GobblinTaskRunner}
    */

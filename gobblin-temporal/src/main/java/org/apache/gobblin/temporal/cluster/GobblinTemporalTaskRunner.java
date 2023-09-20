@@ -33,9 +33,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.gobblin.cluster.*;
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
-import org.apache.gobblin.temporal.workflows.NestingExecWorker;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -53,11 +50,17 @@ import com.typesafe.config.ConfigValueFactory;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.worker.WorkerOptions;
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.ContainerHealthCheckException;
+import org.apache.gobblin.cluster.ContainerHealthMetricsService;
+import org.apache.gobblin.cluster.ContainerMetrics;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.TaskRunnerSuiteBase;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
@@ -68,6 +71,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -77,8 +81,8 @@ import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createServiceInstance;
 
 
 /**
@@ -101,7 +105,6 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
 
-  private static TaskRunnerSuiteBase.Builder builder;
   private final Optional<ContainerMetrics> containerMetrics;
   private final Path appWorkPath;
   private boolean isTaskDriver;
@@ -120,7 +123,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   protected final FileSystem fs;
   protected final String applicationName;
   protected final String applicationId;
-  protected final int temporalWorkerSize;
+  protected final int numTemporalWorkers;
+  protected final String temporalQueueName;
   private final boolean isMetricReportingFailureFatal;
   private final boolean isEventReportingFailureFatal;
 
@@ -146,9 +150,10 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     this.containerMetrics = buildContainerMetrics();
-    this.builder = initBuilder();
-    // The default worker size would be 1
-    this.temporalWorkerSize = ConfigUtils.getInt(config, GobblinClusterConfigurationKeys.TEMPORAL_WORKER_SIZE,1);
+    this.numTemporalWorkers = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER);
+    this.temporalQueueName = ConfigUtils.getString(config, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
+        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
     this.isMetricReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
         ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
@@ -167,11 +172,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
         appWorkDirOptional);
   }
 
-  public static TaskRunnerSuiteBase.Builder getBuilder() {
-    return builder;
-  }
-
-  private TaskRunnerSuiteBase.Builder initBuilder() throws ReflectiveOperationException {
+  public TaskRunnerSuiteBase.Builder getTaskRunnerSuiteBuilder() throws ReflectiveOperationException {
     String builderStr = ConfigUtils.getString(this.clusterConfig,
         GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
         TaskRunnerSuiteBase.Builder.class.getName());
@@ -225,7 +226,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     addShutdownHook();
 
     try {
-      for (int i = 0; i < this.temporalWorkerSize; i++) {
+      for (int i = 0; i < this.numTemporalWorkers; i++) {
         initiateWorker();
       }
     }catch (Exception e) {
@@ -240,12 +241,10 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     WorkflowServiceStubs service = createServiceInstance();
     WorkflowClient client = createClientInstance(service);
 
-    WorkerOptions workerOptions = WorkerOptions.newBuilder()
-        .setMaxConcurrentWorkflowTaskExecutionSize(1)
-        .setMaxConcurrentActivityExecutionSize(1)
-        .build();
-
-    NestingExecWorker worker = new NestingExecWorker(client, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+    String workerClassName = ConfigUtils.getString(clusterConfig,
+        GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
+    AbstractTemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(
+        (Class<AbstractTemporalWorker>) Class.forName(workerClassName), clusterConfig, client);
     worker.start();
     logger.info("A new worker is started.");
   }

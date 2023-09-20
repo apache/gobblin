@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
+package org.apache.gobblin.temporal.joblauncher;
 
+import com.google.common.base.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import com.google.common.base.Optional;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -33,7 +32,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 
-class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetrics {
+public class GobblinTemporalJobSchedulerMetrics extends StandardMetricsBridge.StandardMetrics {
   public static final String SCHEDULE_CANCELLATION_START = "scheduleCancellationStart";
   public static final String SCHEDULE_CANCELLATION_END = "scheduleCancellationEnd";
   public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";
@@ -48,7 +47,7 @@ class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetr
 
   final ThreadPoolExecutor threadPoolExecutor;
 
-  public GobblinHelixJobSchedulerMetrics (final ExecutorService jobExecutor, final MetricContext metricContext, int windowSizeInMin) {
+  public GobblinTemporalJobSchedulerMetrics(final ExecutorService jobExecutor, final MetricContext metricContext, int windowSizeInMin) {
     this.timeBeforeJobScheduling = metricContext.contextAwareTimer(TIMER_BEFORE_JOB_SCHEDULING,
         windowSizeInMin, TimeUnit.MINUTES);
     this.timeBeforeJobLaunching = metricContext.contextAwareTimer(TIMER_BEFORE_JOB_LAUNCHING,

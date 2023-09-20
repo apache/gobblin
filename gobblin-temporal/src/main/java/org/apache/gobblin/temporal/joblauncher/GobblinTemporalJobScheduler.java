@@ -15,25 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.cluster;
-
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.apache.gobblin.cluster.*;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package org.apache.gobblin.temporal.joblauncher;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.Config;
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixJob;
+import org.apache.gobblin.cluster.HelixJobsMapping;
 import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
@@ -51,6 +50,8 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -73,9 +74,9 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
   private final List<? extends Tag<?>> metadataTags;
   private final ConcurrentHashMap<String, Boolean> jobRunningMap;
   private final MetricContext metricContext;
-  final GobblinHelixJobSchedulerMetrics jobSchedulerMetrics;
-  final GobblinHelixJobLauncherMetrics launcherMetrics;
-  final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+  final GobblinTemporalJobSchedulerMetrics jobSchedulerMetrics;
+  final GobblinTemporalJobLauncherMetrics launcherMetrics;
+  final GobblinTemporalPlanningJobLauncherMetrics planningJobLauncherMetrics;
   final HelixJobsMapping jobsMapping;
   private boolean startServicesCompleted;
 
@@ -96,11 +97,11 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
             ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
             ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
-    this.launcherMetrics = new GobblinHelixJobLauncherMetrics("launcherInScheduler",
+    this.launcherMetrics = new GobblinTemporalJobLauncherMetrics("launcherInScheduler",
             this.metricContext,
             metricsWindowSizeInMin);
 
-    this.jobSchedulerMetrics = new GobblinHelixJobSchedulerMetrics(this.jobExecutor,
+    this.jobSchedulerMetrics = new GobblinTemporalJobSchedulerMetrics(this.jobExecutor,
             this.metricContext,
             metricsWindowSizeInMin);
 
@@ -108,7 +109,7 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
             PathUtils.getRootPath(appWorkDir).toUri(),
             appWorkDir.toString());
 
-    this.planningJobLauncherMetrics = new GobblinHelixPlanningJobLauncherMetrics("planningLauncherInScheduler",
+    this.planningJobLauncherMetrics = new GobblinTemporalPlanningJobLauncherMetrics("planningLauncherInScheduler",
             this.metricContext,
             metricsWindowSizeInMin, this.jobsMapping);
 
@@ -197,10 +198,10 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
       if (jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         LOGGER.info("Scheduling job " + jobUri);
         scheduleJob(jobProps,
-                new GobblinHelixJobLauncherListener(this.launcherMetrics));
+                new GobblinTemporalJobLauncherListener(this.launcherMetrics));
       } else {
         LOGGER.info("No job schedule found, so running job " + jobUri);
-        GobblinHelixJobLauncherListener listener = new GobblinHelixJobLauncherListener(this.launcherMetrics);
+        GobblinTemporalJobLauncherListener listener = new GobblinTemporalJobLauncherListener(this.launcherMetrics);
         JobLauncher launcher = buildJobLauncher(newJobArrival.getJobConfig());
         launcher.launchJob(listener);
       }
@@ -258,11 +259,11 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
    */
   class NonScheduledJobRunner implements Runnable {
     private final Properties jobProps;
-    private final GobblinHelixJobLauncherListener jobListener;
+    private final GobblinTemporalJobLauncherListener jobListener;
     private final Long creationTimeInMillis;
 
     public NonScheduledJobRunner(Properties jobProps,
-                                 GobblinHelixJobLauncherListener jobListener) {
+                                 GobblinTemporalJobLauncherListener jobListener) {
 
       this.jobProps = jobProps;
       this.jobListener = jobListener;

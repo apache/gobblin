@@ -211,7 +211,6 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
     EventNotification notification = new EventNotification(nonReusableEvent);
     sendNotification(notification);
-    LOG.info("EventBuilder {} is submitted.", nonReusableEvent);
   }
 
   /**

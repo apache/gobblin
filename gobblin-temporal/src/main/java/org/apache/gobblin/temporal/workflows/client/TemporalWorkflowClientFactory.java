@@ -1,4 +1,21 @@
-package org.apache.gobblin.cluster.temporal;
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.gobblin.temporal.workflows.client;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -8,6 +25,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -17,8 +38,6 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static org.apache.gobblin.security.ssl.SSLContextFactory.toInputStream;
 
 public class TemporalWorkflowClientFactory {
     public static WorkflowServiceStubs createServiceInstance() throws Exception {
@@ -87,5 +106,11 @@ public class TemporalWorkflowClientFactory {
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service) {
         WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build();
         return WorkflowClient.newInstance(service, options);
+    }
+
+    private static InputStream toInputStream(File storeFile)
+        throws IOException {
+        byte[] data = FileUtils.readFileToByteArray(storeFile);
+        return new ByteArrayInputStream(data);
     }
 }
