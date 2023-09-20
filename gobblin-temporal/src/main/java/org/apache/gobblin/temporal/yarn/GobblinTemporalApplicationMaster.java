@@ -17,18 +17,36 @@
 
 package org.apache.gobblin.temporal.yarn;
 
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.Service;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import java.util.List;
+import lombok.Getter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
+import org.apache.gobblin.yarn.GobblinYarnLogSource;
+import org.apache.gobblin.yarn.YarnContainerSecurityManager;
+import org.apache.gobblin.yarn.YarnHelixUtils;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager;
-import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
-import org.apache.gobblin.yarn.GobblinYarnLogSource;
-import org.apache.gobblin.yarn.YarnContainerSecurityManager;
-import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -36,33 +54,13 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.Service;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
-import lombok.Getter;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinClusterUtils;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.JvmUtils;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
-import org.apache.gobblin.util.logs.LogCopier;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
  * The Yarn ApplicationMaster class for Gobblin using Temporal.
  *
  * <p>
- *   This class runs the {@link YarnTemporalService} for all Yarn-related stuffs like ApplicationMaster registration
+ *   This class runs the {@link YarnService} for all Yarn-related stuffs like ApplicationMaster registration
  *   and un-registration and Yarn container provisioning.
  * </p>
  *
@@ -73,7 +71,7 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTemporalApplicationMaster.class);
 
   @Getter
-  private final YarnTemporalService _yarnTemporalService;
+  private final YarnService _yarnService;
   private LogCopier logCopier;
 
   public GobblinTemporalApplicationMaster(String applicationName, String applicationId, ContainerId containerId, Config config,
@@ -92,8 +90,8 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
     }
     YarnHelixUtils.setYarnClassPath(config, yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, yarnConfiguration);
-    this._yarnTemporalService = buildTemporalYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
-    this.applicationLauncher.addService(this._yarnTemporalService);
+    this._yarnService = buildTemporalYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
+    this.applicationLauncher.addService(this._yarnService);
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
@@ -111,19 +109,19 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
   }
 
   /**
-   * Build the {@link YarnTemporalService} for the Application Master.
+   * Build the {@link YarnService} for the Application Master.
    */
-  protected YarnTemporalService buildTemporalYarnService(Config config, String applicationName, String applicationId,
+  protected YarnService buildTemporalYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
-    return new YarnTemporalService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
+    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
   }
 
   /**
    * Build the {@link YarnTemporalAppMasterSecurityManager} for the Application Master.
    */
   private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
-    return new YarnTemporalAppMasterSecurityManager(config, fs, this.eventBus, this.logCopier, this._yarnTemporalService);
+    return new YarnTemporalAppMasterSecurityManager(config, fs, this.eventBus, this.logCopier, this._yarnService);
   }
 
   private static Options buildOptions() {

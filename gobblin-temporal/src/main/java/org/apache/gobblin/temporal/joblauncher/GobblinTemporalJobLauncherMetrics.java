@@ -19,7 +19,6 @@ package org.apache.gobblin.temporal.joblauncher;
 
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.cluster.GobblinHelixJobLauncher;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
@@ -27,7 +26,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 /**
- * Metrics that relates to jobs launched by {@link GobblinHelixJobLauncher}.
+ * Metrics that relates to jobs launched by {@link GobblinTemporalJobLauncher}.
  */
 public class GobblinTemporalJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
     private final String metricsName;

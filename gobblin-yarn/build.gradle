@@ -59,6 +59,7 @@ dependencies {
   compile (externalDependency.helix) {
     exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
   }
+
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
 
