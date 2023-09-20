@@ -79,8 +79,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * The central cluster manager for Gobblin Clusters.
  *
  * <p>
- *   This class runs the {@link GobblinHelixJobScheduler} for scheduling
- *   and running Gobblin jobs.
+ *   This class runs the {@link GobblinHelixJobScheduler} for scheduling and running Gobblin jobs.
  *   This class serves as the Helix controller and it uses a {@link HelixManager} to work with Helix.
  * </p>
  *

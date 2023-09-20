@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
-
-import java.util.concurrent.TimeUnit;
+package org.apache.gobblin.temporal.joblauncher;
 
 import com.google.common.base.Optional;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.cluster.GobblinHelixJobLauncher;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
@@ -30,15 +30,15 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 
 /**
  * A job listener used when {@link GobblinHelixJobLauncher} launches a job.
- * The {@link GobblinHelixJobLauncherMetrics} will always be passed in because
+ * The {@link GobblinTemporalJobLauncherMetrics} will always be passed in because
  * it will be be updated accordingly.
  */
-class GobblinHelixJobLauncherListener extends AbstractJobListener {
+class GobblinTemporalJobLauncherListener extends AbstractJobListener {
 
-  private final GobblinHelixJobLauncherMetrics jobLauncherMetrics;
+  private final GobblinTemporalJobLauncherMetrics jobLauncherMetrics;
   private static final String JOB_START_TIME = "jobStartTime";
 
-  GobblinHelixJobLauncherListener(GobblinHelixJobLauncherMetrics jobLauncherMetrics) {
+  GobblinTemporalJobLauncherListener(GobblinTemporalJobLauncherMetrics jobLauncherMetrics) {
     this.jobLauncherMetrics = jobLauncherMetrics;
   }
 

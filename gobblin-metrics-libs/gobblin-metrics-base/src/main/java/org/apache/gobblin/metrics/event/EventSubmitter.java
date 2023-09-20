@@ -38,6 +38,7 @@ import lombok.Getter;
  *
  */
 public class EventSubmitter {
+
   public static final String EVENT_TYPE = "eventType";
 
   private final Map<String, String> metadata;

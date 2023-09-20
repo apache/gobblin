@@ -21,9 +21,7 @@ import org.apache.gobblin.annotation.Alpha;
 
 
 /**
- * A central place for configuration related constants of a Gobblin Cluster.
- *
- * @author Yinan Li
+ * A central place for configuration related constants of a Gobblin Temporal.
  */
 @Alpha
 public interface GobblinTemporalConfigurationKeys {
@@ -38,6 +36,6 @@ public interface GobblinTemporalConfigurationKeys {
    * NOTE: If this size is too large, your container can OOM and halt execution unexpectedly. It's recommended not to touch
    * this parameter
    */
-  String TEMPORAL_NUM_WORKERS_PER_CONTAINER = "temporal.num.worker.per.container";
-  int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINER = 1;
+  String TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER = "temporal.num.worker.per.container";
+  int DEFAULT_TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER = 1;
 }

@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
+package org.apache.gobblin.temporal.joblauncher;
 
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.cluster.GobblinHelixJobLauncher;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
@@ -28,7 +29,7 @@ import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 /**
  * Metrics that relates to jobs launched by {@link GobblinHelixJobLauncher}.
  */
-class GobblinHelixJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
+public class GobblinTemporalJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
     private final String metricsName;
 
     final ContextAwareMeter numJobsLaunched;
@@ -40,7 +41,7 @@ class GobblinHelixJobLauncherMetrics extends StandardMetricsBridge.StandardMetri
     final ContextAwareTimer timeForFailedJobs;
     final ContextAwareTimer timeForCommittedJobs;
 
-    public GobblinHelixJobLauncherMetrics(String metricsName, final MetricContext metricContext, int windowSizeInMin) {
+    public GobblinTemporalJobLauncherMetrics(String metricsName, final MetricContext metricContext, int windowSizeInMin) {
       this.metricsName = metricsName;
 
       this.numJobsLaunched = metricContext.contextAwareMeter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_LAUNCHED);
@@ -54,7 +55,8 @@ class GobblinHelixJobLauncherMetrics extends StandardMetricsBridge.StandardMetri
       this.numJobsCancelled = metricContext.contextAwareMeter(JobExecutionLauncher.StandardMetrics.NUM_JOBS_CANCELLED);
       this.contextAwareMetrics.add(this.numJobsCancelled);
       this.contextAwareMetrics.add(metricContext.newContextAwareGauge(JobExecutionLauncher.StandardMetrics.NUM_JOBS_RUNNING,
-          () -> (int) (GobblinHelixJobLauncherMetrics.this.numJobsLaunched.getCount() - GobblinHelixJobLauncherMetrics.this.numJobsCompleted.getCount())));
+          () -> (int) (
+              GobblinTemporalJobLauncherMetrics.this.numJobsLaunched.getCount() - GobblinTemporalJobLauncherMetrics.this.numJobsCompleted.getCount())));
 
       this.timeForCompletedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_COMPLETED_JOBS, windowSizeInMin, TimeUnit.MINUTES);
       this.timeForFailedJobs = metricContext.contextAwareTimer(JobExecutionLauncher.StandardMetrics.TIMER_FOR_FAILED_JOBS, windowSizeInMin, TimeUnit.MINUTES);

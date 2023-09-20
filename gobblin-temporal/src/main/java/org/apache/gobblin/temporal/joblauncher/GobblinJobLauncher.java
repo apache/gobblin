@@ -15,39 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
-
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.Optional;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package org.apache.gobblin.temporal.joblauncher;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -60,18 +46,18 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Id;
-import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.util.PropertiesUtils;
-import org.apache.gobblin.util.SerializationUtils;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
+ * Most of this code is lifted from {@link org.apache.gobblin.cluster.GobblinHelixJobLauncher} and maybe in the future
+ * it may make sense to converge the code once Temporal on Gobblin is in a mature state.
  *
  * <p>
  *   Each {@link WorkUnit} of the job is persisted to the {@link FileSystem} of choice and the path to the file
@@ -82,8 +68,7 @@ import org.apache.gobblin.util.SerializationUtils;
  */
 @Alpha
 @Slf4j
-public class GobblinJobLauncher extends AbstractJobLauncher {
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinJobLauncher.class);
+public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   protected final FileSystem fs;
   protected final Path appWorkDir;
@@ -105,7 +90,7 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
       throws Exception {
     super(jobProps, HelixUtils.initBaseEventTags(jobProps, metadataTags));
-    LOGGER.debug("GobblinJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
+    log.debug("GobblinJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
     this.runningMap = runningMap;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
@@ -153,7 +138,7 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
     try {
       CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, workUnits.size());
       this.eventSubmitter.submit(countEventBuilder);
-      LOGGER.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
+      log.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
 
       long workUnitStartTime = System.currentTimeMillis();
       workUnits.forEach((k) -> k.setProp(ConfigurationKeys.WORK_UNIT_CREATION_TIME_IN_MILLIS, workUnitStartTime));
@@ -168,17 +153,17 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
         if (!this.cancellationRequested) {
           submitJob(workUnits);
           jobSubmissionTimer.stop();
-          LOGGER.info(String.format("Submitted job %s", this.jobContext.getJobId()));
+          log.info(String.format("Submitted job %s", this.jobContext.getJobId()));
           this.jobSubmitted = true;
         } else {
-          LOGGER.warn("Job {} not submitted as it was requested to be cancelled.", this.jobContext.getJobId());
+          log.warn("Job {} not submitted as it was requested to be cancelled.", this.jobContext.getJobId());
         }
       }
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
       waitJob();
       jobRunTimer.stop();
-      LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
+      log.info(String.format("Job %s completed", this.jobContext.getJobId()));
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
@@ -198,18 +183,18 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
 
   public void launchJob(@Nullable JobListener jobListener) throws JobException {
     this.jobListener = jobListener;
-    LOGGER.info("Launching Job");
+    log.info("Launching Job");
     boolean isLaunched = false;
     this.runningMap.putIfAbsent(this.jobContext.getJobName(), false);
 
     Throwable errorInJobLaunching = null;
     try {
       if (this.runningMap.replace(this.jobContext.getJobName(), false, true)) {
-        LOGGER.info("Job {} will be executed, add into running map.", this.jobContext.getJobId());
+        log.info("Job {} will be executed, add into running map.", this.jobContext.getJobId());
         isLaunched = true;
         launchJobImpl(jobListener);
       } else {
-        LOGGER.warn("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
+        log.warn("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
       }
 
       // TODO: Better error handling. The current impl swallows exceptions for jobs that were started by this method call.
@@ -223,7 +208,7 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
     } finally {
       if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
-          LOGGER.info("Job {} is done, remove from running map.", this.jobContext.getJobId());
+          log.info("Job {} is done, remove from running map.", this.jobContext.getJobId());
         } else {
           throw errorInJobLaunching == null ? new IllegalStateException(
               "A launched job should have running state equal to true in the running map.")
@@ -259,13 +244,13 @@ public class GobblinJobLauncher extends AbstractJobLauncher {
    * Delete persisted {@link WorkUnit}s and {@link JobState} upon job completion.
    */
   protected void cleanupWorkingDirectory() throws IOException {
-    LOGGER.info("Deleting persisted work units for job " + this.jobContext.getJobId());
+    log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
     // delete the directory that stores the task state files
     stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
 
-    LOGGER.info("Deleting job state file for job " + this.jobContext.getJobId());
+    log.info("Deleting job state file for job " + this.jobContext.getJobId());
 
     if (this.stateStores.haveJobStateStore()) {
       this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
