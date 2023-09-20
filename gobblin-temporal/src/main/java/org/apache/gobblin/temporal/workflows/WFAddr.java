@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.workflows;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Joiner;

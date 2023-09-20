@@ -15,23 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.cluster;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinJobLauncher;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.workflows.IllustrationTask;
+import org.apache.gobblin.temporal.workflows.NestingExecWorkflow;
+import org.apache.gobblin.temporal.workflows.SimpleGeneratedWorkload;
+import org.apache.gobblin.temporal.workflows.WFAddr;
+import org.apache.gobblin.temporal.workflows.Workload;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.SerializationUtils;
@@ -40,13 +42,11 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
 import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
@@ -126,7 +126,7 @@ public class GobblinTemporalJobLauncher extends GobblinJobLauncher {
           Workload<IllustrationTask> workload = SimpleGeneratedWorkload.createAs(numTasks);
           // WARNING: although type param must agree w/ that of `workload`, it's entirely unverified by type checker!
           // ...and more to the point, mismatch would occur at runtime (`performWork` on whichever workflow underpins stub)!
-          WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(Shared.GOBBLIN_TEMPORAL_TASK_QUEUE).build();
+          WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE).build();
           NestingExecWorkflow<IllustrationTask> workflow =
                   this.client.newWorkflowStub(NestingExecWorkflow.class, options);
           workflow.performWork(WFAddr.ROOT, workload, 0, maxBranchesPerTree, maxSubTreesPerTree, Optional.empty());

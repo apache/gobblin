@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.temporal.yarn;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +24,10 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
+import org.apache.gobblin.yarn.GobblinYarnLogSource;
+import org.apache.gobblin.yarn.YarnContainerSecurityManager;
+import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -41,7 +45,7 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
-import org.apache.gobblin.cluster.temporal.GobblinTemporalTaskRunner;
+import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.logs.LogCopier;
@@ -94,12 +98,12 @@ public class GobblinTemporalYarnTaskRunner extends GobblinTemporalTaskRunner {
 
   public static void main(String[] args) {
     LOGGER.info("Starting GobblinTemporalYarnTaskRunner");
-    Options options = buildOptions();
+    Options options = GobblinTemporalTaskRunner.buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
       if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
     .hasOption(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)) {
-        printUsage(options);
+        GobblinTemporalTaskRunner.printUsage(options);
         System.exit(1);
       }
 
@@ -121,7 +125,7 @@ public class GobblinTemporalYarnTaskRunner extends GobblinTemporalTaskRunner {
       gobblinTemporalTaskRunner.start();
 
     } catch (ParseException pe) {
-      printUsage(options);
+      GobblinTemporalTaskRunner.printUsage(options);
       System.exit(1);
     } catch (Throwable t) {
       // Ideally, we should not be catching non-recoverable exceptions and errors. However,

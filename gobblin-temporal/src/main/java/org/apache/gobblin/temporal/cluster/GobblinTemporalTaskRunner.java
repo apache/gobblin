@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.cluster;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -34,7 +34,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.gobblin.cluster.*;
-import org.apache.gobblin.cluster.temporal.NestingExecWorker;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.workflows.NestingExecWorker;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -51,16 +52,12 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.cluster.temporal.Shared;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
@@ -248,7 +245,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
         .setMaxConcurrentActivityExecutionSize(1)
         .build();
 
-    NestingExecWorker worker = new NestingExecWorker(client, Shared.GOBBLIN_TEMPORAL_TASK_QUEUE);
+    NestingExecWorker worker = new NestingExecWorker(client, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
     worker.start();
     logger.info("A new worker is started.");
   }

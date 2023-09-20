@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.workflows;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.Async;

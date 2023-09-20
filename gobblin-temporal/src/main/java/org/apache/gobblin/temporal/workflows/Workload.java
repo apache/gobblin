@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.workflows;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.Iterator;

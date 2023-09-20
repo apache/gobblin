@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.temporal.yarn;
 
 import java.util.List;
 
@@ -24,8 +24,11 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.gobblin.cluster.GobblinClusterManager;
-import org.apache.gobblin.cluster.temporal.GobblinTemporalClusterManager;
+import org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
+import org.apache.gobblin.yarn.GobblinYarnLogSource;
+import org.apache.gobblin.yarn.YarnContainerSecurityManager;
+import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -53,8 +56,7 @@ import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.gobblin.yarn.YarnTemporalService;
-import org.apache.gobblin.yarn.YarnTemporalAppMasterSecurityManager;
+
 
 /**
  * The Yarn ApplicationMaster class for Gobblin using Temporal.
@@ -118,7 +120,7 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
   }
 
   /**
-   * Build the {@link YarnAppMasterSecurityManager} for the Application Master.
+   * Build the {@link YarnTemporalAppMasterSecurityManager} for the Application Master.
    */
   private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
     return new YarnTemporalAppMasterSecurityManager(config, fs, this.eventBus, this.logCopier, this._yarnTemporalService);

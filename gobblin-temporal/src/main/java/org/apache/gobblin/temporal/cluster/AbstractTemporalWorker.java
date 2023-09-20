@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.cluster;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.Worker;

@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.workflows;
 import java.util.Iterator;
 import java.util.List;
 import lombok.NoArgsConstructor;

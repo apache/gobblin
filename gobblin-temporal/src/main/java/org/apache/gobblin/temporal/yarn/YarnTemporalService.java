@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.temporal.yarn;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -37,6 +36,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
+import org.apache.gobblin.yarn.GobblinYarnEventConstants;
+import org.apache.gobblin.yarn.GobblinYarnMetricTagNames;
+import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -187,7 +190,6 @@ public class YarnTemporalService extends AbstractIdleService {
   private final ConcurrentMap<String, AtomicInteger> allocatedContainerCountMap = Maps.newConcurrentMap();
   private final ConcurrentMap<ContainerId, String> removedContainerID = Maps.newConcurrentMap();
 
-  private volatile YarnContainerRequestBundle yarnContainerRequest;
   private final AtomicInteger priorityNumGenerator = new AtomicInteger(0);
   private final Map<String, Integer> resourcePriorityMap = new HashMap<>();
 
@@ -417,33 +419,24 @@ public class YarnTemporalService extends AbstractIdleService {
    * number of containers. The intended usage is for the caller of this method to make periodic calls to attempt to
    * adjust the cluster towards the desired number of containers.
    *
-   * @param yarnContainerRequestBundle the desired containers information, including numbers, resource and helix tag
    * @param inUseInstances  a set of in use instances
    * @return whether successfully requested the target number of containers
    */
-  public synchronized boolean requestTargetNumberOfContainers(YarnContainerRequestBundle yarnContainerRequestBundle, Set<String> inUseInstances) {
+  public synchronized boolean requestTargetNumberOfContainers(int numContainers, Set<String> inUseInstances) {
     int defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys. CONTAINER_CORES_KEY);
-    // making workerPoolSize configurable, the default value would be 10
-    int workerPoolSize = ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.TEMPORAL_WORKERPOOL_SIZE,10);
 
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
-        workerPoolSize, inUseInstances.size(), this.containerMap.size());
+        numContainers, inUseInstances.size(), this.containerMap.size());
 
-    requestContainers(workerPoolSize, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores));
-
-    this.yarnContainerRequest = yarnContainerRequestBundle;
-    LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}",
-        yarnContainerRequestBundle.getHelixTagContainerCountMap(), this.allocatedContainerCountMap);
+    requestContainers(numContainers, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores));
+    LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}", numContainers, this.allocatedContainerCountMap);
     return true;
   }
 
   // Request initial containers with default resource and helix tag
   private void requestInitialContainers(int containersRequested) {
-    YarnContainerRequestBundle initialYarnContainerRequest = new YarnContainerRequestBundle();
-    Resource capability = Resource.newInstance(this.requestedContainerMemoryMbs, this.requestedContainerCores);
-    initialYarnContainerRequest.add(this.helixInstanceTags, containersRequested, capability);
-    requestTargetNumberOfContainers(initialYarnContainerRequest, Collections.EMPTY_SET);
+    requestTargetNumberOfContainers(containersRequested, Collections.EMPTY_SET);
   }
 
   private void requestContainer(Optional<String> preferredNode, Optional<Resource> resourceOptional) {
@@ -735,32 +728,6 @@ public class YarnTemporalService extends AbstractIdleService {
   }
 
   /**
-   * Get the number of matching container requests for the specified resource memory and cores.
-   * Due to YARN-1902 and YARN-660, this API is not 100% accurate. {@link AMRMClientCallbackHandler#onContainersAllocated(List)}
-   * contains logic for best effort clean up of requests, and the resource tend to match the allocated container. So in practice the count is pretty accurate.
-   * <p>
-   * This API call gets the count of container requests for containers that are > resource if there is no request with the exact same resource
-   * The RM can return containers that are larger (because of normalization etc).
-   * Container may be larger by memory or cpu (e.g. container (1000M, 3cpu) can fit request (1000M, 1cpu) or request (500M, 3cpu).
-   * <p>
-   */
-  private int getMatchingRequestsCount(Resource resource) {
-    Integer priorityNum = resourcePriorityMap.get(resource.toString());
-    if (priorityNum == null) { // request has never been made with this resource
-      return 0;
-    }
-    Priority priority = Priority.newInstance(priorityNum);
-
-    // Each collection in the list represents a set of requests with each with the same resource requirement.
-    // The reason for differing resources can be due to normalization
-    List<? extends Collection<AMRMClient.ContainerRequest>> outstandingRequests = getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
-    return outstandingRequests == null ? 0 : outstandingRequests.stream()
-        .filter(Objects::nonNull)
-        .mapToInt(Collection::size)
-        .sum();
-  }
-
-  /**
    * A custom implementation of {@link AMRMClientAsync.CallbackHandler}.
    */
   private class AMRMClientCallbackHandler implements AMRMClientAsync.CallbackHandler {
@@ -778,10 +745,7 @@ public class YarnTemporalService extends AbstractIdleService {
     public void onContainersAllocated(List<Container> containers) {
       for (final Container container : containers) {
         String containerId = container.getId().toString();
-        String containerHelixTag = YarnHelixUtils.findHelixTagForContainer(container, allocatedContainerCountMap, yarnContainerRequest);
-        if (Strings.isNullOrEmpty(containerHelixTag)) {
-          containerHelixTag = helixInstanceTags;
-        }
+        String containerHelixTag = helixInstanceTags;
         if (eventSubmitter.isPresent()) {
           eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.CONTAINER_ALLOCATION,
               GobblinYarnMetricTagNames.CONTAINER_ID, containerId);

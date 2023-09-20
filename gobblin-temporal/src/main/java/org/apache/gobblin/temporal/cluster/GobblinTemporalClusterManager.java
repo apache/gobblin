@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.cluster;
 
 import java.io.File;
 import java.io.IOException;

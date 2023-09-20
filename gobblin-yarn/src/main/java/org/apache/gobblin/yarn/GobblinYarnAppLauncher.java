@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.mail.EmailException;
-import org.apache.gobblin.yarn.GobblinTemporalApplicationMaster;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -802,8 +801,8 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   protected String buildApplicationMasterCommand(String applicationId, int memoryMbs) {
-    boolean temporal_enabled  = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.TEMPORAL_ENABLED,false);
-    Class appMasterClass = temporal_enabled ? GobblinTemporalApplicationMaster.class : GobblinApplicationMaster.class;
+    String appMasterClass = ConfigUtils.getString(
+        config, GobblinYarnConfigurationKeys.APP_MASTER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_CLASS);
     String gobblinAppMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
@@ -812,7 +811,7 @@ public class GobblinYarnAppLauncher {
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(gobblinAppMasterClassName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
-        .append(" ").append(appMasterClass.getName())
+        .append(" ").append(appMasterClass)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)

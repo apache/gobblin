@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.temporal.yarn;
 
 import java.io.IOException;
 
+import org.apache.gobblin.yarn.YarnContainerSecurityManager;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Throwables;
@@ -29,7 +30,7 @@ import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
-public class YarnTemporalAppMasterSecurityManager extends YarnContainerSecurityManager{
+public class YarnTemporalAppMasterSecurityManager extends YarnContainerSecurityManager {
 
   private YarnTemporalService _yarnTemporalService;
   public YarnTemporalAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier, YarnTemporalService yarnTemporalService) {

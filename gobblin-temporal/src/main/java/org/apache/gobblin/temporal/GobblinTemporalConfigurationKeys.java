@@ -15,10 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal;
 
-public interface Shared {
+import org.apache.gobblin.annotation.Alpha;
 
-    // Define the task queue name
-    final String GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
+
+/**
+ * A central place for configuration related constants of a Gobblin Cluster.
+ *
+ * @author Yinan Li
+ */
+@Alpha
+public interface GobblinTemporalConfigurationKeys {
+
+  String PREFIX = "gobblin.temporal.";
+
+  String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
+  String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
+
+  /**
+   * Number of worker processes to spin up per task runner
+   * NOTE: If this size is too large, your container can OOM and halt execution unexpectedly. It's recommended not to touch
+   * this parameter
+   */
+  String TEMPORAL_NUM_WORKERS_PER_CONTAINER = "temporal.num.worker.per.container";
+  int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINER = 1;
 }

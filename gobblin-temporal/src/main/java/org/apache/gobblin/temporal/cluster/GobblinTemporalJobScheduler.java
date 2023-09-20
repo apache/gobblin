@@ -15,12 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.cluster;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
