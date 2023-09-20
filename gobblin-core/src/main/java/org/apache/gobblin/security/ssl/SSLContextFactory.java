@@ -119,7 +119,7 @@ public class SSLContextFactory {
         new File(trustStoreFilePath), trustStorePassword);
   }
 
-  public static InputStream toInputStream(File storeFile)
+  static InputStream toInputStream(File storeFile)
       throws IOException {
     byte[] data = FileUtils.readFileToByteArray(storeFile);
     return new ByteArrayInputStream(data);

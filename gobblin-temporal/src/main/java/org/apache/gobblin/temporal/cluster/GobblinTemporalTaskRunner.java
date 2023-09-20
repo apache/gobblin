@@ -77,8 +77,8 @@ import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createServiceInstance;
 
 
 /**

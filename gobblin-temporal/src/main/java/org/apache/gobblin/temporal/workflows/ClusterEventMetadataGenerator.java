@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.cluster;
+package org.apache.gobblin.temporal.workflows;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.List;

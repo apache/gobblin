@@ -1,4 +1,4 @@
-package org.apache.gobblin.cluster.temporal;
+package org.apache.gobblin.temporal.workflows.client;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -8,6 +8,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -17,8 +21,6 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-
-import static org.apache.gobblin.security.ssl.SSLContextFactory.toInputStream;
 
 public class TemporalWorkflowClientFactory {
     public static WorkflowServiceStubs createServiceInstance() throws Exception {
@@ -87,5 +89,11 @@ public class TemporalWorkflowClientFactory {
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service) {
         WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build();
         return WorkflowClient.newInstance(service, options);
+    }
+
+    private static InputStream toInputStream(File storeFile)
+        throws IOException {
+        byte[] data = FileUtils.readFileToByteArray(storeFile);
+        return new ByteArrayInputStream(data);
     }
 }

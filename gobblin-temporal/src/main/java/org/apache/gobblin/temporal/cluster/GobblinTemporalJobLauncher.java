@@ -48,8 +48,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.*;
 
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createClientInstance;
-import static org.apache.gobblin.cluster.temporal.TemporalWorkflowClientFactory.createServiceInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
+import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createServiceInstance;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
