@@ -28,19 +28,51 @@ import org.apache.orc.storage.ql.exec.vector.StructColumnVector;
 import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.State;
 
 /**
  * A helper class to calculate the size of array buffers in a {@link VectorizedRowBatch}.
  * This estimate is mainly based on the maximum size of each variable length column, which can be resized
  * Since the resizing algorithm for each column can balloon, this can affect likelihood of OOM
  */
+@Slf4j
 public class OrcConverterMemoryManager {
+  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.enabled";
+  private static final String SMART_ARRAY_ENLARGE_FACTOR_MAX = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.max";
+o  private static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.min";
+  private static final String SMART_ARRAY_ENLARGE_DECAY_FACTOR = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.decay";
+
+  private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
+  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
+  private static final int DEFAULT_ENLARGE_FACTOR = 3;
+  private static final double DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX = 5.0;
+  // Needs to be greater than 1.0
+  private static final double DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN = 1.2;
+  // Given the defaults it will take around 500 records to reach the min enlarge factor - given that the default
+  // batch size is 1000 this is a fairly conservative default
+  private static final double DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR = 0.003;
 
   private VectorizedRowBatch rowBatch;
+  private int resizeCount = 0;
+  private double smartArrayEnlargeFactorMax;
+  private double smartArrayEnlargeFactorMin;
+  private double smartArrayEnlargeDecayFactor;
+  private boolean enabledSmartSizing = false;
+  int enlargeFactor = 0;
 
-  // TODO: Consider moving the resize algorithm from the converter to this class
-  OrcConverterMemoryManager(VectorizedRowBatch rowBatch) {
+  OrcConverterMemoryManager(VectorizedRowBatch rowBatch, State state) {
     this.rowBatch = rowBatch;
+    this.enabledSmartSizing = state.getPropAsBoolean(ENABLE_SMART_ARRAY_ENLARGE, DEFAULT_ENABLE_SMART_ARRAY_ENLARGE);
+    this.enlargeFactor = state.getPropAsInt(ENLARGE_FACTOR_KEY, DEFAULT_ENLARGE_FACTOR);
+    this.smartArrayEnlargeFactorMax = state.getPropAsDouble(SMART_ARRAY_ENLARGE_FACTOR_MAX, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX);
+    this.smartArrayEnlargeFactorMin = state.getPropAsDouble(SMART_ARRAY_ENLARGE_FACTOR_MIN, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN);
+    this.smartArrayEnlargeDecayFactor = state.getPropAsDouble(SMART_ARRAY_ENLARGE_DECAY_FACTOR, DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR);
+    if (enabledSmartSizing) {
+      log.info("Enabled smart resizing for rowBatch - smartArrayEnlargeFactorMax: {}, smartArrayEnlargeFactorMin: {}, smartArrayEnlargeDecayFactor: {}",
+          smartArrayEnlargeFactorMax, smartArrayEnlargeFactorMin, smartArrayEnlargeDecayFactor);
+    }
+    log.info("Static enlargeFactor for rowBatch: {}", enlargeFactor);
   }
 
   /**
@@ -48,7 +80,6 @@ public class OrcConverterMemoryManager {
    * This takes into account the default null values of different ORC ColumnVectors and approximates their sizes
    * Although its a rough calculation, it can accurately depict the weight of resizes in a column for very large arrays and maps
    * Which tend to dominate the size of the buffer overall
-   * TODO: Clean this method up considerably and refactor resize logic here
    * @param col
    * @return
    */
@@ -58,51 +89,42 @@ public class OrcConverterMemoryManager {
       case LIST:
         ListColumnVector listColumnVector = (ListColumnVector) col;
         converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
+        break;
       case MAP:
         MapColumnVector mapColumnVector = (MapColumnVector) col;
         converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.keys);
         converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.values);
+        break;
       case STRUCT:
         StructColumnVector structColumnVector = (StructColumnVector) col;
         for (int j = 0; j < structColumnVector.fields.length; j++) {
           converterBufferColSize += calculateSizeOfColHelper(structColumnVector.fields[j]);
         }
+        break;
       case UNION:
         UnionColumnVector unionColumnVector = (UnionColumnVector) col;
         for (int j = 0; j < unionColumnVector.fields.length; j++) {
           converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
         }
+        break;
+      case BYTES:
+        BytesColumnVector bytesColumnVector = (BytesColumnVector) col;
+        converterBufferColSize += bytesColumnVector.vector.length * 8;
+        break;
       case DECIMAL:
         DecimalColumnVector decimalColumnVector = (DecimalColumnVector) col;
-        converterBufferColSize += decimalColumnVector.precision;
+        converterBufferColSize += decimalColumnVector.precision + 2;
+        break;
       case DOUBLE:
         DoubleColumnVector doubleColumnVector = (DoubleColumnVector) col;
         converterBufferColSize += doubleColumnVector.vector.length * 8;
-      case :
-    }
-    if (col instanceof ListColumnVector) {
-      ListColumnVector listColumnVector = (ListColumnVector) col;
-      converterBufferColSize += calculateSizeOfColHelper(listColumnVector.child);
-    } else if (col instanceof MapColumnVector) {
-      MapColumnVector mapColumnVector = (MapColumnVector) col;
-      converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.keys);
-      converterBufferColSize += calculateSizeOfColHelper(mapColumnVector.values);
-    } else if (col instanceof StructColumnVector) {
-      StructColumnVector structColumnVector = (StructColumnVector) col;
-      for (int j = 0; j < structColumnVector.fields.length; j++) {
-        converterBufferColSize += calculateSizeOfColHelper(structColumnVector.fields[j]);
-      }
-    } else if (col instanceof UnionColumnVector) {
-      UnionColumnVector unionColumnVector = (UnionColumnVector) col;
-      for (int j = 0; j < unionColumnVector.fields.length; j++) {
-        converterBufferColSize += calculateSizeOfColHelper(unionColumnVector.fields[j]);
-      }
-    } else if (col instanceof LongColumnVector || col instanceof DoubleColumnVector || col instanceof DecimalColumnVector) {
-      // Memory space in bytes of native type
-      converterBufferColSize += col.isNull.length * 8;
-    } else if (col instanceof BytesColumnVector) {
-      // Contains two integer list references of size vector for tracking so will use that as null size
-      converterBufferColSize += ((BytesColumnVector) col).vector.length * 8;
+        break;
+      case LONG:
+        LongColumnVector longColumnVector = (LongColumnVector) col;
+        converterBufferColSize += longColumnVector.vector.length * 8;
+        break;
+      default:
+        // Should never reach here given the types used in GenericRecordToOrcValueWriter
     }
     // Calculate overhead of the column's own null reference
     converterBufferColSize += col.isNull.length;
@@ -123,4 +145,19 @@ public class OrcConverterMemoryManager {
     return converterBufferTotalSize;
   }
 
+  /**
+   * Resize the child-array size based on configuration.
+   * If smart resizing is enabled, it will use an exponential decay algorithm where it would resize the array by a smaller amount
+   * the more records the converter has processed, as the fluctuation in record size becomes less likely to differ significantly by then
+   * Since the writer is closed and reset periodically, this is generally a safe assumption that should prevent large empty array buffers
+   */
+  public int resize(int rowsAdded, int requestedSize) {
+    resizeCount += 1;
+    log.info(String.format("It has been resized %s times in current writer", resizeCount));
+    if (enabledSmartSizing) {
+      double decayingEnlargeFactor = DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX * Math.pow((1-DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR), rowsAdded);
+      return (int) Math.round(requestedSize * Math.max(decayingEnlargeFactor, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN));
+    }
+    return enlargeFactor * requestedSize;
+  }
 }

@@ -49,7 +49,6 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 
@@ -60,13 +59,10 @@ import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
  */
 @Slf4j
 public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericRecord> {
-  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "enabledMulValueColumnVectorSmartSizing";
-  private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
-  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
-  private static final int DEFAULT_ENLARGE_FACTOR = 3;
 
   private boolean enabledSmartSizing;
   private int enlargeFactor;
+  private OrcConverterMemoryManager memoryManager;
 
   // A rough measure of how many times resize is triggered, helping on debugging and testing.
   @VisibleForTesting
@@ -95,15 +91,11 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
 
   public GenericRecordToOrcValueWriter(TypeDescription typeDescription, Schema avroSchema) {
     converters = buildConverters(typeDescription, avroSchema);
-    this.enabledSmartSizing = DEFAULT_ENABLE_SMART_ARRAY_ENLARGE;
-    this.enlargeFactor = DEFAULT_ENLARGE_FACTOR;
   }
 
-  public GenericRecordToOrcValueWriter(TypeDescription typeDescription, Schema avroSchema, State state) {
+  public GenericRecordToOrcValueWriter(TypeDescription typeDescription, Schema avroSchema, OrcConverterMemoryManager memoryManager) {
     this(typeDescription, avroSchema);
-    this.enabledSmartSizing = state.getPropAsBoolean(ENABLE_SMART_ARRAY_ENLARGE, DEFAULT_ENABLE_SMART_ARRAY_ENLARGE);
-    this.enlargeFactor = state.getPropAsInt(ENLARGE_FACTOR_KEY, DEFAULT_ENLARGE_FACTOR);
-    log.info("enabledSmartSizing: {}, enlargeFactor: {}", enabledSmartSizing, enlargeFactor);
+    this.memoryManager = memoryManager;
   }
 
   /** Converts a record from the GenericRecord to the ORC ColumnVectors.
@@ -344,7 +336,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       // make sure the child is big enough
       // If seeing child array being saturated, will need to expand with a reasonable amount.
       if (cv.childCount > cv.child.isNull.length) {
-        int resizedLength = resize(rowsAdded, cv.isNull.length, cv.childCount);
+        int resizedLength = memoryManager.resize(rowsAdded, cv.childCount);
         log.info("Column vector: {}, resizing to: {}, child count: {}", cv.child, resizedLength, cv.childCount);
         cv.child.ensureSize(resizedLength, true);
       }
@@ -390,7 +382,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       cv.childCount += cv.lengths[rowId];
       // make sure the child is big enough
       if (cv.childCount > cv.keys.isNull.length) {
-        int resizedLength = resize(rowsAdded, cv.isNull.length, cv.childCount);
+        int resizedLength = memoryManager.resize(rowsAdded, cv.childCount);
         log.info("Column vector: {}, resizing to: {}, child count: {}", cv.keys, resizedLength, cv.childCount);
         cv.keys.ensureSize(resizedLength, true);
         log.info("Column vector: {}, resizing to: {}, child count: {}", cv.values, resizedLength, cv.childCount);
@@ -421,19 +413,6 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       }
       return estimatedBytes;
     }
-  }
-
-  /**
-   * Resize the child-array size based on configuration.
-   * If smart-sizing is enabled, it will using the avg size of container and expand the whole child array to
-   * delta(avgSizeOfContainer * numberOfContainer(batchSize)) the first time this is called.
-   * If there's further resize requested, it will add delta again to be conservative, but chances of adding delta
-   * for multiple times should be low, unless the container size is fluctuating too much.
-   */
-  private int resize(int rowsAdded, int batchSize, int requestedSize) {
-    resizeCount += 1;
-    log.info(String.format("It has been resized %s times in current writer", resizeCount));
-    return enabledSmartSizing ? requestedSize + (requestedSize / rowsAdded + 1) * batchSize : enlargeFactor * requestedSize;
   }
 
   private Converter buildConverter(TypeDescription schema, Schema avroSchema) {
