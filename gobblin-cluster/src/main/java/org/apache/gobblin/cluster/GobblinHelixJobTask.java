@@ -219,7 +219,7 @@ class GobblinHelixJobTask implements Task {
 
   @Override
   public void cancel() {
-    log.info("Cancelling planning job {} | jobTaskMetrics: {}", this.planningJobId, this.jobTaskMetrics);
+    log.info("Cancelling planning job {} | jobTaskMetrics: {}", this.planningJobId, this.jobTaskMetrics.getMetrics());
     if (launcher != null) {
       try {
         // this cancel should cancel the helix job which run method submitted, right?
