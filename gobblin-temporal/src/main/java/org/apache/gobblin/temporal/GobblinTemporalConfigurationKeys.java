@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.temporal.cluster.NestingExecWorker;
 
 
 /**
@@ -27,6 +28,9 @@ import org.apache.gobblin.annotation.Alpha;
 public interface GobblinTemporalConfigurationKeys {
 
   String PREFIX = "gobblin.temporal.";
+
+  String WORKER_CLASS = PREFIX + "worker.class";
+  String DEFAULT_WORKER_CLASS = NestingExecWorker.class.getName();
 
   String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
   String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";

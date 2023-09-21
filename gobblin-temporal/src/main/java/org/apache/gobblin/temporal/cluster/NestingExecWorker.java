@@ -1,12 +1,16 @@
-package org.apache.gobblin.temporal.workflows;
+package org.apache.gobblin.temporal.cluster;
+
+import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
-import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
+
+import org.apache.gobblin.temporal.workflows.IllustrationTaskActivityImpl;
+import org.apache.gobblin.temporal.workflows.NestingExecWorkflowImpl;
 
 
 public class NestingExecWorker extends AbstractTemporalWorker {
-    public NestingExecWorker(WorkflowClient workflowClient, String queueName) {
-        super(workflowClient, queueName);
+    public NestingExecWorker(Config config, WorkflowClient workflowClient, String queueName) {
+        super(config, workflowClient, queueName);
     }
 
     @Override
