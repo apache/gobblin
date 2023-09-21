@@ -28,7 +28,10 @@ import org.apache.orc.storage.ql.exec.vector.StructColumnVector;
 import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
+import com.google.common.base.Preconditions;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.State;
 
 /**
@@ -38,13 +41,13 @@ import org.apache.gobblin.configuration.State;
  */
 @Slf4j
 public class OrcConverterMemoryManager {
-  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.enabled";
-  private static final String SMART_ARRAY_ENLARGE_FACTOR_MAX = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.max";
-o  private static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.min";
-  private static final String SMART_ARRAY_ENLARGE_DECAY_FACTOR = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.decay";
+  public static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.enabled";
+  public static final String SMART_ARRAY_ENLARGE_FACTOR_MAX = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.max";
+  public static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.min";
+  public static final String SMART_ARRAY_ENLARGE_DECAY_FACTOR = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.decay";
+  public static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
 
   private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
-  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
   private static final int DEFAULT_ENLARGE_FACTOR = 3;
   private static final double DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX = 5.0;
   // Needs to be greater than 1.0
@@ -69,6 +72,12 @@ o  private static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter
     this.smartArrayEnlargeFactorMin = state.getPropAsDouble(SMART_ARRAY_ENLARGE_FACTOR_MIN, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN);
     this.smartArrayEnlargeDecayFactor = state.getPropAsDouble(SMART_ARRAY_ENLARGE_DECAY_FACTOR, DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR);
     if (enabledSmartSizing) {
+      Preconditions.checkArgument(this.smartArrayEnlargeFactorMax >= 1,
+          String.format("Smart array enlarge factor needs to be larger than 1.0, provided value %s", this.smartArrayEnlargeFactorMax));
+      Preconditions.checkArgument(this.smartArrayEnlargeFactorMin >= 1,
+          String.format("Smart array enlarge factor needs to be larger than 1.0, provided value %s", this.smartArrayEnlargeFactorMin));
+      Preconditions.checkArgument(this.smartArrayEnlargeDecayFactor > 0 && this.smartArrayEnlargeDecayFactor < 1,
+          String.format("Smart array enlarge decay factor needs to be between 0 and 1, provided value %s", this.smartArrayEnlargeDecayFactor));
       log.info("Enabled smart resizing for rowBatch - smartArrayEnlargeFactorMax: {}, smartArrayEnlargeFactorMin: {}, smartArrayEnlargeDecayFactor: {}",
           smartArrayEnlargeFactorMax, smartArrayEnlargeFactorMin, smartArrayEnlargeDecayFactor);
     }
@@ -155,8 +164,8 @@ o  private static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter
     resizeCount += 1;
     log.info(String.format("It has been resized %s times in current writer", resizeCount));
     if (enabledSmartSizing) {
-      double decayingEnlargeFactor = DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX * Math.pow((1-DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR), rowsAdded);
-      return (int) Math.round(requestedSize * Math.max(decayingEnlargeFactor, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN));
+      double decayingEnlargeFactor =  this.smartArrayEnlargeFactorMax * Math.pow((1-this.smartArrayEnlargeDecayFactor), rowsAdded-1);
+      return (int) Math.round(requestedSize * Math.max(decayingEnlargeFactor, this.smartArrayEnlargeFactorMin));
     }
     return enlargeFactor * requestedSize;
   }
