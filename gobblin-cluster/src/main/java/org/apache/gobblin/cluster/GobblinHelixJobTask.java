@@ -174,7 +174,7 @@ class GobblinHelixJobTask implements Task {
             try {
               HelixUtils.deleteWorkflow(previousActualJobId, this.jobHelixManager, timeOut);
             } catch (HelixException e) {
-              log.error("Helix cannot delete previous actual job id {} within {} seconds.", previousActualJobId, timeOut / 1000);
+              log.error("Helix cannot delete previous actual job id {} within {} seconds.", previousActualJobId, timeOut / 1000, e);
               return new TaskResult(TaskResult.Status.FAILED, ExceptionUtils.getFullStackTrace(e));
             }
           }
@@ -202,7 +202,7 @@ class GobblinHelixJobTask implements Task {
       log.info("Completing planning job {}", this.planningJobId);
       return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (Exception e) {
-      log.info("Failing planning job {}", this.planningJobId);
+      log.warn("Failing planning job {}", this.planningJobId, e);
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
     } finally {
@@ -211,6 +211,7 @@ class GobblinHelixJobTask implements Task {
       try {
         this.jobsMapping.deleteMapping(jobUri);
       } catch (Exception e) {
+        log.warn("Failed to delete jobs mapping for job: {}", jobUri, e);
         return new TaskResult(TaskResult.Status.FAILED,"Cannot delete jobs mapping for job : " + jobUri);
       }
     }
@@ -218,7 +219,7 @@ class GobblinHelixJobTask implements Task {
 
   @Override
   public void cancel() {
-    log.info("Cancelling planning job {}", this.planningJobId);
+    log.info("Cancelling planning job {} | jobTaskMetrics: {}", this.planningJobId, this.jobTaskMetrics);
     if (launcher != null) {
       try {
         // this cancel should cancel the helix job which run method submitted, right?
@@ -230,7 +231,7 @@ class GobblinHelixJobTask implements Task {
         try {
           this.jobsMapping.deleteMapping(jobUri);
         } catch (Exception e) {
-          throw new RuntimeException("Cannot delete jobs mapping for job : " + jobUri);
+          throw new RuntimeException("Cannot delete jobs mapping for job : " + jobUri, e);
         }
       }
     }

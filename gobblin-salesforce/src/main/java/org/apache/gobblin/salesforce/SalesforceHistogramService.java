@@ -188,7 +188,7 @@ public class SalesforceHistogramService {
     }
 
     // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
-    List<HistogramGroup> list = new ArrayList(histogram.getGroups());
+    List<HistogramGroup> list = new ArrayList<>(histogram.getGroups());
     Date hwmDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
     list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SalesforceSource.SECONDS_FORMAT), 0));
 
@@ -285,12 +285,12 @@ public class SalesforceHistogramService {
     int countLeft = getCountForRange(probingContext, sub, values, startEpoch, midpointEpoch);
 
     getHistogramRecursively(probingContext, histogram, sub, values, countLeft, startEpoch, midpointEpoch);
-    log.debug("Count {} for left partition {} to {}", countLeft, startEpoch, midpointEpoch);
+    log.info("Count {} for left partition {} to {}", countLeft, startEpoch, midpointEpoch);
 
     int countRight = count - countLeft;
 
     getHistogramRecursively(probingContext, histogram, sub, values, countRight, midpointEpoch, endEpoch);
-    log.debug("Count {} for right partition {} to {}", countRight, midpointEpoch, endEpoch);
+    log.info("Count {} for right partition {} to {}", countRight, midpointEpoch, endEpoch);
   }
 
 
@@ -339,7 +339,7 @@ public class SalesforceHistogramService {
 
     String query = sub.replace(PROBE_PARTITION_QUERY_TEMPLATE);
 
-    log.debug("Count query: " + query);
+    log.info("Count query: {}", query);
     probingContext.probeCount++;
 
     JsonArray records = getRecordsForQuery(probingContext.connector, query);

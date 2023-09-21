@@ -104,7 +104,7 @@ final class SafeDatasetCommit implements Callable<Void> {
                 this.jobContext.getJobId(), this.jobContext.getJobCommitPolicy(), this.datasetState.getState()));
       }
     } catch (ReflectiveOperationException roe) {
-      log.error("Failed to instantiate data publisher for dataset %s of job %s.", this.datasetUrn,
+      log.error("Failed to instantiate data publisher for dataset {} of job {}.", this.datasetUrn,
           this.jobContext.getJobId(), roe);
       throw new RuntimeException(roe);
     } finally {
