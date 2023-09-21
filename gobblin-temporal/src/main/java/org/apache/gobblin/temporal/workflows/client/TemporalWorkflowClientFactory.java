@@ -17,30 +17,33 @@
 
 package org.apache.gobblin.temporal.workflows.client;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.commons.io.FileUtils;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.cluster.GobblinClusterUtils;
-
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
-import java.io.File;
-import java.security.KeyStore;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 
 public class TemporalWorkflowClientFactory {
-    public static WorkflowServiceStubs createServiceInstance() throws Exception {
+    public static WorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
         GobblinClusterUtils.setSystemProperties(ConfigFactory.load());
         Config config = GobblinClusterUtils.addDynamicConfig(ConfigFactory.load());
         String SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT = "gobblin.kafka.sharedConfig.";
@@ -96,15 +99,15 @@ public class TemporalWorkflowClientFactory {
                 .build();
 
         WorkflowServiceStubsOptions options = WorkflowServiceStubsOptions.newBuilder()
-                .setTarget("1.nephos-temporal.corp-lca1.atd.corp.linkedin.com:7233")
+                .setTarget(connectionUri)
                 .setEnableHttps(true)
                 .setSslContext(sslContext)
                 .build();
         return WorkflowServiceStubs.newServiceStubs(options);
     }
 
-    public static WorkflowClient createClientInstance(WorkflowServiceStubs service) {
-        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace("gobblin-fastingest-internpoc").build();
+    public static WorkflowClient createClientInstance(WorkflowServiceStubs service, String namespace) {
+        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
         return WorkflowClient.newInstance(service, options);
     }
 

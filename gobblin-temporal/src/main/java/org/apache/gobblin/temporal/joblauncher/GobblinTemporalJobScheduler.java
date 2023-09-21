@@ -17,17 +17,20 @@
 
 package org.apache.gobblin.temporal.joblauncher;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.Config;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.ConcurrentHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
@@ -47,11 +50,11 @@ import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
-
-import org.apache.hadoop.fs.Path;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -175,7 +178,10 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
 
-    return new GobblinTemporalJobLauncher(combinedProps,
+    Class<? extends GobblinTemporalJobLauncher> jobLauncherClass =
+        (Class<? extends GobblinTemporalJobLauncher>) Class.forName(combinedProps.getProperty(
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER));
+    return GobblinConstructorUtils.invokeLongestConstructor(jobLauncherClass, combinedProps,
             this.appWorkDir,
             this.metadataTags,
             this.jobRunningMap);

@@ -72,6 +72,7 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -80,9 +81,6 @@ import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
-import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createServiceInstance;
 
 
 /**
@@ -150,8 +148,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     this.containerMetrics = buildContainerMetrics();
-    this.numTemporalWorkers = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER,
-        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER);
+    this.numTemporalWorkers = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_WORKERS_PER_CONTAINER,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS);
     this.temporalQueueName = ConfigUtils.getString(config, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
         GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
@@ -238,8 +236,12 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   private void initiateWorker() throws Exception{
     logger.info("Starting Temporal Worker");
 
-    WorkflowServiceStubs service = createServiceInstance();
-    WorkflowClient client = createClientInstance(service);
+    String connectionUri = clusterConfig.getString(GobblinTemporalConfigurationKeys.TEMPORAL_CONNECTION_STRING);
+    WorkflowServiceStubs service = TemporalWorkflowClientFactory.createServiceInstance(connectionUri);
+
+    String namespace = ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_NAMESPACE,
+            GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
+    WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(service, namespace);
 
     String workerClassName = ConfigUtils.getString(clusterConfig,
         GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);

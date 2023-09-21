@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows;
+package org.apache.gobblin.temporal.workflows.helloworld;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import io.temporal.workflow.WorkflowInterface;
+import io.temporal.workflow.WorkflowMethod;
 
+@WorkflowInterface
+public interface GreetingWorkflow {
 
-/** Generally, this would specify what "work" needs performing plus how to perform; now just a unique name (to log) */
-@Data
-@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-@RequiredArgsConstructor
-public class IllustrationTask {
-    @NonNull
-    private String name;
+    /**
+     * This is the method that is executed when the Workflow Execution is started. The Workflow
+     * Execution completes when this method finishes execution.
+     */
+    @WorkflowMethod
+    String getGreeting(String name);
 }

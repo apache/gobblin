@@ -15,19 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows;
+package org.apache.gobblin.temporal.workflows.helloworld;
 
 import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
-/**
- * Activity for processing {@link IllustrationTask}s
- *
- * CAUTION/FINDING: an `@ActivityInterface` must not be parameterized (e.g. here, by TASK), as doing so results in:
- *   io.temporal.failure.ApplicationFailure: message='class java.util.LinkedHashMap cannot be cast to class
- *       com.linkedin.temporal.app.work.IllustrationTask', type='java.lang.ClassCastException'
- */
+
 @ActivityInterface
-public interface IllustrationTaskActivity {
-    @ActivityMethod
-    String doTask(IllustrationTask task);
+public interface FormatActivity {
+
+    // Define your activity methods which can be called during workflow execution
+    String composeGreeting(String name);
+
 }

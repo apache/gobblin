@@ -18,7 +18,8 @@
 package org.apache.gobblin.temporal;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.temporal.cluster.NestingExecWorker;
+import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldJobLauncher;
+import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
 
 
 /**
@@ -29,22 +30,22 @@ public interface GobblinTemporalConfigurationKeys {
 
   String PREFIX = "gobblin.temporal.";
 
-  String WORKER_CLASS = PREFIX + "worker.class";
-  String DEFAULT_WORKER_CLASS = NestingExecWorker.class.getName();
+  String WORKER_CLASS = PREFIX + "worker";
+  String DEFAULT_WORKER_CLASS = HelloWorldWorker.class.getName();
+  String GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
+  String DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
 
   String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
   String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
+  String GOBBLIN_TEMPORAL_JOB_LAUNCHER = PREFIX + "job.launcher";
+  String DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER = HelloWorldJobLauncher.class.getName();
 
   /**
    * Number of worker processes to spin up per task runner
    * NOTE: If this size is too large, your container can OOM and halt execution unexpectedly. It's recommended not to touch
    * this parameter
    */
-  String TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER = "temporal.num.worker.per.container";
-  int DEFAULT_TEMPORAL_NUM_WORKERS_PER_TASK_RUNNER = 1;
-
-  String TEMPORAL_TASK_SIZE = "temporal.task.size";
-  String TEMPORAL_TASK_MAX_BRANCHES_PER_TREE = "temporal.task.maxBranchesPerTree";
-  String TEMPORAL_TASK_MAX_SUB_TREES_PER_TREE = "temporal.task.maxSubTreesPerTree";
-
+  String TEMPORAL_NUM_WORKERS_PER_CONTAINER = PREFIX + "num.workers.per.container";
+  int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS = 1;
+  String TEMPORAL_CONNECTION_STRING = PREFIX + "connection.string";
 }

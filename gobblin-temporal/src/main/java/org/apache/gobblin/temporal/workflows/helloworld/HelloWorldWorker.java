@@ -15,15 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows;
+package org.apache.gobblin.temporal.workflows.helloworld;
 
-import lombok.extern.slf4j.Slf4j;
+import com.typesafe.config.Config;
 
-@Slf4j
-public class IllustrationTaskActivityImpl implements IllustrationTaskActivity {
+import io.temporal.client.WorkflowClient;
+
+import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
+
+
+public class HelloWorldWorker extends AbstractTemporalWorker {
+    public HelloWorldWorker(Config config, WorkflowClient workflowClient) {
+        super(config, workflowClient);
+    }
+
     @Override
-    public String doTask(final IllustrationTask task) {
-        log.info("Now performing - '" + task.getName() + "'");
-        return task.getName();
+    protected Class<?>[] getWorkflowImplClasses() {
+        return new Class[] { GreetingWorkflowImpl.class };
+    }
+
+    @Override
+    protected Object[] getActivityImplInstances() {
+        return new Object[] { new FormatActivityImpl() };
     }
 }
