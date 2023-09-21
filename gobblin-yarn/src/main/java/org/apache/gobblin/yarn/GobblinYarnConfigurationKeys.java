@@ -30,6 +30,9 @@ public class GobblinYarnConfigurationKeys {
   public static final String GOBBLIN_YARN_PREFIX = "gobblin.yarn.";
 
   // General Gobblin Yarn application configuration properties.
+  public static final String APP_MASTER_CLASS = GOBBLIN_YARN_PREFIX + "app.master.class";
+  public static final String DEFAULT_APP_MASTER_CLASS = GobblinApplicationMaster.class.getName();
+  public static final String APP_MASTER_LOG_FILE_NAME = GOBBLIN_YARN_PREFIX + "app.master.log.file.name";
   public static final String APPLICATION_NAME_KEY = GOBBLIN_YARN_PREFIX + "app.name";
   public static final String APP_QUEUE_KEY = GOBBLIN_YARN_PREFIX + "app.queue";
   public static final String APP_REPORT_INTERVAL_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "app.report.interval.minutes";

@@ -229,6 +229,9 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     // 41 is from 64 * 0.8 - 10
     Assert.assertTrue(command.contains("-Xmx41"));
+    Assert.assertTrue(command.contains("org.apache.gobblin.yarn.GobblinApplicationMaster"));
+    Assert.assertTrue(command.contains("GobblinApplicationMaster.stdout"));
+    Assert.assertTrue(command.contains("GobblinApplicationMaster.stderr"));
   }
 
   @Test
