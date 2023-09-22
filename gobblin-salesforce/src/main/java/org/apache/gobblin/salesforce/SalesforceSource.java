@@ -17,6 +17,18 @@
 
 package org.apache.gobblin.salesforce;
 
+import java.io.IOException;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -29,17 +41,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import java.io.IOException;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -64,7 +68,7 @@ import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+import static org.apache.gobblin.configuration.ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS;
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
 
 /**
@@ -222,7 +226,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   /**
    *  Create work units by taking a bulkJobId.
-   *  The work units won't contain a query in this case. Instead they will contain a BulkJobId and a list of `batchId:resultId`
+   *  The work units won't contain a query in this case. Instead, they will contain a BulkJobId and a list of `batchId:resultId`
    *  So in extractor, the work to do is just to fetch the resultSet files.
    */
   private List<WorkUnit> createWorkUnits(
@@ -359,21 +363,24 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     DescriptiveStatistics statistics = new DescriptiveStatistics();
 
     int count = 0;
-    HistogramGroup group;
-    Iterator<HistogramGroup> it = groups.iterator();
 
-    while (it.hasNext()) {
-      group = it.next();
+    /*
+      Using greedy algorithm by keep adding group until it exceeds the interval size (x2)
+      Proof: Assuming nth group violates 2 x interval size, then all groups from 0th to (n-1)th, plus nth group,
+      will have total size larger or equal to interval x 2. Hence, we are saturating all intervals (with original size)
+      without leaving any unused space in between. We could choose x3,x4... but it is not space efficient.
+     */
+    for (HistogramGroup group : groups) {
       if (count == 0) {
         // Add a new partition point;
         partitionPoints.add(Utils.toDateTimeFormat(group.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       }
 
-      /**
-       * Using greedy algorithm by keep adding group until it exceeds the interval size (x2)
-       * Proof: Assuming nth group violates 2 x interval size, then all groups from 0th to (n-1)th, plus nth group,
-       * will have total size larger or equal to interval x 2. Hence, we are saturating all intervals (with original size)
-       * without leaving any unused space in between. We could choose x3,x4... but it is not space efficient.
+      /*
+        Using greedy algorithm by keep adding group until it exceeds the interval size (x2)
+        Proof: Assuming nth group violates 2 x interval size, then all groups from 0th to (n-1)th, plus nth group,
+        will have total size larger or equal to interval x 2. Hence, we are saturating all intervals (with original size)
+        without leaving any unused space in between. We could choose x3,x4... but it is not space efficient.
        */
       if (count != 0 && count + group.getCount() >= 2 * interval) {
         // Summarize current group

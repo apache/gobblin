@@ -38,19 +38,19 @@ import org.apache.gobblin.source.extractor.utils.Utils;
  */
 @Slf4j
 public class BulkResultIterator implements Iterator<JsonElement> {
-  private FileIdVO fileIdVO;
-  private int retryLimit;
-  private BulkConnection conn;
+  private final FileIdVO fileIdVO;
+  private final int retryLimit;
+  private final BulkConnection conn;
   private InputStreamCSVReader csvReader;
   private List<String> header;
   private int columnSize;
   private int lineCount = 0; // this is different than currentFileRowCount. cvs file has header
-  private long retryInterval;
-  private long retryExceedQuotaInterval;
+  private final long retryInterval;
+  private final long retryExceedQuotaInterval;
   private List<String> preLoadedLine = null;
 
   public BulkResultIterator(BulkConnection conn, FileIdVO fileIdVO, int retryLimit, long retryInterval, long retryExceedQuotaInterval) {
-    log.info("create BulkResultIterator: " + fileIdVO);
+    log.info("create BulkResultIterator: {} with retry limit as {} and retryInterval as {}", fileIdVO, retryLimit, retryInterval);
     this.retryInterval = retryInterval;
     this.retryExceedQuotaInterval = retryExceedQuotaInterval;
     this.conn = conn;
@@ -87,17 +87,17 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         // Each organization is allowed 10 concurrent long-running requests. If the limit is reached,
         // any new synchronous Apex request results in a runtime exception.
         if (e.isCurrentExceptionExceedQuota()) {
-          log.warn("--Caught ExceededQuota: " + e.getMessage());
+          log.warn("--Caught ExceededQuota: ", e);
           threadSleep(retryExceedQuotaInterval);
           executeCount--; // if the current exception is Quota Exceeded, keep trying forever
         }
-        log.info("***Retrying***1: {} - {}", fileIdVO, e.getMessage());
+        log.info("***Retrying***1: {} - Attempt {}/{}", fileIdVO, executeCount + 1, retryLimit, e);
         this.csvReader = null; // in next loop, call openAndSeekCsvReader
       } catch (Exception e) {
         // Retry may resolve other exceptions.
         rootCause = e;
         threadSleep(retryInterval);
-        log.info("***Retrying***2: {} - {}", fileIdVO, e.getMessage());
+        log.info("***Retrying***2: {} - Attempt {}/{}", fileIdVO, executeCount + 1, retryLimit, e);
         this.csvReader = null; // in next loop, call openAndSeekCsvReader
       }
     }

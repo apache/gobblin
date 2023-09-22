@@ -24,10 +24,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,6 +55,7 @@ import com.sforce.async.BulkConnection;
 import com.sforce.async.ConcurrencyMode;
 import com.sforce.async.ContentType;
 import com.sforce.async.JobInfo;
+import com.sforce.async.JobStateEnum;
 import com.sforce.async.OperationEnum;
 import com.sforce.async.QueryResultList;
 import com.sforce.soap.partner.PartnerConnection;
@@ -115,9 +116,6 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   private BulkConnection bulkConnection = null;
   private JobInfo bulkJob = new JobInfo();
-  private List<BatchIdAndResultId> bulkResultIdList;
-  private boolean bulkJobFinished = true;
-  private boolean newBulkResultSet = true;
 
   private final int pkChunkingSize;
   private final SalesforceConnector sfConnector;
@@ -127,12 +125,11 @@ public class SalesforceExtractor extends RestApiExtractor {
   private final long retryExceedQuotaInterval;
 
   private final boolean bulkApiUseQueryAll;
-  private SfConfig conf;
-
+  private boolean isPkChunkingFetchDone = false;
 
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
-    conf = new SfConfig(state.getProperties());
+    SfConfig conf = new SfConfig(state.getProperties());
 
     this.sfConnector = (SalesforceConnector) this.connector;
     this.pkChunkingSize = conf.pkChunkingSize;
@@ -162,22 +159,6 @@ public class SalesforceExtractor extends RestApiExtractor {
     this.nextUrl = nextUrl;
   }
 
-  private boolean isBulkJobFinished() {
-    return this.bulkJobFinished;
-  }
-
-  private void setBulkJobFinished(boolean bulkJobFinished) {
-    this.bulkJobFinished = bulkJobFinished;
-  }
-
-  private boolean isNewBulkResultSet() {
-    return this.newBulkResultSet;
-  }
-
-  private void setNewBulkResultSet(boolean newBulkResultSet) {
-    this.newBulkResultSet = newBulkResultSet;
-  }
-
   @Override
   public HttpEntity getAuthentication() throws RestApiConnectionException {
     log.debug("Authenticating salesforce");
@@ -185,7 +166,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   @Override
-  public List<Command> getSchemaMetadata(String schema, String entity) throws SchemaException {
+  public List<Command> getSchemaMetadata(String schema, String entity) {
     log.debug("Build url to retrieve schema");
     return constructGetCommand(this.sfConnector.getFullUri("/sobjects/" + entity.trim() + "/describe"));
   }
@@ -265,12 +246,12 @@ public class SalesforceExtractor extends RestApiExtractor {
     for (Predicate predicate : predicateList) {
       query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
     }
-    log.info("getHighWatermarkMetadata - QUERY: " + query);
+    log.info("getHighWatermarkMetadata - QUERY: {}", query);
 
     try {
       return constructGetCommand(this.sfConnector.getFullUri(getSoqlUrl(query)));
     } catch (Exception e) {
-      throw new HighWatermarkException("Failed to get salesforce url for high watermark; error - " + e.getMessage(), e);
+      throw new HighWatermarkException("Failed to get salesforce url for high watermark", e);
     }
   }
 
@@ -401,13 +382,11 @@ public class SalesforceExtractor extends RestApiExtractor {
         String limitString = getLimitFromInputQuery(query);
         query = query.replace(limitString, "");
 
-        Iterator<Predicate> i = predicateList.listIterator();
-        while (i.hasNext()) {
-          Predicate predicate = i.next();
+        for (Predicate predicate : predicateList) {
           query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
-        if (Boolean.valueOf(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
+        if (Boolean.parseBoolean(this.workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_IS_SPECIFIC_API_ACTIVE))) {
           query = SqlQueryUtils.addPredicate(query, "IsDeleted = true");
         }
 
@@ -442,7 +421,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
     }
 
-    List<JsonElement> rs = Lists.newArrayList();
+    List<JsonElement> records = Lists.newArrayList();
     JsonElement element = GSON.fromJson(output, JsonObject.class);
     JsonArray partRecords;
     try {
@@ -457,14 +436,12 @@ public class SalesforceExtractor extends RestApiExtractor {
       }
 
       JsonArray array = Utils.removeElementFromJsonArray(partRecords, "attributes");
-      Iterator<JsonElement> li = array.iterator();
-      while (li.hasNext()) {
-        JsonElement recordElement = li.next();
-        rs.add(recordElement);
+      for (JsonElement recordElement : array) {
+        records.add(recordElement);
       }
-      return rs.iterator();
+      return records.iterator();
     } catch (Exception e) {
-      throw new DataRecordException("Failed to get records from salesforce; error - " + e.getMessage(), e);
+      throw new DataRecordException("Failed to get records from salesforce", e);
     }
   }
 
@@ -489,9 +466,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static String buildUrl(String path, List<NameValuePair> qparams) throws RestApiClientException {
     URIBuilder builder = new URIBuilder();
     builder.setPath(path);
-    ListIterator<NameValuePair> i = qparams.listIterator();
-    while (i.hasNext()) {
-      NameValuePair keyValue = i.next();
+    for (NameValuePair keyValue : qparams) {
       builder.setParameter(keyValue.getName(), keyValue.getValue());
     }
     URI uri;
@@ -504,10 +479,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   private static boolean isNullPredicate(List<Predicate> predicateList) {
-    if (predicateList == null || predicateList.size() == 0) {
-      return true;
-    }
-    return false;
+    return predicateList == null || predicateList.isEmpty();
   }
 
   @Override
@@ -525,27 +497,27 @@ public class SalesforceExtractor extends RestApiExtractor {
   @Override
   public String getHourPredicateCondition(String column, long value, String valueFormat, String operator) {
     log.info("Getting hour predicate from salesforce");
-    String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_HOUR_FORMAT);
-    return column + " " + operator + " " + formattedvalue;
+    String formattedValue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_HOUR_FORMAT);
+    return column + " " + operator + " " + formattedValue;
   }
 
   @Override
   public String getDatePredicateCondition(String column, long value, String valueFormat, String operator) {
     log.info("Getting date predicate from salesforce");
-    String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_DATE_FORMAT);
-    return column + " " + operator + " " + formattedvalue;
+    String formattedValue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_DATE_FORMAT);
+    return column + " " + operator + " " + formattedValue;
   }
 
   @Override
   public String getTimestampPredicateCondition(String column, long value, String valueFormat, String operator) {
     log.info("Getting timestamp predicate from salesforce");
-    String formattedvalue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_TIMESTAMP_FORMAT);
-    return column + " " + operator + " " + formattedvalue;
+    String formattedValue = Utils.toDateTimeFormat(Long.toString(value), valueFormat, SALESFORCE_TIMESTAMP_FORMAT);
+    return column + " " + operator + " " + formattedValue;
   }
 
   @Override
   public Map<String, String> getDataTypeMap() {
-    Map<String, String> dataTypeMap = ImmutableMap.<String, String>builder().put("url", "string")
+    return ImmutableMap.<String, String>builder().put("url", "string")
         .put("textarea", "string").put("reference", "string").put("phone", "string").put("masterrecord", "string")
         .put("location", "string").put("id", "string").put("encryptedstring", "string").put("email", "string")
         .put("DataCategoryGroupReference", "string").put("calculated", "string").put("anyType", "string")
@@ -554,10 +526,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         .put("double", "double").put("percent", "double").put("currency", "double").put("decimal", "double")
         .put("boolean", "boolean").put("picklist", "string").put("multipicklist", "string").put("combobox", "string")
         .put("list", "string").put("set", "string").put("map", "string").put("enum", "string").build();
-    return dataTypeMap;
   }
-
-  private Boolean isPkChunkingFetchDone = false;
 
   private Iterator<JsonElement> fetchRecordSetPkChunking(WorkUnit workUnit) {
     if (isPkChunkingFetchDone) {
@@ -592,19 +561,17 @@ public class SalesforceExtractor extends RestApiExtractor {
     isBulkFetchDone = true;
     log.info("----Get records for bulk batch job----");
     try {
-      // set finish status to false before starting the bulk job
-      this.setBulkJobFinished(false);
-      this.bulkResultIdList = getQueryResultIds(entity, predicateList);
-      log.info("Number of bulk api resultSet Ids:" + this.bulkResultIdList.size());
-      List<FileIdVO> fileIdVoList = this.bulkResultIdList.stream()
-          .map(x -> new FileIdVO(this.bulkJob.getId(), x.batchId, x.resultId))
+      List<BatchIdAndResultId> batchIdAndResultIds = getQueryResultIds(entity, predicateList);
+      log.info("Number of bulk api resultSet Ids:" + batchIdAndResultIds.size());
+      List<FileIdVO> fileIdVoList = batchIdAndResultIds.stream()
+          .map(batchIdAndResultId -> new FileIdVO(this.bulkJob.getId(), batchIdAndResultId.batchId, batchIdAndResultId.resultId))
           .collect(Collectors.toList());
       ResultChainingIterator chainingIter = new ResultChainingIterator(
           bulkConnection, fileIdVoList, retryLimit, retryInterval, retryExceedQuotaInterval);
       chainingIter.add(getSoftDeletedRecords(schema, entity, workUnit, predicateList));
       return chainingIter;
     } catch (Exception e) {
-      throw new RuntimeException("Failed to get records using bulk api; error - " + e.getMessage(), e);
+      throw new RuntimeException("Failed to get records using bulk api", e);
     }
   }
 
@@ -764,9 +731,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       if (!isNullPredicate(predicateList)) {
         String limitString = getLimitFromInputQuery(query);
         query = query.replace(limitString, "");
-        Iterator<Predicate> i = predicateList.listIterator();
-        while (i.hasNext()) {
-          Predicate predicate = i.next();
+        for (Predicate predicate : predicateList) {
           query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
         query = query + limitString;
@@ -797,8 +762,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         log.error("Bulk batch failed: " + batchResponse.toString());
         throw new Exception("Failed to get bulk batch info for jobId " + jobId + " error - " + batchResponse.getStateMessage());
       }
-      ResultFileIdsStruct resultFileIdsStruct = retrievePkChunkingResultIds(connection, jobId, waitMilliSecond);
-      return resultFileIdsStruct;
+      return retrievePkChunkingResultIds(connection, jobId, waitMilliSecond);
     } catch (Exception e) {
       throw new RuntimeException("getQueryResultIdsPkChunking: error - " + e.getMessage(), e);
     }
@@ -810,7 +774,7 @@ public class SalesforceExtractor extends RestApiExtractor {
    * @param predicateList of all predicate conditions
    * @return iterator with batch of records
    */
-  private List<BatchIdAndResultId> getQueryResultIds(String entity, List<Predicate> predicateList) throws Exception {
+  private List<BatchIdAndResultId> getQueryResultIds(String entity, List<Predicate> predicateList) {
     bulkApiLogin();
     try {
       // Set bulk job attributes
@@ -832,16 +796,14 @@ public class SalesforceExtractor extends RestApiExtractor {
         String limitString = getLimitFromInputQuery(query);
         query = query.replace(limitString, "");
 
-        Iterator<Predicate> i = predicateList.listIterator();
-        while (i.hasNext()) {
-          Predicate predicate = i.next();
+        for (Predicate predicate : predicateList) {
           query = SqlQueryUtils.addPredicate(query, predicate.getCondition());
         }
 
         query = query + limitString;
       }
 
-      log.info("getQueryResultIds - QUERY:" + query);
+      log.info("getQueryResultIds - QUERY: {}", query);
       ByteArrayInputStream bout = new ByteArrayInputStream(query.getBytes(ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
 
       BatchInfo bulkBatchInfo = this.bulkConnection.createBatchFromStream(this.bulkJob, bout);
@@ -859,7 +821,10 @@ public class SalesforceExtractor extends RestApiExtractor {
           ConfigurationKeys.EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS_KEY,
           ConfigurationKeys.DEFAULT_EXTRACT_SALESFORCE_BULK_API_MAX_WAIT_TIME_IN_MILLIS);
       while (bulkBatchInfo.getState() == BatchStateEnum.InProgress || bulkBatchInfo.getState() == BatchStateEnum.Queued) {
-        log.info("Waiting for bulk resultSetIds");
+        log.info("Waiting for bulk resultSetIds | Job ID: {} | State: {} | State message: {} |"
+                + " Num records processed: {} | Num records failed: {}",
+            bulkBatchInfo.getJobId(), bulkBatchInfo.getState(), bulkBatchInfo.getStateMessage(),
+            bulkBatchInfo.getNumberRecordsProcessed(), bulkBatchInfo.getNumberRecordsFailed());
         // Exponential backoff
         long waitMilliSeconds = Math.min((long) (Math.pow(2, count) * minWaitTimeInMilliSeconds), maxWaitTimeInMilliSeconds);
         Thread.sleep(waitMilliSeconds);
@@ -873,7 +838,7 @@ public class SalesforceExtractor extends RestApiExtractor {
       // not sure if the state can be "NotProcessed" in non-pk-chunking bulk request
       // SFDC doc says - This state is assigned when a job is aborted while the batch is queued
       if (state == BatchStateEnum.Failed || state == BatchStateEnum.InProgress) {
-        log.error("Bulk batch failed: " + bulkBatchInfo.toString());
+        log.error("Bulk batch failed: {}", bulkBatchInfo);
         throw new RuntimeException("Failed to get bulk batch info for jobId " + bulkBatchInfo.getJobId()
             + " error - " + bulkBatchInfo.getStateMessage());
       }
@@ -893,15 +858,14 @@ public class SalesforceExtractor extends RestApiExtractor {
       return batchIdAndResultIdList;
 
     } catch (RuntimeException | AsyncApiException | InterruptedException e) {
-      throw new RuntimeException(
-          "Failed to get query result ids from salesforce using bulk api; error - " + e.getMessage(), e);
+      throw new RuntimeException("Failed to get query result ids from salesforce using bulk api", e);
     }
   }
 
   @Override
   public void closeConnection() throws Exception {
     if (this.bulkConnection != null
-        && !this.bulkConnection.getJobStatus(this.getBulkJobId()).getState().toString().equals("Closed")) {
+        && !JobStateEnum.Closed.equals(this.bulkConnection.getJobStatus(this.getBulkJobId()).getState())) {
       log.info("Closing salesforce bulk job connection");
       this.bulkConnection.closeJob(this.getBulkJobId());
     }
@@ -909,11 +873,11 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   private static List<Command> constructGetCommand(String restQuery) {
-    return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
+    return Collections.singletonList(new RestApiCommand().build(Collections.singletonList(restQuery), RestApiCommandType.GET));
   }
 
   private ResultFileIdsStruct retrievePkChunkingResultIdsByBatchId(BulkConnection connection, String jobId, String batchIdListStr) {
-    Iterator<String> batchIds = Arrays.stream(batchIdListStr.split(",")).map(x -> x.trim()).filter(x -> !x.equals("")).iterator();
+    Iterator<String> batchIds = Arrays.stream(batchIdListStr.split(",")).map(String::trim).filter(x -> !x.isEmpty()).iterator();
     try {
       List<BatchIdAndResultId> batchIdAndResultIdList = fetchBatchResultIds(connection, jobId, batchIds);
       return new ResultFileIdsStruct(jobId, batchIdAndResultIdList);
@@ -938,7 +902,7 @@ public class SalesforceExtractor extends RestApiExtractor {
           throw new Exception("PK-Chunking query should have 1 and only 1 batch with state=NotProcessed.");
         }
         Stream<BatchInfo> stream = Arrays.stream(batchInfos);
-        Iterator<String> batchIds = stream.filter(x -> x.getNumberRecordsProcessed() != 0).map(x -> x.getId()).iterator();
+        Iterator<String> batchIds = stream.filter(x -> x.getNumberRecordsProcessed() != 0).map(BatchInfo::getId).iterator();
         List<BatchIdAndResultId> batchIdAndResultIdList = fetchBatchResultIds(connection, jobId, batchIds);
         return new ResultFileIdsStruct(jobId, batchIdAndResultIdList);
       }
