@@ -87,10 +87,10 @@ public class OrcConverterMemoryManagerTest {
     // Make batch such that only deeply nested list is resized
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
     State memoryManagerState = new State();
-    memoryManagerState.setProp(OrcConverterMemoryManager.ENABLE_SMART_ARRAY_ENLARGE, "true");
-    memoryManagerState.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
-    memoryManagerState.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MAX, "10");
-    memoryManagerState.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "10");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
     OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, memoryManagerState);
 
     int result = memoryManager.resize(1, 1000);
@@ -109,24 +109,24 @@ public class OrcConverterMemoryManagerTest {
     // Make batch such that only deeply nested list is resized
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
     State memoryManagerState0 = new State();
-    memoryManagerState0.setProp(OrcConverterMemoryManager.ENABLE_SMART_ARRAY_ENLARGE, "true");
-    memoryManagerState0.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
-    memoryManagerState0.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MAX, "0");
-    memoryManagerState0.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "0");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
     Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState0));
 
     State memoryManagerState1 = new State();
-    memoryManagerState1.setProp(OrcConverterMemoryManager.ENABLE_SMART_ARRAY_ENLARGE, "true");
-    memoryManagerState1.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
-    memoryManagerState1.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
-    memoryManagerState1.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MIN, "0");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "0");
     Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState1));
 
     State memoryManagerState2 = new State();
-    memoryManagerState2.setProp(OrcConverterMemoryManager.ENABLE_SMART_ARRAY_ENLARGE, "true");
-    memoryManagerState2.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "1.5");
-    memoryManagerState2.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
-    memoryManagerState2.setProp(OrcConverterMemoryManager.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "1.5");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
     Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState2));
   }
 }
