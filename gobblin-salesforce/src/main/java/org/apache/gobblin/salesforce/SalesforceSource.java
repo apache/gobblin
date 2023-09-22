@@ -75,15 +75,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   public static final String USE_ALL_OBJECTS = "use.all.objects";
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
-  @VisibleForTesting
-  static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
-  static final String MIN_TARGET_PARTITION_SIZE = "salesforce.minTargetPartitionSize";
+  public static final String ENABLE_DYNAMIC_PROBING = "salesforce.enableDynamicProbing";
+  public static final String MIN_TARGET_PARTITION_SIZE = "salesforce.minTargetPartitionSize";
   static final int DEFAULT_MIN_TARGET_PARTITION_SIZE = 250000;
 
-  @VisibleForTesting
-  static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
-  @VisibleForTesting
-  static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
+  public static final String ENABLE_DYNAMIC_PARTITIONING = "salesforce.enableDynamicPartitioning";
+  public static final String EARLY_STOP_TOTAL_RECORDS_LIMIT = "salesforce.earlyStopTotalRecordsLimit";
   private static final long DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT = DEFAULT_MIN_TARGET_PARTITION_SIZE * 4;
 
   static final String SECONDS_FORMAT = "yyyy-MM-dd-HH:mm:ss";
@@ -91,7 +88,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private boolean isEarlyStopped = false;
   protected SalesforceConnector salesforceConnector = null;
 
-  private SalesforceHistogramService salesforceHistogramService;
+  private RecordModTimeHistogramService histogramService;
 
   public SalesforceSource() {
     this.lineageInfo = Optional.absent();
@@ -103,9 +100,9 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   @VisibleForTesting
-  SalesforceSource(SalesforceHistogramService salesforceHistogramService) {
+  SalesforceSource(RecordModTimeHistogramService histogramService) {
     this.lineageInfo = Optional.absent();
-    this.salesforceHistogramService = salesforceHistogramService;
+    this.histogramService = histogramService;
   }
 
   @Override
@@ -133,11 +130,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
   @Override
   protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
-    SalesforceConnector connector = getConnector(state);
 
     SfConfig sfConfig = new SfConfig(state.getProperties());
-    if (salesforceHistogramService == null) {
-      salesforceHistogramService = new SalesforceHistogramService(sfConfig, connector);
+    if (histogramService == null) {
+      salesforceConnector = getConnector(state);
+      histogramService = new RecordModTimeHistogramService(sfConfig, getConnector(state));
     }
 
     List<WorkUnit> workUnits;
@@ -294,7 +291,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     Partition partition = partitioner.getGlobalPartition(previousWatermark);
     Histogram histogram =
-        salesforceHistogramService.getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
+        histogramService.getHistogram(sourceEntity.getSourceEntityName(), watermarkColumn, state, partition);
 
     // we should look if the count is too big, cut off early if count exceeds the limit, or bucket size is too large
 
@@ -303,7 +300,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     // TODO: we should consider move this logic into getRefinedHistogram so that we can early terminate the search
     if (isEarlyStopEnabled(state)) {
       histogramAdjust = new Histogram();
-      for (HistogramGroup group : histogram.getGroups()) {
+      for (Histogram.Group group : histogram.getGroups()) {
         histogramAdjust.add(group);
         long earlyStopRecordLimit = state.getPropAsLong(EARLY_STOP_TOTAL_RECORDS_LIMIT, DEFAULT_EARLY_STOP_TOTAL_RECORDS_LIMIT);
         if (histogramAdjust.getTotalRecordCount() > earlyStopRecordLimit) {
@@ -316,7 +313,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     long expectedHighWatermark = partition.getHighWatermark();
     if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
-      HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
+      Histogram.Group lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
       long earlyStopHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
       log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]",
           state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
@@ -354,13 +351,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     log.info("maxPartitions: " + maxPartitions);
     log.info("interval: " + interval);
 
-    List<HistogramGroup> groups = histogram.getGroups();
+    List<Histogram.Group> groups = histogram.getGroups();
     List<String> partitionPoints = new ArrayList<>();
     DescriptiveStatistics statistics = new DescriptiveStatistics();
 
     int count = 0;
-    HistogramGroup group;
-    Iterator<HistogramGroup> it = groups.iterator();
+    Histogram.Group group;
+    Iterator<Histogram.Group> it = groups.iterator();
 
     while (it.hasNext()) {
       group = it.next();
@@ -427,18 +424,18 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       return super.getSourceEntities(state);
     }
 
-    SalesforceConnector connector = getConnector(state);
+    salesforceConnector = getConnector(state);
     try {
-      if (!connector.connect()) {
+      if (!salesforceConnector.connect()) {
         throw new RuntimeException("Failed to connect.");
       }
     } catch (RestApiConnectionException e) {
       throw new RuntimeException("Failed to connect.", e);
     }
 
-    List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri("/sobjects"));
+    List<Command> commands = RestApiConnector.constructGetCommand(salesforceConnector.getFullUri("/sobjects"));
     try {
-      CommandOutput<?, ?> response = connector.getResponse(commands);
+      CommandOutput<?, ?> response = salesforceConnector.getResponse(commands);
       Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
       if (itr.hasNext()) {
         String next = itr.next();
@@ -462,9 +459,9 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   protected SalesforceConnector getConnector(State state) {
-    if (this.salesforceConnector == null) {
-      this.salesforceConnector = new SalesforceConnector(state);
+    if (salesforceConnector == null) {
+      salesforceConnector = new SalesforceConnector(state);
     }
-    return this.salesforceConnector;
+    return salesforceConnector;
   }
 }

@@ -54,7 +54,7 @@ import static org.apache.gobblin.configuration.ConfigurationKeys.*;
  * mapping of number of records to be fetched by time intervals.
  */
 @Slf4j
-public class SalesforceHistogramService {
+public class RecordModTimeHistogramService {
   private static final int MIN_SPLIT_TIME_MILLIS = 1000;
   private static final String ZERO_TIME_SUFFIX = "-00:00:00";
   private static final Gson GSON = new Gson();
@@ -74,7 +74,7 @@ public class SalesforceHistogramService {
   protected SalesforceConnector salesforceConnector;
   private final SfConfig sfConfig;
 
-  SalesforceHistogramService(SfConfig sfConfig, SalesforceConnector connector) {
+  RecordModTimeHistogramService(SfConfig sfConfig, SalesforceConnector connector) {
     this.sfConfig = sfConfig;
     salesforceConnector = connector;
   }
@@ -97,9 +97,9 @@ public class SalesforceHistogramService {
 
     // exchange the first histogram group key with the global low watermark to ensure that the low watermark is captured
     // in the range of generated partitions
-    HistogramGroup firstGroup = histogram.get(0);
+    Histogram.Group firstGroup = histogram.get(0);
     Date lwmDate = Utils.toDate(partition.getLowWatermark(), Partitioner.WATERMARKTIMEFORMAT);
-    histogram.getGroups().set(0, new HistogramGroup(Utils.epochToDate(lwmDate.getTime(), SalesforceSource.SECONDS_FORMAT),
+    histogram.getGroups().set(0, new Histogram.Group(Utils.epochToDate(lwmDate.getTime(), SalesforceSource.SECONDS_FORMAT),
         firstGroup.getCount()));
 
     // refine the histogram
@@ -178,8 +178,8 @@ public class SalesforceHistogramService {
 
     log.info("Refining histogram with bucket size limit {}.", bucketSizeLimit);
 
-    HistogramGroup currentGroup;
-    HistogramGroup nextGroup;
+    Histogram.Group currentGroup;
+    Histogram.Group nextGroup;
     final TableCountProbingContext probingContext =
         new TableCountProbingContext(connector, entity, watermarkColumn, bucketSizeLimit, probeLimit);
 
@@ -188,9 +188,9 @@ public class SalesforceHistogramService {
     }
 
     // make a copy of the histogram list and add a dummy entry at the end to avoid special processing of the last group
-    List<HistogramGroup> list = new ArrayList(histogram.getGroups());
+    List<Histogram.Group> list = new ArrayList(histogram.getGroups());
     Date hwmDate = Utils.toDate(partition.getHighWatermark(), Partitioner.WATERMARKTIMEFORMAT);
-    list.add(new HistogramGroup(Utils.epochToDate(hwmDate.getTime(), SalesforceSource.SECONDS_FORMAT), 0));
+    list.add(new Histogram.Group(Utils.epochToDate(hwmDate.getTime(), SalesforceSource.SECONDS_FORMAT), 0));
 
     for (int i = 0; i < list.size() - 1; i++) {
       currentGroup = list.get(i);
@@ -261,7 +261,7 @@ public class SalesforceHistogramService {
       String time = element.get("time").getAsString() + ZERO_TIME_SUFFIX;
       int count = element.get("cnt").getAsInt();
 
-      histogram.add(new HistogramGroup(time, count));
+      histogram.add(new Histogram.Group(time, count));
     }
 
     return histogram;
@@ -278,7 +278,7 @@ public class SalesforceHistogramService {
     if (count <= probingContext.bucketSizeLimit
         || probingContext.probeCount > probingContext.probeLimit
         || (midpointEpoch - startEpoch < MIN_SPLIT_TIME_MILLIS)) {
-      histogram.add(new HistogramGroup(Utils.epochToDate(startEpoch, SalesforceSource.SECONDS_FORMAT), count));
+      histogram.add(new Histogram.Group(Utils.epochToDate(startEpoch, SalesforceSource.SECONDS_FORMAT), count));
       return;
     }
 
