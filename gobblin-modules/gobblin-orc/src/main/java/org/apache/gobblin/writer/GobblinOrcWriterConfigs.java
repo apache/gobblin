@@ -78,6 +78,15 @@ public class GobblinOrcWriterConfigs {
   public static final int DEFAULT_MIN_ORC_WRITER_ROWCHECK = 150;
   public static final int DEFAULT_MAX_ORC_WRITER_ROWCHECK = 5000;
 
+  /**
+   * Avro to ORC converter configs
+   */
+  public static final String ENABLE_SMART_ARRAY_ENLARGE = ORC_WRITER_PREFIX + "smartArrayEnlargement.enabled";
+  public static final String SMART_ARRAY_ENLARGE_FACTOR_MAX = ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.max";
+  public static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.min";
+  public static final String SMART_ARRAY_ENLARGE_DECAY_FACTOR = ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.decay";
+  public static final String ENLARGE_FACTOR_KEY = ORC_WRITER_PREFIX + "enlargeFactor";
+
   public static class RuntimeStateConfigs {
     public static final String ORC_WRITER_ESTIMATED_RECORD_SIZE = ORC_WRITER_PREFIX + "estimated.recordSize";
     public static final String ORC_WRITER_NATIVE_WRITER_MEMORY = ORC_WRITER_PREFIX + "estimated.native.writer.memory";

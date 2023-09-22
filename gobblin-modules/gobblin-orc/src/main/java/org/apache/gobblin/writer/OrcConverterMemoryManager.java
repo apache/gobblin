@@ -41,11 +41,6 @@ import org.apache.gobblin.configuration.State;
  */
 @Slf4j
 public class OrcConverterMemoryManager {
-  public static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.enabled";
-  public static final String SMART_ARRAY_ENLARGE_FACTOR_MAX = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.max";
-  public static final String SMART_ARRAY_ENLARGE_FACTOR_MIN = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.min";
-  public static final String SMART_ARRAY_ENLARGE_DECAY_FACTOR = GobblinOrcWriter.ORC_WRITER_PREFIX + "smartArrayEnlargement.factor.decay";
-  public static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
 
   private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
   private static final int DEFAULT_ENLARGE_FACTOR = 3;
@@ -66,11 +61,11 @@ public class OrcConverterMemoryManager {
 
   OrcConverterMemoryManager(VectorizedRowBatch rowBatch, State state) {
     this.rowBatch = rowBatch;
-    this.enabledSmartSizing = state.getPropAsBoolean(ENABLE_SMART_ARRAY_ENLARGE, DEFAULT_ENABLE_SMART_ARRAY_ENLARGE);
-    this.enlargeFactor = state.getPropAsInt(ENLARGE_FACTOR_KEY, DEFAULT_ENLARGE_FACTOR);
-    this.smartArrayEnlargeFactorMax = state.getPropAsDouble(SMART_ARRAY_ENLARGE_FACTOR_MAX, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX);
-    this.smartArrayEnlargeFactorMin = state.getPropAsDouble(SMART_ARRAY_ENLARGE_FACTOR_MIN, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN);
-    this.smartArrayEnlargeDecayFactor = state.getPropAsDouble(SMART_ARRAY_ENLARGE_DECAY_FACTOR, DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR);
+    this.enabledSmartSizing = state.getPropAsBoolean(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, DEFAULT_ENABLE_SMART_ARRAY_ENLARGE);
+    this.enlargeFactor = state.getPropAsInt(GobblinOrcWriterConfigs.ENLARGE_FACTOR_KEY, DEFAULT_ENLARGE_FACTOR);
+    this.smartArrayEnlargeFactorMax = state.getPropAsDouble(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MAX);
+    this.smartArrayEnlargeFactorMin = state.getPropAsDouble(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, DEFAULT_SMART_ARRAY_ENLARGE_FACTOR_MIN);
+    this.smartArrayEnlargeDecayFactor = state.getPropAsDouble(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR);
     if (enabledSmartSizing) {
       Preconditions.checkArgument(this.smartArrayEnlargeFactorMax >= 1,
           String.format("Smart array enlarge factor needs to be larger than 1.0, provided value %s", this.smartArrayEnlargeFactorMax));
