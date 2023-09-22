@@ -211,8 +211,7 @@ public class FlowTriggerHandler {
         triggerEventTimeMillis);
     Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
         Optional.of(reminderSuffix));
-    // TODO: remove this comment once we've confirmed this function works
-    log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with"
+    log.debug("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
             + "reminderJobKey {} and reminderTriggerKey {}", status.getFlowAction(), triggerEventTimeMillis,
         status.getEventTimeMillis(), reminderJobKey, reminderTrigger.getKey());
     this.schedulerService.getScheduler().scheduleJob(jobDetail, reminderTrigger);
@@ -311,6 +310,6 @@ public class FlowTriggerHandler {
   protected static long getUTCTimeFromDelayPeriod(long delayPeriodMillis) {
     LocalDateTime localDateTime = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
     Date date = Date.from(localDateTime.atZone(ZoneId.of("UTC")).toInstant());
-    return GobblinServiceJobScheduler.asUTCEpochMillis(date);
+    return GobblinServiceJobScheduler.utcDateAsUTCEpochMillis(date);
   }
 }

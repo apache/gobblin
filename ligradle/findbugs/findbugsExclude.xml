@@ -53,4 +53,8 @@
     <Class name="org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier" />
     <Bug pattern="REC_CATCH_EXCEPTION" />
   </Match>
+  <Match>
+    <Class name="org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic" />
+    <Bug pattern="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE" />
+  </Match>
 </FindBugsFilter>

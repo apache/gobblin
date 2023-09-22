@@ -135,10 +135,24 @@ public class KafkaAuditCountVerifierTest {
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
 
-    // Check validation tiers for exceptions
+    // Check validation for exceptions if reference tier is 0 count. Checking for division of x / 0 case where x != 0.
+    // Update watermark if source reports counts but reference counts is 0 due to Kafka not reporting counts
     client.setTierCounts(
         ImmutableMap.of(
             SOURCE_TIER, 990L,
+            REFERENCE_TIERS, 0L,
+            TOTAL_COUNT_REF_TIER_0, 0L,
+            TOTAL_COUNT_REF_TIER_1, 0L
+        ));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L).get(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
+    Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L).get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
+
+    // Check validation for exceptions if both source and reference tier is 0 count. Checking for division of 0 / 0 case.
+    // If both source and reference tiers are 0, we assume we are complete and update the watermark
+    // This is to check the case when one source cluster is reporting counts but not the other source cluster. Resulting in a non-empty map but having 0 for srcCount
+    client.setTierCounts(
+        ImmutableMap.of(
+            SOURCE_TIER, 0L,
             REFERENCE_TIERS, 0L,
             TOTAL_COUNT_REF_TIER_0, 0L,
             TOTAL_COUNT_REF_TIER_1, 0L

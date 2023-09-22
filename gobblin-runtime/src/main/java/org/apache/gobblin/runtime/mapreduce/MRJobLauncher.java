@@ -173,6 +173,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Path unsharedJarsDir;
   private final Path jobInputPath;
   private final Path jobOutputPath;
+  private final boolean shouldPersistWorkUnitsThenCancel;
 
   private final int parallelRunnerThreads;
 
@@ -248,6 +249,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.jobInputPath = new Path(this.mrJobDir, INPUT_DIR_NAME);
     this.jobOutputPath = new Path(this.mrJobDir, OUTPUT_DIR_NAME);
     Path outputTaskStateDir = new Path(this.jobOutputPath, this.jobContext.getJobId());
+    this.shouldPersistWorkUnitsThenCancel = isPersistWorkUnitsThenCancelEnabled(this.jobProps);
 
     // Finally create the Hadoop job after all updates to conf are already made (including
     // adding dependent jars/files to the DistributedCache that also updates the conf)
@@ -313,6 +315,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
       LOG.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
 
       prepareHadoopJob(workUnits);
+      if (this.shouldPersistWorkUnitsThenCancel) {
+        // NOTE: `warn` level is hack for including path among automatic troubleshooter 'issues'
+        LOG.warn("Cancelling job after persisting workunits beneath: " + this.jobInputPath);
+        jobState.setState(JobState.RunningState.CANCELLED);
+        return;
+      }
 
       // Start the output TaskState collector service
       this.taskStateCollectorService.startAsync().awaitRunning();
@@ -525,11 +533,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
         && Boolean.parseBoolean(properties.getProperty(ENABLED_CUSTOMIZED_PROGRESS));
   }
 
-  static boolean isMapperFailureFatalEnabled(Properties properties) {
-    return (
-        properties.containsKey(ConfigurationKeys.MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY)
-        && Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY)))
-        || ConfigurationKeys.DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL;
+  static boolean isBooleanPropEnabled(Properties props, String propKey, Optional<Boolean> optDefault) {
+    return (props.containsKey(propKey) && Boolean.parseBoolean(props.getProperty(propKey)))
+        || (optDefault.isPresent() && optDefault.get());
+  }
+
+  static boolean isMapperFailureFatalEnabled(Properties props) {
+    return isBooleanPropEnabled(props, ConfigurationKeys.MR_JOB_MAPPER_FAILURE_IS_FATAL_KEY,
+        Optional.of(ConfigurationKeys.DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL));
+  }
+
+  static boolean isPersistWorkUnitsThenCancelEnabled(Properties props) {
+    return isBooleanPropEnabled(props, ConfigurationKeys.MR_PERSIST_WORK_UNITS_THEN_CANCEL_KEY,
+        Optional.of(ConfigurationKeys.DEFAULT_MR_PERSIST_WORK_UNITS_THEN_CANCEL));
   }
 
   @VisibleForTesting
@@ -698,8 +714,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private void cleanUpWorkingDirectory() {
     try {
       if (this.fs.exists(this.mrJobDir)) {
-        this.fs.delete(this.mrJobDir, true);
-        LOG.info("Deleted working directory " + this.mrJobDir);
+        if (this.shouldPersistWorkUnitsThenCancel) {
+          LOG.info("Preserving persisted workunits beneath: " + this.jobInputPath);
+        } else {
+          this.fs.delete(this.mrJobDir, true);
+          LOG.info("Deleted working directory " + this.mrJobDir);
+        }
       }
     } catch (IOException ioe) {
       LOG.error("Failed to delete working directory " + this.mrJobDir);

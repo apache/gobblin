@@ -16,25 +16,30 @@
  */
 package org.apache.gobblin.salesforce;
 
-import com.google.common.collect.ImmutableList;
 import java.util.Collections;
 import java.util.List;
+
+import org.testng.Assert;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableList;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.extractor.exception.HighWatermarkException;
 import org.apache.gobblin.source.extractor.exception.RestApiClientException;
 import org.apache.gobblin.source.extractor.extract.Command;
+import org.apache.gobblin.source.extractor.extract.CommandOutput;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand;
+import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommandOutput;
 import org.apache.gobblin.source.extractor.partition.Partition;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.TimestampWatermark;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.testng.Assert;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 
 public class SalesforceExtractorTest {
@@ -105,5 +110,59 @@ public class SalesforceExtractorTest {
     Assert.assertEquals(commandsActual.size(), 1);
     Assert.assertEquals(commandsActual.get(0).getCommandType(), commandsExpected.get(0).getCommandType());
     Assert.assertEquals(commandsActual.get(0).getParams(), commandsExpected.get(0).getParams());
+  }
+
+  @DataProvider
+  private Object[][] provideGetHighWatermarkTestData() {
+    return new Object[][] {
+        {
+            "{}",
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+        },
+        {
+            "{\"records\": [{}]}",
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+        },
+        {
+            "{"
+                + "    \"totalSize\": 1,"
+                + "    \"done\": true,"
+                + "    \"records\": ["
+                + "        {"
+                + "            \"attributes\": {"
+                + "                \"type\": \"AggregateResult\""
+                + "            },"
+                + "            \"expr0\": null"
+                + "        }"
+                + "    ]"
+                + "}",
+            ConfigurationKeys.DEFAULT_WATERMARK_VALUE
+        },
+        {
+            "{"
+                + "    \"totalSize\": 1,"
+                + "    \"done\": true,"
+                + "    \"records\": ["
+                + "        {"
+                + "            \"attributes\": {"
+                + "                \"type\": \"AggregateResult\""
+                + "            },"
+                + "            \"expr0\": \"2023-09-15T05:21:41.000Z\""
+                + "        }"
+                + "    ]"
+                + "}",
+            20230915052141L
+        },
+    };
+  }
+
+  @Test(dataProvider = "provideGetHighWatermarkTestData")
+  public void testGetHighWatermark(String commandOutputAsStr, long expectedHwm) throws HighWatermarkException {
+    CommandOutput<RestApiCommand, String> response = new RestApiCommandOutput();
+    RestApiCommand command = new RestApiCommand();
+    response.put(command, commandOutputAsStr);
+    long actualHighWtm =
+        _classUnderTest.getHighWatermark(response, DEFAULT_WATERMARK_COLUMN, SalesforceExtractor.SALESFORCE_TIMESTAMP_FORMAT);
+    Assert.assertEquals(actualHighWtm, expectedHwm);
   }
 }

@@ -171,6 +171,15 @@ public class KafkaAuditCountVerifier {
     for (String refTier: this.refTiers) {
       long refCount = countsByTier.get(refTier);
       long srcCount = countsByTier.get(this.srcTier);
+
+      /*
+        If we have a case where an audit map is returned, however, one of the source tiers on another fabric is 0,
+        and the reference tiers from Kafka is reported to be 0, we can say that this hour is complete.
+        This needs to be added as a non-zero double value divided by 0 is infinity, but 0 divided by 0 is NaN.
+       */
+      if (srcCount == 0 && refCount == 0) {
+        return 1.0;
+      }
       percent = Double.max(percent, (double) srcCount / (double) refCount);
     }
 
@@ -202,6 +211,14 @@ public class KafkaAuditCountVerifier {
         .stream()
         .mapToLong(countsByTier::get)
         .sum();
+    /*
+      If we have a case where an audit map is returned, however, one of the source tiers on another fabric is 0,
+      and the sum of the reference tiers from Kafka is reported to be 0, we can say that this hour is complete.
+      This needs to be added as a non-zero double value divided by 0 is infinity, but 0 divided by 0 is NaN.
+     */
+    if (srcCount == 0 && totalRefCount == 0) {
+      return 1.0;
+    }
     double percent = Double.max(-1, (double) srcCount / (double) totalRefCount);
     if (percent < 0) {
       throw new IOException("Cannot calculate total count completion percentage");

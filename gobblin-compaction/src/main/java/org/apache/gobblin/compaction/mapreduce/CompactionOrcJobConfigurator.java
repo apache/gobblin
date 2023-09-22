@@ -37,8 +37,8 @@ import org.apache.gobblin.configuration.State;
 
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
 import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
-import static org.apache.gobblin.writer.GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE;
-import static org.apache.gobblin.writer.GobblinOrcWriter.ORC_WRITER_BATCH_SIZE;
+import static org.apache.gobblin.writer.GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCH_SIZE;
+import static org.apache.gobblin.writer.GobblinOrcWriterConfigs.ORC_WRITER_BATCH_SIZE;
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
   /**
