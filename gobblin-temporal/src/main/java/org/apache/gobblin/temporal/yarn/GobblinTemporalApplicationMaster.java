@@ -64,7 +64,6 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
  *   and un-registration and Yarn container provisioning.
  * </p>
  *
- * @author Yinan Li
  */
 @Alpha
 public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterManager {

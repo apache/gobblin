@@ -116,7 +116,6 @@ import org.apache.hadoop.yarn.util.Records;
  * without any dependency on Helix. There are some references to helix concepts, but they are left in for the sake of
  * keeping some features in-tact. They don't have an actual dependency on helix anymore.
  *
- * @author Yinan Li
  */
 class YarnService extends AbstractIdleService {
 
