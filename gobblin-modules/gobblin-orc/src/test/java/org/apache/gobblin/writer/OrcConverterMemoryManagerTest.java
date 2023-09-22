@@ -41,7 +41,7 @@ public class OrcConverterMemoryManagerTest {
     // Make batch size small so that the enlarge behavior would easily be triggered.
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
     OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
@@ -64,7 +64,7 @@ public class OrcConverterMemoryManagerTest {
     // Make batch such that only deeply nested list is resized
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
     OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "converter_memory_manager_nested_test/data.json");

@@ -89,12 +89,8 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
 
   private final Converter[] converters;
 
-  public GenericRecordToOrcValueWriter(TypeDescription typeDescription, Schema avroSchema) {
-    converters = buildConverters(typeDescription, avroSchema);
-  }
-
   public GenericRecordToOrcValueWriter(TypeDescription typeDescription, Schema avroSchema, OrcConverterMemoryManager memoryManager) {
-    this(typeDescription, avroSchema);
+    converters = buildConverters(typeDescription, avroSchema);
     this.memoryManager = memoryManager;
   }
 
