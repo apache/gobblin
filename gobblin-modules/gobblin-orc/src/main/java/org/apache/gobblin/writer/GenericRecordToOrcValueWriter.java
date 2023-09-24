@@ -44,8 +44,6 @@ import org.apache.orc.storage.ql.exec.vector.StructColumnVector;
 import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,10 +61,6 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   private boolean enabledSmartSizing;
   private int enlargeFactor;
   private OrcConverterMemoryManager memoryManager;
-
-  // A rough measure of how many times resize is triggered, helping on debugging and testing.
-  @VisibleForTesting
-  public int resizeCount = 0;
 
   @Getter
   long totalBytesConverted = 0;
@@ -461,6 +455,6 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   }
 
   public int getResizeCount() {
-    return resizeCount;
+    return memoryManager.getResizeCount();
   }
 }

@@ -174,7 +174,7 @@ public class GenericRecordToOrcValueWriterTest {
       valueWriter.write(record, rowBatch);
     }
     // Examining resize count, which should happen only once for map and list, so totally 2.
-    Assert.assertEquals(valueWriter.resizeCount, 2);
+    Assert.assertEquals(valueWriter.getResizeCount(), 2);
   }
 
   @Test

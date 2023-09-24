@@ -30,6 +30,7 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import com.google.common.base.Preconditions;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
@@ -52,6 +53,7 @@ public class OrcConverterMemoryManager {
   private static final double DEFAULT_SMART_ARRAY_ENLARGE_DECAY_FACTOR = 0.003;
 
   private VectorizedRowBatch rowBatch;
+  @Getter
   private int resizeCount = 0;
   private double smartArrayEnlargeFactorMax;
   private double smartArrayEnlargeFactorMin;
