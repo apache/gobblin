@@ -207,8 +207,7 @@ public class FlowTriggerHandler {
     // refer to the same set of jobProperties)
     String reminderSuffix = createSuffixForJobTrigger(status);
     JobKey reminderJobKey = new JobKey(origJobKey.getName() + reminderSuffix, origJobKey.getGroup());
-    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status,
-        triggerEventTimeMillis);
+    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status);
     Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
         Optional.of(reminderSuffix));
     log.debug("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
@@ -236,12 +235,11 @@ public class FlowTriggerHandler {
    * @param originalKey
    * @param reminderKey
    * @param status
-   * @param triggerEventTimeMillis
    * @return
    * @throws SchedulerException
    */
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status, long triggerEventTimeMillis)
+      MultiActiveLeaseArbiter.LeasedToAnotherStatus status)
       throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
