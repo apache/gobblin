@@ -66,12 +66,12 @@ public class FlowTriggerHandlerTest {
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
     JobDataMap newJobDataMap = FlowTriggerHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
-        eventToTrigger, schedulerBackOffMillis);
+        schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertNotEquals("0",
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
-    Assert.assertEquals(String.valueOf(eventToTrigger),
+    Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
   }
 
@@ -85,11 +85,11 @@ public class FlowTriggerHandlerTest {
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
     JobDataMap newJobDataMap = FlowTriggerHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
-        eventToTrigger, schedulerBackOffMillis);
+        schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertTrue(newProperties.containsKey(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
-    Assert.assertEquals(String.valueOf(eventToTrigger),
+    Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
   }
 

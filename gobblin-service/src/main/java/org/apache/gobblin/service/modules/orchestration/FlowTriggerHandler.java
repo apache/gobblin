@@ -207,8 +207,7 @@ public class FlowTriggerHandler {
     // refer to the same set of jobProperties)
     String reminderSuffix = createSuffixForJobTrigger(status);
     JobKey reminderJobKey = new JobKey(origJobKey.getName() + reminderSuffix, origJobKey.getGroup());
-    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status,
-        triggerEventTimeMillis);
+    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status);
     Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
         Optional.of(reminderSuffix));
     log.debug("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
@@ -236,17 +235,16 @@ public class FlowTriggerHandler {
    * @param originalKey
    * @param reminderKey
    * @param status
-   * @param triggerEventTimeMillis
    * @return
    * @throws SchedulerException
    */
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status, long triggerEventTimeMillis)
+      MultiActiveLeaseArbiter.LeasedToAnotherStatus status)
       throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
-    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, triggerEventTimeMillis, schedulerMaxBackoffMillis);
+    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);
     jobDetail.setJobDataMap(jobDataMap);
     return jobDetail;
   }
@@ -260,14 +258,12 @@ public class FlowTriggerHandler {
    * provided returns the updated JobDataMap to the user
    * @param jobDataMap
    * @param leasedToAnotherStatus
-   * @param triggerEventTimeMillis
    * @param schedulerMaxBackoffMillis
    * @return
    */
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus, long triggerEventTimeMillis,
-      int schedulerMaxBackoffMillis) {
+      MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
@@ -277,8 +273,11 @@ public class FlowTriggerHandler {
     // Saves the following properties in jobProps to retrieve when the trigger fires
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
         String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
+    // Use the db laundered timestamp for the reminder to ensure consensus between hosts. Participant trigger timestamps
+    // can differ between participants and be interpreted as a reminder for a distinct flow trigger which will cause
+    // excess flows to be triggered by the reminder functionality.
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
-        String.valueOf(triggerEventTimeMillis));
+        String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;
