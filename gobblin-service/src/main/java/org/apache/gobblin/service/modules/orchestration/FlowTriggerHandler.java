@@ -246,7 +246,7 @@ public class FlowTriggerHandler {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
-    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, triggerEventTimeMillis, schedulerMaxBackoffMillis);
+    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);
     jobDetail.setJobDataMap(jobDataMap);
     return jobDetail;
   }
@@ -260,14 +260,12 @@ public class FlowTriggerHandler {
    * provided returns the updated JobDataMap to the user
    * @param jobDataMap
    * @param leasedToAnotherStatus
-   * @param triggerEventTimeMillis
    * @param schedulerMaxBackoffMillis
    * @return
    */
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus, long triggerEventTimeMillis,
-      int schedulerMaxBackoffMillis) {
+      MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
@@ -277,7 +275,9 @@ public class FlowTriggerHandler {
     // Saves the following properties in jobProps to retrieve when the trigger fires
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
         String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
-    // We use the db laundered timestamp for the reminder to ensure consensus between hosts  
+    // Use the db laundered timestamp for the reminder to ensure consensus between hosts. Participant trigger timestamps
+    // can differ between participants and be interpreted as a reminder for a distinct flow trigger which will cause
+    // excess flows to be triggered by the reminder functionality.
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Update job data map and reset it in jobDetail
