@@ -82,7 +82,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private long orcWriterStripeSizeBytes;
   // Holds the maximum size of the previous run's maximum buffer or the max of the current run's maximum buffer
   private long estimatedBytesAllocatedConverterMemory = -1;
-  private OrcConverterMemoryManager converterMemoryManager;
+  protected OrcConverterMemoryManager converterMemoryManager;
 
   Configuration writerConfig;
 
@@ -93,7 +93,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     // Create value-writer which is essentially a record-by-record-converter with buffering in batch.
     this.inputSchema = builder.getSchema();
     this.typeDescription = getOrcSchema();
-    this.valueWriter = getOrcValueWriter(typeDescription, this.inputSchema, properties);
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
@@ -107,7 +106,10 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.rowBatchMemoryUsageFactor = properties.getPropAsDouble(GobblinOrcWriterConfigs.ORC_WRITER_ROWBATCH_MEMORY_USAGE_FACTOR,
         GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_MEMORY_USAGE_FACTOR);
     this.rowBatch = enableRowBatchPool ? rowBatchPool.getRowBatch(typeDescription, batchSize) : typeDescription.createRowBatch(batchSize);
-    this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch);
+    this.orcWriterStripeSizeBytes = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
+    this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch, properties);
+    this.valueWriter = getOrcValueWriter(typeDescription, this.inputSchema, properties);
+
     // Track the number of other writer tasks from different datasets ingesting on the same container
     this.concurrentWriterTasks = properties.getPropAsInt(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_CONCURRENT_TASKS, 1);
     this.orcStripeSize = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
@@ -121,7 +123,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     JobConfigurationUtils.putStateIntoConfiguration(properties, this.writerConfig);
     OrcFile.WriterOptions options = OrcFile.writerOptions(properties.getProperties(), this.writerConfig);
     options.setSchema(typeDescription);
-
     // Get the amount of allocated and future space available
     this.availableMemory = (Runtime.getRuntime().maxMemory() - (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()))/this.concurrentWriterTasks;
     log.info("Available memory for ORC writer: {}", this.availableMemory);

@@ -26,6 +26,7 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 
@@ -39,8 +40,8 @@ public class OrcConverterMemoryManagerTest {
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
     // Make batch size small so that the enlarge behavior would easily be triggered.
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
-    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
@@ -62,8 +63,8 @@ public class OrcConverterMemoryManagerTest {
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
     // Make batch such that only deeply nested list is resized
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
-    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "converter_memory_manager_nested_test/data.json");
@@ -76,5 +77,56 @@ public class OrcConverterMemoryManagerTest {
     // Account for size of top level arrays that should be small
     int expectedSize = 30*3*9 + 30*9 + 15*4; // Deeply nested list + maps + other structure overhead
     Assert.assertEquals(memoryManager.getConverterBufferTotalSize(), expectedSize);
+  }
+
+  @Test
+  public void testBufferSmartResize() throws Exception {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("converter_memory_manager_nested_test/schema.avsc"));
+    TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
+    // Make batch such that only deeply nested list is resized
+    VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
+    State memoryManagerState = new State();
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "10");
+    memoryManagerState.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, memoryManagerState);
+
+    int result = memoryManager.resize(1, 1000);
+    Assert.assertEquals(result, 10000);
+
+    // Result is equal to requested size since the decay factor dominates the resize
+    result = memoryManager.resize(100, 1000);
+    Assert.assertEquals(result, 1000);
+  }
+
+  @Test
+  public void testBufferSmartResizeParameters() throws Exception {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("converter_memory_manager_nested_test/schema.avsc"));
+    TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
+    // Make batch such that only deeply nested list is resized
+    VectorizedRowBatch rowBatch = orcSchema.createRowBatch(15);
+    State memoryManagerState0 = new State();
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "0");
+    memoryManagerState0.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState0));
+
+    State memoryManagerState1 = new State();
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "0.5");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
+    memoryManagerState1.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "0");
+    Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState1));
+
+    State memoryManagerState2 = new State();
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.ENABLE_SMART_ARRAY_ENLARGE, "true");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_DECAY_FACTOR, "1.5");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MAX, "1");
+    memoryManagerState2.setProp(GobblinOrcWriterConfigs.SMART_ARRAY_ENLARGE_FACTOR_MIN, "1");
+    Assert.assertThrows(IllegalArgumentException.class, () -> new OrcConverterMemoryManager(rowBatch, memoryManagerState2));
   }
 }

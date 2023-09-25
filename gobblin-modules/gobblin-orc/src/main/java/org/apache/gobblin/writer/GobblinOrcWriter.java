@@ -23,7 +23,6 @@ import java.util.Properties;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
@@ -32,6 +31,7 @@ import org.apache.orc.TypeDescription;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 /**
  * A wrapper for ORC-core writer without dependency on Hive SerDe library.
@@ -50,7 +50,7 @@ public class GobblinOrcWriter extends GobblinBaseOrcWriter<Schema, GenericRecord
   @Override
   protected OrcValueWriter<GenericRecord> getOrcValueWriter(TypeDescription typeDescription, Schema inputSchema,
       State state) {
-    return new GenericRecordToOrcValueWriter(typeDescription, this.inputSchema, this.properties);
+    return new GenericRecordToOrcValueWriter(typeDescription, this.inputSchema, this.converterMemoryManager);
   }
 
   @Override

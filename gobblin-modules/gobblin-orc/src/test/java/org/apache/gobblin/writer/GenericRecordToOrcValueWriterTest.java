@@ -47,6 +47,7 @@ import com.google.common.io.Files;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.orc.AvroOrcSchemaConverter;
 
 import static org.apache.orc.mapred.OrcMapredRecordReader.nextValue;
@@ -61,8 +62,9 @@ public class GenericRecordToOrcValueWriterTest {
         new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("union_test/schema.avsc"));
 
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch();
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "union_test/data.json");
@@ -122,8 +124,9 @@ public class GenericRecordToOrcValueWriterTest {
         new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("decimal_test/schema.avsc"));
 
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch();
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "decimal_test/data.json");
@@ -158,10 +161,11 @@ public class GenericRecordToOrcValueWriterTest {
         new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("list_map_test/schema.avsc"));
 
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
     // Make the batch size very small so that the enlarge behavior would easily be triggered.
     // But this has to more than the number of records that we deserialized form data.json, as here we don't reset batch.
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
@@ -170,7 +174,7 @@ public class GenericRecordToOrcValueWriterTest {
       valueWriter.write(record, rowBatch);
     }
     // Examining resize count, which should happen only once for map and list, so totally 2.
-    Assert.assertEquals(valueWriter.resizeCount, 2);
+    Assert.assertEquals(valueWriter.getResizeCount(), 2);
   }
 
   @Test
@@ -180,10 +184,11 @@ public class GenericRecordToOrcValueWriterTest {
         new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("list_map_test/schema.avsc"));
 
     TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
-    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
     // Make the batch size very small so that the enlarge behavior would easily be triggered.
     // But this has to more than the number of records that we deserialized form data.json, as here we don't reset batch.
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
+    OrcConverterMemoryManager memoryManager = new OrcConverterMemoryManager(rowBatch, new State());
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema, memoryManager);
 
     List<GenericRecord> recordList = GobblinOrcWriterTest
         .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
