@@ -277,8 +277,9 @@ public class FlowTriggerHandler {
     // Saves the following properties in jobProps to retrieve when the trigger fires
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
         String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
+    // We use the db laundered timestamp for the reminder to ensure consensus between hosts  
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
-        String.valueOf(triggerEventTimeMillis));
+        String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;
