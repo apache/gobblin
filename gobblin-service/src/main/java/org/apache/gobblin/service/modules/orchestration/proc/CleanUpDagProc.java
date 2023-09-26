@@ -15,42 +15,49 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration.processor;
+package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
+import org.apache.gobblin.service.modules.orchestration.task.CleanUpDagTask;
 
 
 /**
- * An implementation of {@link DagProc} that is responsible for clean up {@link Dag} that has been completed
- * or has reached an end state likewise: FAILED, COMPLETE or CANCELED
+ * An implementation of {@link DagProc} that is responsible for cleaning up {@link Dag} that has reached an end state
+ * likewise: FAILED, COMPLETE or CANCELED
  *
  */
 @Slf4j
 @Alpha
 public class CleanUpDagProc extends DagProc {
 
+  private CleanUpDagTask cleanUpDagTask;
+
+  public CleanUpDagProc(CleanUpDagTask cleanUpDagTask) {
+    this.cleanUpDagTask = cleanUpDagTask;
+  }
+
   @Override
-  protected Object initialize(DagManagementStateStore dagManagementStateStore)
-      throws MaybeRetryableException, IOException {
+  protected Object initialize(DagManagementStateStore dagManagementStateStore) throws MaybeRetryableException, IOException {
     throw new UnsupportedOperationException("Not supported");
 
   }
 
   @Override
-  protected Object act(Object state)
-      throws MaybeRetryableException, Exception {throw new UnsupportedOperationException("Not supported");
+  protected Object act(Object state, DagManagementStateStore dagManagementStateStore)
+      throws MaybeRetryableException, Exception {
+    throw new UnsupportedOperationException("Not supported");
   }
 
   @Override
-  protected void sendNotification(Object result) throws MaybeRetryableException, IOException {
+  protected void sendNotification(Object result, EventSubmitter eventSubmitter) throws MaybeRetryableException, IOException {
     throw new UnsupportedOperationException("Not supported");
-
   }
 }

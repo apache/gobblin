@@ -21,5 +21,5 @@ package org.apache.gobblin.service.modules.orchestration.exception;
  * Extension of {@link MaybeRetryableException} marking it as non-retryable.
  */
 public final class NonRetryableException extends MaybeRetryableException {
-
+//TODO: rethrow and wrap only checked exceptions
 }

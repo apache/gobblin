@@ -17,7 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -29,8 +30,12 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
-import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
-import org.apache.gobblin.service.modules.orchestration.processor.KillDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.AdvanceDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.CleanUpDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.ResumeDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.CleanUpDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -79,14 +84,14 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
       metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
       this.eventSubmitter = Optional.of(new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build());
     } else {
-      this.eventSubmitter = Optional.absent();
+      this.eventSubmitter = Optional.empty();
     }
   }
 
 
   @Override
   public DagProc meet(LaunchDagTask launchDagTask) {
-    throw new UnsupportedOperationException("Currently cannot provide launch proc");
+    return new LaunchDagProc(launchDagTask);
   }
 
   @Override
@@ -96,17 +101,17 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
 
   @Override
   public DagProc meet(ResumeDagTask resumeDagTask) {
-    throw new UnsupportedOperationException("Currently cannot provide resume proc");
+    return new ResumeDagProc(resumeDagTask);
   }
 
   @Override
   public DagProc meet(AdvanceDagTask advanceDagTask) {
-    throw new UnsupportedOperationException("Currently cannot provide advance proc");
+    return new AdvanceDagProc(advanceDagTask);
   }
 
   @Override
   public DagProc meet(CleanUpDagTask cleanUpDagTask) {
-    throw new UnsupportedOperationException("Currently cannot provide clean up proc");
+    return new CleanUpDagProc(cleanUpDagTask);
   }
 }
 

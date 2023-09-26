@@ -19,14 +19,13 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import com.codahale.metrics.Timer;
-import com.google.common.base.Preconditions;
+import org.jetbrains.annotations.NotNull;
+
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 
@@ -35,19 +34,16 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.processor.KillDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
@@ -56,58 +52,68 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 
 
 /**
- * Holds a stream of {@link DagTask} that {@link DagManager} would pull from to process, as it is ready for more work.
- * It provides an implementation for {@link DagManagement} defines the rules for a flow and job.
- * Implements {@link Iterator} to provide the next {@link DagTask} if available to {@link DagManager}
+ * Holds a stream of {@link DagTask} that {@link DagProcessingEngine} would pull from to process, as it is ready for more work.
+ * It provides an implementation for {@link DagManagement} that defines the rules for a flow and job.
+ * Implements {@link Iterable} to provide {@link DagTask}s as soon as it's available to {@link DagProcessingEngine}
  */
 
 @Alpha
 @Slf4j
 @AllArgsConstructor
-public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement {
+public class DagTaskStream implements Iterable<DagTask>, DagManagement {
 
   @Getter
-  private final BlockingDeque<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingDeque<>();
+  private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
   private FlowTriggerHandler flowTriggerHandler;
   private DagManagementStateStore dagManagementStateStore;
   private DagManagerMetrics dagManagerMetrics;
 
 
+  @NotNull
   @Override
-  public boolean hasNext() {
-    return true;
-  }
+  public Iterator<DagTask> iterator() {
+    return new Iterator<DagTask>() {
 
-
-  @Override
-  public Optional<DagTask> next() {
-
-    DagActionStore.DagAction dagAction = dagActionQueue.peek();
-    try {
-      Preconditions.checkArgument(dagAction != null, "No Dag Action found in the queue");
-      Properties jobProps = getJobProperties(dagAction);
-      Optional<MultiActiveLeaseArbiter.LeaseObtainedStatus> leaseObtainedStatus =
-          flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis()).toJavaUtil();
-      if(leaseObtainedStatus.isPresent()) {
-        DagTask dagTask = createDagTask(dagAction, leaseObtainedStatus.get());
-        return Optional.of(dagTask);
+      @Override
+      public boolean hasNext() {
+        return true;
       }
-    } catch (Exception ex) {
-      //TODO: need to handle exceptions gracefully
-      throw new RuntimeException(ex);
-    }
-    return Optional.empty();
+
+      @Override
+      public DagTask next() {
+
+        DagTask dagTask = null;
+        while(true) {
+          DagActionStore.DagAction dagAction = take();
+          Properties jobProps = getJobProperties(dagAction);
+          try {
+            MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis());
+            if(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+              dagTask = createDagTask(dagAction,
+                  (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
+            }
+            if (dagTask != null) {
+              break; // Exit the loop when dagTask is non-null
+            }
+          } catch (IOException e) {
+            //TODO: need to handle exceptions gracefully
+            throw new RuntimeException(e);
+          }
+        }
+        return dagTask;
+      }
+    };
   }
 
-  public boolean add(DagActionStore.DagAction dagAction) throws IOException {
+  private boolean add(DagActionStore.DagAction dagAction) {
     return this.dagActionQueue.offer(dagAction);
   }
 
-  public DagActionStore.DagAction take() {
+  private DagActionStore.DagAction take() {
     return this.dagActionQueue.poll();
   }
 
-  public DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
     switch (flowActionType) {
       case KILL:
@@ -121,27 +127,25 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
     }
   }
 
+  protected void complete(DagTask dagTask) throws IOException {
+    dagTask.conclude(this.flowTriggerHandler.getMultiActiveLeaseArbiter());
+  }
+
   @Override
-  public void launchFlow(String flowGroup, String flowName, long  triggerTimeStamp) {
+  public void launchFlow(String flowGroup, String flowName, long eventTimestamp) {
     //TODO: provide implementation after finalizing code flow
     throw new UnsupportedOperationException("Currently launch flow is not supported.");
   }
 
   @Override
-  public void resumeFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp) throws IOException, InterruptedException {
+  public void resumeFlow(DagActionStore.DagAction killAction, long eventTimestamp) {
     //TODO: provide implementation after finalizing code flow
-    throw new UnsupportedOperationException("Currently launch flow is not supported.");
+    throw new UnsupportedOperationException("Currently resume flow is not supported.");
   }
 
   @Override
-  public void killFlow(String flowGroup, String flowName, String flowExecutionId, long  produceTimestamp) throws IOException {
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
-    if(!this.dagManagementStateStore.getDagIdToDags().containsKey(dagId.toString())) {
-      log.info("Invalid dag since not present in map. Hence cannot cancel it");
-      return;
-    }
-    DagActionStore.DagAction killAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
-      if(!add(killAction)) {
+  public void killFlow(DagActionStore.DagAction killAction, long eventTimestamp) throws IOException {
+     if(!add(killAction)) {
         throw new IOException("Could not add kill dag action: " + killAction + " to the queue.");
       }
   }
@@ -157,7 +161,7 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
 
   @Override
   public boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
-    //TODO: need to distribute the responsibility outside of this class
+    //TODO: need to distribute the responsibility outside this class
     long flowStartTime = DagManagerUtils.getFlowStartTime(node);
     long currentTime = System.currentTimeMillis();
     String dagId = DagManagerUtils.generateDagId(node).toString();
@@ -270,4 +274,5 @@ public class DagTaskStream implements Iterator<Optional<DagTask>>, DagManagement
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDagIdToDags().get(dagId);
     return dag.getStartNodes().get(0).getValue().getJobSpec().getConfigAsProperties();
   }
+
 }

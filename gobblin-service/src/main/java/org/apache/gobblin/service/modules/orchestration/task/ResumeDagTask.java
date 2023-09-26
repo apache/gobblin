@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 
 
 /**
@@ -33,7 +34,7 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 public class ResumeDagTask extends DagTask {
 
   @Override
-  public Object host(DagTaskVisitor visitor) throws Exception {
-    throw new UnsupportedOperationException("Not supported");
+  public DagProc host(DagTaskVisitor visitor) {
+    return (DagProc) visitor.meet(this);
   }
 }

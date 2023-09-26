@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -36,33 +37,31 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 public interface DagManagement {
 
   /**
-   * Currently, it is handling just the launch of a {@link Dag} request via REST client for adhoc flows
+   * Currently, it is handling just the launch of a {@link Dag} request via REST client for adhoc flows.
+   * The eventTimestamp for adhoc flows will always be 0 (zero), while -1 would indicate failures.
+   * Essentially for a valid launch flow, the eventTimestamp needs to be >= 0.
+   * Future implementations will cover launch of flows through the scheduler too!
    * @param flowGroup
    * @param flowName
-   * @param triggerTimeStamp
+   * @param eventTimestamp
    */
-  void launchFlow(String flowGroup, String flowName, long  triggerTimeStamp);
+  void launchFlow(String flowGroup, String flowName, long  eventTimestamp);
 
   /**
-   * Currently, it is handling just the resume of a {@link Dag} request via REST client for adhoc flows
-   * @param flowGroup
-   * @param flowName
-   * @param flowExecutionId
-   * @param triggerTimeStamp
+   * Handles the resume of a {@link Dag} request via REST client or triggered by the scheduler.
+   * @param resumeAction
+   * @param eventTimestamp
    * @throws IOException
    */
-  void resumeFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp)
-      throws IOException, InterruptedException;
+  void resumeFlow(DagActionStore.DagAction resumeAction, long  eventTimestamp) throws IOException;
 
   /**
-   * Currently, it is handling just the kill/cancel of a {@link Dag} request via REST client for adhoc flows
-   * @param flowGroup
-   * @param flowName
-   * @param flowExecutionId
-   * @param triggerTimeStamp
+   * Currently, it is handling just the kill/cancel of a {@link Dag} request via REST client
+   * @param killAction
+   * @param eventTimestamp
+   * @throws IOException
    */
-  void killFlow(String flowGroup, String flowName, String flowExecutionId, long  triggerTimeStamp)
-      throws InterruptedException, IOException;
+  void killFlow(DagActionStore.DagAction killAction, long eventTimestamp) throws IOException;
 
   boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException;
 

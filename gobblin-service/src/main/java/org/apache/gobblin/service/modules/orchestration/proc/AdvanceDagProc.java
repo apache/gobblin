@@ -14,16 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.service.modules.orchestration.processor;
+package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryableException;
+import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
 
 
 /**
@@ -37,19 +39,24 @@ import org.apache.gobblin.service.modules.orchestration.exception.MaybeRetryable
 @Alpha
 public class AdvanceDagProc extends DagProc {
 
+  private AdvanceDagTask advanceDagTask;
+
+  public AdvanceDagProc(AdvanceDagTask advanceDagTask) {
+    this.advanceDagTask = advanceDagTask;
+  }
+
   @Override
   protected Object initialize(DagManagementStateStore dagManagementStateStore) throws MaybeRetryableException, IOException {
     throw new UnsupportedOperationException("Not supported");
   }
 
   @Override
-  protected Object act(Object state) throws MaybeRetryableException, Exception {
+  protected Object act(Object state, DagManagementStateStore dagManagementStateStore) throws MaybeRetryableException, Exception {
     throw new UnsupportedOperationException("Not supported");
-
   }
 
   @Override
-  protected void sendNotification(Object result) throws MaybeRetryableException, IOException {
+  protected void sendNotification(Object result, EventSubmitter eventSubmitter) throws MaybeRetryableException, IOException {
     throw new UnsupportedOperationException("Not supported");
   }
 }

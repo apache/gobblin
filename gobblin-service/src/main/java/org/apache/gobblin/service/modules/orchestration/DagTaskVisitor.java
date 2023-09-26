@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.CleanUpDagTask;
@@ -30,13 +28,13 @@ import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 
 /**
  * Interface defining {@link DagTask} based on the type of visitor.
- * @param <T>
+ * @param <DagProc>
  */
 @Alpha
-public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask) throws IOException;
-  T meet(KillDagTask killDagTask) throws IOException;
-  T meet(ResumeDagTask resumeDagTask) throws IOException;
-  T meet(AdvanceDagTask advanceDagTask) throws IOException;
-  T meet(CleanUpDagTask cleanUpDagTask) throws IOException;
+public interface DagTaskVisitor<DagProc> {
+  DagProc meet(LaunchDagTask launchDagTask);
+  DagProc meet(KillDagTask killDagTask);
+  DagProc meet(ResumeDagTask resumeDagTask);
+  DagProc meet(AdvanceDagTask advanceDagTask);
+  DagProc meet(CleanUpDagTask cleanUpDagTask);
 }

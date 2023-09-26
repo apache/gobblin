@@ -84,7 +84,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected boolean isMultiActiveSchedulerEnabled;
   protected FlowCatalog flowCatalog;
   private DagTaskStream dagTaskStream;
-  private boolean isRefactoredDagManagerEnabled;
+  private boolean isMultiLeaderDagManagerEnabled;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -100,8 +100,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.orchestrator = orchestrator;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     // instantiating using default ctor; subsequent PR will handle instantiating with multi-args ctor
-    this.dagTaskStream = new DagTaskStream();
-    this.isRefactoredDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, false);
+//    this.dagTaskStream = new DagTaskStream();
+    this.isMultiLeaderDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_DAG_MANAGER_ENABLED_KEY, false);
   }
 
   @Override
@@ -150,17 +150,15 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           log.info("Received insert dag action and about to send resume flow request");
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           //TODO: add a flag for if condition only if multi-active is enabled
-//          if(isRefactoredDagManagerEnabled) {
-//            dagTaskStream.resumeFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
-//          }
-
           this.resumesInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
           log.info("Received insert dag action and about to send kill flow request");
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
-          //TODO: add a flag for if condition only if multi-active is enabled
-          if(isRefactoredDagManagerEnabled) {
-            dagTaskStream.killFlow(flowGroup, flowName, flowExecutionId, produceTimestamp);
+
+          if(isMultiLeaderDagManagerEnabled) {
+            DagActionStore.DagAction killAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
+
+            dagTaskStream.killFlow(killAction, produceTimestamp);
           }
           this.killsInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
@@ -173,9 +171,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           }
           log.info("Received insert dag action and about to forward launch request to DagManager");
           submitFlowToDagManagerHelper(flowGroup, flowName);
-//          if(isRefactoredDagManagerEnabled) {
-//            dagTaskStream.launchFlow(flowGroup, flowName, produceTimestamp);
-//          }
+          //TODO: add a flag for if condition only if multi-active is enabled
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();

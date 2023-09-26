@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration.exception;
 
-import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 
 
 /**

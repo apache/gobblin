@@ -46,7 +46,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 @Getter(onMethod_={@Synchronized})
 @Alpha
-public class InMemoryDagManagementStateStore implements DagManagementStateStore{
+public class InMemoryDagManagementStateStore implements DagManagementStateStore {
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
   private final Map<String, Dag<JobExecutionPlan>> dagIdToDags = new HashMap<>();
   private final Set<String> failedDagIds = new HashSet<>();

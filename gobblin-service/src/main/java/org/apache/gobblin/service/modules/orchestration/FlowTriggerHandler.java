@@ -325,32 +325,30 @@ public class FlowTriggerHandler {
    * @return optionally leaseObtainedStatus if acquired; otherwise schedule reminder to check back again.
    * @throws IOException
    */
-  public Optional<MultiActiveLeaseArbiter.LeaseObtainedStatus> getLeaseOnDagAction(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis) throws IOException {
+  public MultiActiveLeaseArbiter.LeaseAttemptStatus getLeaseOnDagAction(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis) throws IOException {
+
     if (multiActiveLeaseArbiter.isPresent()) {
-
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(flowAction, eventTimeMillis);
-
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-        MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
         this.leaseObtainedCount.inc();
         log.info("Successfully acquired lease for dag action: {}", flowAction);
-        return Optional.of(leaseObtainedStatus);
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
         this.leasedToAnotherStatusCount.inc();
         scheduleReminderForEvent(jobProps,
             (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
-        return Optional.absent();
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
         this.noLongerLeasingStatusCount.inc();
-        log.debug("Received type of leaseAttemptStatus: [{}, eventTimestamp: {}] ", leaseAttemptStatus.getClass().getName(),
+        log.info("Received type of leaseAttemptStatus: [{}, eventTimestamp: {}] ", leaseAttemptStatus.getClass().getName(),
             eventTimeMillis);
-        return Optional.absent();
       }
-      throw new RuntimeException(String.format("Received type of leaseAttemptStatus: %s not handled by this method",
-          leaseAttemptStatus.getClass().getName()));
+      return leaseAttemptStatus;
     } else {
       throw new RuntimeException(String.format("Multi-active scheduler is not enabled so trigger event should not be "
           + "handled with this method."));
     }
+  }
+
+  public MultiActiveLeaseArbiter getMultiActiveLeaseArbiter() {
+    return this.multiActiveLeaseArbiter.get();
   }
 }

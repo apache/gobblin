@@ -23,7 +23,7 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
-import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 
 
 /**
@@ -34,7 +34,7 @@ import org.apache.gobblin.service.modules.orchestration.processor.DagProc;
  */
 
 @Alpha
-public abstract class DagTask<T> {
+public abstract class DagTask {
 
   protected MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatusStatus;
 
@@ -48,5 +48,5 @@ public abstract class DagTask<T> {
     multiActiveLeaseArbiter.recordLeaseSuccess(leaseObtainedStatusStatus);
   }
 
-  public abstract T host(DagTaskVisitor<T> visitor) throws Exception;
+  public abstract DagProc host(DagTaskVisitor<DagProc> visitor);
 }

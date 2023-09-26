@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration.processor;
+package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.google.api.client.util.Lists;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
@@ -34,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.DagActionStore;
@@ -55,20 +54,9 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
  */
 @Slf4j
 @Alpha
-public final class KillDagProc extends DagProc {
+public final class KillDagProc extends DagProc<List<Dag.DagNode<JobExecutionPlan>>, Dag<JobExecutionPlan>> {
 
   private KillDagTask killDagTask;
-  private DagManagementStateStore dagManagementStateStore;
-  private MetricContext metricContext;
-  private Optional<EventSubmitter> eventSubmitter;
-
-
-  public KillDagProc(KillDagTask killDagTask, DagManagementStateStore dagManagementStateStore, MetricContext metricContext, Optional<EventSubmitter> eventSubmitter) throws IOException {
-    this.killDagTask = killDagTask;
-    this.dagManagementStateStore = dagManagementStateStore;
-    this.metricContext = metricContext;
-    this.eventSubmitter = eventSubmitter;
-  }
 
   public KillDagProc(KillDagTask killDagTask) {
     this.killDagTask = killDagTask;
@@ -88,15 +76,14 @@ public final class KillDagProc extends DagProc {
    * and cancel the job on the executor. The return type is kept as {@link Object} since we might want to refactor
    * or add more responsibility as part of the actions taken. Hence, after completing all possible scenarios,
    * it will make sense to update the method signature with its appropriate type.
-   * @param state
+   * @param dagNodesToCancel
    * @return
    * @throws InterruptedException
    * @throws ExecutionException
    * @throws IOException
    */
   @Override
-  protected Object act(Object state) throws Exception {
-    List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = (List<Dag.DagNode<JobExecutionPlan>>)state;
+  protected Dag<JobExecutionPlan> act(List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel, DagManagementStateStore dagManagementStateStore) throws Exception {
     Preconditions.checkArgument(!dagNodesToCancel.isEmpty(), "Dag doesn't contain any DagNodes to be cancelled");
     String dagToCancel = this.killDagTask.getKillDagId().toString();
 
@@ -104,21 +91,27 @@ public final class KillDagProc extends DagProc {
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
       killDagNode(dagNodeToCancel);
     }
-    this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
-    this.dagManagementStateStore.getDagIdToDags().get(dagToCancel).setMessage("Flow killed by request");
-    this.dagManagementStateStore.removeDagActionFromStore(this.killDagTask.getKillDagId(), DagActionStore.FlowActionType.KILL);
-    return this.dagManagementStateStore.getDagIdToDags().get(dagToCancel);
+    dagManagementStateStore.getDagIdToDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+    dagManagementStateStore.getDagIdToDags().get(dagToCancel).setMessage("Flow killed by request");
+    dagManagementStateStore.removeDagActionFromStore(this.killDagTask.getKillDagId(), DagActionStore.FlowActionType.KILL);
+    return dagManagementStateStore.getDagIdToDags().get(dagToCancel);
 
   }
 
   @Override
-  protected void sendNotification(Object result) throws MaybeRetryableException {
-    Dag<JobExecutionPlan> dag = (Dag<JobExecutionPlan>) result;
+  protected void sendNotification(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) throws MaybeRetryableException {
     for(Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dag.getNodes()) {
-      sendCancellationEvent(dagNodeToCancel.getValue());
+      sendCancellationEvent(dagNodeToCancel.getValue(), eventSubmitter);
     }
   }
 
+  /**
+   * Responsible for killing/canceling the job for a {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}
+   * by invoking the {@link org.apache.gobblin.runtime.api.SpecProducer#cancelJob(URI, Properties)}
+   * @param dagNodeToCancel
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
   public static void killDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
     Properties props = new Properties();
     if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
@@ -133,12 +126,10 @@ public final class KillDagProc extends DagProc {
     DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
   }
 
-  private void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
-    if (this.eventSubmitter.isPresent()) {
+  private void sendCancellationEvent(JobExecutionPlan jobExecutionPlan, EventSubmitter eventSubmitter) {
       Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-      this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
+      eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
       jobExecutionPlan.setExecutionStatus(CANCELLED);
-    }
   }
 }
 
