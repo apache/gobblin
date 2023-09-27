@@ -180,7 +180,7 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
 
     Class<? extends GobblinTemporalJobLauncher> jobLauncherClass =
         (Class<? extends GobblinTemporalJobLauncher>) Class.forName(combinedProps.getProperty(
-        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER));
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS));
     return GobblinConstructorUtils.invokeLongestConstructor(jobLauncherClass, combinedProps,
             this.appWorkDir,
             this.metadataTags,
