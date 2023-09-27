@@ -151,54 +151,37 @@ public class DagTaskStream implements Iterable<DagTask>, DagManagement {
   }
   /**
    * Check if the SLA is configured for the flow this job belongs to.
-   * If it is, this method will try to cancel the job when SLA is reached.
-   *
+   * If it is, this method will enforce on cancelling the job when SLA is reached.
+   * It will return true and cancellation would be initiated via {@link org.apache.gobblin.service.modules.orchestration.proc.AdvanceDagProc}
+   * by creating {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} on the flowtype: {@link org.apache.gobblin.runtime.api.DagActionStore.FlowActionType#CANCEL}
+   * The Flow SLA will be set when the {@link Dag} is launched either via Scheduler or REST client
    * @param node dag node of the job
-   * @return true if the job is killed because it reached sla
+   * @return true if the job reached sla needs to be cancelled
    * @throws ExecutionException exception
    * @throws InterruptedException exception
    */
 
   @Override
   public boolean enforceFlowCompletionDeadline(Dag.DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
-    //TODO: need to distribute the responsibility outside this class
+    //TODO: need to fetch timestamps from database when multi-active is enabled
     long flowStartTime = DagManagerUtils.getFlowStartTime(node);
     long currentTime = System.currentTimeMillis();
     String dagId = DagManagerUtils.generateDagId(node).toString();
 
-    long flowSla;
-    if (this.dagManagementStateStore.getDagToSLA().containsKey(dagId)) {
-      flowSla = this.dagManagementStateStore.getDagToSLA().get(dagId);
-    } else {
-      try {
-        flowSla = DagManagerUtils.getFlowSLA(node);
-      } catch (ConfigException e) {
-        log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
-            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
-            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-            DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
-        flowSla = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
-      }
-      this.dagManagementStateStore.getDagToSLA().put(dagId, flowSla);
-    }
+    long flowSla = this.dagManagementStateStore.getDagSLA(dagId);
 
     if (currentTime > flowStartTime + flowSla) {
-      log.info("Flow {} exceeded the SLA of {} ms. Killing the job {} now...",
+      log.info("Flow {} exceeded the SLA of {} ms. Enforce cancellation of the job {} ...",
           node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), flowSla,
           node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
       dagManagerMetrics.incrementExecutorSlaExceeded(node);
-      KillDagProc.killDagNode(node);
-
-      this.dagManagementStateStore.getDagIdToDags().get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
-      this.dagManagementStateStore.getDagIdToDags().get(dagId).setMessage("Flow killed due to exceeding SLA of " + flowSla + " ms");
-
       return true;
     }
     return false;
   }
 
   /**
-   * Cancel the job if the job has been "orphaned". A job is orphaned if has been in ORCHESTRATED
+   * Enforce cancel on the job if the job has been "orphaned". A job is orphaned if has been in ORCHESTRATED
    * {@link ExecutionStatus} for some specific amount of time.
    * @param node {@link Dag.DagNode} representing the job
    * @param jobStatus current {@link JobStatus} of the job
@@ -208,25 +191,19 @@ public class DagTaskStream implements Iterable<DagTask>, DagManagement {
 
   @Override
   public boolean enforceJobStartDeadline(Dag.DagNode<JobExecutionPlan> node, JobStatus jobStatus) throws ExecutionException, InterruptedException {
-    //TODO: need to distribute the responsibility outside of this class
     if (jobStatus == null) {
       return false;
     }
     ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
-    //TODO: initialize default job sla in millis via configs
+    //TODO: timestamps needs to be fetched from database instead of using System.currentTimeMillis()
     long timeOutForJobStart = DagManagerUtils.getJobStartSla(node, System.currentTimeMillis());
     long jobOrchestratedTime = jobStatus.getOrchestratedTime();
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestratedTime > timeOutForJobStart) {
-      log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
+      log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Enforce cancellation of the job ...",
           DagManagerUtils.getJobName(node),
           DagManagerUtils.getFullyQualifiedDagName(node),
           timeOutForJobStart);
       dagManagerMetrics.incrementCountsStartSlaExceeded(node);
-      KillDagProc.killDagNode(node);
-
-      String dagId = DagManagerUtils.generateDagId(node).toString();
-      dagManagementStateStore.getDagIdToDags().get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
-      dagManagementStateStore.getDagIdToDags().get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
       return true;
     } else {
       return false;
@@ -271,7 +248,7 @@ public class DagTaskStream implements Iterable<DagTask>, DagManagement {
   private Properties getJobProperties(DagActionStore.DagAction dagAction) {
     String dagId = String.valueOf(
         DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId()));
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDagIdToDags().get(dagId);
+    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(dagId);
     return dag.getStartNodes().get(0).getValue().getJobSpec().getConfigAsProperties();
   }
 

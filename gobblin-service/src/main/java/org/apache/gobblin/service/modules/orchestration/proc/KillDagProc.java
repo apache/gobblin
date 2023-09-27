@@ -19,15 +19,12 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import com.google.api.client.util.Lists;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
@@ -63,12 +60,9 @@ public final class KillDagProc extends DagProc<List<Dag.DagNode<JobExecutionPlan
   }
 
   @Override
-  protected List<Dag.DagNode<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore) {
-    Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = dagManagementStateStore.getDagToJobs();
-    if(dagToJobs.containsKey(this.killDagTask.getKillDagId().toString())) {
-      return dagToJobs.get(this.killDagTask.getKillDagId().toString());
-    }
-    return Lists.newArrayList();
+  protected List<Dag.DagNode<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore) throws IOException {
+    String dagToCancel = this.killDagTask.getKillDagId().toString();
+    return dagManagementStateStore.getJobs(dagToCancel);
   }
 
   /**
@@ -84,17 +78,16 @@ public final class KillDagProc extends DagProc<List<Dag.DagNode<JobExecutionPlan
    */
   @Override
   protected Dag<JobExecutionPlan> act(List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel, DagManagementStateStore dagManagementStateStore) throws Exception {
-    Preconditions.checkArgument(!dagNodesToCancel.isEmpty(), "Dag doesn't contain any DagNodes to be cancelled");
     String dagToCancel = this.killDagTask.getKillDagId().toString();
 
     log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
       killDagNode(dagNodeToCancel);
     }
-    dagManagementStateStore.getDagIdToDags().get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
-    dagManagementStateStore.getDagIdToDags().get(dagToCancel).setMessage("Flow killed by request");
+    dagManagementStateStore.getDag(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+    dagManagementStateStore.getDag(dagToCancel).setMessage("Flow killed by request");
     dagManagementStateStore.removeDagActionFromStore(this.killDagTask.getKillDagId(), DagActionStore.FlowActionType.KILL);
-    return dagManagementStateStore.getDagIdToDags().get(dagToCancel);
+    return dagManagementStateStore.getDag(dagToCancel);
 
   }
 

@@ -22,11 +22,22 @@ public interface DagManagementStateStore {
 
   public void removeDagActionFromStore(DagManager.DagId dagId, DagActionStore.FlowActionType flowActionType) throws IOException;
 
-  public Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> getDagToJobs();
+  public void addDagSLA(String dagId, Long flowSla);
 
-  public Map<String, Dag<JobExecutionPlan>> getDagIdToDags();
+  public Long getDagSLA(String dagId);
 
-  public Map<String, Long> getDagToSLA();
+  public Dag<JobExecutionPlan> getDag(String dagId);
+
+  public LinkedList<Dag.DagNode<JobExecutionPlan>> getJobs(String dagId) throws IOException;
+
+  public boolean addFailedDagId(String dagId);
+
+  public boolean checkFailedDagId(String dagId);
+
+  public boolean addCleanUpDagId(String dagId);
+
+  public boolean checkCleanUpDagId(String dagId);
+
 
   //TODO: Add get methods for dags and jobs
 

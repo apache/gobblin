@@ -38,7 +38,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 /**
  * An implementation of {@link DagManagementStateStore} to provide information about dags, dag nodes and their job states.
- * Currently, this store maintains and utilizes in-memory references about dags and their job states and is used
+ * This store maintains and utilizes in-memory references about dags and their job states and is used
  * to determine what the current status of the {@link Dag} and/or {@link Dag.DagNode} is and what actions needs to be
  * taken next likewise mark it as: complete, failed, sla breached or simply clean up after completion.
  * Going forward, each of these in-memory references will be read/write from MySQL store.
@@ -93,17 +93,51 @@ public class InMemoryDagManagementStateStore implements DagManagementStateStore 
   }
 
   @Override
-  public synchronized Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> getDagToJobs() {
-    return this.dagToJobs;
+  public void addDagSLA(String dagId, Long flowSla) {
+    this.dagToSLA.putIfAbsent(dagId, flowSla);
   }
 
   @Override
-  public synchronized Map<String, Dag<JobExecutionPlan>> getDagIdToDags() {
-    return this.dagIdToDags;
+  public Long getDagSLA(String dagId) {
+    if(this.dagToSLA.containsKey(dagId)) {
+      return this.dagToSLA.get(dagId);
+    }
+    return null;
   }
 
   @Override
-  public synchronized Map<String, Long> getDagToSLA() {
-    return this.dagToSLA;
+  public Dag<JobExecutionPlan> getDag(String dagId) {
+    if(this.dagIdToDags.containsKey(dagId)) {
+      return this.dagIdToDags.get(dagId);
+    }
+    return null;
+  }
+
+  @Override
+  public LinkedList<Dag.DagNode<JobExecutionPlan>> getJobs(String dagId) throws IOException {
+    if(this.dagToJobs.containsKey(dagId)) {
+      return this.dagToJobs.get(dagId);
+    }
+    throw new IOException("Dag Id: " + dagId +  "is not present");
+  }
+
+  @Override
+  public boolean addFailedDagId(String dagId) {
+    return this.failedDagIds.add(dagId);
+  }
+
+  @Override
+  public boolean checkFailedDagId(String dagId) {
+    return this.failedDagIds.contains(dagId);
+  }
+
+  @Override
+  public boolean addCleanUpDagId(String dagId) {
+    return this.dagIdstoClean.add(dagId);
+  }
+
+  @Override
+  public boolean checkCleanUpDagId(String dagId) {
+    return this.dagIdstoClean.contains(dagId);
   }
 }
