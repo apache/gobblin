@@ -26,8 +26,8 @@ import io.temporal.worker.WorkerFactory;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
-
-public abstract class AbstractTemporalWorker {
+/** Basic boilerplate for a temporal "worker" to register its activity and workflow capabilities and listen on a particular queue */
+public abstract class AbstractTemporalWorker implements TemporalWorker {
     private final WorkflowClient workflowClient;
     private final String queueName;
     private final WorkerFactory workerFactory;
@@ -44,6 +44,7 @@ public abstract class AbstractTemporalWorker {
         workerFactory = WorkerFactory.newInstance(workflowClient);
     }
 
+    @Override
     public void start() {
         Worker worker = workerFactory.newWorker(queueName);
         // This Worker hosts both Workflow and Activity implementations.
@@ -55,9 +56,7 @@ public abstract class AbstractTemporalWorker {
         workerFactory.start();
     }
 
-    /**
-     * Shuts down the worker.
-     */
+    @Override
     public void shutdown() {
         workerFactory.shutdown();
     }

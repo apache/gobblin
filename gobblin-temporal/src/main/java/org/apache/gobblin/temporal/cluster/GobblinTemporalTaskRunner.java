@@ -124,7 +124,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   protected final String temporalQueueName;
   private final boolean isMetricReportingFailureFatal;
   private final boolean isEventReportingFailureFatal;
-  private final List<AbstractTemporalWorker> workers;
+  private final List<TemporalWorker> workers;
 
   public GobblinTemporalTaskRunner(String applicationName,
       String applicationId,
@@ -234,7 +234,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     }
   }
 
-  private AbstractTemporalWorker initiateWorker() throws Exception{
+  private TemporalWorker initiateWorker() throws Exception {
     logger.info("Starting Temporal Worker");
 
     String connectionUri = clusterConfig.getString(GobblinTemporalConfigurationKeys.TEMPORAL_CONNECTION_STRING);
@@ -246,8 +246,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
     String workerClassName = ConfigUtils.getString(clusterConfig,
         GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
-    AbstractTemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(
-        (Class<AbstractTemporalWorker>) Class.forName(workerClassName), clusterConfig, client);
+    TemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(
+        (Class<TemporalWorker>)Class.forName(workerClassName), clusterConfig, client);
     worker.start();
     logger.info("A new worker is started.");
     return worker;
@@ -286,9 +286,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
       this.containerMetrics.get().stopMetricsReporting();
     }
 
-    for (AbstractTemporalWorker worker : workers) {
-      worker.shutdown();
-    }
+    workers.forEach(TemporalWorker::shutdown);
 
     logger.info("All services are stopped.");
 

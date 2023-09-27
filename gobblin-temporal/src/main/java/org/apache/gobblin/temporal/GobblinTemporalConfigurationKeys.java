@@ -30,15 +30,18 @@ public interface GobblinTemporalConfigurationKeys {
 
   String PREFIX = "gobblin.temporal.";
 
-  String WORKER_CLASS = PREFIX + "worker";
+  String WORKER_CLASS = PREFIX + "worker.class";
   String DEFAULT_WORKER_CLASS = HelloWorldWorker.class.getName();
   String GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
   String DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
 
   String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
   String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
-  String GOBBLIN_TEMPORAL_JOB_LAUNCHER = PREFIX + "job.launcher";
-  String DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER = HelloWorldJobLauncher.class.getName();
+  String GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX = PREFIX + "job.launcher.";
+  String GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "class";
+  String DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS = HelloWorldJobLauncher.class.getName();
+
+  String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "arg.";
 
   /**
    * Number of worker processes to spin up per task runner
