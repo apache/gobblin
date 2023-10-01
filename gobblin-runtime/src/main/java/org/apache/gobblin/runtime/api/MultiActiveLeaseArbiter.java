@@ -24,7 +24,7 @@ import lombok.Data;
 
 /**
  * This interface defines a generic approach to a non-blocking, multiple active thread or host system, in which one or
- * more active participants compete to take responsiblity for a particular flow's event. The type of flow event in
+ * more active participants compete to take responsibility for a particular flow's event. The type of flow event in
  * question does not impact the algorithm other than to uniquely identify the flow event. Each participant uses the
  * interface to initiate an attempt at ownership over the flow event and receives a response indicating the status of
  * the attempt.
@@ -38,7 +38,8 @@ import lombok.Data;
  *        b) LeasedToAnotherStatus -> another will attempt to carry out the required action before the lease expires
  *        c) NoLongerLeasingStatus -> flow event no longer needs to be acted upon (terminal state)
  *  3. If another participant has acquired the lease before this one could, then the present participant must check back
- *    in at the time of lease expiry to see if it needs to attempt the lease again [status (b) above].
+ *    in at the time of lease expiry to see if it needs to attempt the lease again [status (b) above]. We refer to this
+ *    check-in as a 'reminder event'.
  *  4. Once the participant which acquired the lease completes its work on the flow event, it calls recordLeaseSuccess
  *    to indicate to all other participants that the flow event no longer needs to be acted upon [status (c) above]
  */
@@ -51,10 +52,12 @@ public interface MultiActiveLeaseArbiter {
    * determine the next action.
    * @param flowAction uniquely identifies the flow and the present action upon it
    * @param eventTimeMillis is the time this flow action was triggered
+   * @param isReminderEvent true if the flow action event we're checking on is a reminder event
    * @return LeaseAttemptStatus
    * @throws IOException
    */
-  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis) throws IOException;
+  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis, boolean isReminderEvent)
+      throws IOException;
 
   /**
    * This method is used to indicate the owner of the lease has successfully completed required actions while holding

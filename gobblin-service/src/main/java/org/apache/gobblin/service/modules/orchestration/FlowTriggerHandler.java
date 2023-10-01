@@ -104,12 +104,14 @@ public class FlowTriggerHandler {
    * @param jobProps
    * @param flowAction
    * @param eventTimeMillis
+   * @param isReminderEvent
    * @throws IOException
    */
-  public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis)
-      throws IOException {
+  public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis,
+      boolean isReminderEvent) throws IOException {
     if (multiActiveLeaseArbiter.isPresent()) {
-      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(flowAction, eventTimeMillis);
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(
+          flowAction, eventTimeMillis, isReminderEvent);
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
         MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
         this.leaseObtainedCount.inc();
