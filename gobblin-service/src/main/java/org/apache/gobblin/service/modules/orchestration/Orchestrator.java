@@ -220,7 +220,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   }
 
-  public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis) throws Exception {
+  public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis, boolean isReminderEvent)
+      throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
     this.topologyCatalog.get().getInitComplete().await();
 
@@ -264,9 +265,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
         DagActionStore.DagAction flowAction =
             new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
-        flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis);
-        _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]", flowAction,
-            triggerTimestampMillis);
+        flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent);
+        _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]" +
+                (isReminderEvent ? " (reminderEvent)" : ""), flowAction, triggerTimestampMillis);
       } else {
         Dag<JobExecutionPlan> jobExecutionPlanDag = jobExecutionPlanDagOptional.get();
         if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {

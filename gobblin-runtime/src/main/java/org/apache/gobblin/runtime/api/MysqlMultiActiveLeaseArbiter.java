@@ -51,7 +51,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * We also maintain another table in the database with two constants that allow us to coordinate between participants
  * and ensure they are using the same values to base their coordination off of.
  * [epsilon | linger]
- * `epsilon` - time within we consider to event timestamps to be overlapping and can consolidate
+ * `epsilon` - time within we consider two event timestamps to be overlapping and can consolidate
  * `linger` - minimum time to occur before another host may attempt a lease on a flow event. It should be much greater
  *            than epsilon and encapsulate executor communication latency including retry attempts
  *
@@ -94,7 +94,15 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private String thisTableAcquireLeaseIfFinishedStatement;
 
   // TODO: define retention on this table
-  // Note: we need to set `event_timestamp` default value to turn off timestamp auto-updates for row modifications
+  /*
+    Notes:
+    - Set `event_timestamp` default value to turn off timestamp auto-updates for row modifications which alters this col
+      in an unexpected way upon completing the lease
+    - Upon reading any timestamps from MySQL we convert the timezone from session (default) to UTC to consistently
+      use epoch-millis in UTC locally
+    - Upon using any timestamps from local we convert the timezone from UTC to session
+    - We desire millisecond level precision and denote that with `(3)` for the TIMESTAMP types
+   */
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + " flow_action varchar(100) NOT NULL, "
@@ -115,8 +123,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       + "CONVERT_TZ(`lease_acquisition_timestamp`, @@session.time_zone, '+00:00') as utc_lease_acquisition_timestamp, "
       + "linger FROM %s, %s " + WHERE_CLAUSE_TO_MATCH_KEY;
   // Does a cross join between the two tables to have epsilon and linger values available. Returns the following values:
-  // event_timestamp, lease_acquisition_timestamp, isWithinEpsilon (boolean if new event timestamp (provided by caller)
-  // db is within epsilon of event_timestamp in the table), leaseValidityStatus (1 if lease has not expired, 2 if
+  // event_timestamp, lease_acquisition_timestamp, isWithinEpsilon (boolean if new event timestamp (current timestamp in
+  // db) is within epsilon of event_timestamp in the table), leaseValidityStatus (1 if lease has not expired, 2 if
   // expired, 3 if column is NULL or no longer leasing)
   protected static final String GET_EVENT_INFO_STATEMENT = "SELECT "
       + "CONVERT_TZ(`event_timestamp`, @@session.time_zone, '+00:00') as utc_event_timestamp, "
@@ -131,7 +139,6 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected static final String GET_EVENT_INFO_STATEMENT_FOR_REMINDER = "SELECT "
       + "CONVERT_TZ(`event_timestamp`, @@session.time_zone, '+00:00') as utc_event_timestamp, "
       + "CONVERT_TZ(`lease_acquisition_timestamp`, @@session.time_zone, '+00:00') as utc_lease_acquisition_timestamp, "
-      // TODO maybe need to change this
       + "TIMESTAMPDIFF(microsecond, event_timestamp, CURRENT_TIMESTAMP(3)) / 1000 <= epsilon as is_within_epsilon, CASE "
       + "WHEN CURRENT_TIMESTAMP(3) < DATE_ADD(lease_acquisition_timestamp, INTERVAL linger*1000 MICROSECOND) then 1 "
       + "WHEN CURRENT_TIMESTAMP(3) >= DATE_ADD(lease_acquisition_timestamp, INTERVAL linger*1000 MICROSECOND) then 2 "
@@ -213,8 +220,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
       boolean isReminderEvent) throws IOException {
-    log.info("Multi-active scheduler about to handle trigger event: [{}, triggerEventTimestamp: {}]", flowAction,
-        eventTimeMillis);
+    log.info("Multi-active scheduler about to handle trigger event: [{}, triggerEventTimestamp: {}]" +
+            (isReminderEvent ? " (reminderEvent)" : ""), flowAction, eventTimeMillis);
     // Query lease arbiter table about this flow action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(flowAction, isReminderEvent);
 
