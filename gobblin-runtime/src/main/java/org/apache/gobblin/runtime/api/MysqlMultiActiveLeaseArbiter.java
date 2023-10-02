@@ -221,7 +221,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
       boolean isReminderEvent) throws IOException {
     log.info("Multi-active scheduler about to handle trigger event: [{}, triggerEventTimestamp: {}]" +
-            (isReminderEvent ? " (reminderEvent)" : ""), flowAction, eventTimeMillis);
+        "(is " + (isReminderEvent ? "reminder" : "original") + ")", flowAction, eventTimeMillis);
     // Query lease arbiter table about this flow action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(flowAction, isReminderEvent);
 
@@ -246,13 +246,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       // because db laundering tells us that the currently worked on db event is newer and will have its own reminders
       if (isReminderEvent) {
         if (eventTimeMillis < dbEventTimestamp.getTime()) {
-          log.info("tryAcquireLease for [{}, eventTimestamp: {}] - A new event trigger is being worked on, so this "
-              + "older reminder will be dropped.");
+          log.info("tryAcquireLease for [{}, eventTimestamp: {}] - dbEventTimeMillis: {} - A new event trigger is being"
+              + " worked on, so this older reminder will be dropped.", flowAction, eventTimeMillis, dbEventTimestamp);
           return new NoLongerLeasingStatus();
         } if (eventTimeMillis > dbEventTimestamp.getTime()) {
-          log.warn("tryAcquireLease for [{}, eventTimestamp: {}] - Severe constraint violation encountered: a reminder "
-              + "event newer than db event was found when db laundering should ensure monotonically increasing "
-              + "laundered event times.");
+          log.warn("tryAcquireLease for [{}, eventTimestamp: {}] - dbEventTimeMillis: {} - Severe constraint violation "
+              + "encountered: a reminder event newer than db event was found when db laundering should ensure "
+              + "monotonically increasing laundered event times.", flowAction, eventTimeMillis,
+              dbEventTimestamp.getTime());
         }
       }
 
