@@ -105,9 +105,6 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     this.properties = properties;
   }
 
-  @Override
-  public String getDatasetPath() { return this.rootPath.toString(); }
-
   protected Collection<? extends CopyEntity> getCopyableFilesImpl(CopyConfiguration configuration,
                                                                   Map<Path, FileStatus> filesInSource,
                                                                   Map<Path, FileStatus> filesInTarget,

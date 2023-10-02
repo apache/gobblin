@@ -25,5 +25,5 @@ import org.apache.gobblin.dataset.Dataset;
  * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
  */
 public interface CopyableDatasetBase extends Dataset {
-  default public String getDatasetPath() { return ""; }
+  default String getDatasetPath() { return ""; }
 }

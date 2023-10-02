@@ -380,7 +380,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       try {
         while (true) {
           if (last != null) return true;
-          if (this.isDone.get() && this.workUnits.isEmpty()) return false;  // set isDone = true in case of errors, or when producer (SingleWorkUnitGeneratorService) dies
+          if (this.isDone.get() && this.workUnits.isEmpty()) return false;
           this.last = this.workUnits.poll(1, TimeUnit.SECONDS);
         }
       } catch (InterruptedException e) {
