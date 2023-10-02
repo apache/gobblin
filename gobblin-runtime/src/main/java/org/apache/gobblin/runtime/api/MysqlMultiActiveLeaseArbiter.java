@@ -249,7 +249,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           log.info("tryAcquireLease for [{}, eventTimestamp: {}] - dbEventTimeMillis: {} - A new event trigger is being"
               + " worked on, so this older reminder will be dropped.", flowAction, eventTimeMillis, dbEventTimestamp);
           return new NoLongerLeasingStatus();
-        } if (eventTimeMillis > dbEventTimestamp.getTime()) {
+        }
+        if (eventTimeMillis > dbEventTimestamp.getTime()) {
           log.warn("tryAcquireLease for [{}, eventTimestamp: {}] - dbEventTimeMillis: {} - Severe constraint violation "
               + "encountered: a reminder event newer than db event was found when db laundering should ensure "
               + "monotonically increasing laundered event times.", flowAction, eventTimeMillis,
