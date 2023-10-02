@@ -446,7 +446,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
               Timer.Context datasetContext = datasetTimer.time()) {
             writer.flush(dbName, tableName);
           }
-        } catch (IOException e) {
+        } catch (Exception e) {
           if (exceptionMatches(e, transientExceptionMessages)) {
             throw new RuntimeException("Failing container due to transient exception for db: " + dbName + " table: " + tableName, e);
           }
