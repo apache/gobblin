@@ -167,9 +167,9 @@ public class MysqlMultiActiveLeaseArbiterTest {
   @Test (dependsOnMethods = "testAcquireLeaseSingleParticipant")
   public void testAcquireLeaseIfNewRow() throws IOException {
     // Inserting the first time should update 1 row
-    Assert.assertEquals(this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 1);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 1);
     // Inserting the second time should not update any rows
-    Assert.assertEquals(this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 0);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 0);
   }
 
     /*
@@ -181,22 +181,22 @@ public class MysqlMultiActiveLeaseArbiterTest {
   @Test (dependsOnMethods = "testAcquireLeaseIfNewRow")
   public void testConditionallyAcquireLeaseIfFMatchingAllColsStatement() throws IOException {
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        this.mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
 
     // The following insert will fail since the eventTimestamp does not match
-    int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
+    int numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfMatchingAllStatement, resumeDagAction, true, true,
         dummyTimestamp, new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertEquals(numRowsUpdated, 0);
 
     // The following insert will fail since the leaseAcquisitionTimestamp does not match
-    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
+    numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfMatchingAllStatement, resumeDagAction, true, true,
         new Timestamp(selectInfoResult.getEventTimeMillis()), dummyTimestamp);
     Assert.assertEquals(numRowsUpdated, 0);
 
     // This insert should work since the values match all the columns
-    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
+    numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfMatchingAllStatement, resumeDagAction, true, true,
         new Timestamp(selectInfoResult.getEventTimeMillis()),
         new Timestamp(selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
@@ -214,8 +214,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
       throws IOException, InterruptedException, SQLException {
     // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        this.mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
-    boolean markedSuccess = this.mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
+        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
         resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
@@ -223,15 +223,83 @@ public class MysqlMultiActiveLeaseArbiterTest {
         Optional.empty());
 
     // The following insert will fail since eventTimestamp does not match the expected
-    int numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
+    int numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfFinishedStatement, resumeDagAction, true, false,
         dummyTimestamp, null);
     Assert.assertEquals(numRowsUpdated, 0);
 
     // This insert does match since we utilize the right eventTimestamp
-    numRowsUpdated = this.mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
+    numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
         formattedAcquireLeaseIfFinishedStatement, resumeDagAction, true, false,
         new Timestamp(selectInfoResult.getEventTimeMillis()), null);
     Assert.assertEquals(numRowsUpdated, 1);
   }
+
+  /*
+  Tests calling `tryAcquireLease` for an older reminder event which should be immediately returned as `NoLongerLeasing`
+   */
+  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFinishedLeasingStatement")
+  public void testOlderReminderEventAcquireLease() throws IOException {
+    // Read database to obtain existing db eventTimeMillis and use it to construct an older event
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    long olderEventTimestamp = selectInfoResult.getEventTimeMillis() - 1;
+    LeaseAttemptStatus attemptStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, olderEventTimestamp, true);
+    Assert.assertTrue(attemptStatus instanceof NoLongerLeasingStatus);
+  }
+
+  /*
+  Tests calling `tryAcquireLease` for a reminder event for which a valid lease exists in the database. We don't expect
+  this case to occur because the reminderEvent should be triggered after the lease expires, but ensure it's handled
+  correctly anyway.
+   */
+  @Test (dependsOnMethods = "testOlderReminderEventAcquireLease")
+  public void testReminderEventAcquireLeaseOnValidLease() throws IOException {
+    // Read database to obtain existing db eventTimeMillis and re-use it for the reminder event time
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    LeaseAttemptStatus attemptStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true);
+    Assert.assertTrue(attemptStatus instanceof LeasedToAnotherStatus);
+    LeasedToAnotherStatus leasedToAnotherStatus = (LeasedToAnotherStatus) attemptStatus;
+    Assert.assertEquals(leasedToAnotherStatus.getEventTimeMillis(), selectInfoResult.getEventTimeMillis());
+  }
+
+  /*
+  Tests calling `tryAcquireLease` for a reminder event whose lease has expired in the database and should successfully
+  acquire a new lease
+   */
+  @Test (dependsOnMethods = "testReminderEventAcquireLeaseOnValidLease")
+  public void testReminderEventAcquireLeaseOnInvalidLease() throws IOException, InterruptedException {
+    // Read database to obtain existing db eventTimeMillis and wait enough time for the lease to expire
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    Thread.sleep(LINGER);
+    LeaseAttemptStatus attemptStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true);
+    Assert.assertTrue(attemptStatus instanceof LeaseObtainedStatus);
+    LeaseObtainedStatus obtainedStatus = (LeaseObtainedStatus) attemptStatus;
+    Assert.assertTrue(obtainedStatus.getEventTimestamp() > selectInfoResult.getEventTimeMillis());
+    Assert.assertTrue(obtainedStatus.getLeaseAcquisitionTimestamp() > selectInfoResult.getLeaseAcquisitionTimeMillis().get().longValue());
+  }
+
+   /*
+  Tests calling `tryAcquireLease` for a reminder event whose lease has completed in the database and should return
+  `NoLongerLeasing` status
+   */
+   @Test (dependsOnMethods = "testReminderEventAcquireLeaseOnInvalidLease")
+   public void testReminderEventAcquireLeaseOnCompletedLease() throws IOException {
+     // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
+     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+         mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+     boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
+         resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
+     Assert.assertTrue(markedSuccess);
+
+     // Now have a reminder event check-in on the completed lease
+     LeaseAttemptStatus attemptStatus =
+         mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true);
+     Assert.assertTrue(attemptStatus instanceof NoLongerLeasingStatus);
+   }
 }
