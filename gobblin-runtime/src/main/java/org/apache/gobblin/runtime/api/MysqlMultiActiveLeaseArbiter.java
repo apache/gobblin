@@ -98,9 +98,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     Notes:
     - Set `event_timestamp` default value to turn off timestamp auto-updates for row modifications which alters this col
       in an unexpected way upon completing the lease
-    - Upon reading any timestamps from MySQL we convert the timezone from session (default) to UTC to consistently
-      use epoch-millis in UTC locally
-    - Upon using any timestamps from local we convert the timezone from UTC to session
+    - MySQL converts TIMESTAMP values from the current time zone to UTC for storage, and back from UTC to the current
+      time zone for retrieval. https://dev.mysql.com/doc/refman/8.0/en/datetime.html
+        - Thus, for reading any timestamps from MySQL we convert the timezone from session (default) to UTC to always
+          use epoch-millis in UTC locally
+        - Similarly, for inserting/updating any timestamps we convert the timezone from UTC to session (as it will be
+          (interpreted automatically as session time zone) and explicitly set all timestamp columns to avoid using the
+          default auto-update/initialization values
     - We desire millisecond level precision and denote that with `(3)` for the TIMESTAMP types
    */
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
