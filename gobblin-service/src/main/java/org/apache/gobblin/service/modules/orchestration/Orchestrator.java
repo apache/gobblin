@@ -266,8 +266,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         DagActionStore.DagAction flowAction =
             new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
         flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent);
-        _log.info("Multi-active scheduler finished handling trigger event: [{}, triggerEventTimestamp: {}]" +
-            "(is " + (isReminderEvent ? "reminder" : "original") + ")", flowAction, triggerTimestampMillis);
+        _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
+            flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         Dag<JobExecutionPlan> jobExecutionPlanDag = jobExecutionPlanDagOptional.get();
         if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {

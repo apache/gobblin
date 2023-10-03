@@ -220,7 +220,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
     mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction,
-        Optional.empty());
+        Optional.empty(), false);
 
     // The following insert will fail since eventTimestamp does not match the expected
     int numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
