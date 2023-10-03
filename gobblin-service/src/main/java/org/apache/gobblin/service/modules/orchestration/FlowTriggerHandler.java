@@ -104,12 +104,14 @@ public class FlowTriggerHandler {
    * @param jobProps
    * @param flowAction
    * @param eventTimeMillis
+   * @param isReminderEvent
    * @throws IOException
    */
-  public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis)
-      throws IOException {
+  public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis,
+      boolean isReminderEvent) throws IOException {
     if (multiActiveLeaseArbiter.isPresent()) {
-      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(flowAction, eventTimeMillis);
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(
+          flowAction, eventTimeMillis, isReminderEvent);
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
         MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
         this.leaseObtainedCount.inc();
@@ -278,6 +280,8 @@ public class FlowTriggerHandler {
     // excess flows to be triggered by the reminder functionality.
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
+    // Use this boolean to indicate whether this is a reminder event
+    prevJobProps.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(false));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;

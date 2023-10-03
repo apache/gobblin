@@ -111,6 +111,7 @@ public class ConfigurationKeys {
   // Event time of flow action to orchestrate using the multi-active lease arbiter
   public static final String ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY = "orchestratorTriggerEventTimeMillis";
   public static final String ORCHESTRATOR_TRIGGER_EVENT_TIME_NEVER_SET_VAL = "-1";
+  public static final String FLOW_IS_REMINDER_EVENT_KEY = "isReminderEvent";
   public static final String SCHEDULER_EVENT_EPSILON_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".epsilonMillis";
   public static final int DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS = 5000;
   // Note: linger should be on the order of seconds even though we measure in millis
