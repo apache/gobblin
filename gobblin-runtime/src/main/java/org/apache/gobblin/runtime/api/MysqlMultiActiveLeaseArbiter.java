@@ -85,18 +85,24 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private final String constantsTableName;
   private final int epsilon;
   private final int linger;
+  private final int retention;
+  private String thisTableRetentionStatement;
   private String thisTableGetInfoStatement;
   private String thisTableSelectAfterInsertStatement;
   private String thisTableAcquireLeaseIfMatchingAllStatement;
   private String thisTableAcquireLeaseIfFinishedStatement;
 
-  // TODO: define retention on this table
+
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + " flow_action varchar(100) NOT NULL, "
-      + "event_timestamp TIMESTAMP, "
-      + "lease_acquisition_timestamp TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP, "
+      + "event_timestamp TIMESTAMP NOT NULL, "
+      + "lease_acquisition_timestamp TIMESTAMP NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_action))";
+  // Deletes rows older than retention time period regardless of lease status as they should all be invalid or completed
+  // since retention >> linger 
+  private static final String LEASE_ARBITER_TABLE_RETENTION_STATEMENT = "DELETE FROM %s WHERE event_timestamp < "
+      + "DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL ? * 1000 MICROSECOND)";
   private static final String CREATE_CONSTANTS_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s "
       + "(primary_key INT, epsilon INT, linger INT, PRIMARY KEY (primary_key))";
   // Only insert epsilon and linger values from config if this table does not contain a pre-existing values already.
@@ -148,6 +154,9 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
     this.linger = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS);
+    this.retention = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY,
+        ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS);
+    this.thisTableRetentionStatement = String.format(LEASE_ARBITER_TABLE_RETENTION_STATEMENT, this.leaseArbiterTableName);
     this.thisTableGetInfoStatement = String.format(GET_EVENT_INFO_STATEMENT, this.leaseArbiterTableName,
         this.constantsTableName);
     this.thisTableSelectAfterInsertStatement = String.format(SELECT_AFTER_INSERT_STATEMENT, this.leaseArbiterTableName,
@@ -168,6 +177,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
     initializeConstantsTable();
 
+    Thread retentionThread = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        runRetentionOnArbitrationTable();
+      }
+    });
+    retentionThread.start();
+
     log.info("MysqlMultiActiveLeaseArbiter initialized");
   }
 
@@ -183,6 +200,31 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       insertStatement.setInt(++i, linger);
       return insertStatement.executeUpdate();
     }, true);
+  }
+
+  /**
+   * Periodically deletes all rows in the table with event_timestamp older than the retention period defined by config.
+   */
+  private void runRetentionOnArbitrationTable() {
+    while (true) {
+      try {
+        Thread.sleep(10000);
+        withPreparedStatement(thisTableRetentionStatement,
+            retentionStatement -> {
+              int i = 0;
+              retentionStatement.setInt(++i, retention);
+              int numRowsDeleted = retentionStatement.executeUpdate();
+              if (numRowsDeleted != 0) {
+                log.info("Multi-active lease arbiter retention thread deleted {} rows from the lease arbiter table",
+                    numRowsDeleted);
+              }
+              return numRowsDeleted;
+            }, true);
+      } catch (InterruptedException | IOException e) {
+        log.warn("Failing to run retention on lease arbiter table. Unbounded growth can lead to database slowness and "
+            + "affect our system performance. Examine exception: ", e);
+      }
+    }
   }
 
   @Override
