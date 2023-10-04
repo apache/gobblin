@@ -87,9 +87,9 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected final DataSource dataSource;
   private final String leaseArbiterTableName;
   private final String constantsTableName;
-  private final int epsilon;
-  private final int linger;
-  private final int retention;
+  private final int epsilonMillis;
+  private final int lingerMillis;
+  private final long retentionPeriodMillis;
   private String thisTableRetentionStatement;
   private String thisTableGetInfoStatement;
   private String thisTableGetInfoStatementForReminder;
@@ -186,11 +186,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE);
     this.constantsTableName = ConfigUtils.getString(config, ConfigurationKeys.MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE);
-    this.epsilon = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY,
+    this.epsilonMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
-    this.linger = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,
+    this.lingerMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS);
-    this.retention = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY,
+    this.retentionPeriodMillis = ConfigUtils.getLong(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS);
     this.thisTableRetentionStatement = String.format(LEASE_ARBITER_TABLE_RETENTION_STATEMENT, this.leaseArbiterTableName);
     this.thisTableGetInfoStatement = String.format(GET_EVENT_INFO_STATEMENT, this.leaseArbiterTableName,
@@ -226,14 +226,15 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     String insertConstantsStatement = String.format(UPSERT_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
     withPreparedStatement(insertConstantsStatement, insertStatement -> {
       int i = 0;
-      insertStatement.setInt(++i, epsilon);
-      insertStatement.setInt(++i, linger);
+      insertStatement.setInt(++i, epsilonMillis);
+      insertStatement.setInt(++i, lingerMillis);
       return insertStatement.executeUpdate();
     }, true);
   }
 
   /**
    * Periodically deletes all rows in the table with event_timestamp older than the retention period defined by config.
+   * // TODO: create a utility to run a SQL commend in a STPE using interval T
    */
   private void runRetentionOnArbitrationTable() {
     ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
@@ -242,8 +243,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         Thread.sleep(10000);
         withPreparedStatement(thisTableRetentionStatement,
             retentionStatement -> {
-              int i = 0;
-              retentionStatement.setInt(++i, retention);
+              retentionStatement.setLong(1, retentionPeriodMillis);
               int numRowsDeleted = retentionStatement.executeUpdate();
               if (numRowsDeleted != 0) {
                 log.info("Multi-active lease arbiter retention thread deleted {} rows from the lease arbiter table",
@@ -252,7 +252,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
               return numRowsDeleted;
             }, true);
       } catch (InterruptedException | IOException e) {
-        log.warn("Failing to run retention on lease arbiter table. Unbounded growth can lead to database slowness and "
+        log.error("Failing to run retention on lease arbiter table. Unbounded growth can lead to database slowness and "
             + "affect our system performance. Examine exception: ", e);
       }
     };

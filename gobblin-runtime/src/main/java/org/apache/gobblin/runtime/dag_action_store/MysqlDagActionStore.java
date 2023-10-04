@@ -173,7 +173,6 @@ public class MysqlDagActionStore implements DagActionStore {
         rs.close();
       }
     }
-
   }
 
   @Override
