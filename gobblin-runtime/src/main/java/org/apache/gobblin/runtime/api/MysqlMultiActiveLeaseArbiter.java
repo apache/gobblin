@@ -30,6 +30,8 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Optional;
 import java.util.TimeZone;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -115,7 +117,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       + "lease_acquisition_timestamp TIMESTAMP NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_action))";
   // Deletes rows older than retention time period regardless of lease status as they should all be invalid or completed
-  // since retention >> linger 
+  // since retention >> linger
   private static final String LEASE_ARBITER_TABLE_RETENTION_STATEMENT = "DELETE FROM %s WHERE event_timestamp < "
       + "DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL ? * 1000 MICROSECOND)";
   private static final String CREATE_CONSTANTS_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s "
@@ -211,15 +213,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       throw new IOException("Table creation failure for " + leaseArbiterTableName, e);
     }
     initializeConstantsTable();
-
-    Thread retentionThread = new Thread(new Runnable() {
-      @Override
-      public void run() {
-        runRetentionOnArbitrationTable();
-      }
-    });
-    retentionThread.start();
-
+    runRetentionOnArbitrationTable();
     log.info("MysqlMultiActiveLeaseArbiter initialized");
   }
 
@@ -241,7 +235,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    * Periodically deletes all rows in the table with event_timestamp older than the retention period defined by config.
    */
   private void runRetentionOnArbitrationTable() {
-    while (true) {
+    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    Runnable retentionTask = () -> {
       try {
         Thread.sleep(10000);
         withPreparedStatement(thisTableRetentionStatement,
@@ -259,7 +254,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.warn("Failing to run retention on lease arbiter table. Unbounded growth can lead to database slowness and "
             + "affect our system performance. Examine exception: ", e);
       }
-    }
+    };
+
+    // Run retention thread every 4 hours (6 times a day)
+    executor.scheduleAtFixedRate(retentionTask, 0, 4, TimeUnit.HOURS);
   }
 
   @Override
