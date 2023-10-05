@@ -29,7 +29,6 @@ import org.testng.annotations.Test;
 
 public class FlowTriggerHandlerTest {
   long eventToRevisit = 123000L;
-  long eventToTrigger = 456000L;
   long minimumLingerDurationMillis = 2000L;
   String cronExpression = FlowTriggerHandler.createCronFromDelayPeriod(minimumLingerDurationMillis);
   String cronExpressionSuffix = truncateFirstTwoFieldsOfCronExpression(cronExpression);
