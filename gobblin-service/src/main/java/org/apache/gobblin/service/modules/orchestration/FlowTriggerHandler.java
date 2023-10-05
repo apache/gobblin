@@ -281,7 +281,7 @@ public class FlowTriggerHandler {
     prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Use this boolean to indicate whether this is a reminder event
-    prevJobProps.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(false));
+    prevJobProps.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;
