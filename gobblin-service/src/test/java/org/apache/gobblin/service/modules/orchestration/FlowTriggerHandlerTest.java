@@ -73,6 +73,7 @@ public class FlowTriggerHandlerTest {
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
+    Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
   }
 
   /**
@@ -91,6 +92,7 @@ public class FlowTriggerHandlerTest {
     Assert.assertTrue(newProperties.containsKey(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
+    Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
   }
 
   /**
