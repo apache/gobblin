@@ -229,9 +229,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     // Query lease arbiter table about this flow action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(flowAction, isReminderEvent);
 
+    // TODO: change all the `CASE N: ...` statements back to debug statements after uncovering issue
     try {
       if (!getResult.isPresent()) {
-        log.debug("tryAcquireLease for [{}, is; {}, eventTimestamp: {}] - CASE 1: no existing row for this flow action,"
+        log.info("tryAcquireLease for [{}, is; {}, eventTimestamp: {}] - CASE 1: no existing row for this flow action,"
             + " then go ahead and insert", flowAction, isReminderEvent ? "reminder" : "original", eventTimeMillis);
         int numRowsUpdated = attemptLeaseIfNewRow(flowAction);
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.empty(), isReminderEvent);
@@ -270,20 +271,20 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       // Lease is valid
       if (leaseValidityStatus == 1) {
         if (isWithinEpsilon) {
-          log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
+          log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
               flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
           return new LeasedToAnotherStatus(flowAction, dbEventTimestamp.getTime(),
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
-        log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
+        log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
         return new LeasedToAnotherStatus(flowAction, dbCurrentTimestamp.getTime(),
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
       else if (leaseValidityStatus == 2) {
-        log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 4: Lease is out of date (regardless of "
+        log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 4: Lease is out of date (regardless of "
             + "whether same or distinct event)", flowAction, isReminderEvent ? "reminder" : "original",
             dbCurrentTimestamp.getTime());
         if (isWithinEpsilon && !isReminderEvent) {
@@ -297,11 +298,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.of(dbCurrentTimestamp), isReminderEvent);
       } // No longer leasing this event
         if (isWithinEpsilon) {
-          log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 5: Same event, no longer leasing event"
+          log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 5: Same event, no longer leasing event"
               + " in db", flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           return new NoLongerLeasingStatus();
         }
-        log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 6: Distinct event, no longer leasing "
+        log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 6: Distinct event, no longer leasing "
             + "event in db", flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Use our event to acquire lease, check for previous db eventTimestamp and NULL leaseAcquisitionTimestamp
         int numRowsUpdated = attemptLeaseIfExistingRow(thisTableAcquireLeaseIfFinishedStatement, flowAction,
@@ -463,12 +464,12 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       return new NoLongerLeasingStatus();
     }
     if (numRowsUpdated == 1) {
-      log.debug("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", flowAction,
+      log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", flowAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
       return new LeaseObtainedStatus(flowAction, selectInfoResult.eventTimeMillis,
           selectInfoResult.getLeaseAcquisitionTimeMillis().get());
     }
-    log.debug("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: ",
+    log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: ",
         flowAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant acquired lease in between
     return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
