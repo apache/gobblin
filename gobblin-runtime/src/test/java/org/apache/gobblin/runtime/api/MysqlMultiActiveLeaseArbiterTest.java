@@ -36,6 +36,7 @@ import static org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter.*;
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTest {
   private static final int EPSILON = 10000;
+  private static final int MORE_THAN_EPSILON = (int) (EPSILON * 1.1);
   private static final int LINGER = 50000;
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
@@ -117,7 +118,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Tests CASE 3 of trying to acquire a lease for a distinct flow action event, while the previous event's lease is
     // valid
     // Allow enough time to pass for this trigger to be considered distinct, but not enough time so the lease expires
-    Thread.sleep(EPSILON * 3/2);
+    Thread.sleep(MORE_THAN_EPSILON);
     MultiActiveLeaseArbiter.LeaseAttemptStatus thirdLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false);
     Assert.assertTrue(thirdLaunchStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus);
@@ -147,7 +148,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
 
     // Tests CASE 6 of no longer leasing a distinct event in DB
     // Wait so this event is considered distinct and a new lease will be acquired
-    Thread.sleep(EPSILON * 3/2);
+    Thread.sleep(MORE_THAN_EPSILON);
     MultiActiveLeaseArbiter.LeaseAttemptStatus sixthLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false);
     Assert.assertTrue(sixthLaunchStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus);
@@ -286,10 +287,12 @@ public class MysqlMultiActiveLeaseArbiterTest {
 
    /*
   Tests calling `tryAcquireLease` for a reminder event whose lease has completed in the database and should return
-  `NoLongerLeasing` status
+  `NoLongerLeasing` status.
+  Note: that we wait for enough time to pass that the event would have been considered distinct for a non-reminder case
+  to ensure that the comparison made for reminder events is against the preserved event time not current time in db
    */
    @Test (dependsOnMethods = "testReminderEventAcquireLeaseOnInvalidLease")
-   public void testReminderEventAcquireLeaseOnCompletedLease() throws IOException {
+   public void testReminderEventAcquireLeaseOnCompletedLease() throws IOException, InterruptedException {
      // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
      MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
          mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
@@ -297,6 +300,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
          resumeDagAction, selectInfoResult.getEventTimeMillis(), selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
      Assert.assertTrue(markedSuccess);
 
+     // Sleep enough time for the event to have been considered distinct
+     Thread.sleep(MORE_THAN_EPSILON);
      // Now have a reminder event check-in on the completed lease
      LeaseAttemptStatus attemptStatus =
          mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true);
