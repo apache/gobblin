@@ -684,10 +684,14 @@ public class JobState extends SourceState implements JobProgress {
 
   @Override
   public String toString() {
+    return toJsonString(false);
+  }
+
+  public String toJsonString(boolean includeProperties) {
     StringWriter stringWriter = new StringWriter();
     try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
       jsonWriter.setIndent("\t");
-      this.toJson(jsonWriter, false);
+      this.toJson(jsonWriter, includeProperties);
     } catch (IOException ioe) {
       // Ignored
     }
