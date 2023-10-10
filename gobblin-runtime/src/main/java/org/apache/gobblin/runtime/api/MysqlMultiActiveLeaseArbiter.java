@@ -151,7 +151,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected static final String GET_EVENT_INFO_STATEMENT_FOR_REMINDER = "SELECT "
       + "CONVERT_TZ(`event_timestamp`, @@session.time_zone, '+00:00') as utc_event_timestamp, "
       + "CONVERT_TZ(`lease_acquisition_timestamp`, @@session.time_zone, '+00:00') as utc_lease_acquisition_timestamp, "
-      + "TIMESTAMPDIFF(microsecond, event_timestamp, CURRENT_TIMESTAMP(3)) / 1000 <= epsilon as is_within_epsilon, CASE "
+      + "TIMESTAMPDIFF(microsecond, event_timestamp, CONVERT_TZ(?, '+00:00', @@session.time_zone)) / 1000 <= epsilon as is_within_epsilon, CASE "
       + "WHEN CURRENT_TIMESTAMP(3) < DATE_ADD(lease_acquisition_timestamp, INTERVAL linger*1000 MICROSECOND) then 1 "
       + "WHEN CURRENT_TIMESTAMP(3) >= DATE_ADD(lease_acquisition_timestamp, INTERVAL linger*1000 MICROSECOND) then 2 "
       + "ELSE 3 END as lease_validity_status, linger, "
@@ -269,7 +269,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     log.info("Multi-active scheduler about to handle trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
         flowAction, isReminderEvent ? "reminder" : "original", eventTimeMillis);
     // Query lease arbiter table about this flow action
-    Optional<GetEventInfoResult> getResult = getExistingEventInfo(flowAction, isReminderEvent);
+    Optional<GetEventInfoResult> getResult = getExistingEventInfo(flowAction, isReminderEvent, eventTimeMillis);
 
     // TODO: change all the `CASE N: ...` statements back to debug statements after uncovering issue
     try {
@@ -303,6 +303,12 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
                   + "violation encountered: a reminder event newer than db event was found when db laundering should "
                   + "ensure monotonically increasing laundered event times.", flowAction,
               isReminderEvent ? "reminder" : "original", eventTimeMillis, dbEventTimestamp.getTime());
+        }
+        if (eventTimeMillis == dbEventTimestamp.getTime()) {
+          // TODO: change this to a debug after fixing issue
+          log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Reminder event time"
+                  + "is the same as db event.", flowAction, isReminderEvent ? "reminder" : "original",
+              eventTimeMillis, dbEventTimestamp);
         }
       }
 
@@ -359,10 +365,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    * Checks leaseArbiterTable for an existing entry for this flow action and event time
    */
   protected Optional<GetEventInfoResult> getExistingEventInfo(DagActionStore.DagAction flowAction,
-      boolean isReminderEvent) throws IOException {
+      boolean isReminderEvent, long eventTimeMillis) throws IOException {
     return withPreparedStatement(isReminderEvent ? thisTableGetInfoStatementForReminder : thisTableGetInfoStatement,
         getInfoStatement -> {
           int i = 0;
+          if (isReminderEvent) {
+            getInfoStatement.setTimestamp(++i, new Timestamp(eventTimeMillis), UTC_CAL.get());
+          }
           getInfoStatement.setString(++i, flowAction.getFlowGroup());
           getInfoStatement.setString(++i, flowAction.getFlowName());
           getInfoStatement.setString(++i, flowAction.getFlowActionType().toString());
@@ -511,7 +520,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       return new LeaseObtainedStatus(flowAction, selectInfoResult.eventTimeMillis,
           selectInfoResult.getLeaseAcquisitionTimeMillis().get());
     }
-    log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: ",
+    log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: {}",
         flowAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant acquired lease in between
     return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
