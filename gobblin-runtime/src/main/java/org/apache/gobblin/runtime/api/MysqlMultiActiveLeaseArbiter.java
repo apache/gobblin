@@ -299,6 +299,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           return new NoLongerLeasingStatus();
         }
         if (eventTimeMillis > dbEventTimestamp.getTime()) {
+          // TODO: emit metric here to capture this unexpected behavior
           log.warn("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Severe constraint "
                   + "violation encountered: a reminder event newer than db event was found when db laundering should "
                   + "ensure monotonically increasing laundered event times.", flowAction,
