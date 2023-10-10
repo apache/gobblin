@@ -24,10 +24,12 @@ import org.apache.gobblin.configuration.State;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.StringWriter;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonWriter;
 
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.Watermark;
@@ -363,6 +365,57 @@ public class WorkUnit extends State {
     int result = super.hashCode();
     result = prime * result + ((this.extract == null) ? 0 : this.extract.hashCode());
     return result;
+  }
+
+  /** @return Stringified form, in pretty-printed JSON */
+  public String toJsonString() {
+    StringWriter stringWriter = new StringWriter();
+    try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
+      jsonWriter.setIndent("\t");
+      this.toJson(jsonWriter);
+    } catch (IOException ioe) {
+      // Ignored
+    }
+    return stringWriter.toString();
+  }
+
+  public void toJson(JsonWriter jsonWriter) throws IOException {
+    jsonWriter.beginObject();
+
+    jsonWriter.name("id").value(this.getId());
+    jsonWriter.name("properties");
+    jsonWriter.beginObject();
+    for (String key : this.getPropertyNames()) {
+      jsonWriter.name(key).value(this.getProp(key));
+    }
+    jsonWriter.endObject();
+
+    jsonWriter.name("extract");
+    jsonWriter.beginObject();
+    jsonWriter.name("extractId").value(this.getExtract().getId());
+    jsonWriter.name("extractProperties");
+    jsonWriter.beginObject();
+    for (String key : this.getExtract().getPropertyNames()) {
+      jsonWriter.name(key).value(this.getExtract().getProp(key));
+    }
+    jsonWriter.endObject();
+
+    State prevTableState = this.getExtract().getPreviousTableState();
+    if (prevTableState != null) {
+      jsonWriter.name("extractPrevTableState");
+      jsonWriter.beginObject();
+      jsonWriter.name("prevStateId").value(prevTableState.getId());
+      jsonWriter.name("prevStateProperties");
+      jsonWriter.beginObject();
+      for (String key : prevTableState.getPropertyNames()) {
+        jsonWriter.name(key).value(prevTableState.getProp(key));
+      }
+      jsonWriter.endObject();
+      jsonWriter.endObject();
+    }
+    jsonWriter.endObject();
+
+    jsonWriter.endObject();
   }
 
   public String getOutputFilePath() {

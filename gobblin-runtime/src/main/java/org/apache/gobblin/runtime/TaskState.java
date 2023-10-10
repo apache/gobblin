@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -296,6 +297,22 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     result = prime * result + this.jobId.hashCode();
     result = prime * result + this.taskId.hashCode();
     return result;
+  }
+
+  /** @return Stringified form, including all properties, in pretty-printed JSON */
+  public String toJsonString() {
+    return toJsonString(true);
+  }
+
+  public String toJsonString(boolean includeProperties) {
+    StringWriter stringWriter = new StringWriter();
+    try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
+      jsonWriter.setIndent("\t");
+      this.toJson(jsonWriter, includeProperties);
+    } catch (IOException ioe) {
+      // Ignored
+    }
+    return stringWriter.toString();
   }
 
   /**

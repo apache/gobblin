@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.cache.Cache;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 
@@ -34,8 +34,10 @@ import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.stream.JsonWriter;
 
 import lombok.AccessLevel;
 import lombok.EqualsAndHashCode;
@@ -130,6 +132,51 @@ public class CopyableFile extends CopyEntity implements File {
     this.originTimestamp = originTimestamp;
     this.upstreamTimestamp = upstreamTimestamp;
     this.datasetOutputPath = datasetOutputPath;
+  }
+
+  /** @return Stringified form, including metadata, in pretty-printed JSON */
+  public String toJsonString() {
+    return toJsonString(true);
+  }
+
+  public String toJsonString(boolean includeMetadata) {
+    StringWriter stringWriter = new StringWriter();
+    try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
+      jsonWriter.setIndent("\t");
+      this.toJson(jsonWriter, includeMetadata);
+    } catch (IOException ioe) {
+      // Ignored
+    }
+    return stringWriter.toString();
+  }
+
+  public void toJson(JsonWriter jsonWriter, boolean includeMetadata) throws IOException {
+    jsonWriter.beginObject();
+
+    jsonWriter
+        .name("file set").value(this.getFileSet())
+        .name("origin").value(this.getOrigin().toString())
+        .name("destination").value(this.getDestination().toString())
+        .name("destinationOwnerAndPermission").value(this.getDestinationOwnerAndPermission().toString())
+        // TODO:
+        // this.ancestorsOwnerAndPermission
+        // this.checksum
+        // this.preserve
+        // this.dataFileVersionStrategy
+        // this.originTimestamp
+        // this.upstreamTimestamp
+        .name("datasetOutputPath").value(this.getDatasetOutputPath().toString());
+
+    if (includeMetadata && this.getAdditionalMetadata() != null) {
+      jsonWriter.name("metadata");
+      jsonWriter.beginObject();
+      for (Map.Entry<String, String> entry : this.getAdditionalMetadata().entrySet()) {
+        jsonWriter.name(entry.getKey()).value(entry.getValue());
+      }
+      jsonWriter.endObject();
+    }
+
+    jsonWriter.endObject();
   }
 
   /**
