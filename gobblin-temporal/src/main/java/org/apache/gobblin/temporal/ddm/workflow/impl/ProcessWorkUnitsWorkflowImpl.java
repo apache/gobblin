@@ -33,7 +33,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   @Override
   public int process(WUProcessingSpec workSpec) {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createWorkloadProcessingWorkflow();
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow();
     return processingWorkflow.performWorkload(
         WFAddr.ROOT, workload, 0,
         workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()
@@ -44,7 +44,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getNameNodeUri(), workSpec.getWorkUnitsDir());
   }
 
-  protected NestingExecWorkflow<WorkUnitClaimCheck> createWorkloadProcessingWorkflow() {
+  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow() {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
         // TODO: determine whether a non-unique ID did or did not cause collision between separate, subsequent executions
