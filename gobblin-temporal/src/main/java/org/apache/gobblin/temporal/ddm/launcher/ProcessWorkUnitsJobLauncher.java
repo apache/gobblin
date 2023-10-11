@@ -52,6 +52,9 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
   public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NAME_NODE_URI = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "name.node.uri";
   public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_UNITS_DIR = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "work.units.dir";
 
+  public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "work.max.branches.per.tree";
+  public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "work.max.sub.trees.per.tree";
+
   public ProcessWorkUnitsJobLauncher(
       Properties jobProps,
       Path appWorkDir,
@@ -70,6 +73,12 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       // NOTE: `Path` is challenging for temporal to ser/de, but still pre-construct as `Path`, to validate prop str contents
       Path workUnitsDir = new Path(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_UNITS_DIR, "<<not-set>>"));
       WUProcessingSpec wuSpec = new WUProcessingSpec(nameNodeUri, workUnitsDir.toString());
+      if (this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE) &&
+          this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
+        int maxBranchesPerTree = Integer.valueOf(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE));
+        int maxSubTreesPerTree = Integer.valueOf(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE));
+        wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
+      }
       workflow.process(wuSpec);
     } catch (Exception e) {
       throw new RuntimeException(e);

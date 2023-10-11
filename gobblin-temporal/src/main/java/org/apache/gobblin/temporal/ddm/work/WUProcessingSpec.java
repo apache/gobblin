@@ -44,8 +44,8 @@ public class WUProcessingSpec {
   @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
   @RequiredArgsConstructor
   public static class Tuning {
-    public static int DEFAULT_MAX_BRANCHES_PER_TREE = 625;
-    public static int DEFAULT_SUB_TREES_PER_TREE = 25;
+    public static int DEFAULT_MAX_BRANCHES_PER_TREE = 900;
+    public static int DEFAULT_SUB_TREES_PER_TREE = 30;
 
     public static Tuning DEFAULT = new Tuning(DEFAULT_MAX_BRANCHES_PER_TREE, DEFAULT_SUB_TREES_PER_TREE);
 

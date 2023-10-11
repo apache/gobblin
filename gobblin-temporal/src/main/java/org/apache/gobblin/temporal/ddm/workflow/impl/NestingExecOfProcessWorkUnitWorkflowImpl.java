@@ -34,14 +34,14 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
 
   // RetryOptions specify how to automatically handle retries when Activities fail.
   private static final RetryOptions ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(1))
+      .setInitialInterval(Duration.ofSeconds(3))
       .setMaximumInterval(Duration.ofSeconds(100))
       .setBackoffCoefficient(2)
-      .setMaximumAttempts(3)
+      .setMaximumAttempts(4)
       .build();
 
   private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(10))
+      .setStartToCloseTimeout(Duration.ofSeconds(999))
       .setRetryOptions(ACTIVITY_RETRY_OPTS)
       .build();
 
