@@ -20,43 +20,36 @@ package org.apache.gobblin.temporal.ddm.activity.impl;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
 
-import com.typesafe.config.ConfigFactory;
-
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.AbstractTaskStateTracker;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
-import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskCreationException;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateTracker;
@@ -65,6 +58,7 @@ import org.apache.gobblin.runtime.troubleshooter.NoopAutomaticTroubleshooter;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
+import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
@@ -75,29 +69,13 @@ import org.apache.gobblin.util.SerializationUtils;
 public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   // TODO: replace w/ JobLauncherUtils (once committed)!!!
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
-  private static final String OUTPUT_DIR_NAME = "output";
-  private static final String WRITER_OUTPUT_DIR_KEY = ConfigurationKeys.WRITER_OUTPUT_DIR;
-  public static final int FS_CACHE_TTL_SECS = 60 * 60; // 5 * 60;
+  private static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
+  private static final int LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE = 100;
 
   private final State stateConfig;
-  // cache `FileSystem`s to avoid re-opening what a recent prior execution already has
-  private final transient LoadingCache<URI, FileSystem> fsByUri = CacheBuilder.newBuilder()
-      //!!!TODO: choose appropriate caching eviction/extension so handles don't expire mid-execution!!!!
-      .expireAfterWrite(FS_CACHE_TTL_SECS, TimeUnit.SECONDS)
-      .removalListener((RemovalNotification<URI, org.apache.hadoop.fs.FileSystem> notification) -> {
-        try {
-          notification.getValue().close(); // prevent resource leak from cache eviction
-        } catch (IOException ioe) {
-          log.warn("trouble closing (cache-evicted) `hadoop.fs.FileSystem` at '" + notification.getKey() + "'", ioe);
-          // otherwise swallow, since within a removal listener thread
-        }
-      })
-      .build(new CacheLoader<URI, FileSystem>() {
-    @Override
-    public FileSystem load(URI fsUri) throws IOException {
-      return ProcessWorkUnitImpl.this.loadFileSystemForUri(fsUri);
-    }
-  });
+
+  // treat `JobState` as immutable and cache, for reuse among activities executed by the same worker
+  private static final transient Cache<String, JobState> jobStateByPath = CacheBuilder.newBuilder().build();
 
   public ProcessWorkUnitImpl(Optional<State> optStateConfig) {
     this.stateConfig = optStateConfig.orElseGet(State::new);
@@ -112,9 +90,8 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     try {
       FileSystem fs = this.loadFileSystem(wu);
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
+      log.info("WU [{}] - loaded {} workUnits", wu.getCorrelator(), workUnits.size());
       JobState jobState = loadJobState(wu, fs);
-      String jobStateJson = jobState.toJsonString(true);
-      log.info("WU [{}] - loaded jobState from '{}': {}", wu.getCorrelator(), wu.getJobStatePath(), jobStateJson);
       return execute(workUnits, wu, jobState, fs);
     } catch (IOException | InterruptedException e) {
       /* for testing:
@@ -126,19 +103,16 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   }
 
   protected final FileSystem loadFileSystem(WorkUnitClaimCheck wu) throws IOException {
-    try {
-      return fsByUri.get(wu.getNameNodeUri());
-    } catch (ExecutionException ee) {
-      throw new IOException(ee);
-    }
+    // NOTE: `FileSystem.get` appears to implement caching, which should facilitate sharing among activities executing on the same worker
+    return loadFileSystemForUri(wu.getNameNodeUri());
   }
 
   protected List<WorkUnit> loadFlattenedWorkUnits(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
     Path wuPath = new Path(wu.getWorkUnitPath());
-    WorkUnit workUnit = (wuPath.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION) ? MultiWorkUnit.createEmpty()
+    WorkUnit workUnit = (wuPath.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)
+        ? MultiWorkUnit.createEmpty()
         : WorkUnit.createEmpty());
-    // TODO/WARNING: `fs` runs the risk of expiring while executing!!! -
-    SerializationUtils.deserializeState(fs, wuPath, workUnit);
+    deserializeStateWithRetries(wu, fs, wuPath, workUnit, MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS);
 
     return workUnit instanceof MultiWorkUnit
         ? JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits())
@@ -146,51 +120,91 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   }
 
   protected JobState loadJobState(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
+    try {
+      return jobStateByPath.get(wu.getJobStatePath(), () -> {
+        JobState jobState = loadJobStateUncached(wu, fs);
+        String jobStateJson = jobState.toJsonString(true);
+        log.info("WU [{}] - loaded jobState from '{}': {}", wu.getCorrelator(), wu.getJobStatePath(), jobStateJson);
+        return jobState;
+      });
+    } catch (ExecutionException ee) {
+      throw new IOException(ee);
+    }
+  }
+
+  protected JobState loadJobStateUncached(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
     Path jobStatePath = new Path(wu.getJobStatePath());
     JobState jobState = new JobState();
-    // TODO/WARNING: `fs` runs the risk of expiring while executing!!! -
-    SerializationUtils.deserializeState(fs, jobStatePath, jobState);
+    deserializeStateWithRetries(wu, fs, jobStatePath, jobState, MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS);
     return jobState;
   }
 
-  /** CAUTION: uncached form! prefer caching of {@link #loadFileSystem(WorkUnitClaimCheck)} */
+  // TODO: decide whether actually necessary...  it was added in a fit of debugging "FS closed" errors
+  protected <T extends State> void deserializeStateWithRetries(WorkUnitClaimCheck wu, FileSystem fs, Path path, T state, int maxAttempts)
+      throws IOException {
+    for (int i = 0; i < maxAttempts; ++i) {
+      if (i > 0) {
+        log.info("WU [{}] - reopening FS '{}' to retry ({}) deserialization (attempt {})", wu.getCorrelator(),
+            wu.getNameNodeUri(), state.getClass().getSimpleName(), i);
+        fs = loadFileSystem(wu);
+      }
+      try {
+        SerializationUtils.deserializeState(fs, path, state);
+        return;
+      } catch (IOException ioe) {
+        if (ioe.getMessage().equals("Filesystem closed") && i < maxAttempts - 1) {
+          continue;
+        } else {
+          throw ioe;
+        }
+      }
+    }
+  }
+
   protected FileSystem loadFileSystemForUri(URI fsUri) throws IOException {
-    return HadoopUtils.getFileSystem(fsUri, stateConfig);
+    // TODO - determine whether this works... unclear whether it led to "FS closed", or that had another cause...
+    // return HadoopUtils.getFileSystem(fsUri, stateConfig);
+    Configuration conf = HadoopUtils.getConfFromState(stateConfig);
+    return FileSystem.get(fsUri, conf);
   }
 
   /**
    * NOTE: adapted from {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher}!!!
-   * @return count of how many tasks submitted
+   * @return count of how many tasks executed (0 if execution ultimately failed, although we *believe* TaskState would have already been recorded beforehand)
    */
   protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs) throws IOException, InterruptedException {
-    String containerId = "the-container-id"; // TODO: set this... if it actually matters!
-    SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = getSharedResourcesBroker(jobState);
-    AutomaticTroubleshooter troubleshooter = new NoopAutomaticTroubleshooter();
-    // AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(wu.getStateConfig().getProperties()));
-    troubleshooter.start();
-
-    Path taskStateStorePath = getTaskStateStorePath(jobState, fs, resourcesBroker, troubleshooter);
-    log.info("WU [{}] - taskStateStore using path '{}'", wu.getCorrelator(), taskStateStorePath);
-    StateStore<TaskState> taskStateStore = new FsStateStore<>(fs, taskStateStorePath.toUri().getPath(), TaskState.class);
+    String containerId = "container-id-for-wu-" + wu.getCorrelator();
+    StateStore<TaskState> taskStateStore = JobStateUtils.openTaskStateStore(jobState, fs);
 
     TaskStateTracker taskStateTracker = createEssentializedTaskStateTracker(wu);
     TaskExecutor taskExecutor = new TaskExecutor(new Properties());
     GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy = GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE; // as no speculative exec
 
-    GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
-        jobState.getJobId(), containerId, jobState,
-        workUnits, taskStateTracker, taskExecutor, taskStateStore,
-        multiTaskAttemptCommitPolicy, resourcesBroker, troubleshooter.getIssueRepository(),
-        createInterruptionPredicate(fs, jobState));
-    Map<String, Long> wuCountByOutputPath = workUnits.stream()
-        .collect(Collectors.groupingBy(WorkUnit::getOutputFilePath, Collectors.counting()));
-    log.info("WU [{}] - submitted {} workUnits; outputPathCounts = {}", wu.getCorrelator(),
-        workUnits.size(), wuCountByOutputPath);
-    // log.info("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.get(0).toJsonString());
-    getOptFirstCopyableFile(workUnits, wu.getWorkUnitPath()).ifPresent(copyableFile -> {
-        log.info("WU [{} = {}] - (first) copy entity: {}", wu.getCorrelator(), copyableFile.toJsonString());
-    });
-    return taskAttempt.getNumTasksCreated();
+    SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = JobStateUtils.getSharedResourcesBroker(jobState);
+    AutomaticTroubleshooter troubleshooter = new NoopAutomaticTroubleshooter();
+    // AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(wu.getStateConfig().getProperties()));
+    troubleshooter.start();
+
+    List<String> fileSourcePaths = workUnits.stream()
+        .map(workUnit -> describeAsCopyableFile(workUnit, wu.getWorkUnitPath()))
+        .collect(Collectors.toList());
+    log.info("WU [{}] - submitting {} workUnits for copying files: {}", wu.getCorrelator(),
+        workUnits.size(), fileSourcePaths);
+    log.debug("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.get(0).toJsonString());
+
+    try {
+      GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
+          jobState.getJobId(), containerId, jobState, workUnits,
+          taskStateTracker, taskExecutor, taskStateStore, multiTaskAttemptCommitPolicy,
+          resourcesBroker, troubleshooter.getIssueRepository(), createInterruptionPredicate(fs, jobState));
+      return taskAttempt.getNumTasksCreated();
+    } catch (TaskCreationException tce) { // derived type of `IOException` that ought not be caught!
+      throw tce;
+    } catch (IOException ioe) {
+      // presume execution already occurred, with `TaskState` written to reflect outcome
+      log.warn("WU [" + wu.getCorrelator() + "] - continuing on despite IOException:", ioe);
+      return 0;
+    }
   }
 
   /** Demonstration processing to debug WU loading and deserialization */
@@ -198,27 +212,6 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     int totalNumProps = workUnits.stream().mapToInt(workUnit -> workUnit.getPropertyNames().size()).sum();
     log.info("opened WU [{}] to find {} properties total at '{}'", wu.getCorrelator(), totalNumProps, wu.getWorkUnitPath());
     return totalNumProps;
-  }
-
-  //!!!!!document dependence on MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
-  protected Path getTaskStateStorePath(JobState jobState, FileSystem fs, SharedResourcesBroker<GobblinScopeTypes> resourcesBroker,
-      AutomaticTroubleshooter troubleshooter) {
-    Properties jobProps = jobState.getProperties(); //???is this reasonable???
-    JobContext jobContext = null;
-    //!!!TODO - abstract this exception wrapping pattern!!!
-    try {
-      jobContext = new JobContext(jobProps, log, resourcesBroker, troubleshooter.getIssueRepository());
-    } catch (Exception e) {
-      new RuntimeException(e);
-    }
-    Path jobOutputPath = new Path(
-        new Path(
-            new Path(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
-                jobContext.getJobName()),
-            jobContext.getJobId()),
-        OUTPUT_DIR_NAME);
-    return fs.makeQualified(jobOutputPath);
   }
 
   protected TaskStateTracker createEssentializedTaskStateTracker(WorkUnitClaimCheck wu) {
@@ -237,16 +230,30 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       public void onTaskCommitCompletion(Task task) {
         TaskState taskState = task.getTaskState();
         // TODO: if metrics configured, report them now
-        log.info("WU [{} = {}] - finished commit after {}ms with state {} to: {}", wu.getCorrelator(), task.getTaskId(),
-            taskState.getTaskDuration(), taskState.getWorkingState(), taskState.getProp(WRITER_OUTPUT_DIR_KEY));
-        log.info("WU [{} = {}] - task state: {}", wu.getCorrelator(), task.getTaskId(),
-            taskState.toJsonString());
+        log.info("WU [{} = {}] - finished commit after {}ms with state {}{}", wu.getCorrelator(), task.getTaskId(),
+            taskState.getTaskDuration(), taskState.getWorkingState(),
+            taskState.getWorkingState().equals(WorkUnitState.WorkingState.SUCCESSFUL)
+                ? (" to: " + taskState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)) : "");
+        log.debug("WU [{} = {}] - task state: {}", wu.getCorrelator(), task.getTaskId(),
+            taskState.toJsonString(shouldUseExtendedLogging(wu)));
         getOptCopyableFile(taskState).ifPresent(copyableFile -> {
-          log.info("WU [{} = {}] - copy entity: {}", wu.getCorrelator(), task.getTaskId(),
-              copyableFile.toJsonString());
+          log.info("WU [{} = {}] - copyableFile: {}", wu.getCorrelator(), task.getTaskId(),
+              copyableFile.toJsonString(shouldUseExtendedLogging(wu)));
         });
       }
     };
+  }
+
+  protected String describeAsCopyableFile(WorkUnit workUnit, String workUnitPath) {
+    return getOptFirstCopyableFile(Lists.newArrayList(workUnit), workUnitPath)
+        .map(copyableFile -> copyableFile.getOrigin().getPath().toString())
+        .orElse(
+            "<<not a CopyableFile("
+                + getOptCopyEntityClass(workUnit, workUnitPath)
+                .map(Class::getSimpleName)
+                .orElse("<<not a CopyEntity!>>")
+                + "): '" + workUnitPath + "'"
+        );
   }
 
   protected Optional<CopyableFile> getOptCopyableFile(TaskState taskState) {
@@ -254,45 +261,40 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   }
 
   protected Optional<CopyableFile> getOptFirstCopyableFile(List<WorkUnit> workUnits, String workUnitPath) {
-    if (workUnits != null && workUnits.size() > 0) {
-      return getOptCopyableFile(workUnits.get(0), "workUnit '" + workUnitPath + "'");
-    } else {
-      return Optional.empty();
-    }
+    return Optional.of(workUnits).filter(wus -> wus.size() > 0).flatMap(wus ->
+      getOptCopyableFile(wus.get(0), "workUnit '" + workUnitPath + "'")
+    );
   }
 
   protected Optional<CopyableFile> getOptCopyableFile(State state, String logDesc) {
-    Class<?> copyEntityClass = null;
+    return getOptCopyEntityClass(state, logDesc).flatMap(copyEntityClass -> {
+      log.debug("(state) {} got (copyEntity) {}", state.getClass().getName(), copyEntityClass.getName());
+      if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
+        String serialization = state.getProp(CopySource.SERIALIZED_COPYABLE_FILE);
+        if (serialization != null) {
+          return Optional.of((CopyableFile) CopyEntity.deserialize(serialization));
+        }
+      }
+      return Optional.empty();
+    });
+  }
+
+  protected Optional<Class<?>> getOptCopyEntityClass(State state, String logDesc) {
     try {
-      copyEntityClass = CopySource.getCopyEntityClass(state);
+      return Optional.of(CopySource.getCopyEntityClass(state));
     } catch (IOException ioe) {
       log.warn(logDesc + " - failed getting copy entity class:", ioe);
       return Optional.empty();
     }
-    if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
-      String serialization = state.getProp(CopySource.SERIALIZED_COPYABLE_FILE);
-      if (serialization != null) {
-        return Optional.of((CopyableFile) CopyEntity.deserialize(serialization));
-      }
-    }
-    return Optional.empty();
   }
 
-  protected SharedResourcesBroker<GobblinScopeTypes> getSharedResourcesBroker(JobState jobState) {
-    SharedResourcesBroker<GobblinScopeTypes> globalBroker =
-        SharedResourcesBrokerFactory.createDefaultTopLevelBroker(
-            ConfigFactory.parseProperties(jobState.getProperties()),
-            GobblinScopeTypes.GLOBAL.defaultScopeInstance());
-    return globalBroker.newSubscopedBuilder(new JobScopeInstance(jobState.getJobName(), jobState.getJobId())).build();
-  }
-
-  Predicate<GobblinMultiTaskAttempt> createInterruptionPredicate(FileSystem fs, JobState jobState) {
-    // TODO - decide whether to use, and if so, employ a useful path; otherwise, just evaluate predicate to always false
+  protected Predicate<GobblinMultiTaskAttempt> createInterruptionPredicate(FileSystem fs, JobState jobState) {
+    // TODO - decide whether to support... and if so, employ a useful path; otherwise, just evaluate predicate to always false
     Path interruptionPath = new Path("/not/a/real/path/that/should/ever/exist!");
     return createInterruptionPredicate(fs, interruptionPath);
   }
 
-  Predicate<GobblinMultiTaskAttempt> createInterruptionPredicate(FileSystem fs, Path interruptionPath) {
+  protected Predicate<GobblinMultiTaskAttempt> createInterruptionPredicate(FileSystem fs, Path interruptionPath) {
     return  (gmta) -> {
       try {
         return fs.exists(interruptionPath);
@@ -300,5 +302,14 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
         return false;
       }
     };
+  }
+
+  protected boolean shouldUseExtendedLogging(WorkUnitClaimCheck wu) {
+    try {
+      return Long.valueOf(wu.getCorrelator()) % LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE == 0;
+    } catch (NumberFormatException nfe) {
+      log.warn("unexpected, non-numeric correlator: '{}'", wu.getCorrelator());
+      return false;
+    }
   }
 }
