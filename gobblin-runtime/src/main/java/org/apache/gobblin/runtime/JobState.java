@@ -64,6 +64,7 @@ import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ImmutableProperties;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -170,6 +171,11 @@ public class JobState extends SourceState implements JobProgress {
 
   public static String getJobNameFromProps(Properties props) {
     return props.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  public static String getJobIdFromProps(Properties props) {
+    return props.containsKey(ConfigurationKeys.JOB_ID_KEY) ? props.getProperty(ConfigurationKeys.JOB_ID_KEY)
+        : JobLauncherUtils.newJobId(JobState.getJobNameFromProps(props));
   }
 
   public static String getJobGroupFromState(State state) {

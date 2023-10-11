@@ -140,10 +140,9 @@ public class JobContext implements Closeable {
         "A job must have a job name specified by job.name");
 
     this.jobName = JobState.getJobNameFromProps(jobProps);
-    this.jobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY) ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)
-        : JobLauncherUtils.newJobId(this.jobName);
+    this.jobId = JobState.getJobIdFromProps(jobProps);
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId); // in case not yet directly defined as such
     this.jobSequence = Long.toString(Id.Job.parse(this.jobId).getSequence());
-    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, this.jobId);
 
     this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId))
         .withOverridingConfig(ConfigUtils.propertiesToConfig(jobProps)).build();
