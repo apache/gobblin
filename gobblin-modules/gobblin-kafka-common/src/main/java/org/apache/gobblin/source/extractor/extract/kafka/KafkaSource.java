@@ -18,6 +18,7 @@
 package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +62,7 @@ import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaCo
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.EventBasedSource;
+import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker;
 import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
 import org.apache.gobblin.source.extractor.extract.kafka.validator.TopicValidators;
 import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
@@ -269,20 +272,104 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
       // but aren't processed).
       createEmptyWorkUnitsForSkippedPartitions(workUnits, topicSpecificStateMap, state);
-      //determine the number of mappers
-      int maxMapperNum =
-          state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
+
       KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state, Optional.of(this.metricContext));
-      int numOfMultiWorkunits = maxMapperNum;
-      if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
-        double totalEstDataSize = kafkaWorkUnitPacker.setWorkUnitEstSizes(workUnits);
-        LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
-        double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
-        numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize) + 1;
-        numOfMultiWorkunits = Math.min(numOfMultiWorkunits, maxMapperNum);
+      int numOfMultiWorkunits= 0;
+      if(!(kafkaWorkUnitPacker instanceof KafkaTopicGroupingWorkUnitPacker)) {
+        numOfMultiWorkunits = calculateNumMappersForPacker(state, kafkaWorkUnitPacker, workUnits);
       }
       addTopicSpecificPropsToWorkUnits(workUnits, topicSpecificStateMap);
       List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
+      setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
+      return workUnitList;
+    } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+      throw new RuntimeException("Checked exception caught", e);
+    } catch (Throwable t) {
+      throw new RuntimeException("Unexpected throwable caught, ", t);
+    } finally {
+      try {
+        GobblinKafkaConsumerClient consumerClient = this.kafkaConsumerClient.get();
+        if (consumerClient != null) {
+          consumerClient.close();
+        }
+        // cleanup clients from pool
+        for (GobblinKafkaConsumerClient client: kafkaConsumerClientPool) {
+          client.close();
+        }
+      } catch (Throwable t) {
+        //Swallow any exceptions in the finally{..} block to allow potential exceptions from the main try{..} block to be
+        //propagated
+        LOG.error("Exception {} encountered closing GobblinKafkaConsumerClient ", t);
+      }
+    }
+  }
+
+  public List<WorkUnit> getWorkunitsForFilteredPartitions(SourceState state, Map<String, List<String>> filteredTopicPartitionMap, int minContainer) {
+    Map<String, List<WorkUnit>> kafkaTopicWorkunitMap = Maps.newConcurrentMap();
+    Collection<KafkaTopic> topics;
+    try {
+      Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory = kafkaConsumerClientResolver
+          .resolveClass(
+              state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+                  DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
+
+      this.kafkaConsumerClient.set(kafkaConsumerClientFactory.create(config));
+      topics = this.kafkaConsumerClient.get().getTopics(filteredTopicPartitionMap.keySet());
+
+      Map<String, State> topicSpecificStateMap =
+          DatasetUtils.getDatasetSpecificProps(Iterables.transform(topics, new Function<KafkaTopic, String>() {
+
+            @Override
+            public String apply(KafkaTopic topic) {
+              return topic.getName();
+            }
+          }), state);
+
+      int numOfThreads = Math.min(topics.size(), state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
+          ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT));
+      ExecutorService threadPool =
+          Executors.newFixedThreadPool(numOfThreads, ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
+
+      if (state.getPropAsBoolean(ConfigurationKeys.KAFKA_SOURCE_SHARE_CONSUMER_CLIENT,
+          ConfigurationKeys.DEFAULT_KAFKA_SOURCE_SHARE_CONSUMER_CLIENT)) {
+        this.sharedKafkaConsumerClient = this.kafkaConsumerClient.get();
+      } else {
+        // preallocate one client per thread
+        populateClientPool(3, kafkaConsumerClientFactory, config);
+      }
+
+      Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
+      for (KafkaTopic topic : topics) {
+        LOG.info("Trying to re-compute the workunit for topic {} with filtered partitions: {}",
+            topic.getName(), filteredTopicPartitionMap.get(topic.getName()));
+        if (topic.getTopicSpecificState().isPresent()) {
+          topicSpecificStateMap.computeIfAbsent(topic.getName(), k -> new State())
+              .addAllIfNotExist(topic.getTopicSpecificState().get());
+        }
+        Set<Integer> partitionIDSet = filteredTopicPartitionMap.get(topic.getName())
+            .stream().map(Integer::parseInt).collect(Collectors.toSet());
+        threadPool.submit(
+            new WorkUnitCreator(topic, state, Optional.fromNullable(topicSpecificStateMap.get(topic.getName())),
+                kafkaTopicWorkunitMap, partitionIDSet));
+      }
+      ExecutorsUtils.shutdownExecutorService(threadPool, Optional.of(LOG), 1L, TimeUnit.HOURS);
+      LOG.info("Created workunits for {} topics in {} seconds", kafkaTopicWorkunitMap.size(),
+          createWorkUnitStopwatch.elapsed(TimeUnit.SECONDS));
+
+      // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
+      // but aren't processed).
+      createEmptyWorkUnitsForSkippedPartitions(kafkaTopicWorkunitMap, topicSpecificStateMap, state);
+      KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state, Optional.of(this.metricContext));
+      int numOfMultiWorkunits = minContainer;
+      if(state.contains(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
+        numOfMultiWorkunits = Math.max(numOfMultiWorkunits,
+            calculateNumMappersForPacker(state, kafkaWorkUnitPacker, kafkaTopicWorkunitMap));
+      }
+      addTopicSpecificPropsToWorkUnits(kafkaTopicWorkunitMap, topicSpecificStateMap);
+      // TODO: numOfMultiWorkunits is currently not used in the #KafkaTopicGroupingWorkUnitPacker.pack() method.
+      //  Next step is utilize this number to determine the container count
+      List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(kafkaTopicWorkunitMap, numOfMultiWorkunits);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
@@ -377,10 +464,31 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
   }
 
+  //determine the number of mappers/containers for workunit packer
+  private int calculateNumMappersForPacker(SourceState state,
+      KafkaWorkUnitPacker kafkaWorkUnitPacker, Map<String, List<WorkUnit>> workUnits) {
+    int maxMapperNum =
+        state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
+    int numContainers = maxMapperNum;
+    if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
+      double totalEstDataSize = kafkaWorkUnitPacker.setWorkUnitEstSizes(workUnits);
+      LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
+      double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
+      numContainers = (int) (totalEstDataSize / targetMapperSize) + 1;
+      numContainers = Math.min(numContainers, maxMapperNum);
+    }
+    return numContainers;
+  }
+
   /*
    * This function need to be thread safe since it is called in the Runnable
    */
   private List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state, Optional<State> topicSpecificState) {
+    return this.getWorkUnitsForTopic(topic, state, topicSpecificState, Optional.absent());
+  }
+
+  private List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state,
+      Optional<State> topicSpecificState, Optional<Set<Integer>> filteredPartitions) {
     Timer.Context context = this.metricContext.timer("isTopicQualifiedTimer").time();
     boolean topicQualified = isTopicQualified(topic);
     context.close();
@@ -388,6 +496,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     List<KafkaPartition> topicPartitions = topic.getPartitions();
     for (KafkaPartition partition : topicPartitions) {
+      if(filteredPartitions.isPresent() && !filteredPartitions.get().contains(partition.getId())) {
+        continue;
+      }
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
       if (workUnit != null) {
         // For disqualified topics, for each of its workunits set the high watermark to be the same
@@ -895,6 +1006,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     private final SourceState state;
     private final Optional<State> topicSpecificState;
     private final Map<String, List<WorkUnit>> allTopicWorkUnits;
+    private final Optional<Set<Integer>> filteredPartitionsId;
 
     WorkUnitCreator(KafkaTopic topic, SourceState state, Optional<State> topicSpecificState,
         Map<String, List<WorkUnit>> workUnits) {
@@ -902,6 +1014,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       this.state = state;
       this.topicSpecificState = topicSpecificState;
       this.allTopicWorkUnits = workUnits;
+      this.filteredPartitionsId = Optional.absent();
+    }
+
+    WorkUnitCreator(KafkaTopic topic, SourceState state, Optional<State> topicSpecificState,
+        Map<String, List<WorkUnit>> workUnits, Set<Integer> filteredPartitionsId) {
+      this.topic = topic;
+      this.state = state;
+      this.topicSpecificState = topicSpecificState;
+      this.allTopicWorkUnits = workUnits;
+      this.filteredPartitionsId = Optional.of(filteredPartitionsId);
     }
 
     @Override
@@ -917,7 +1039,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
 
         this.allTopicWorkUnits.put(this.topic.getName(),
-            KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState));
+            KafkaSource.this.getWorkUnitsForTopic(this.topic, this.state, this.topicSpecificState, this.filteredPartitionsId));
       } catch (Throwable t) {
         LOG.error("Caught error in creating work unit for " + this.topic.getName(), t);
         throw new RuntimeException(t);
