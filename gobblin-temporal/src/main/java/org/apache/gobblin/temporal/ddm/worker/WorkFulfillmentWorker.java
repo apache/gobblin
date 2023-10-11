@@ -17,8 +17,12 @@
 
 package org.apache.gobblin.temporal.ddm.worker;
 
+import java.util.concurrent.TimeUnit;
+
 import com.typesafe.config.Config;
 import io.temporal.client.WorkflowClient;
+import io.temporal.worker.WorkerOptions;
+
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.NestingExecOfProcessWorkUnitWorkflowImpl;
@@ -27,6 +31,8 @@ import org.apache.gobblin.temporal.ddm.workflow.impl.ProcessWorkUnitsWorkflowImp
 
 /** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
 public class WorkFulfillmentWorker extends AbstractTemporalWorker {
+    public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120;
+
     public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
     }
@@ -39,5 +45,13 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     @Override
     protected Object[] getActivityImplInstances() {
         return new Object[] { new ProcessWorkUnitImpl() };
+    }
+
+    @Override
+    protected WorkerOptions createWorkerOptions() {
+        return WorkerOptions.newBuilder()
+            // default is only 1s - WAY TOO SHORT for `o.a.hadoop.fs.FileSystem.listStatus`!
+            .setDefaultDeadlockDetectionTimeout(TimeUnit.SECONDS.toMillis(DEADLOCK_DETECTION_TIMEOUT_SECONDS))
+            .build();
     }
 }

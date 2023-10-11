@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -46,7 +47,7 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
 
     @Override
     public void start() {
-        Worker worker = workerFactory.newWorker(queueName);
+        Worker worker = workerFactory.newWorker(queueName, createWorkerOptions());
         // This Worker hosts both Workflow and Activity implementations.
         // Workflows are stateful, so you need to supply a type to create instances.
         worker.registerWorkflowImplementationTypes(getWorkflowImplClasses());
@@ -59,6 +60,10 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
     @Override
     public void shutdown() {
         workerFactory.shutdown();
+    }
+
+    protected WorkerOptions createWorkerOptions() {
+        return null;
     }
 
     /** @return workflow types for *implementation* classes (not interface) */
