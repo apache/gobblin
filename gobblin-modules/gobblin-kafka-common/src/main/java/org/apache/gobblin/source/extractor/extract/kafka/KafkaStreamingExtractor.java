@@ -97,7 +97,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
       kafkaConsumerClientResolver;
   private final ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
   private final Map<String, AtomicDouble> consumerMetricsGauges = new ConcurrentHashMap<>();
-  private final KafkaExtractorStatsTracker statsTracker;
+  protected final KafkaExtractorStatsTracker statsTracker;
   private final KafkaProduceRateTracker produceRateTracker;
   private final List<KafkaPartition> partitions;
   private final long extractorStatsReportingTimeIntervalMillis;
@@ -107,8 +107,8 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
   private final String recordCreationTimestampFieldName;
   private final TimeUnit recordCreationTimestampUnit;
 
-  private Iterator<KafkaConsumerRecord> messageIterator = null;
-  private long readStartTime;
+  protected Iterator<KafkaConsumerRecord> messageIterator = null;
+  protected long readStartTime;
   private long lastExtractorStatsReportingTime;
   private Map<KafkaPartition, Long> latestOffsetMap = Maps.newHashMap();
 
@@ -116,7 +116,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
   protected MultiLongWatermark highWatermark;
   protected MultiLongWatermark nextWatermark;
   protected Map<Integer, DecodeableKafkaRecord> perPartitionLastSuccessfulRecord;
-  private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+  protected final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 
   @Override
   public void shutdown() {
@@ -352,6 +352,24 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     return tags;
   }
 
+  protected RecordEnvelope<DecodeableKafkaRecord> decodeRecord (KafkaConsumerRecord kafkaConsumerRecord, int partitionIndex) {
+    // track time for converting KafkaConsumerRecord to a RecordEnvelope
+    long decodeStartTime = System.nanoTime();
+    KafkaPartition topicPartition =
+        new KafkaPartition.Builder().withTopicName(kafkaConsumerRecord.getTopic()).withId(kafkaConsumerRecord.getPartition()).build();
+    RecordEnvelope<DecodeableKafkaRecord> recordEnvelope = new RecordEnvelope(kafkaConsumerRecord,
+        new KafkaWatermark(topicPartition, new LongWatermark(kafkaConsumerRecord.getOffset())));
+    recordEnvelope.setRecordMetadata("topicPartition", topicPartition);
+    recordEnvelope.setRecordMetadata(DATASET_KEY, topicPartition.getTopicName());
+    recordEnvelope.setRecordMetadata(DATASET_PARTITION_KEY, "" + topicPartition.getId());
+    this.statsTracker.onDecodeableRecord(partitionIndex, readStartTime, decodeStartTime,
+        kafkaConsumerRecord.getValueSizeInBytes(),
+        kafkaConsumerRecord.isTimestampLogAppend() ? kafkaConsumerRecord.getTimestamp() : 0L,
+        (this.recordCreationTimestampFieldName != null) ? kafkaConsumerRecord.getRecordCreationTimestamp(
+            this.recordCreationTimestampFieldName, this.recordCreationTimestampUnit) : 0L);
+    return recordEnvelope;
+  }
+
   /**
    * Return the next record. Return null if we're shutdown.
    */
@@ -363,6 +381,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     }
     this.readStartTime = System.nanoTime();
     long fetchStartTime = System.nanoTime();
+    boolean consumeNewBuffer = false;
     try {
       DecodeableKafkaRecord kafkaConsumerRecord;
       while(true) {
@@ -375,6 +394,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
           try {
             fetchStartTime = System.nanoTime();
             this.messageIterator = this.kafkaConsumerClient.consume();
+            consumeNewBuffer = true;
           } catch (Exception e) {
             log.error("Failed to consume from Kafka", e);
           }
@@ -393,22 +413,11 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
       }
 
       int partitionIndex = this.partitionIdToIndexMap.get(kafkaConsumerRecord.getPartition());
-      this.statsTracker.onFetchNextMessageBuffer(partitionIndex, fetchStartTime);
+      if (consumeNewBuffer) {
+        this.statsTracker.onFetchNextMessageBuffer(partitionIndex, fetchStartTime);
+      }
 
-      // track time for converting KafkaConsumerRecord to a RecordEnvelope
-      long decodeStartTime = System.nanoTime();
-      KafkaPartition topicPartition =
-          new KafkaPartition.Builder().withTopicName(kafkaConsumerRecord.getTopic()).withId(kafkaConsumerRecord.getPartition()).build();
-      RecordEnvelope<DecodeableKafkaRecord> recordEnvelope = new RecordEnvelope(kafkaConsumerRecord,
-          new KafkaWatermark(topicPartition, new LongWatermark(kafkaConsumerRecord.getOffset())));
-      recordEnvelope.setRecordMetadata("topicPartition", topicPartition);
-      recordEnvelope.setRecordMetadata(DATASET_KEY, topicPartition.getTopicName());
-      recordEnvelope.setRecordMetadata(DATASET_PARTITION_KEY, "" + topicPartition.getId());
-      this.statsTracker.onDecodeableRecord(partitionIndex, readStartTime, decodeStartTime,
-          kafkaConsumerRecord.getValueSizeInBytes(),
-          kafkaConsumerRecord.isTimestampLogAppend() ? kafkaConsumerRecord.getTimestamp() : 0L,
-          (this.recordCreationTimestampFieldName != null) ? kafkaConsumerRecord.getRecordCreationTimestamp(
-              this.recordCreationTimestampFieldName, this.recordCreationTimestampUnit) : 0L);
+     RecordEnvelope<DecodeableKafkaRecord> recordEnvelope = decodeRecord(kafkaConsumerRecord, partitionIndex);
       this.perPartitionLastSuccessfulRecord.put(partitionIndex, kafkaConsumerRecord);
       this.nextWatermark.set(partitionIndex, kafkaConsumerRecord.getNextOffset());
       return recordEnvelope;
@@ -421,17 +430,19 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     }
   }
 
-  private boolean shouldLogError() {
+  protected boolean shouldLogError() {
     return (this.statsTracker.getUndecodableMessageCount() + this.statsTracker.getNullRecordCount()) <= MAX_LOG_ERRORS;
   }
 
   @Override
   protected void onFlushAck() throws IOException {
-    try {
-      //Refresh the latest offsets of TopicPartitions processed by the KafkaExtractor.
-      this.latestOffsetMap = this.kafkaConsumerClient.getLatestOffsets(this.partitions);
-    } catch (KafkaOffsetRetrievalFailureException e) {
-      log.error("Unable to retrieve latest offsets due to {}", e);
+    synchronized (this.kafkaConsumerClient) {
+      try {
+        //Refresh the latest offsets of TopicPartitions processed by the KafkaExtractor.
+        this.latestOffsetMap = this.kafkaConsumerClient.getLatestOffsets(this.partitions);
+      } catch (KafkaOffsetRetrievalFailureException e) {
+        log.error("Unable to retrieve latest offsets due to {}", e);
+      }
     }
     long currentTime = System.currentTimeMillis();
     //Update the watermarks to include the current topic partition produce rates

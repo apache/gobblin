@@ -141,6 +141,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   private final ContainerCapacityComputationStrategy containerCapacityComputationStrategy;
   private final Map<String, KafkaStreamingExtractor.KafkaWatermark> lastCommittedWatermarks = Maps.newHashMap();
   private final Map<String, List<Double>> capacitiesByTopic = Maps.newHashMap();
+  private final Map<String, Long> maxAvgRecordSizeByTopic = Maps.newHashMap();
   private final EventSubmitter eventSubmitter;
   private SourceState state;
 
@@ -274,6 +275,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
     for (Map.Entry<String, List<WorkUnit>> entry : workUnitsByTopic.entrySet()) {
       String topic = entry.getKey();
       List<WorkUnit> workUnits = entry.getValue();
+      long maxAvgSize = -1;
       for (WorkUnit workUnit : workUnits) {
         int partitionId = Integer.parseInt(workUnit.getProp(KafkaSource.PARTITION_ID));
         String topicPartition = new KafkaPartition.Builder().withTopicName(topic).withId(partitionId).build().toString();
@@ -285,8 +287,12 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         // avgRecordSize is unknown when bootstrapping. so skipping setting this
         // and ORC writer will use the default setting for the tunning feature.
         if (watermark != null && watermark.getAvgRecordSize() > 0) {
+          maxAvgSize = Math.max(maxAvgSize, watermark.getAvgRecordSize());
           workUnit.setProp(ConfigurationKeys.AVG_RECORD_SIZE, watermark.getAvgRecordSize());
         }
+      }
+      if (maxAvgSize > 0) {
+        maxAvgRecordSizeByTopic.put(topic, maxAvgSize);
       }
     }
   }
@@ -334,7 +340,10 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         // Select a sample WU.
         WorkUnit indexedWorkUnit = mwu.getWorkUnits().get(0);
         List<KafkaPartition> topicPartitions = getPartitionsFromMultiWorkUnit(mwu);
-
+        String topic = topicPartitions.get(0).getTopicName();
+        if (maxAvgRecordSizeByTopic.containsKey(topic)) {
+          indexedWorkUnit.setProp(ConfigurationKeys.AVG_RECORD_SIZE, maxAvgRecordSizeByTopic.get(topic));
+        }
         // Indexing all topics/partitions into this WU.
         populateMultiPartitionWorkUnit(topicPartitions, indexedWorkUnit);
 

@@ -200,6 +200,9 @@ public class KafkaProduceRateTracker {
       //must equal the peak consumption rate.
       consumeRate = consumeRate >= 0 ? updateMovingAverage(getPenultimateElement(consumptionRateMBps), consumeRate)
           : this.statsTracker.getConsumptionRateMBps();
+    } else if (consumeRate < this.statsTracker.getConsumptionRateMBps()) {
+      // Probably meet slow container when last backlogged, so update it to be current consumption rate
+      consumeRate = this.statsTracker.getConsumptionRateMBps();
     }
     return new TopicPartitionStats(historicProduceRates, consumeRate, newAvgRecordSize, currentProduceRate);
   }
