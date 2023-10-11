@@ -641,7 +641,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               @Override
               public void apply(JobListener jobListener, JobContext jobContext)
                   throws Exception {
-                jobListener.onJobFailure(jobContext);
+                jobListener.onJobCompletion(jobContext);
               }
             });
           } else {
@@ -676,7 +676,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
                 @Override
                 public void apply(JobListener jobListener, JobContext jobContext)
                     throws Exception {
-                  jobListener.onJobFailure(jobContext);
+                  jobListener.onJobCompletion(jobContext);
                 }
               });
             }
