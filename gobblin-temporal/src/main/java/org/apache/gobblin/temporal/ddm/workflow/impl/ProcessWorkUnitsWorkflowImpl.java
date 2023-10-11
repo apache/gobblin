@@ -24,7 +24,7 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
-import org.apache.gobblin.temporal.util.nesting.work.WFAddr;
+import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 
@@ -35,13 +35,13 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow();
     return processingWorkflow.performWorkload(
-        WFAddr.ROOT, workload, 0,
+        WorkflowAddr.ROOT, workload, 0,
         workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()
     );
   }
 
   protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {
-    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getNameNodeUri(), workSpec.getWorkUnitsDir());
+    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir());
   }
 
   protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow() {
