@@ -18,21 +18,16 @@
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -59,39 +54,24 @@ import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
-import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.util.SerializationUtils;
 
 
 @Slf4j
 public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   // TODO: replace w/ JobLauncherUtils (once committed)!!!
   private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
-  private static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
   private static final int LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE = 100;
-
-  private final State stateConfig;
-
-  // treat `JobState` as immutable and cache, for reuse among activities executed by the same worker
-  private static final transient Cache<String, JobState> jobStateByPath = CacheBuilder.newBuilder().build();
-
-  public ProcessWorkUnitImpl(Optional<State> optStateConfig) {
-    this.stateConfig = optStateConfig.orElseGet(State::new);
-  }
-
-  public ProcessWorkUnitImpl() {
-    this(Optional.empty());
-  }
 
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
     try {
-      FileSystem fs = this.loadFileSystem(wu);
+      FileSystem fs = Help.loadFileSystem(wu);
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
       log.info("WU [{}] - loaded {} workUnits", wu.getCorrelator(), workUnits.size());
-      JobState jobState = loadJobState(wu, fs);
+      JobState jobState = Help.loadJobState(wu, fs);
       return execute(workUnits, wu, jobState, fs);
     } catch (IOException | InterruptedException e) {
       /* for testing:
@@ -102,70 +82,16 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     }
   }
 
-  protected final FileSystem loadFileSystem(WorkUnitClaimCheck wu) throws IOException {
-    // NOTE: `FileSystem.get` appears to implement caching, which should facilitate sharing among activities executing on the same worker
-    return loadFileSystemForUri(wu.getNameNodeUri());
-  }
-
   protected List<WorkUnit> loadFlattenedWorkUnits(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
     Path wuPath = new Path(wu.getWorkUnitPath());
     WorkUnit workUnit = (wuPath.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)
         ? MultiWorkUnit.createEmpty()
         : WorkUnit.createEmpty());
-    deserializeStateWithRetries(wu, fs, wuPath, workUnit, MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS);
+    Help.deserializeStateWithRetries(fs, wuPath, workUnit, wu);
 
     return workUnit instanceof MultiWorkUnit
         ? JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits())
         : Lists.newArrayList(workUnit);
-  }
-
-  protected JobState loadJobState(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
-    try {
-      return jobStateByPath.get(wu.getJobStatePath(), () -> {
-        JobState jobState = loadJobStateUncached(wu, fs);
-        String jobStateJson = jobState.toJsonString(true);
-        log.info("WU [{}] - loaded jobState from '{}': {}", wu.getCorrelator(), wu.getJobStatePath(), jobStateJson);
-        return jobState;
-      });
-    } catch (ExecutionException ee) {
-      throw new IOException(ee);
-    }
-  }
-
-  protected JobState loadJobStateUncached(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
-    Path jobStatePath = new Path(wu.getJobStatePath());
-    JobState jobState = new JobState();
-    deserializeStateWithRetries(wu, fs, jobStatePath, jobState, MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS);
-    return jobState;
-  }
-
-  // TODO: decide whether actually necessary...  it was added in a fit of debugging "FS closed" errors
-  protected <T extends State> void deserializeStateWithRetries(WorkUnitClaimCheck wu, FileSystem fs, Path path, T state, int maxAttempts)
-      throws IOException {
-    for (int i = 0; i < maxAttempts; ++i) {
-      if (i > 0) {
-        log.info("WU [{}] - reopening FS '{}' to retry ({}) deserialization (attempt {})", wu.getCorrelator(),
-            wu.getNameNodeUri(), state.getClass().getSimpleName(), i);
-        fs = loadFileSystem(wu);
-      }
-      try {
-        SerializationUtils.deserializeState(fs, path, state);
-        return;
-      } catch (IOException ioe) {
-        if (ioe.getMessage().equals("Filesystem closed") && i < maxAttempts - 1) {
-          continue;
-        } else {
-          throw ioe;
-        }
-      }
-    }
-  }
-
-  protected FileSystem loadFileSystemForUri(URI fsUri) throws IOException {
-    // TODO - determine whether this works... unclear whether it led to "FS closed", or that had another cause...
-    // return HadoopUtils.getFileSystem(fsUri, stateConfig);
-    Configuration conf = HadoopUtils.getConfFromState(stateConfig);
-    return FileSystem.get(fsUri, conf);
   }
 
   /**
@@ -174,7 +100,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
    */
   protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs) throws IOException, InterruptedException {
     String containerId = "container-id-for-wu-" + wu.getCorrelator();
-    StateStore<TaskState> taskStateStore = JobStateUtils.openTaskStateStore(jobState, fs);
+    StateStore<TaskState> taskStateStore = Help.openTaskStateStore(wu, fs);
 
     TaskStateTracker taskStateTracker = createEssentializedTaskStateTracker(wu);
     TaskExecutor taskExecutor = new TaskExecutor(new Properties());
@@ -237,7 +163,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
         log.debug("WU [{} = {}] - task state: {}", wu.getCorrelator(), task.getTaskId(),
             taskState.toJsonString(shouldUseExtendedLogging(wu)));
         getOptCopyableFile(taskState).ifPresent(copyableFile -> {
-          log.info("WU [{} = {}] - copyableFile: {}", wu.getCorrelator(), task.getTaskId(),
+          log.info("WU [{} = {}] - completed copyableFile: {}", wu.getCorrelator(), task.getTaskId(),
               copyableFile.toJsonString(shouldUseExtendedLogging(wu)));
         });
       }

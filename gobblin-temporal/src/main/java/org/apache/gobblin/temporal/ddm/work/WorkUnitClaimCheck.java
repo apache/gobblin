@@ -22,10 +22,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.apache.hadoop.fs.Path;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 
 /**
  * Conveys a {@link org.apache.gobblin.source.workunit.WorkUnit} by claim-check, where the `workUnitPath` is resolved
@@ -35,15 +37,22 @@ import org.apache.gobblin.runtime.AbstractJobLauncher;
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class WorkUnitClaimCheck {
+public class WorkUnitClaimCheck implements FileSystemApt, FileSystemJobStateful {
   @NonNull private String correlator;
-  @NonNull private URI nameNodeUri;
+  @NonNull private URI fileSystemUri;
   @NonNull private String workUnitPath;
   @NonNull private State stateConfig; // TODO - verify this is the right granularity for carrying this
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
-  public String getJobStatePath() {
+  @Override
+  public State getFileSystemConfig() {
+    return stateConfig;
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  @Override
+  public Path getJobStatePath() {
     // TODO: decide whether wise to hard-code... (per `MRJobLauncher` conventions, we expect job state file to be sibling of WU dir)
-    return new Path(new Path(workUnitPath).getParent().getParent(), AbstractJobLauncher.JOB_STATE_FILE_NAME).toString();
+    return new Path(new Path(workUnitPath).getParent().getParent(), AbstractJobLauncher.JOB_STATE_FILE_NAME);
   }
 }

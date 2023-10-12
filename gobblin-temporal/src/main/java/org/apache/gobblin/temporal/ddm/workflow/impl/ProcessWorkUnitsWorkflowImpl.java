@@ -41,7 +41,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {
-    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getNameNodeUri(), workSpec.getWorkUnitsDir());
+    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir());
   }
 
   protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow() {

@@ -23,6 +23,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.hadoop.fs.Path;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.util.nesting.work.WFAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
@@ -34,10 +40,23 @@ import org.apache.gobblin.temporal.util.nesting.work.Workload;
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class WUProcessingSpec {
-  @NonNull private URI nameNodeUri;
+public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
+  @NonNull private URI fileSystemUri;
   @NonNull private String workUnitsDir;
   @NonNull private Tuning tuning = Tuning.DEFAULT;
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  @Override
+  public State getFileSystemConfig() {
+    return new State(); // TODO!
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  @Override
+  public Path getJobStatePath() {
+    // TODO: decide whether wise to hard-code... (per `MRJobLauncher` conventions, we expect job state file to be sibling of WU dir)
+    return new Path(new Path(workUnitsDir).getParent(), AbstractJobLauncher.JOB_STATE_FILE_NAME);
+  }
 
   /** Configuration for {@link org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow#performWorkload(WFAddr, Workload, int, int, int, Optional)}*/
   @Data

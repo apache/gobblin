@@ -18,8 +18,12 @@
 package org.apache.gobblin.temporal.ddm.util;
 
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -40,9 +44,23 @@ import org.apache.gobblin.runtime.TaskState;
 public class JobStateUtils {
   private static final String OUTPUT_DIR_NAME = "output"; // following MRJobLauncher.OUTPUT_DIR_NAME
 
+  // reuse same handle among activities executed by the same worker
+  private static final transient Cache<Path, StateStore<TaskState>> taskStateStoreByPath = CacheBuilder.newBuilder().build();
+
   private JobStateUtils() {}
 
   public static StateStore<TaskState> openTaskStateStore(JobState jobState, FileSystem fs) {
+    try {
+      Path taskStateStorePath = JobStateUtils.getTaskStateStorePath(jobState, fs);
+      return taskStateStoreByPath.get(taskStateStorePath, () ->
+          openTaskStateStoreUncached(jobState, fs)
+      );
+    } catch (ExecutionException ee) {
+      throw new RuntimeException(ee);
+    }
+  }
+
+  public static StateStore<TaskState> openTaskStateStoreUncached(JobState jobState, FileSystem fs) {
     Path taskStateStorePath = JobStateUtils.getTaskStateStorePath(jobState, fs);
     log.info("opening FS task state store at path '{}'", taskStateStorePath);
     return new FsStateStore<>(fs, taskStateStorePath.toUri().getPath(), TaskState.class);
