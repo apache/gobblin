@@ -90,6 +90,19 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   /**
+   * Provides absolute path of an iceberg dataset at the destination
+   * @return string value of the iceberg dataset location
+   */
+  @Override
+  public String getDatasetPath() {
+    try {
+      return this.destIcebergTable.getTablePath();
+    } catch (IcebergTable.TableNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link #createFileSets}.
    */

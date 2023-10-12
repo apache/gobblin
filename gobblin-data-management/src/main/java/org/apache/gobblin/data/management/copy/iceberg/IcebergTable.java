@@ -19,6 +19,8 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
@@ -201,5 +203,16 @@ public class IcebergTable {
       // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
       this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(dstMetadata.properties()));
     }
+  }
+
+  /**
+   * Provides absolute path of the iceberg table location
+   * @return string value of table location if present
+   * @throws TableNotFoundException
+   */
+  public String getTablePath() throws TableNotFoundException {
+    Path tablePath = Paths.get(accessTableMetadata().location());
+    log.info("Iceberg table location: {}", tablePath.toAbsolutePath());
+    return tablePath.toAbsolutePath().toString();
   }
 }
