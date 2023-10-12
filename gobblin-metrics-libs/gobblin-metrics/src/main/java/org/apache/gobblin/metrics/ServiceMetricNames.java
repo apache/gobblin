@@ -43,6 +43,11 @@ public class ServiceMetricNames {
   public static final String FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT = GOBBLIN_SERVICE_PREFIX + "." + FLOW_TRIGGER_HANDLER_PREFIX + ".jobDoesNotExistInScheduler";
   public static final String FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT = GOBBLIN_SERVICE_PREFIX + "." + FLOW_TRIGGER_HANDLER_PREFIX + ".failedToSetReminderCount";
 
+  // Dag Action Handling Related Metrics
+  public static final String DAG_ACTION_HANDLING_PREFIX = "dagActionHandling";
+  public static final String
+      DAG_MANAGER_FAILED_LAUNCH_EVENTS_ON_STARTUP_COUNT = DAG_ACTION_HANDLING_PREFIX + ".dagManagerFailedLaunchEventsOnStartupCount";
+
   //Job status poll timer
   public static final String JOB_STATUS_POLLED_TIMER = GOBBLIN_SERVICE_PREFIX + ".jobStatusPoll.time";
 

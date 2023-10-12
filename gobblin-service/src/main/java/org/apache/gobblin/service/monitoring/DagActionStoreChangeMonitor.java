@@ -58,8 +58,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter killsInvoked;
   private ContextAwareMeter resumesInvoked;
   private ContextAwareMeter flowsLaunched;
+  private ContextAwareMeter failedFlowLaunchSubmissions;
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
+  private ContextAwareMeter messageFilteredOutMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   private volatile Long produceToConsumeDelayValue = -1L;
@@ -130,19 +132,24 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String changeIdentifier = tid + key;
     if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
         produceTimestamp.toString())) {
+      this.messageFilteredOutMeter.mark();
       return;
     }
+
+    // Used to easily log information to identify the dag action
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
+        dagActionType);
 
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
       if (operation.equals("INSERT")) {
         if (dagActionType.equals(DagActionStore.FlowActionType.RESUME)) {
-          log.info("Received insert dag action and about to send resume flow request");
+          log.info("Received insert dag action and about to send resume flow request for: {}", dagAction);
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
-          log.info("Received insert dag action and about to send kill flow request");
+          log.info("Received insert dag action and about to send kill flow request for: {}", dagAction);
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
@@ -150,10 +157,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
           if (!this.isMultiActiveSchedulerEnabled) {
             this.unexpectedErrors.mark();
             throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
-                + "mode for flowAction: %s",
-                new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, dagActionType)));
+                + "mode for flowAction: %s", dagAction));
           }
-          log.info("Received insert dag action and about to forward launch request to DagManager");
+          log.info("Received insert dag action and about to forward launch request to DagManager for: {}", dagAction);
           submitFlowToDagManagerHelper(flowGroup, flowName);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
@@ -191,19 +197,19 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       this.orchestrator.submitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
-      this.unexpectedErrors.mark();
+      this.failedFlowLaunchSubmissions.mark();
       return;
     } catch (SpecNotFoundException e) {
       log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-      this.unexpectedErrors.mark();
+      this.failedFlowLaunchSubmissions.mark();
       return;
     } catch (IOException e) {
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
-      this.unexpectedErrors.mark();
+      this.failedFlowLaunchSubmissions.mark();
       return;
     } catch (InterruptedException e) {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
-      this.unexpectedErrors.mark();
+      this.failedFlowLaunchSubmissions.mark();
       return;
     }
     // Only mark this if the dag was successfully added
@@ -216,8 +222,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.flowsLaunched = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_FLOWS_LAUNCHED);
+    this.failedFlowLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
+    this.messageFilteredOutMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGES_FILTERED_OUT);
     this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
     this.getMetricContext().register(this.produceToConsumeDelayMillis);
   }

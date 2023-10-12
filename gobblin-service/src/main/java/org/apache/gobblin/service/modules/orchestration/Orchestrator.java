@@ -347,9 +347,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       //Send the dag to the DagManager.
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
+      String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
+      _log.warn("Orchestrator call - " + failureMessage);
       if (this.eventSubmitter.isPresent()) {
         // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
-        String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
         Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
         new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);

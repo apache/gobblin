@@ -242,7 +242,6 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
     Runnable retentionTask = () -> {
       try {
-        Thread.sleep(10000);
         withPreparedStatement(thisTableRetentionStatement,
             retentionStatement -> {
               retentionStatement.setLong(1, retentionPeriodMillis);
@@ -253,7 +252,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
               }
               return numRowsDeleted;
             }, true);
-      } catch (InterruptedException | IOException e) {
+      } catch (IOException e) {
         log.error("Failing to run retention on lease arbiter table. Unbounded growth can lead to database slowness and "
             + "affect our system performance. Examine exception: ", e);
       }
@@ -308,7 +307,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         if (eventTimeMillis == dbEventTimestamp.getTime()) {
           // TODO: change this to a debug after fixing issue
           log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Reminder event time"
-                  + "is the same as db event.", flowAction, isReminderEvent ? "reminder" : "original",
+                  + " is the same as db event.", flowAction, isReminderEvent ? "reminder" : "original",
               eventTimeMillis, dbEventTimestamp);
         }
       }
