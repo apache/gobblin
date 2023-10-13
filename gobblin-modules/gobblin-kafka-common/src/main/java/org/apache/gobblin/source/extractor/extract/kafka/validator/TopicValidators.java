@@ -16,12 +16,11 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka.validator;
 
-import com.google.common.base.Strings;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -40,19 +39,14 @@ public class TopicValidators {
   private final List<TopicValidatorBase> validators = new ArrayList<>();
 
   public TopicValidators(SourceState state) {
-    String validatorClasses = state.getProp(VALIDATOR_CLASSES_KEY);
-    if (Strings.isNullOrEmpty(validatorClasses)) {
-      return;
-    }
-
-    String[] validatorClassNames = validatorClasses.split(VALIDATOR_CLASS_DELIMITER);
-    Arrays.stream(validatorClassNames).forEach(validator -> {
+    for (String validatorClassName : state.getPropAsList(VALIDATOR_CLASSES_KEY, StringUtils.EMPTY)) {
       try {
-        this.validators.add(GobblinConstructorUtils.invokeConstructor(TopicValidatorBase.class, validator, state));
+        this.validators.add(GobblinConstructorUtils.invokeConstructor(TopicValidatorBase.class, validatorClassName,
+            state));
       } catch (Exception e) {
-        log.error("Failed to create topic validator: {}, due to {}", validator, e);
+        log.error("Failed to create topic validator: {}, due to {}", validatorClassName, e);
       }
-    });
+    }
   }
 
   /**

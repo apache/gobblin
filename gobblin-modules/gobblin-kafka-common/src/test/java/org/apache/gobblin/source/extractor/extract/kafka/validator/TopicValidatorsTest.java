@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 
 public class TopicValidatorsTest {
   @Test
-  public void testTopicNameValidator() {
+  public void testTopicValidators() {
     List<String> allTopics = Arrays.asList(
         "topic1", "topic2", // allowed
         "topic-with.period-in_middle", ".topic-with-period-at-start", "topicWithPeriodAtEnd.", // bad topics
@@ -39,12 +39,17 @@ public class TopicValidatorsTest {
     List<KafkaTopic> topics = allTopics.stream()
         .map(topicName -> new KafkaTopic(topicName, Collections.emptyList())).collect(Collectors.toList());
 
+    SourceState state = new SourceState();
+
+    // Without any topic validators
+    List<KafkaTopic> validTopics = new TopicValidators(state).validate(topics);
+    Assert.assertEquals(validTopics.size(), 7);
+
+    // Use 2 topic validators: TopicNameValidator and DenyListValidator
     String validatorsToUse = String.join(TopicValidators.VALIDATOR_CLASS_DELIMITER,
         ImmutableList.of(TopicNameValidator.class.getName(), DenyListValidator.class.getName()));
-
-    SourceState state = new SourceState();
     state.setProp(TopicValidators.VALIDATOR_CLASSES_KEY, validatorsToUse);
-    List<KafkaTopic> validTopics = new TopicValidators(state).validate(topics);
+    validTopics = new TopicValidators(state).validate(topics);
 
     Assert.assertEquals(validTopics.size(), 2);
     Assert.assertTrue(validTopics.stream().anyMatch(topic -> topic.getName().equals("topic1")));
