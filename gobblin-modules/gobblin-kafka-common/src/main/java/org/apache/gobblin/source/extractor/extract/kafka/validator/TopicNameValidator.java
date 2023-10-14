@@ -16,7 +16,7 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka.validator;
 
-import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 
 /**
@@ -25,8 +25,8 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 public class TopicNameValidator extends TopicValidatorBase {
   private static final String DOT = ".";
 
-  public TopicNameValidator(SourceState sourceState) {
-    super(sourceState);
+  public TopicNameValidator(State state) {
+    super(state);
   }
 
   /**
@@ -36,7 +36,7 @@ public class TopicNameValidator extends TopicValidatorBase {
    * @return true if the topic name is valid (aka. doesn't contain ".")
    */
   @Override
-  public boolean validate(KafkaTopic topic) {
+  public boolean validate(KafkaTopic topic) throws Exception {
     return !topic.getName().contains(DOT);
   }
 }

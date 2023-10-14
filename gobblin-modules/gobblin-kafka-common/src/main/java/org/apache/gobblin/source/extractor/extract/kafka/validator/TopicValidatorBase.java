@@ -16,18 +16,18 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka.validator;
 
-import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 
 /**
  * The base class of a topic validator
  */
 public abstract class TopicValidatorBase {
-  protected SourceState sourceState;
+  protected State state;
 
-  public TopicValidatorBase(SourceState sourceState) {
-    this.sourceState = sourceState;
+  public TopicValidatorBase(State sourceState) {
+    this.state = sourceState;
   }
 
-  public abstract boolean validate(KafkaTopic topic);
+  public abstract boolean validate(KafkaTopic topic) throws Exception;
 }

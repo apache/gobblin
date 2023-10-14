@@ -16,14 +16,23 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka.validator;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 
 /**
  * The TopicValidators contains a list of {@link TopicValidatorBase} that validate topics.
@@ -34,11 +43,16 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class TopicValidators {
   public static final String VALIDATOR_CLASSES_KEY = "gobblin.kafka.topicValidators";
 
-  public static final String VALIDATOR_CLASS_DELIMITER = ",";
+  private static long DEFAULTL_TIMEOUT = 10L;
+
+  private static TimeUnit DEFAULT_TIMEOUT_UNIT = TimeUnit.MINUTES;
 
   private final List<TopicValidatorBase> validators = new ArrayList<>();
 
-  public TopicValidators(SourceState state) {
+  private final State state;
+
+  public TopicValidators(State state) {
+    this.state = state;
     for (String validatorClassName : state.getPropAsList(VALIDATOR_CLASSES_KEY, StringUtils.EMPTY)) {
       try {
         this.validators.add(GobblinConstructorUtils.invokeConstructor(TopicValidatorBase.class, validatorClassName,
@@ -50,26 +64,65 @@ public class TopicValidators {
   }
 
   /**
-   * Validate topics with all the internal validators.
-   * Note: the validations for every topic run in parallel.
+   * Validate topics with all the internal validators. The default timeout is set to 1 hour.
+   * Note:
+   *   1. the validations for every topic run in parallel.
+   *   2. when timeout happens, un-validated topics are still treated as "valid".
    * @param topics the topics to be validated
    * @return the topics that pass all the validators
    */
   public List<KafkaTopic> validate(List<KafkaTopic> topics) {
-    // Validate the topics in parallel
-    return topics.parallelStream()
-        .filter(this::validate)
-        .collect(Collectors.toList());
+    return validate(topics, DEFAULTL_TIMEOUT, DEFAULT_TIMEOUT_UNIT);
+  }
+
+  /**
+   * Validate topics with all the internal validators.
+   * Note:
+   *   1. the validations for every topic run in parallel.
+   *   2. when timeout happens, un-validated topics are still treated as "valid".
+   * @param topics the topics to be validated
+   * @param timeout the timeout for the validation
+   * @param timeoutUnit the time unit for the timeout
+   * @return the topics that pass all the validators
+   */
+  public List<KafkaTopic> validate(List<KafkaTopic> topics, long timeout, TimeUnit timeoutUnit) {
+    int numOfThreads = state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
+        ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT);
+
+    // Tasks running in the thread pool will have the same access control and class loader settings as current thread
+    ExecutorService threadPool = Executors.newFixedThreadPool(numOfThreads, ExecutorsUtils.newPrivilegedThreadFactory(
+        Optional.of(log)));
+
+    List<Future<Boolean>> results = new ArrayList<>();
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    for (KafkaTopic topic : topics) {
+      results.add(threadPool.submit(() -> validate(topic)));
+    }
+    ExecutorsUtils.shutdownExecutorService(threadPool, Optional.of(log), timeout, timeoutUnit);
+    log.info(String.format("Validate %d topics in %d seconds", topics.size(), stopwatch.elapsed(TimeUnit.SECONDS)));
+
+    List<KafkaTopic> validTopics = new ArrayList<>();
+    for (int i = 0; i < results.size(); ++i) {
+      try {
+        if (results.get(i).get()) {
+          validTopics.add(topics.get(i));
+        }
+      } catch (InterruptedException | ExecutionException e) {
+        log.warn("Failed to validate topic: {}, treat it as a valid topic", topics.get(i));
+        validTopics.add(topics.get(i));
+      }
+    }
+    return validTopics;
   }
 
   /**
    * Validates a single topic with all the internal validators
    */
-  private boolean validate(KafkaTopic topic) {
-    log.debug("Validating topic {} in thread: {}", topic, Thread.currentThread().getName());
+  private boolean validate(KafkaTopic topic) throws Exception {
+    log.info("Validating topic {} in thread: {}", topic, Thread.currentThread().getName());
     for (TopicValidatorBase validator : this.validators) {
       if (!validator.validate(topic)) {
-        log.info("Skip KafkaTopic: {}, by validator: {}", topic, validator.getClass().getName());
+        log.warn("KafkaTopic: {} doesn't pass the validator: {}", topic, validator.getClass().getName());
         return false;
       }
     }
