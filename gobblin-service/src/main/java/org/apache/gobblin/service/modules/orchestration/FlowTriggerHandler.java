@@ -150,7 +150,8 @@ public class FlowTriggerHandler {
     if (this.dagActionStore.isPresent() && this.multiActiveLeaseArbiter.isPresent()) {
       try {
         DagActionStore.DagAction flowAction = leaseStatus.getFlowAction();
-        this.dagActionStore.get().addDagAction(flowAction.getFlowGroup(), flowAction.getFlowName(), flowAction.getFlowExecutionId(), flowAction.getFlowActionType());
+        // Replace flow execution id with trigger timestamp to easily track the flow
+        this.dagActionStore.get().addDagAction(flowAction.getFlowGroup(), flowAction.getFlowName(), String.valueOf(leaseStatus.getEventTimestamp()), flowAction.getFlowActionType());
         // If the flow action has been persisted to the {@link DagActionStore} we can close the lease
         this.numFlowsSubmitted.mark();
         return this.multiActiveLeaseArbiter.get().recordLeaseSuccess(leaseStatus);
