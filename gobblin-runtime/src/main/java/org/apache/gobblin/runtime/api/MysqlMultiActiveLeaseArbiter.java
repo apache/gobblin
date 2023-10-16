@@ -306,8 +306,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         }
         if (eventTimeMillis == dbEventTimestamp.getTime()) {
           // TODO: change this to a debug after fixing issue
-          log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Reminder event time"
-                  + " is the same as db event.", flowAction, isReminderEvent ? "reminder" : "original",
+          log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Reminder event time "
+                  + "is the same as db event.", flowAction, isReminderEvent ? "reminder" : "original",
               eventTimeMillis, dbEventTimestamp);
         }
       }

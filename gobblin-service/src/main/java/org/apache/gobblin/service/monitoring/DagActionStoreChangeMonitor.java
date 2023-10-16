@@ -144,12 +144,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
       if (operation.equals("INSERT")) {
+        log.info("DagAction change ({}) received for flow: {}", dagActionType, dagAction);
         if (dagActionType.equals(DagActionStore.FlowActionType.RESUME)) {
-          log.info("Received insert dag action and about to send resume flow request for: {}", dagAction);
           dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
           this.resumesInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
-          log.info("Received insert dag action and about to send kill flow request for: {}", dagAction);
           dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
           this.killsInvoked.mark();
         } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
@@ -159,7 +158,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
             throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
                 + "mode for flowAction: %s", dagAction));
           }
-          log.info("Received insert dag action and about to forward launch request to DagManager for: {}", dagAction);
           submitFlowToDagManagerHelper(flowGroup, flowName);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
