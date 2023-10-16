@@ -353,7 +353,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
-      _log.warn("Orchestrator call - " + failureMessage);
+      _log.warn("Orchestrator call - " + failureMessage, ex);
       if (this.flowFailedForwardToDagManagerCounter.isPresent()) {
         this.flowFailedForwardToDagManagerCounter.get().inc();
       }
