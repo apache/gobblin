@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
@@ -93,6 +94,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Meter> flowOrchestrationFailedMeter;
   @Getter
   private Optional<Timer> flowOrchestrationTimer;
+  private Optional<Counter> flowFailedForwardToDagManagerCounter;
   @Setter
   private FlowStatusGenerator flowStatusGenerator;
 
@@ -137,12 +139,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER));
       this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
       this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
+      this.flowFailedForwardToDagManagerCounter = Optional.of(this.metricContext.counter(ServiceMetricNames.FLOW_FAILED_FORWARD_TO_DAG_MANAGER_COUNT));
       this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
     } else {
       this.metricContext = null;
       this.flowOrchestrationSuccessFulMeter = Optional.absent();
       this.flowOrchestrationFailedMeter = Optional.absent();
       this.flowOrchestrationTimer = Optional.absent();
+      this.flowFailedForwardToDagManagerCounter = Optional.absent();
       this.eventSubmitter = Optional.absent();
     }
     this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
@@ -337,6 +341,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (optionalJobExecutionPlanDag.isPresent()) {
       submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
     } else {
+      _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
     }
   }
@@ -347,9 +352,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       //Send the dag to the DagManager.
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
+      String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
+      _log.warn("Orchestrator call - " + failureMessage, ex);
+      if (this.flowFailedForwardToDagManagerCounter.isPresent()) {
+        this.flowFailedForwardToDagManagerCounter.get().inc();
+      }
       if (this.eventSubmitter.isPresent()) {
         // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
-        String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
         Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
         new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);

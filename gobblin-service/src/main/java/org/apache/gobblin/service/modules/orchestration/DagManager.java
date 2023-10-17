@@ -306,6 +306,8 @@ public class DagManager extends AbstractIdleService {
    * Note this should only be called from the {@link Orchestrator} or {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
    */
   public synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
+    // TODO: Used to track missing dag issue, remove later as needed
+    log.info("Add dag (persist: {}, setStatus: {}): {}", persist, setStatus, dag);
     if (!isActive) {
       log.warn("Skipping add dag because this instance of DagManager is not active for dag: {}", dag);
       return;
@@ -509,14 +511,19 @@ public class DagManager extends AbstractIdleService {
       // Upon handling the action, delete it so on leadership change this is not duplicated
       this.dagActionStore.get().deleteDagAction(launchAction);
     } catch (URISyntaxException e) {
-      log.warn("Could not create URI object for flowId {} due to exception {}", flowId, e.getMessage());
+      log.warn(String.format("Could not create URI object for flowId %s due to exception", flowId), e);
+      this.dagManagerMetrics.incrementFailedLaunchCount();
     } catch (SpecNotFoundException e) {
-      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
+      log.warn(String.format("Spec not found for flowId %s due to exception", flowId), e);
+      this.dagManagerMetrics.incrementFailedLaunchCount();
     } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flowId {} OR delete dag action from dagActionStore (check "
-          + "stacktrace) due to exception {}", flowId, e.getMessage());
+      log.warn(String.format("Failed to add Job Execution Plan for flowId %s OR delete dag action from dagActionStore "
+          + "(check stacktrace) due to exception", flowId), e);
+      this.dagManagerMetrics.incrementFailedLaunchCount();
     } catch (InterruptedException e) {
-      log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
+      log.warn(String.format("SpecCompiler failed to reach healthy state before compilation of flowId %s due to "
+              + "exception", flowId), e);
+      this.dagManagerMetrics.incrementFailedLaunchCount();
     }
   }
 
@@ -620,6 +627,8 @@ public class DagManager extends AbstractIdleService {
             }
             //Initialize dag.
             initialize(dag);
+          } else {
+            log.warn("Null dag despite non-empty queue; ignoring the dag");
           }
         }
 
