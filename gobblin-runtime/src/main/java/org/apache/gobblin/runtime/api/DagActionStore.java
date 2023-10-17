@@ -54,7 +54,6 @@ public interface DagActionStore {
       return new DagActionStore.DagAction(flowAction.getFlowGroup(), flowAction.getFlowName(),
           String.valueOf(eventTimeMillis), flowAction.getFlowActionType());
     }
-
   }
 
 

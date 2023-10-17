@@ -89,8 +89,7 @@ public interface MultiActiveLeaseArbiter {
     private final long leaseAcquisitionTimestamp;
 
     /**
-     * Returns event time in millis since epoch for the event of this lease acquisition.
-     * @return
+     * @return event time in millis since epoch for the event of this lease acquisition
      */
     public long getEventTimeMillis() {
       return Long.parseLong(flowAction.getFlowExecutionId());
@@ -99,8 +98,8 @@ public interface MultiActiveLeaseArbiter {
 
   /*
   This flow action event already has a valid lease owned by another participant.
-  `Flow action`'s flow execution id is the timestamp the lease is associated with, which may be a different timestamp
-  for the same flow action corresponding to the same instance of the event or a distinct one.
+  `Flow action`'s flow execution id is the timestamp the lease is associated with, however the flow action event it
+  corresponds to may be a different and distinct occurrence of the same event.
   `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
   the lease has completed or expired
    */
