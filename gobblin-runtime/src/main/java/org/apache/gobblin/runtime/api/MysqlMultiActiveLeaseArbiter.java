@@ -319,16 +319,18 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       // Lease is valid
       if (leaseValidityStatus == 1) {
         if (isWithinEpsilon) {
+          DagActionStore.DagAction updatedFlowAction = updateFlowExecutionId(flowAction, dbEventTimestamp.getTime());
           log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
-              flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
+              updatedFlowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
-          return new LeasedToAnotherStatus(flowAction, dbEventTimestamp.getTime(),
+          return new LeasedToAnotherStatus(updatedFlowAction, dbEventTimestamp.getTime(),
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
+        DagActionStore.DagAction updatedFlowAction = updateFlowExecutionId(flowAction, dbCurrentTimestamp.getTime());
         log.info("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
-            flowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
+            updatedFlowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
-        return new LeasedToAnotherStatus(flowAction, dbCurrentTimestamp.getTime(),
+        return new LeasedToAnotherStatus(updatedFlowAction, dbCurrentTimestamp.getTime(),
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
       else if (leaseValidityStatus == 2) {
@@ -514,18 +516,28 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     if (!selectInfoResult.getLeaseAcquisitionTimeMillis().isPresent()) {
       return new NoLongerLeasingStatus();
     }
+    DagActionStore.DagAction updatedFlowAction = updateFlowExecutionId(flowAction, selectInfoResult.eventTimeMillis);
     if (numRowsUpdated == 1) {
-      log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", flowAction,
+      log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", updatedFlowAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
-      return new LeaseObtainedStatus(flowAction, selectInfoResult.eventTimeMillis,
+      return new LeaseObtainedStatus(updatedFlowAction, selectInfoResult.eventTimeMillis,
           selectInfoResult.getLeaseAcquisitionTimeMillis().get());
     }
     log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: {}",
-        flowAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
+        updatedFlowAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant acquired lease in between
-    return new LeasedToAnotherStatus(flowAction, selectInfoResult.getEventTimeMillis(),
+    return new LeasedToAnotherStatus(updatedFlowAction, selectInfoResult.getEventTimeMillis(),
         selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()
             - (dbCurrentTimestamp.isPresent() ? dbCurrentTimestamp.get().getTime() : System.currentTimeMillis()));
+  }
+
+  /**
+   *   Replace flow execution id with agreed upon event time to easily track the flow
+   */
+  protected static DagActionStore.DagAction updateFlowExecutionId(DagActionStore.DagAction flowAction,
+      long eventTimeMillis) {
+      return new DagActionStore.DagAction(flowAction.getFlowGroup(), flowAction.getFlowName(),
+          String.valueOf(eventTimeMillis), flowAction.getFlowActionType());
   }
 
   /**
