@@ -79,28 +79,42 @@ public interface MultiActiveLeaseArbiter {
   class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
   /*
-  The participant calling this method acquired the lease for the event in question. The class contains the
-  `eventTimestamp` associated with the lease as well as the time the caller obtained the lease or
-  `leaseAcquisitionTimestamp`.
+  The participant calling this method acquired the lease for the event in question. `Flow action`'s flow execution id
+  is the timestamp associated with the lease and the time the caller obtained the lease is stored within the
+  `leaseAcquisitionTimestamp` field.
   */
   @Data
   class LeaseObtainedStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction flowAction;
-    private final long eventTimestamp;
     private final long leaseAcquisitionTimestamp;
+
+    /**
+     * Returns event time in millis since epoch for the event of this lease acquisition.
+     * @return
+     */
+    public long getEventTimeMillis() {
+      return Long.parseLong(flowAction.getFlowExecutionId());
+    }
   }
 
   /*
   This flow action event already has a valid lease owned by another participant.
-  `eventTimeMillis` is the timestamp the lease is associated with, which may be a different timestamp for the same flow
-  action corresponding to the same instance of the event or a distinct one.
+  `Flow action`'s flow execution id is the timestamp the lease is associated with, which may be a different timestamp
+  for the same flow action corresponding to the same instance of the event or a distinct one.
   `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
   the lease has completed or expired
    */
   @Data
   class LeasedToAnotherStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction flowAction;
-    private final long eventTimeMillis;
     private final long minimumLingerDurationMillis;
+
+    /**
+     * Returns event time in millis since epoch for the event whose lease was obtained by another participant.
+     * @return
+     */
+    public long getEventTimeMillis() {
+      return Long.parseLong(flowAction.getFlowExecutionId());
+    }
 }
 }

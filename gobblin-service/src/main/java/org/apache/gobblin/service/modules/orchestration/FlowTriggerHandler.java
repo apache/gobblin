@@ -117,13 +117,15 @@ public class FlowTriggerHandler {
         this.leaseObtainedCount.inc();
         if (persistFlowAction(leaseObtainedStatus)) {
           log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getFlowAction(),
-              leaseObtainedStatus.getEventTimestamp());
+              leaseObtainedStatus.getEventTimeMillis());
           return;
         }
         // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
         // re-attempt handling the event
+        DagActionStore.DagAction updatedFlowAction = DagActionStore.DagAction.updateFlowExecutionId(flowAction,
+            leaseObtainedStatus.getEventTimeMillis());
         scheduleReminderForEvent(jobProps,
-            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, leaseObtainedStatus.getEventTimestamp(), 0L),
+            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(updatedFlowAction, 0L),
             eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {

@@ -34,9 +34,9 @@ public class FlowTriggerHandlerTest {
   String cronExpressionSuffix = truncateFirstTwoFieldsOfCronExpression(cronExpression);
   int schedulerBackOffMillis = 10;
   DagActionStore.DagAction flowAction = new DagActionStore.DagAction("flowName", "flowGroup",
-      "999999", DagActionStore.FlowActionType.LAUNCH);
+      String.valueOf(eventToRevisit), DagActionStore.FlowActionType.LAUNCH);
   MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus =
-      new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, eventToRevisit, minimumLingerDurationMillis);
+      new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, minimumLingerDurationMillis);
 
   /**
    * Remove first two fields from cron expression representing seconds and minutes to return truncated cron expression
