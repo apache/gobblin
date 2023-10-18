@@ -178,11 +178,8 @@ public class IcebergTable {
   }
 
   protected static List<String> discoverDataFilePaths(ManifestFile manifest, FileIO io) throws IOException {
-    CloseableIterable<String> manifestPathsIterable = ManifestFiles.readPaths(manifest, io);
-    try {
+    try (CloseableIterable<String> manifestPathsIterable = ManifestFiles.readPaths(manifest, io)) {
       return Lists.newArrayList(manifestPathsIterable);
-    } finally {
-      manifestPathsIterable.close();
     }
   }
   protected DatasetDescriptor getDatasetDescriptor(FileSystem fs) {
@@ -194,6 +191,7 @@ public class IcebergTable {
     descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     return descriptor;
   }
+
   /** Registers {@link IcebergTable} after publishing data.
    * @param dstMetadata is null if destination {@link IcebergTable} is absent, in which case registration is skipped */
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
