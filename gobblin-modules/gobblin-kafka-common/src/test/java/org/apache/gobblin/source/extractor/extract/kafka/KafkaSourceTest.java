@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.gobblin.source.extractor.extract.kafka.validator.TopicNameValidator;
+import org.apache.gobblin.source.extractor.extract.kafka.validator.TopicValidators;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -54,6 +57,36 @@ public class KafkaSourceTest {
 
     state.setProp(KafkaSource.ALLOW_PERIOD_IN_TOPIC_NAME, false);
     Assert.assertEquals(new TestKafkaSource(testKafkaClient).getFilteredTopics(state), toKafkaTopicList(allTopics.subList(0, 3)));
+  }
+
+  @Test
+  public void testTopicValidators() {
+    TestKafkaClient testKafkaClient = new TestKafkaClient();
+    List<String> allTopics = Arrays.asList(
+        "Topic1", "topic-v2", "topic3", // allowed
+        "topic-with.period-in_middle", ".topic-with-period-at-start", "topicWithPeriodAtEnd.", //period topics
+        "not-allowed-topic");
+    testKafkaClient.testTopics = allTopics;
+    KafkaSource kafkaSource = new TestKafkaSource(testKafkaClient);
+
+    SourceState state = new SourceState();
+    state.setProp(KafkaSource.TOPIC_WHITELIST, ".*[Tt]opic.*");
+    state.setProp(KafkaSource.TOPIC_BLACKLIST, "not-allowed.*");
+    List<KafkaTopic> topicsToValidate = kafkaSource.getFilteredTopics(state);
+
+    // Test without TopicValidators in the state
+    Assert.assertTrue(CollectionUtils.isEqualCollection(kafkaSource.getValidTopics(topicsToValidate, state),
+        toKafkaTopicList(allTopics.subList(0, 6))));
+
+    // Test empty TopicValidators in the state
+    state.setProp(TopicValidators.VALIDATOR_CLASSES_KEY, "");
+    Assert.assertTrue(CollectionUtils.isEqualCollection(kafkaSource.getValidTopics(topicsToValidate, state),
+        toKafkaTopicList(allTopics.subList(0, 6))));
+
+    // Test TopicValidators with TopicNameValidator in the state
+    state.setProp(TopicValidators.VALIDATOR_CLASSES_KEY, TopicNameValidator.class.getName());
+    Assert.assertTrue(CollectionUtils.isEqualCollection(kafkaSource.getValidTopics(topicsToValidate, state),
+        toKafkaTopicList(allTopics.subList(0, 3))));
   }
 
   public List<KafkaTopic> toKafkaTopicList(List<String> topicNames) {

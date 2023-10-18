@@ -61,6 +61,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.EventBasedSource;
 import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
+import org.apache.gobblin.source.extractor.extract.kafka.validator.TopicValidators;
 import org.apache.gobblin.source.extractor.limiter.LimiterConfigurationKeys;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -218,7 +219,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       this.kafkaConsumerClient.set(kafkaConsumerClientFactory.create(config));
 
-      List<KafkaTopic> topics = getFilteredTopics(state);
+      List<KafkaTopic> topics = getValidTopics(getFilteredTopics(state), state);
       this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
 
       for (String topic : this.topicsToProcess) {
@@ -802,6 +803,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   protected List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
+    // TODO: replace this with TopicNameValidator in the config once TopicValidators is rolled out.
     if (!state.getPropAsBoolean(KafkaSource.ALLOW_PERIOD_IN_TOPIC_NAME, true)) {
       blacklist.add(Pattern.compile(".*\\..*"));
     }
@@ -813,6 +815,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     state.setProp(ConfigurationKeys.OFFSET_TOO_EARLY_COUNT, this.offsetTooEarlyCount);
     state.setProp(ConfigurationKeys.OFFSET_TOO_LATE_COUNT, this.offsetTooLateCount);
     state.setProp(ConfigurationKeys.FAIL_TO_GET_OFFSET_COUNT, this.failToGetOffsetCount);
+  }
+
+  /**
+   * Return topics that pass all the topic validators.
+   */
+  protected List<KafkaTopic> getValidTopics(List<KafkaTopic> topics, SourceState state) {
+    return new TopicValidators(state).validate(topics);
   }
 
   /**

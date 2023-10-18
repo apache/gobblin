@@ -103,6 +103,21 @@ public class ExecutorsUtils {
     return newThreadFactory(new ThreadFactoryBuilder().setDaemon(true), logger, nameFormat);
   }
 
+  /**
+   * Get a new {@link ThreadFactory} that uses a {@link LoggingUncaughtExceptionHandler}
+   * to handle uncaught exceptions.
+   * Tasks running within such threads will have the same access control and class loader settings as the
+   * thread that invokes this method.
+   *
+   * @param logger an {@link Optional} wrapping the {@link Logger} that the
+   *               {@link LoggingUncaughtExceptionHandler} uses to log uncaught exceptions thrown in threads
+   * @return a new {@link ThreadFactory}
+   */
+  public static ThreadFactory newPrivilegedThreadFactory(Optional<Logger> logger) {
+    return newThreadFactory(new ThreadFactoryBuilder().setThreadFactory(Executors.privilegedThreadFactory()), logger,
+        Optional.<String>absent());
+  }
+
   private static ThreadFactory newThreadFactory(ThreadFactoryBuilder builder, Optional<Logger> logger,
       Optional<String> nameFormat) {
     if (nameFormat.isPresent()) {
