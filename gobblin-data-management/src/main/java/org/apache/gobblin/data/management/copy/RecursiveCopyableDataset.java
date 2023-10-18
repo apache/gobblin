@@ -237,4 +237,9 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     return fileInTarget.getLen() == fileInSource.getLen() && fileInSource.getModificationTime() <= fileInTarget
         .getModificationTime();
   }
+
+  @Override
+  public String getDatasetPath() {
+    return Path.getPathWithoutSchemeAndAuthority(this.rootPath).toString();
+  }
 }
