@@ -49,10 +49,9 @@ public interface DagActionStore {
     /**
      *   Replace flow execution id with agreed upon event time to easily track the flow
      */
-    public static DagActionStore.DagAction updateFlowExecutionId(DagActionStore.DagAction flowAction,
-        long eventTimeMillis) {
-      return new DagActionStore.DagAction(flowAction.getFlowGroup(), flowAction.getFlowName(),
-          String.valueOf(eventTimeMillis), flowAction.getFlowActionType());
+    public DagAction updateFlowExecutionId(long eventTimeMillis) {
+      return new DagAction(this.getFlowGroup(), this.getFlowName(),
+          String.valueOf(eventTimeMillis), this.getFlowActionType());
     }
   }
 

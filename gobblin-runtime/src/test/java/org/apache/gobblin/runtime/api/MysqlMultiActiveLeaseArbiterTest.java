@@ -217,7 +217,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
         mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
-    DagActionStore.DagAction updatedResumeDagAction = DagActionStore.DagAction.updateFlowExecutionId(resumeDagAction,
+    DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
         selectInfoResult.getEventTimeMillis());
     boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
         updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
@@ -299,7 +299,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
      // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
      MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
          mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
-     DagActionStore.DagAction updatedResumeDagAction = DagActionStore.DagAction.updateFlowExecutionId(resumeDagAction,
+     DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
          selectInfoResult.getEventTimeMillis());
      boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
          updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get()));

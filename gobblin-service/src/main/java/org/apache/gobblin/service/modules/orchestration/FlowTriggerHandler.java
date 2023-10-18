@@ -112,8 +112,12 @@ public class FlowTriggerHandler {
     if (multiActiveLeaseArbiter.isPresent()) {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(
           flowAction, eventTimeMillis, isReminderEvent);
+      // The flow action contained in the`LeaseAttemptStatus` from the lease arbiter contains an updated flow execution
+      // id. From this point onwards, always use the newer version of the flow action to easily track the action through
+      // orchestration and execution.
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-        MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
+        MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus)
+            leaseAttemptStatus;
         this.leaseObtainedCount.inc();
         if (persistFlowAction(leaseObtainedStatus)) {
           log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getFlowAction(),
@@ -122,11 +126,9 @@ public class FlowTriggerHandler {
         }
         // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
         // re-attempt handling the event
-        DagActionStore.DagAction updatedFlowAction = DagActionStore.DagAction.updateFlowExecutionId(flowAction,
-            leaseObtainedStatus.getEventTimeMillis());
         scheduleReminderForEvent(jobProps,
-            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(updatedFlowAction, 0L),
-            eventTimeMillis);
+            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(leaseObtainedStatus.getFlowAction(),
+                0L), eventTimeMillis);
         return;
       } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
         this.leasedToAnotherStatusCount.inc();
