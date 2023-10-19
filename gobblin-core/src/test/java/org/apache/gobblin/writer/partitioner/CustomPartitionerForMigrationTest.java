@@ -19,6 +19,7 @@ package org.apache.gobblin.writer.partitioner;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import jdk.nashorn.internal.runtime.regexp.joni.Config;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -42,7 +43,7 @@ import org.testng.annotations.Test;
 
 
 /**
- * Tests for {@link CustomPartitionerForMigration}.
+ * Tests for {@link CustomPartitionerForMigrationByTimestamp}.
  */
 @Test(groups = { "gobblin.writer.partitioner" })
 public class CustomPartitionerForMigrationTest {
@@ -88,18 +89,18 @@ public class CustomPartitionerForMigrationTest {
     State state = getBasicState();
     state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_PIPELINE_TYPE, "aggregate");
     // Set cutover time to be 2015/01/02
-    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_CUTOVER_UNIX, 1420185600000l);
+    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_CUTOVER_UNIX, 1420185600000L);
 
     // Write two records, each should be written to a different file
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(schema);
     DataWriter<GenericRecord> millisPartitionWriter = getWriter(schema, state);
 
     // This timestamp corresponds to 2015/01/01
-    genericRecordBuilder.set("timestamp", 1420099200000l);
+    genericRecordBuilder.set("timestamp", 1420099200000L);
     millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
     // This timestamp corresponds to 2015/01/03
-    genericRecordBuilder.set("timestamp", 1420272000000l);
+    genericRecordBuilder.set("timestamp", 1420272000000L);
     millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
     millisPartitionWriter.close();
@@ -114,7 +115,7 @@ public class CustomPartitionerForMigrationTest {
 
     // Checks that the record in the file before the cutoff exists in the prod location
     File outputDir20150101 =
-        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "01" + Path.SEPARATOR + FILE_NAME);
+        new File(baseOutputDir, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "01" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150101.exists());
 
     // Checks that the record in the file after the cutoff exists in the backup location
@@ -136,18 +137,18 @@ public class CustomPartitionerForMigrationTest {
     State state = getBasicState();
     state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_PIPELINE_TYPE, "local");
     // Set cutover time to be 2015/01/02
-    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_CUTOVER_UNIX, 1420185600000l);
+    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_CUTOVER_UNIX, 1420185600000L);
 
     // Write two records, each should be written to a different file
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(schema);
     DataWriter<GenericRecord> millisPartitionWriter = getWriter(schema, state);
 
     // This timestamp corresponds to 2015/01/01
-    genericRecordBuilder.set("timestamp", 1420099200000l);
+    genericRecordBuilder.set("timestamp", 1420099200000L);
     millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
     // This timestamp corresponds to 2015/01/03
-    genericRecordBuilder.set("timestamp", 1420272000000l);
+    genericRecordBuilder.set("timestamp", 1420272000000L);
     millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
     millisPartitionWriter.close();
@@ -167,7 +168,7 @@ public class CustomPartitionerForMigrationTest {
 
     // Checks that the record in the file before the cutoff exists in the prod location
     File outputDir20150103 =
-        new File(baseOutputDir, "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + FILE_NAME);
+        new File(baseOutputDir, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150103.exists());
   }
 
@@ -187,7 +188,7 @@ public class CustomPartitionerForMigrationTest {
 
   private State getBasicState() {
     State properties = new State();
-    properties.setProp(CustomPartitionerForMigration.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
+    properties.setProp(CustomPartitionerForMigrationByTimestamp.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
     properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, STAGING_DIR);
@@ -195,8 +196,9 @@ public class CustomPartitionerForMigrationTest {
     properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, BASE_FILE_PATH);
     properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, FILE_NAME);
     properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
-    properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, CustomPartitionerForMigration.class.getName());
-    properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX, "backup");
+    properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, CustomPartitionerForMigrationByTimestamp.class.getName());
+    properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, "hourly");
+    properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX, "backup/hourly");
     properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_ON, true);
     return properties;
   }
