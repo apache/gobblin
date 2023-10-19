@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.temporal.cluster;
 
+import java.util.Arrays;
+
 import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
@@ -26,6 +28,7 @@ import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
+
 
 /** Basic boilerplate for a temporal "worker" to register its activity and workflow capabilities and listen on a particular queue */
 public abstract class AbstractTemporalWorker implements TemporalWorker {
@@ -43,6 +46,8 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
 
         // Create a Worker factory that can be used to create Workers that poll specific Task Queues.
         workerFactory = WorkerFactory.newInstance(workflowClient);
+
+        stashWorkerConfig(cfg);
     }
 
     @Override
@@ -71,4 +76,11 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
 
     /** @return activity instances; NOTE: activities must be stateless and thread-safe, so a shared instance is used. */
     protected abstract Object[] getActivityImplInstances();
+
+    private final void stashWorkerConfig(Config cfg) {
+        // stash in association with...
+        WorkerConfig.forWorker(this.getClass(), cfg); // the worker itself
+        Arrays.stream(getWorkflowImplClasses()).forEach(clazz -> WorkerConfig.withImpl(clazz, cfg)); // its workflow impls
+        Arrays.stream(getActivityImplInstances()).forEach(obj -> WorkerConfig.withImpl(obj.getClass(), cfg)); // its activity impls
+    }
 }

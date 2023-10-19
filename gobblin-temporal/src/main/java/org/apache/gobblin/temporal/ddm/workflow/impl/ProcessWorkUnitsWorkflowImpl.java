@@ -16,12 +16,19 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
+import java.util.Optional;
+
+import com.typesafe.config.ConfigFactory;
+
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import java.util.Optional;
+
+import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.util.nesting.work.WFAddr;
@@ -30,10 +37,12 @@ import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 
 
 public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
+  public static final String CHILD_WORKFLOW_ID_BASE = "NestingExecWorkUnits";
+
   @Override
   public int process(WUProcessingSpec workSpec) {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow();
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
     return processingWorkflow.performWorkload(
         WFAddr.ROOT, workload, 0,
         workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()
@@ -44,11 +53,10 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir());
   }
 
-  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow() {
+  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-        // TODO: determine whether a non-unique ID did or did not cause collision between separate, subsequent executions
-        // .setWorkflowId("WorkloadProcessingSubWorkflow")
+        .setWorkflowId(Help.qualifyNamePerExec(CHILD_WORKFLOW_ID_BASE, f, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
     // TODO: figure out how to incorporate multiple different concrete `NestingExecWorkflow` sub-workflows in the same super-workflow!!!!
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);

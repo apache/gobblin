@@ -67,8 +67,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
 
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
-    try {
-      FileSystem fs = Help.loadFileSystem(wu);
+    try (FileSystem fs = Help.loadFileSystemForce(wu)) {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
       log.info("WU [{}] - loaded {} workUnits", wu.getCorrelator(), workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
