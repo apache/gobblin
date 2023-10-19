@@ -72,14 +72,14 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   public static final String PREFIX = "prefix";
   public static final String SUFFIX = "suffix";
 
-  protected String writerPartitionPrefix;
-  protected final String writerPartitionSuffix;
-  protected final DatePartitionType granularity;
-  protected final DateTimeZone timeZone;
+  protected final String writerPartitionPrefix;
+  private final String writerPartitionSuffix;
+  private final DatePartitionType granularity;
+  private final DateTimeZone timeZone;
   @Getter
   protected final TimeUnit timeUnit;
-  protected final Optional<DateTimeFormatter> timestampToPathFormatter;
-  protected final Schema schema;
+  private final Optional<DateTimeFormatter> timestampToPathFormatter;
+  private final Schema schema;
 
   public TimeBasedWriterPartitioner(State state, int numBranches, int branchId) {
     this.writerPartitionPrefix = getWriterPartitionPrefix(state, numBranches, branchId);
@@ -91,7 +91,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     this.schema = getSchema();
   }
 
-  protected String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
+  private String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_PREFIX, numBranches, branchId);
     return state.getProp(propName, StringUtils.EMPTY);
   }
@@ -200,7 +200,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return schema;
   }
 
-  protected String getPartitionedPath(long timestamp) {
+  private String getPartitionedPath(long timestamp) {
     return this.timestampToPathFormatter.get().print(timestamp);
   }
 
