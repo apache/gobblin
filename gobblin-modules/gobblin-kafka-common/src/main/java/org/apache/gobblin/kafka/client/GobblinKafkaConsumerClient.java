@@ -28,7 +28,6 @@ import com.codahale.metrics.Metric;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import java.util.stream.Collectors;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
@@ -169,22 +168,6 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   }
 
   public default void assignAndSeek(List<KafkaPartition> topicPartitions, Map<KafkaPartition, LongWatermark> topicWatermarksMap) { return; }
-
-  /**
-   * Get a list of all kafka topics
-   */
-  public default List<KafkaTopic> getTopics() {return Collections.emptyList();};
-
-  /**
-   * Get a list of {@link KafkaTopic} with the provided topic names.
-   * The default implementation firstly retrieve all the topics, then filter by the provided list.
-   * Implementations of this class can improve this method.
-   */
-  public default Collection<KafkaTopic> getTopics(Collection<String> topics) {
-    return getTopics().stream()
-        .filter(list-> topics.contains(list))
-        .collect(Collectors.toList());
-  }
 
   /**
    * A factory to create {@link GobblinKafkaConsumerClient}s

@@ -157,4 +157,17 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     return processedName;
   }
 
+  /**
+   * Get a list of all kafka topics
+   */
+  public abstract List<KafkaTopic> getTopics();
+
+  /**
+   * Get a list of {@link KafkaTopic} with the provided topic names.
+   * The default implementation lists all the topics.
+   * Implementations of this class can improve this method.
+   */
+  public Collection<KafkaTopic> getTopics(Collection<String> topics) {
+    return getTopics();
+  }
 }
