@@ -72,7 +72,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   public static final String PREFIX = "prefix";
   public static final String SUFFIX = "suffix";
 
-  protected final String writerPartitionPrefix;
+  private final String writerPartitionPrefix;
   private final String writerPartitionSuffix;
   private final DatePartitionType granularity;
   private final DateTimeZone timeZone;
@@ -91,7 +91,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     this.schema = getSchema();
   }
 
-  private String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
+  private static String getWriterPartitionPrefix(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_PREFIX, numBranches, branchId);
     return state.getProp(propName, StringUtils.EMPTY);
   }
