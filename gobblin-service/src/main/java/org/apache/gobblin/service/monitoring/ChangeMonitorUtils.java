@@ -35,7 +35,7 @@ public final class ChangeMonitorUtils {
       String operation, String timestamp) {
     // If we've already processed a message with this timestamp and key before then skip duplicate message
     if (cache.getIfPresent(changeIdentifier) != null) {
-      log.debug("Duplicate change event with identifier {}", changeIdentifier);
+      log.info("Duplicate change event with identifier {}", changeIdentifier);
       return false;
     }
 
