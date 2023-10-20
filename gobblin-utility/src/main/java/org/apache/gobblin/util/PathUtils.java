@@ -55,6 +55,9 @@ public class PathUtils {
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {
+    if (fullPath == null) {
+      return false;
+    }
     return !relativizePath(fullPath, possibleAncestor).equals(getPathWithoutSchemeAndAuthority(fullPath));
   }
 

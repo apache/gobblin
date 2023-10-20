@@ -255,19 +255,19 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         prePublish.size(), postPublish.size()));
 
     executeCommitSequence(prePublish);
+
     if (hasCopyableFiles(datasetWorkUnitStates)) {
       // Targets are always absolute, so we start moving from root (will skip any existing directories).
       HadoopUtils.renameRecursively(this.fs, datasetWriterOutputPath, new Path("/"));
     } else {
       log.info(String.format("[%s] No copyable files in dataset. Proceeding to postpublish steps.", datasetAndPartition.identifier()));
     }
-    executeCommitSequence(postPublish);
 
     this.fs.delete(datasetWriterOutputPath, true);
 
     long datasetOriginTimestamp = Long.MAX_VALUE;
     long datasetUpstreamTimestamp = Long.MAX_VALUE;
-    Optional<String> fileSetRoot = Optional.<String>absent();
+    Optional<String> fileSetRoot = Optional.absent();
 
     for (WorkUnitState wus : datasetWorkUnitStates) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
@@ -299,6 +299,10 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         }
       }
     }
+
+    // execute post publish commit steps after preserving file attributes, because some post publish step,
+    // e.g. SetPermissionCommitStep needs to set permissions
+    executeCommitSequence(postPublish);
 
     // if there are no valid values for datasetOriginTimestamp and datasetUpstreamTimestamp, use
     // something more readable
