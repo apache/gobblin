@@ -329,6 +329,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
           }
         }
       } catch (InterruptedException e) {
+        log.warn("Encountered exception while processing queue ", e);
+        // TODO: evaluate whether we should interrupt the thread or continue processing
         Thread.currentThread().interrupt();
       }
     }
