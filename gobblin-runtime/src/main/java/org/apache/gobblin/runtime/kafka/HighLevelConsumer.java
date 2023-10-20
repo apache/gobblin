@@ -95,7 +95,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    */
   @Getter
   private MetricContext metricContext;
-  private Counter messagesRead;
+  protected Counter messagesRead;
   @Getter
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
   private final ScheduledExecutorService consumerExecutor;

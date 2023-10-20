@@ -26,7 +26,7 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 public class RuntimeMetrics {
 
   // Metric names
-  public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + 
+  public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ =
       "gobblin.kafka.highLevelConsumer.messagesRead";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS = "gobblin.jobMonitor.kafka.totalSpecs";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS = "gobblin.jobMonitor.kafka.newSpecs";
