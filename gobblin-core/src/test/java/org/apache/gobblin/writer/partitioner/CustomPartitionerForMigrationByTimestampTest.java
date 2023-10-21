@@ -19,12 +19,9 @@ package org.apache.gobblin.writer.partitioner;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import jdk.nashorn.internal.runtime.regexp.joni.Config;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.apache.avro.util.Utf8;
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -46,9 +43,9 @@ import org.testng.annotations.Test;
  * Tests for {@link CustomPartitionerForMigrationByTimestamp}.
  */
 @Test(groups = { "gobblin.writer.partitioner" })
-public class CustomPartitionerForMigrationTest {
+public class CustomPartitionerForMigrationByTimestampTest {
 
-  private static final String SIMPLE_CLASS_NAME = CustomPartitionerForMigrationTest.class.getSimpleName();
+  private static final String SIMPLE_CLASS_NAME = CustomPartitionerForMigrationByTimestampTest.class.getSimpleName();
 
   private static final String TEST_ROOT_DIR = SIMPLE_CLASS_NAME + "-test";
   private static final String STAGING_DIR = TEST_ROOT_DIR + Path.SEPARATOR + "staging";
@@ -109,6 +106,24 @@ public class CustomPartitionerForMigrationTest {
     // Check that the writer reports that 2 records have been written
     Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
 
+    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_ROLLBACK, true);
+    // Create a new writer with additional configuration in the state
+    millisPartitionWriter = getWriter(schema, state);
+
+    // This timestamp corresponds to 2015/01/30, but rollback is set to true
+    genericRecordBuilder.set("timestamp", 1422604800000L);
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+
+    // This timestamp corresponds to 2014/12/31, but rollback is set to true
+    genericRecordBuilder.set("timestamp", 1420012800000L);
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+
+    millisPartitionWriter.close();
+    millisPartitionWriter.commit();
+
+    // Check that the writer reports that 2 records have been written
+    Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
+
     // Checks that the output directory exists
     File baseOutputDir = new File(OUTPUT_DIR, BASE_FILE_PATH);
     Assert.assertTrue(baseOutputDir.exists());
@@ -122,6 +137,16 @@ public class CustomPartitionerForMigrationTest {
     File outputDir20150103 =
         new File(baseOutputDir, state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150103.exists());
+
+    // Test if rollback is true, no matter when timestamp is, will ingest to prod location
+    File outputDir20150130Rollback =
+        new File(baseOutputDir, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "30" + Path.SEPARATOR + FILE_NAME);
+    Assert.assertTrue(outputDir20150130Rollback.exists());
+
+    // Test if rollback is true, no matter when timestamp is, will ingest to prod location
+    File outputDir20141231Rollback =
+        new File(baseOutputDir, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2014" + Path.SEPARATOR + "12" + Path.SEPARATOR + "31" + Path.SEPARATOR + FILE_NAME);
+    Assert.assertTrue(outputDir20141231Rollback.exists());
   }
 
   /**
@@ -157,6 +182,24 @@ public class CustomPartitionerForMigrationTest {
     // Check that the writer reports that 2 records have been written
     Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
 
+    state.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_ROLLBACK, true);
+    // Create a new writer with additional configuration in the state
+    millisPartitionWriter = getWriter(schema, state);
+
+    // This timestamp corresponds to 2015/01/30, but rollback is set to true
+    genericRecordBuilder.set("timestamp", 1422604800000L);
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+
+    // This timestamp corresponds to 2014/12/31, but rollback is set to true
+    genericRecordBuilder.set("timestamp", 1420012800000L);
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+
+    millisPartitionWriter.close();
+    millisPartitionWriter.commit();
+
+    // Check that the writer reports that 2 records have been written
+    Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
+
     // Checks that the output directory exists
     File baseOutputDir = new File(OUTPUT_DIR, BASE_FILE_PATH);
     Assert.assertTrue(baseOutputDir.exists());
@@ -170,6 +213,18 @@ public class CustomPartitionerForMigrationTest {
     File outputDir20150103 =
         new File(baseOutputDir, state.getProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "03" + Path.SEPARATOR + FILE_NAME);
     Assert.assertTrue(outputDir20150103.exists());
+
+    // Test if rollback is true, no matter when timestamp is, local pipeline will ingest to backup location
+    File outputDir20150130Rollback =
+        new File(baseOutputDir, state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2015" + Path.SEPARATOR + "01" + Path.SEPARATOR + "30" + Path.SEPARATOR + FILE_NAME);
+    Assert.assertTrue(outputDir20150130Rollback.exists());
+
+    // Test if rollback is true, no matter when timestamp is, local pipeline will ingest to backup location
+    File outputDir20141231Rollback =
+        new File(baseOutputDir, state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX) + Path.SEPARATOR + "2014" + Path.SEPARATOR + "12" + Path.SEPARATOR + "31" + Path.SEPARATOR + FILE_NAME);
+    Assert.assertTrue(outputDir20141231Rollback.exists());
+
+    System.out.println(FileUtils.listFiles(new File(TEST_ROOT_DIR), new String[] { "avro" }, true));
   }
 
   @AfterClass
@@ -198,8 +253,8 @@ public class CustomPartitionerForMigrationTest {
     properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
     properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, CustomPartitionerForMigrationByTimestamp.class.getName());
     properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PREFIX, "hourly");
-    properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX, "backup/hourly");
     properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_ON, true);
+    properties.setProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX, "backup/hourly");
     return properties;
   }
 

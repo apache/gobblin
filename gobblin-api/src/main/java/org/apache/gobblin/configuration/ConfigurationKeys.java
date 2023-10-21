@@ -450,6 +450,7 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
   public static final String WRITER_ADD_TASK_TIMESTAMP = WRITER_PREFIX + ".addTaskTimestamp";
   public static final String LOCAL_CONSUMPTION_PREFIX = "localConsumption";
+  public static final String LOCAL_CONSUMPTION_ROLLBACK = LOCAL_CONSUMPTION_PREFIX + ".rollback";
 
   // Denotes if local consumption settings should be used
   public static final String LOCAL_CONSUMPTION_ON = WRITER_PREFIX + "." + LOCAL_CONSUMPTION_PREFIX + ".on";

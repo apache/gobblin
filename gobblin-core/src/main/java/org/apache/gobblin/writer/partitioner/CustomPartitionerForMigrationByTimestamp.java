@@ -25,8 +25,9 @@ import org.apache.gobblin.util.ForkOperatorUtils;
 
 public class CustomPartitionerForMigrationByTimestamp extends TimeBasedAvroWriterPartitioner {
   public static final String WRITER_PARTITION_COLUMNS = ConfigurationKeys.WRITER_PREFIX + ".partition.columns";
-  protected String writerPartitionPrefixBackup;
+  public boolean localConsumptionRollback;
   public boolean localConsumptionProgress;
+  protected String writerPartitionPrefixBackup;
   public long localConsumptionCutoverUnixTime;
   public String localConsumptionPipelineType;
 
@@ -43,7 +44,8 @@ public class CustomPartitionerForMigrationByTimestamp extends TimeBasedAvroWrite
       Preconditions.checkNotNull(state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX));
       this.localConsumptionCutoverUnixTime = state.getPropAsLong(ConfigurationKeys.LOCAL_CONSUMPTION_CUTOVER_UNIX);
       this.localConsumptionPipelineType = state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_PIPELINE_TYPE);
-      this.writerPartitionPrefixBackup = state.getProp(ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX, numBranches, branchId));
+      this.writerPartitionPrefixBackup = state.getProp(ConfigurationKeys.LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX);
+      this.localConsumptionRollback = state.getPropAsBoolean(ConfigurationKeys.LOCAL_CONSUMPTION_ROLLBACK, false);
     }
   }
 
@@ -55,9 +57,14 @@ public class CustomPartitionerForMigrationByTimestamp extends TimeBasedAvroWrite
     if (this.localConsumptionProgress) {
       // Only use backup prefix for agg pipeline when record time is past cutover time
       // Only use backup prefix for local pipeline when record time is prior to cutover time
-      if ((this.localConsumptionPipelineType.equals("aggregate") && timestamp >= this.localConsumptionCutoverUnixTime) ||
-          (this.localConsumptionPipelineType.equals("local") && timestamp < this.localConsumptionCutoverUnixTime)) {
+      if (!this.localConsumptionRollback && ((this.localConsumptionPipelineType.equals("aggregate") && timestamp >= this.localConsumptionCutoverUnixTime) ||
+          (this.localConsumptionPipelineType.equals("local") && timestamp < this.localConsumptionCutoverUnixTime))) {
           partition.put(PREFIX, this.writerPartitionPrefixBackup);
+      }
+      // If rollback is true, then we never replace agg pipeline path
+      // If rollback is true, then we always replace local pipeline path to the backup directory
+      else if (this.localConsumptionRollback && this.localConsumptionPipelineType.equals("local")) {
+        partition.put(PREFIX, this.writerPartitionPrefixBackup);
       }
     }
     return partition;
