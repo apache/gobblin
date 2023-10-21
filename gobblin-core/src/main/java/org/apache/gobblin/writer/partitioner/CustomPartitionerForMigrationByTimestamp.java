@@ -14,15 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.writer.partitioner;
 
 import com.google.common.base.Preconditions;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.ForkOperatorUtils;
 
-
+/**
+ * A {@link CustomPartitionerForMigrationByTimestamp} for {@link GenericRecord}s.
+ *
+ * Builds upon the {@link TimeBasedAvroWriterPartitioner}, and determines the partition based on the UNIX timestamp in milli
+ * of the local consumption migration cutover configuration time.
+ *
+ * If aggregate pipeline:
+ *    If the timestamp of the record is prior to the cutover configuration time, ingest to production location
+ *    If the timestamp of the record is equal to or after the cutover configuration time, ingest to backup location
+ * If local pipeline:
+ *    If the timestamp of the record is prior to the cutover configuration time, ingest to backup location
+ *    If the timestamp of the record is equal to or after the cutover configuration time, ingest to production location
+ */
 public class CustomPartitionerForMigrationByTimestamp extends TimeBasedAvroWriterPartitioner {
   public static final String WRITER_PARTITION_COLUMNS = ConfigurationKeys.WRITER_PREFIX + ".partition.columns";
   public boolean localConsumptionRollback;
