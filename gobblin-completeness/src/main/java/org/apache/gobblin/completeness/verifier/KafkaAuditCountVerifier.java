@@ -171,6 +171,7 @@ public class KafkaAuditCountVerifier {
     for (String refTier: this.refTiers) {
       long refCount = countsByTier.get(refTier);
       long srcCount = countsByTier.get(this.srcTier);
+      double tmpPercent;
 
       /*
         If we have a case where an audit map is returned, however, one of the source tiers on another fabric is 0,
@@ -178,9 +179,11 @@ public class KafkaAuditCountVerifier {
         This needs to be added as a non-zero double value divided by 0 is infinity, but 0 divided by 0 is NaN.
        */
       if (srcCount == 0 && refCount == 0) {
-        return 1.0;
+        tmpPercent = 1;
+      } else {
+        tmpPercent =  (double) srcCount / (double) refCount;
       }
-      percent = Double.max(percent, (double) srcCount / (double) refCount);
+      percent = percent < 0 ? tmpPercent : Double.min(percent, tmpPercent);
     }
 
     if (percent < 0) {

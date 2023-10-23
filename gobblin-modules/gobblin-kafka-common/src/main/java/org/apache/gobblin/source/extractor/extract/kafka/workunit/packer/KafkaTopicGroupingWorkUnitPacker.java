@@ -70,7 +70,7 @@ import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.
 @Slf4j
 public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String GOBBLIN_KAFKA_PREFIX = "gobblin.kafka.";
-  private static final int DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 10;
+  private static final int DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 30;
 
   //A global configuration for container capacity. The container capacity refers to the peak rate (in MB/s) that a
   //single JVM can consume from Kafka for a single topic and controls the number of partitions of a topic that will be
@@ -198,6 +198,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
       }
       //Add CONTAINER_CAPACITY into each workunit. Useful when KafkaIngestionHealthCheck is enabled.
       for (WorkUnit workUnit: workUnitsForTopic) {
+        //todo: check whether it's set already to respect the topic specific capacity from user input properties
         workUnit.setProp(CONTAINER_CAPACITY_KEY, containerCapacity);
       }
       double estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
