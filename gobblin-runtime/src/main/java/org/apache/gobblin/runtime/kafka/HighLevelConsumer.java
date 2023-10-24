@@ -102,9 +102,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
   private final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
-  private final BlockingQueue[] queues;
+  protected final BlockingQueue[] queues;
   protected ContextAwareGauge[] queueSizeGauges;
-  protected AtomicIntegerArray queueSizeGaugeValues;
   private final AtomicInteger recordsProcessed;
   private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
   private final boolean enableAutoCommit;
@@ -202,21 +201,13 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   protected void createMetrics() {
     this.messagesRead = this.metricContext.counter(RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
     this.queueSizeGauges = new ContextAwareGauge[numThreads];
-    this.queueSizeGaugeValues = new AtomicIntegerArray(numThreads);
     for (int i=0; i < numThreads; i++) {
+      // An 'effectively' final variable is needed inside the lambda expression below
       int finalI = i;
       this.queueSizeGauges[i] = this.metricContext.newContextAwareGauge(
-          RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE + "-" + i,
-          () -> queueSizeGaugeValues.get(finalI));
+          RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX + "-" + i,
+          () -> queues[finalI].size());
     }
-  }
-
-  /**
-   * Update atomic integer corresponding to queue size
-   * @param queueIndex used to index the queue list
-   */
-  private void updateQueueSizes(int queueIndex) {
-    this.queueSizeGaugeValues.set(queueIndex, queues[queueIndex].size());
   }
 
   /**
@@ -265,8 +256,6 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
         KafkaConsumerRecord record = itr.next();
         int idx = record.getPartition() % numThreads;
         queues[idx].put(record);
-        // Increment queue size metric
-        updateQueueSizes(idx);
       }
     } catch (InterruptedException e) {
       log.warn("Exception encountered while consuming records and adding to queue {}", e);

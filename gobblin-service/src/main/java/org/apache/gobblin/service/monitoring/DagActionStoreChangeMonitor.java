@@ -35,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -220,12 +219,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected void createMetrics() {
     super.messagesRead = this.getMetricContext().counter(RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
     super.queueSizeGauges = new ContextAwareGauge[super.numThreads];
-    super.queueSizeGaugeValues = new AtomicIntegerArray(numThreads);
     for (int i=0; i < numThreads; i++) {
+      // An 'effectively' final variable is needed inside the lambda expression below
       int finalI = i;
       this.queueSizeGauges[i] = this.getMetricContext().newContextAwareGauge(
-          RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE + "-" + i,
-          () -> queueSizeGaugeValues.get(finalI));
+          RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX + "-" + i,
+          () -> super.queues[finalI].size());
     }
     // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
