@@ -449,20 +449,6 @@ public class ConfigurationKeys {
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
   public static final String WRITER_ADD_TASK_TIMESTAMP = WRITER_PREFIX + ".addTaskTimestamp";
-  public static final String LOCAL_CONSUMPTION_PREFIX = "localConsumption";
-  public static final String LOCAL_CONSUMPTION_ROLLBACK = LOCAL_CONSUMPTION_PREFIX + ".rollback";
-
-  // Denotes if local consumption settings should be used
-  public static final String LOCAL_CONSUMPTION_ON = WRITER_PREFIX + "." + LOCAL_CONSUMPTION_PREFIX + ".on";
-
-  // Denotes the backup HDFS path location addition
-  public static final String LOCAL_CONSUMPTION_WRITER_PARTITION_PREFIX = ConfigurationKeys.WRITER_PREFIX + "." + LOCAL_CONSUMPTION_PREFIX + ".partition.prefix";
-
-  // Denotes whether the pipeline is the aggregate pipeline or the local pipeline
-  public static final String LOCAL_CONSUMPTION_PIPELINE_TYPE = ConfigurationKeys.WRITER_PREFIX + "." + LOCAL_CONSUMPTION_PREFIX + ".type";
-
-  // Denotes the cutover time in unix timestamp in milliseconds
-  public static final String LOCAL_CONSUMPTION_CUTOVER_UNIX = ConfigurationKeys.WRITER_PREFIX + "." + LOCAL_CONSUMPTION_PREFIX + ".cutover";
 
   // Internal use only - used to send metadata to publisher
   public static final String WRITER_METADATA_KEY = WRITER_PREFIX + "._internal.metadata";
