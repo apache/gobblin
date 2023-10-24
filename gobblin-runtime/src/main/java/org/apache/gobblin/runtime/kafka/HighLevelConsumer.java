@@ -129,7 +129,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     this.consumerExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
     this.queueExecutor = Executors.newFixedThreadPool(this.numThreads, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
     this.queues = new LinkedBlockingQueue[numThreads];
-    for(int i = 0; i<queues.length; i++) {
+    for(int i = 0; i < queues.length; i++) {
       this.queues[i] = new LinkedBlockingQueue();
     }
     this.recordsProcessed = new AtomicInteger(0);
@@ -198,15 +198,24 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    * this method to instantiate their own metrics.
    */
   protected void createMetrics() {
-    this.messagesRead = this.metricContext.counter(RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    String prefix = getMetricsPrefix();
+    this.messagesRead = this.metricContext.counter(prefix +
+        RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
     this.queueSizeGauges = new ContextAwareGauge[numThreads];
     for (int i=0; i < numThreads; i++) {
       // An 'effectively' final variable is needed inside the lambda expression below
       int finalI = i;
-      this.queueSizeGauges[i] = this.metricContext.newContextAwareGauge(
+      this.queueSizeGauges[i] = this.metricContext.newContextAwareGauge(prefix +
           RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX + "-" + i,
           () -> queues[finalI].size());
     }
+  }
+
+  /**
+   * Used by child classes to distinguish prefixes from one another
+   */
+  protected String getMetricsPrefix() {
+    return "";
   }
 
   /**
