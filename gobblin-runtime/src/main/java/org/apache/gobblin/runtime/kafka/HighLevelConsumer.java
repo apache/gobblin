@@ -88,7 +88,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   @Getter
   protected final String topic;
   protected final Config config;
-  protected final int numThreads;
+  private final int numThreads;
 
   /**
    * {@link MetricContext} for the consumer. Note this is instantiated when {@link #startUp()} is called, so
@@ -101,8 +101,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
   private final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
-  protected final BlockingQueue[] queues;
-  protected ContextAwareGauge[] queueSizeGauges;
+  private final BlockingQueue[] queues;
+  private ContextAwareGauge[] queueSizeGauges;
   private final AtomicInteger recordsProcessed;
   private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
   private final boolean enableAutoCommit;
