@@ -31,7 +31,9 @@ import org.apache.gobblin.configuration.State;
 public class KafkaAuditCountVerifierTest {
 
   public static final String SOURCE_TIER = "gobblin";
-  public static final String REFERENCE_TIERS = "producer";
+  public static final String REFERENCE_TIER = "producer";
+  public static final String REFERENCE_TIER_1 = "producer_reference";
+  public static final String REFERENCE_TIERS = REFERENCE_TIER + "," + REFERENCE_TIER_1;
 
   public static final String TOTAL_COUNT_REF_TIER_0 = "producer_0";
   public static final String TOTAL_COUNT_REF_TIER_1 = "producer_1";
@@ -50,7 +52,8 @@ public class KafkaAuditCountVerifierTest {
     // All complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 1000L,
-        REFERENCE_TIERS,   1000L
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L
     ));
     // Default threshold
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
@@ -59,7 +62,8 @@ public class KafkaAuditCountVerifierTest {
     // 99.999 % complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 999L,
-        REFERENCE_TIERS,   1000L
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L
     ));
     Assert.assertTrue(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
@@ -67,7 +71,8 @@ public class KafkaAuditCountVerifierTest {
     // <= 99% complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 990L,
-        REFERENCE_TIERS,   1000L
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L
     ));
     Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
         .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
@@ -86,7 +91,8 @@ public class KafkaAuditCountVerifierTest {
     // All complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 1000L,
-        REFERENCE_TIERS, 1000L,
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
@@ -97,7 +103,8 @@ public class KafkaAuditCountVerifierTest {
     // 99.999 % complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 999L,
-        REFERENCE_TIERS, 1000L,
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
@@ -107,7 +114,8 @@ public class KafkaAuditCountVerifierTest {
     // <= 99% complete
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 990L,
-        REFERENCE_TIERS, 1000L,
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L,
         TOTAL_COUNT_REF_TIER_0, 600L,
         TOTAL_COUNT_REF_TIER_1, 400L
     ));
@@ -140,7 +148,8 @@ public class KafkaAuditCountVerifierTest {
     client.setTierCounts(
         ImmutableMap.of(
             SOURCE_TIER, 990L,
-            REFERENCE_TIERS, 0L,
+            REFERENCE_TIER, 0L,
+            REFERENCE_TIER_1, 0L,
             TOTAL_COUNT_REF_TIER_0, 0L,
             TOTAL_COUNT_REF_TIER_1, 0L
         ));
@@ -153,7 +162,8 @@ public class KafkaAuditCountVerifierTest {
     client.setTierCounts(
         ImmutableMap.of(
             SOURCE_TIER, 0L,
-            REFERENCE_TIERS, 0L,
+            REFERENCE_TIER, 0L,
+            REFERENCE_TIER_1, 0L,
             TOTAL_COUNT_REF_TIER_0, 0L,
             TOTAL_COUNT_REF_TIER_1, 0L
         ));
@@ -175,7 +185,8 @@ public class KafkaAuditCountVerifierTest {
     // Missing total count tier which will throw exception
     client.setTierCounts(ImmutableMap.of(
         SOURCE_TIER, 999L,
-        REFERENCE_TIERS, 1000L
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 1000L
     ));
 
     // Classic completeness is still returned, but total is missing
@@ -184,4 +195,42 @@ public class KafkaAuditCountVerifierTest {
     Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
         .containsKey(KafkaAuditCountVerifier.CompletenessType.TotalCountCompleteness));
   }
+
+  public void testDifferentValueInReferenceTier() throws IOException {
+    final String topic = "testTopic";
+    State props = new State();
+    props.setProp(KafkaAuditCountVerifier.SOURCE_TIER, SOURCE_TIER);
+    props.setProp(KafkaAuditCountVerifier.REFERENCE_TIERS, REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.TOTAL_COUNT_REFERENCE_TIERS, TOTAL_COUNT_REFERENCE_TIERS);
+    props.setProp(KafkaAuditCountVerifier.THRESHOLD, ".99");
+    props.setProp(KafkaAuditCountVerifier.COMPLETE_ON_NO_COUNTS, true);
+    TestAuditClient client = new TestAuditClient(props);
+    KafkaAuditCountVerifier verifier = new KafkaAuditCountVerifier(props, client);
+
+    // Different value in reference tier
+    client.setTierCounts(ImmutableMap.of(
+        SOURCE_TIER, 999L,
+        REFERENCE_TIER, 1000L,
+        REFERENCE_TIER_1, 2000L
+    ));
+
+    // Classic completeness is fail as 999/2000 < 99.9%
+    Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
+
+    // Different value in reference tier and one tier has 0 in count
+    client.setTierCounts(ImmutableMap.of(
+        SOURCE_TIER, 999L,
+        REFERENCE_TIER, 0L,
+        REFERENCE_TIER_1, 2000L
+    ));
+
+    // Classic completeness is fail as 999/2000 < 99.9%
+    Assert.assertFalse(verifier.calculateCompleteness(topic, 0L, 0L)
+        .get(KafkaAuditCountVerifier.CompletenessType.ClassicCompleteness));
+
+
+
+  }
+
 }
