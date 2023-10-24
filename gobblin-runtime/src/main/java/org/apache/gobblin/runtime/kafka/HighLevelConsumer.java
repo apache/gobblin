@@ -51,6 +51,7 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.GobblinConsumerRebalanceListener;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
@@ -101,6 +102,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
   private final BlockingQueue[] queues;
+  private ContextAwareGauge[] queueSizeGauges;
   private final AtomicInteger recordsProcessed;
   private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
   private final boolean enableAutoCommit;
@@ -127,7 +129,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     this.consumerExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
     this.queueExecutor = Executors.newFixedThreadPool(this.numThreads, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
     this.queues = new LinkedBlockingQueue[numThreads];
-    for(int i=0; i<queues.length; i++) {
+    for(int i = 0; i < queues.length; i++) {
       this.queues[i] = new LinkedBlockingQueue();
     }
     this.recordsProcessed = new AtomicInteger(0);
@@ -196,7 +198,24 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    * this method to instantiate their own metrics.
    */
   protected void createMetrics() {
-    this.messagesRead = this.metricContext.counter(RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    String prefix = getMetricsPrefix();
+    this.messagesRead = this.metricContext.counter(prefix +
+        RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    this.queueSizeGauges = new ContextAwareGauge[numThreads];
+    for (int i = 0; i < numThreads; i++) {
+      // An 'effectively' final variable is needed inside the lambda expression below
+      int finalI = i;
+      this.queueSizeGauges[i] = this.metricContext.newContextAwareGauge(prefix +
+          RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX + "-" + i,
+          () -> queues[finalI].size());
+    }
+  }
+
+  /**
+   * Used by child classes to distinguish prefixes from one another
+   */
+  protected String getMetricsPrefix() {
+    return "";
   }
 
   /**
@@ -237,6 +256,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private void consume() {
     try {
       Iterator<KafkaConsumerRecord> itr = gobblinKafkaConsumerClient.consume();
+      // TODO: we may be committing too early and only want to commit after process messages
       if(!enableAutoCommit) {
         commitOffsets();
       }
