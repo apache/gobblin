@@ -123,6 +123,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
+    if (value.getDagAction() == null) {
+      log.warn("Skipping null dag action type received for flow group: {} name: {} executionId: {} tid: {} operation: "
+          + "{}", flowGroup, flowName, flowExecutionId, tid, operation);
+      this.messageFilteredOutMeter.mark();
+      return;
+    }
     DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
