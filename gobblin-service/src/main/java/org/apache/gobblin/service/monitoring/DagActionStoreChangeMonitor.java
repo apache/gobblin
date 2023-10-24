@@ -29,6 +29,7 @@ import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
@@ -217,7 +218,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Override
   protected void createMetrics() {
-    super.messagesRead = this.getMetricContext().counter(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    super.messagesRead = this.getMetricContext().counter(RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    super.queueSizeGauges = new ContextAwareGauge[super.numThreads];
+    super.queueSizeGaugeValues = new AtomicIntegerArray(numThreads);
+    for (int i=0; i < numThreads; i++) {
+      int finalI = i;
+      this.queueSizeGauges[i] = this.getMetricContext().newContextAwareGauge(
+          RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE + "-" + i,
+          () -> queueSizeGaugeValues.get(finalI));
+    }
+    // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     this.flowsLaunched = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_FLOWS_LAUNCHED);

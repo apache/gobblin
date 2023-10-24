@@ -32,6 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.codahale.metrics.Counter;
@@ -51,6 +52,7 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.GobblinConsumerRebalanceListener;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
@@ -87,7 +89,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   @Getter
   protected final String topic;
   protected final Config config;
-  private final int numThreads;
+  protected final int numThreads;
 
   /**
    * {@link MetricContext} for the consumer. Note this is instantiated when {@link #startUp()} is called, so
@@ -101,6 +103,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
   private final BlockingQueue[] queues;
+  protected ContextAwareGauge[] queueSizeGauges;
+  protected AtomicIntegerArray queueSizeGaugeValues;
   private final AtomicInteger recordsProcessed;
   private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
   private final boolean enableAutoCommit;
@@ -197,6 +201,22 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    */
   protected void createMetrics() {
     this.messagesRead = this.metricContext.counter(RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    this.queueSizeGauges = new ContextAwareGauge[numThreads];
+    this.queueSizeGaugeValues = new AtomicIntegerArray(numThreads);
+    for (int i=0; i < numThreads; i++) {
+      int finalI = i;
+      this.queueSizeGauges[i] = this.metricContext.newContextAwareGauge(
+          RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE + "-" + i,
+          () -> queueSizeGaugeValues.get(finalI));
+    }
+  }
+
+  /**
+   * Update atomic integer corresponding to queue size
+   * @param queueIndex used to index the queue list
+   */
+  private void updateQueueSizes(int queueIndex) {
+    this.queueSizeGaugeValues.set(queueIndex, queues[queueIndex].size());
   }
 
   /**
@@ -237,6 +257,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private void consume() {
     try {
       Iterator<KafkaConsumerRecord> itr = gobblinKafkaConsumerClient.consume();
+      // TODO: we may be committing too early and only want to commit after process messages
       if(!enableAutoCommit) {
         commitOffsets();
       }
@@ -244,6 +265,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
         KafkaConsumerRecord record = itr.next();
         int idx = record.getPartition() % numThreads;
         queues[idx].put(record);
+        // Increment queue size metric
+        updateQueueSizes(idx);
       }
     } catch (InterruptedException e) {
       log.warn("Exception encountered while consuming records and adding to queue {}", e);
