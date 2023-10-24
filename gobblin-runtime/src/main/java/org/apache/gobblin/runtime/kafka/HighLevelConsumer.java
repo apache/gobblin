@@ -32,7 +32,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import java.util.concurrent.atomic.AtomicIntegerArray;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.codahale.metrics.Counter;
@@ -130,7 +129,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     this.consumerExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
     this.queueExecutor = Executors.newFixedThreadPool(this.numThreads, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
     this.queues = new LinkedBlockingQueue[numThreads];
-    for(int i=0; i<queues.length; i++) {
+    for(int i = 0; i<queues.length; i++) {
       this.queues[i] = new LinkedBlockingQueue();
     }
     this.recordsProcessed = new AtomicInteger(0);

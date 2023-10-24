@@ -29,7 +29,6 @@ import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import java.util.concurrent.atomic.AtomicIntegerArray;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
@@ -219,10 +218,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected void createMetrics() {
     super.messagesRead = this.getMetricContext().counter(RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." + RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
     super.queueSizeGauges = new ContextAwareGauge[super.numThreads];
-    for (int i=0; i < numThreads; i++) {
+    for (int i = 0; i < numThreads; i++) {
       // An 'effectively' final variable is needed inside the lambda expression below
       int finalI = i;
       this.queueSizeGauges[i] = this.getMetricContext().newContextAwareGauge(
+          RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + "." +
           RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX + "-" + i,
           () -> super.queues[finalI].size());
     }
