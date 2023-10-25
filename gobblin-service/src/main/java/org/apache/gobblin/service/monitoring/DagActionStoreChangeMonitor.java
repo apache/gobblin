@@ -124,14 +124,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    if (value.getDagAction() == null) {
-      log.warn("Skipping null dag action type received for flow group: {} name: {} executionId: {} tid: {} operation: "
-          + "{}", flowGroup, flowName, flowExecutionId, tid, operation);
-      this.malformedMessagesSkippedMeter.mark();
-      return;
-    }
-    DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
-
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
         flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeDelayValue);
@@ -142,6 +134,15 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       this.messageFilteredOutMeter.mark();
       return;
     }
+
+    // Needs to be done after, filtering out heartbeat values that do have valid null dagActionTypes
+    if (value.getDagAction() == null) {
+      log.warn("Skipping null dag action type received for flow group: {} name: {} executionId: {} tid: {} operation: "
+          + "{}", flowGroup, flowName, flowExecutionId, tid, operation);
+      this.malformedMessagesSkippedMeter.mark();
+      return;
+    }
+    DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
 
     // Used to easily log information to identify the dag action
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
