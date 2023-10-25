@@ -302,7 +302,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
       // but aren't processed). When filteredTopicPartition present, only filtered topic-partitions are needed so skip this call
-      if(filteredTopicPartition.isPresent()) {
+      if(!filteredTopicPartition.isPresent()) {
         createEmptyWorkUnitsForSkippedPartitions(kafkaTopicWorkunitMap, topicSpecificStateMap, state);
       }
 
