@@ -129,8 +129,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             copyableFile.setFsDatasets(srcFs, targetFs);
             copyEntities.add(copyableFile);
 
+            Path fromPath = srcFs.getFileStatus(fileToCopy).isDirectory() ? fileToCopy : fileToCopy.getParent();
+
             ancestorOwnerAndPermissions.putAll(
-                CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fileToCopy,
+                CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
                     new Path(commonFilesParent), configuration));
 
             if (existOnTarget && srcFile.isFile()) {
