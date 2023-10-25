@@ -62,6 +62,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
   private ContextAwareMeter messageFilteredOutMeter;
+  private ContextAwareMeter malformedMessagesSkippedMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   private volatile Long produceToConsumeDelayValue = -1L;
@@ -123,6 +124,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
+    if (value.getDagAction() == null) {
+      log.warn("Skipping null dag action type received for flow group: {} name: {} executionId: {} tid: {} operation: "
+          + "{}", flowGroup, flowName, flowExecutionId, tid, operation);
+      this.malformedMessagesSkippedMeter.mark();
+      return;
+    }
     DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
@@ -225,6 +232,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
     this.messageFilteredOutMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGES_FILTERED_OUT);
+    this.malformedMessagesSkippedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MALFORMED_MESSAGES_SKIPPED);
     this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
     this.getMetricContext().register(this.produceToConsumeDelayMillis);
   }
