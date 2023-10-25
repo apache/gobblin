@@ -305,7 +305,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       createEmptyWorkUnitsForSkippedPartitions(kafkaTopicWorkunitMap, topicSpecificStateMap, state);
 
       KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state, Optional.of(this.metricContext));
-      int numOfMultiWorkunits = minContainer.or(0);
+      int numOfMultiWorkunits = minContainer.or(1);
       if(state.contains(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)) {
         numOfMultiWorkunits = Math.max(numOfMultiWorkunits,
             calculateNumMappersForPacker(state, kafkaWorkUnitPacker, kafkaTopicWorkunitMap));
