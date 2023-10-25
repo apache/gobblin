@@ -301,8 +301,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           createWorkUnitStopwatch.elapsed(TimeUnit.SECONDS)));
 
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
-      // but aren't processed).
-      createEmptyWorkUnitsForSkippedPartitions(kafkaTopicWorkunitMap, topicSpecificStateMap, state);
+      // but aren't processed). When filteredTopicPartition present, only filtered topic-partitions are needed so skip this call
+      if(filteredTopicPartition.isPresent()) {
+        createEmptyWorkUnitsForSkippedPartitions(kafkaTopicWorkunitMap, topicSpecificStateMap, state);
+      }
 
       KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state, Optional.of(this.metricContext));
       int numOfMultiWorkunits = minContainer.or(1);
