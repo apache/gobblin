@@ -52,7 +52,7 @@ dependencies {
         transitive = false
     }
     testCompile('org.apache.hadoop:hadoop-common:2.6.0')
-    testImplementation(testFixtures(project(":gobblin-completeness")))
+    testCompile project(":gobblin-completeness").sourceSets.test.output
     testCompile project(path: ':gobblin-modules:gobblin-kafka-common', configuration: 'tests')
     testCompile externalDependency.testng
     testCompile externalDependency.mockito

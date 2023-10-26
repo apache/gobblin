@@ -28,13 +28,18 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -88,9 +93,14 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           + "%s, you can specify multi locations split by '',", manifestPath.toString(), manifestReadFs.getUri().toString(),
           ManifestBasedDatasetFinder.MANIFEST_LOCATION));
     }
+
     CopyManifest.CopyableUnitIterator manifests = null;
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<FileStatus> toDelete = Lists.newArrayList();
+    // map of paths and permissions sorted by depth of path, so that permissions can be set in order
+    Map<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
+        (o1, o2) -> Long.compare(o2.chars().filter(ch -> ch == '/').count(), o1.chars().filter(ch -> ch == '/').count()));
+
     try {
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.manifestReadFs, this.manifestPath);
@@ -118,6 +128,13 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             CopyableFile copyableFile = copyableFileBuilder.build();
             copyableFile.setFsDatasets(srcFs, targetFs);
             copyEntities.add(copyableFile);
+
+            Path fromPath = srcFs.getFileStatus(fileToCopy).isDirectory() ? fileToCopy : fileToCopy.getParent();
+
+            ancestorOwnerAndPermissions.putAll(
+                CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
+                    new Path(commonFilesParent), configuration));
+
             if (existOnTarget && srcFile.isFile()) {
               // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
               // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
@@ -128,6 +145,12 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
+
+      Properties props = new Properties();
+      props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
+      CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
+      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
+
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());

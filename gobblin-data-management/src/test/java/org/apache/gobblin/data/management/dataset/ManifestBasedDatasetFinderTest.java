@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.dataset;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -28,7 +29,10 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.ManifestBasedDataset;
 import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,14 +40,19 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import static org.mockito.Mockito.*;
 
 
 public class ManifestBasedDatasetFinderTest {
   private FileSystem localFs;
+  private File tmpDir;
 
   public ManifestBasedDatasetFinderTest() throws IOException {
     localFs = FileSystem.getLocal(new Configuration());
+    tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
   }
 
   @Test
@@ -81,7 +90,7 @@ public class ManifestBasedDatasetFinderTest {
       Mockito.when(sourceFs.getUri()).thenReturn(SRC_FS_URI);
       Mockito.when(manifestReadFs.getUri()).thenReturn(MANIFEST_READ_FS_URI);
       Mockito.when(destFs.getUri()).thenReturn(DEST_FS_URI);
-      Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(manifestPath));
+      Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
       Mockito.when(sourceFs.exists(any(Path.class))).thenReturn(true);
       Mockito.when(manifestReadFs.exists(any(Path.class))).thenReturn(true);
       Mockito.when(manifestReadFs.getFileStatus(manifestPath)).thenReturn(localFs.getFileStatus(manifestPath));
@@ -96,7 +105,8 @@ public class ManifestBasedDatasetFinderTest {
           new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 2);
+      Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
+      Assert.assertTrue(((PostPublishStep)fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
       Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).getFileStatus(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).open(manifestPath);
