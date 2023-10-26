@@ -53,6 +53,7 @@ public class State implements WritableShim {
 
   private static final Joiner LIST_JOINER = Joiner.on(",");
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
+  private static final JsonParser JSON_PARSER = new JsonParser();
 
   private String id;
 
@@ -61,8 +62,6 @@ public class State implements WritableShim {
   private Properties commonProperties;
   @Getter
   private Properties specProperties;
-
-  private final JsonParser jsonParser = new JsonParser();
 
   public State() {
     this.specProperties = new Properties();
@@ -476,7 +475,7 @@ public class State implements WritableShim {
    * @return {@link JsonArray} value associated with the key
    */
   public JsonArray getPropAsJsonArray(String key) {
-    JsonElement jsonElement = this.jsonParser.parse(getProp(key));
+    JsonElement jsonElement = this.JSON_PARSER.parse(getProp(key));
     Preconditions.checkArgument(jsonElement.isJsonArray(),
         "Value for key " + key + " is malformed, it must be a JsonArray: " + jsonElement);
     return jsonElement.getAsJsonArray();
