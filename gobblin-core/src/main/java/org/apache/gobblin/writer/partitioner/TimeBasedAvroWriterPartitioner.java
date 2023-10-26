@@ -85,7 +85,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   /**
    *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
    */
-  private long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
+  protected long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
 
     if (writerPartitionColumnValue.isPresent()) {
       Object val = writerPartitionColumnValue.get();
@@ -103,7 +103,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   /**
    * Retrieve the value of the partition column field specified by this.partitionColumns
    */
-  private Optional<Object> getWriterPartitionColumnValue(GenericRecord record) {
+  protected Optional<Object> getWriterPartitionColumnValue(GenericRecord record) {
     if (!this.partitionColumns.isPresent()) {
       return Optional.absent();
     }
