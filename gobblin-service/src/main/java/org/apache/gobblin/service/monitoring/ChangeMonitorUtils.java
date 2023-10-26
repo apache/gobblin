@@ -20,6 +20,8 @@ package org.apache.gobblin.service.monitoring;
 import com.google.common.cache.LoadingCache;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+
 
 @Slf4j
 public final class ChangeMonitorUtils {
@@ -28,20 +30,24 @@ public final class ChangeMonitorUtils {
   }
 
   /**
-   * Performs checks for duplicate messages and heartbeat operation prior to processing a message. Returns true if
-   * the pre-conditions above don't apply and we should proceed processing the change event
+   * Performs checks for duplicate messages, heartbeat message types, or null dag action types all of which cannot or
+   * should not be processed. Returns true if the pre-conditions above don't apply, and we should proceed processing
+   * the change event
    */
-  public static boolean shouldProcessMessage(String changeIdentifier, LoadingCache<String, String> cache,
-      String operation, String timestamp) {
+  public static boolean isValidAndUniqueMessage(String changeIdentifier, LoadingCache<String, String> cache,
+      String operation, String timestamp, ContextAwareMeter duplicateMessagesMeter,
+      ContextAwareMeter heartbeatMessagesMeter) {
     // If we've already processed a message with this timestamp and key before then skip duplicate message
     if (cache.getIfPresent(changeIdentifier) != null) {
-      log.info("Duplicate change event with identifier {}", changeIdentifier);
+      log.debug("Duplicate change event with identifier {}", changeIdentifier);
+      duplicateMessagesMeter.mark();
       return false;
     }
 
     // If event is a heartbeat type then log it and skip processing
     if (operation.equals("HEARTBEAT")) {
       log.debug("Received heartbeat message from time {}", timestamp);
+      heartbeatMessagesMeter.mark();
       return false;
     }
 

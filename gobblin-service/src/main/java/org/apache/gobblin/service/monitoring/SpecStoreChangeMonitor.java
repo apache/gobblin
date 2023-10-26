@@ -59,6 +59,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter failedAddedSpecs;
   private ContextAwareMeter deletedSpecs;
   private ContextAwareMeter unexpectedErrors;
+  private ContextAwareMeter duplicateMessagesMeter;
+  private ContextAwareMeter heartbeatMessagesMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   private volatile Long produceToConsumeDelayValue = -1L;
@@ -115,8 +117,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
         produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
-    if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, specChangesSeenCache, operation,
-        produceTimestamp.toString())) {
+    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, specChangesSeenCache, operation,
+        produceTimestamp.toString(), duplicateMessagesMeter, heartbeatMessagesMeter)) {
       return;
     }
 
@@ -179,6 +181,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.deletedSpecs = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_DELETED_SPECS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
+    this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_DUPLICATE_MESSAGES);
+    this.heartbeatMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_HEARTBEAT_MESSAGES);
     this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
     this.getMetricContext().register(this.produceToConsumeDelayMillis);
   }
