@@ -134,11 +134,12 @@ public class CopyableFile extends CopyEntity implements File {
     this.datasetOutputPath = datasetOutputPath;
   }
 
-  /** @return Stringified form, including metadata, in pretty-printed JSON */
+  /** @return pretty-printed JSON, including all metadata */
   public String toJsonString() {
     return toJsonString(true);
   }
 
+  /** @return pretty-printed JSON, optionally including metadata */
   public String toJsonString(boolean includeMetadata) {
     StringWriter stringWriter = new StringWriter();
     try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {

@@ -367,7 +367,7 @@ public class WorkUnit extends State {
     return result;
   }
 
-  /** @return Stringified form, in pretty-printed JSON */
+  /** @return pretty-printed JSON, including all properties */
   public String toJsonString() {
     StringWriter stringWriter = new StringWriter();
     try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {

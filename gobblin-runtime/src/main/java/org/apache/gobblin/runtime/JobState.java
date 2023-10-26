@@ -593,12 +593,18 @@ public class JobState extends SourceState implements JobProgress {
     return result;
   }
 
+  /** @return pretty-printed JSON, without including properties */
   @Override
   public String toString() {
     return toJsonString(false);
   }
 
-  /** @return Stringified form, in pretty-printed JSON */
+  /** @return pretty-printed JSON, including all properties */
+  public String toJsonString() {
+    return toJsonString(true);
+  }
+
+  /** @return pretty-printed JSON, optionally including properties */
   public String toJsonString(boolean includeProperties) {
     StringWriter stringWriter = new StringWriter();
     try (JsonWriter jsonWriter = new JsonWriter(stringWriter)) {
