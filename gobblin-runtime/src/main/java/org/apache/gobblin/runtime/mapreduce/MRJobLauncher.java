@@ -687,7 +687,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       for (WorkUnit workUnit : workUnits) {
 
         String workUnitFileName;
-        if (workUnit instanceof MultiWorkUnit) {
+        if (workUnit.isMultiWorkUnit()) {
           workUnitFileName = JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
               + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
         } else {

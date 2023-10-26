@@ -183,7 +183,7 @@ public class SingleTask {
     WorkUnit workUnit;
 
     try {
-      if (_workUnitFilePath.getName().endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+      if (JobLauncherUtils.hasMultiWorkUnitExtension(_workUnitFilePath)) {
         workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
       } else {
         workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);

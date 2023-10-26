@@ -136,6 +136,11 @@ public class WorkUnit extends State {
     this.extract = other.getExtract();
   }
 
+  /** @return whether a multi-work-unit (or else a singular one) */
+  public boolean isMultiWorkUnit() {
+    return false; // more efficient than `this instanceof MultiWorkUnit` plus no circular dependency
+  }
+
   /**
    * Factory method.
    *

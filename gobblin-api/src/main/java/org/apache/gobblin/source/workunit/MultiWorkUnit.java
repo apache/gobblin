@@ -55,6 +55,11 @@ public class MultiWorkUnit extends WorkUnit {
     super();
   }
 
+  @Override
+  public boolean isMultiWorkUnit() {
+    return true;
+  }
+
   /**
    * Get an immutable list of {@link WorkUnit}s wrapped by this {@link MultiWorkUnit}.
    *

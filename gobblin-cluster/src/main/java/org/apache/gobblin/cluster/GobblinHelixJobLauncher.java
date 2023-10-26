@@ -71,7 +71,6 @@ import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
@@ -343,7 +342,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       int multiTaskIdSequence = 0;
       for (WorkUnit workUnit : workUnits) {
-        if (workUnit instanceof MultiWorkUnit) {
+        if (workUnit.isMultiWorkUnit()) {
           workUnit.setId(JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++));
         }
         addWorkUnit(workUnit, stateSerDeRunner, taskConfigMap);
@@ -533,15 +532,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private void deleteWorkUnitFromStateStore(String workUnitId, ParallelRunner stateSerDeRunner) {
     String workUnitFilePath =
         workUnitToHelixConfig.get(workUnitId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
-    final StateStore stateStore;
     Path workUnitFile = new Path(workUnitFilePath);
     final String fileName = workUnitFile.getName();
     final String storeName = workUnitFile.getParent().getName();
-    if (fileName.endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-      stateStore = stateStores.getMwuStateStore();
-    } else {
-      stateStore = stateStores.getWuStateStore();
-    }
+    final StateStore stateStore = JobLauncherUtils.hasMultiWorkUnitExtension(workUnitFile)
+        ? stateStores.getMwuStateStore()
+        : stateStores.getWuStateStore();
     stateSerDeRunner.submitCallable(new Callable<Void>() {
       @Override
       public Void call() throws Exception {
@@ -559,7 +555,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     final StateStore stateStore;
     String workUnitFileName = workUnit.getId();
 
-    if (workUnit instanceof MultiWorkUnit) {
+    if (workUnit.isMultiWorkUnit()) {
       workUnitFileName += JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
       stateStore = stateStores.getMwuStateStore();
     } else {
