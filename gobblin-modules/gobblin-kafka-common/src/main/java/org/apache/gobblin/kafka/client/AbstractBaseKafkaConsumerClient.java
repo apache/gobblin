@@ -157,7 +157,6 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     return processedName;
   }
 
-
   /**
    * Get a list of all kafka topics
    */
