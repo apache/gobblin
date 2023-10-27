@@ -11,6 +11,11 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 
 
+/**
+ * MySQL based implementations of stores require common functionality that can be stored in a utility class. The
+ * functionality includes executing prepared statements on a data source object and executing SQL queries at fixed
+ * intervals. 
+ */
 public class MySQLStoreUtils {
   private final DataSource dataSource;
   private final Logger log;
