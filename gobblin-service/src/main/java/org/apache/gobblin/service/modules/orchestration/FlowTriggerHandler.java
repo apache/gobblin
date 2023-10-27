@@ -79,6 +79,7 @@ public class FlowTriggerHandler {
   private ContextAwareCounter noLongerLeasingStatusCount;
   private ContextAwareCounter jobDoesNotExistInSchedulerCount;
   private ContextAwareCounter failedToSetEventReminderCount;
+  private ContextAwareMeter leasesObtainedDueToReminderCount;
 
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
@@ -96,6 +97,7 @@ public class FlowTriggerHandler {
     this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
     this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
     this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
+    this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
   }
 
   /**
@@ -116,6 +118,9 @@ public class FlowTriggerHandler {
       // id. From this point onwards, always use the newer version of the flow action to easily track the action through
       // orchestration and execution.
       if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+        if (isReminderEvent) {
+          this.leasesObtainedDueToReminderCount.mark();
+        }
         MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus)
             leaseAttemptStatus;
         this.leaseObtainedCount.inc();

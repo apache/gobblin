@@ -61,8 +61,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter failedFlowLaunchSubmissions;
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
-  private ContextAwareMeter messageFilteredOutMeter;
-  private ContextAwareMeter malformedMessagesSkippedMeter;
+  private ContextAwareMeter duplicateMessagesMeter;
+  private ContextAwareMeter heartbeatMessagesMeter;
+  private ContextAwareMeter nullDagActionTypeMessagesMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   private volatile Long produceToConsumeDelayValue = -1L;
@@ -124,24 +125,23 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
 
-    if (value.getDagAction() == null) {
-      log.warn("Skipping null dag action type received for flow group: {} name: {} executionId: {} tid: {} operation: "
-          + "{}", flowGroup, flowName, flowExecutionId, tid, operation);
-      this.malformedMessagesSkippedMeter.mark();
-      return;
-    }
-    DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
-
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
         flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
-    if (!ChangeMonitorUtils.shouldProcessMessage(changeIdentifier, dagActionsSeenCache, operation,
-        produceTimestamp.toString())) {
-      this.messageFilteredOutMeter.mark();
+    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, operation, produceTimestamp.toString(),
+        dagActionsSeenCache, duplicateMessagesMeter, heartbeatMessagesMeter)) {
       return;
     }
+    // check after filtering out heartbeat messages expected to have `dagActionValue == null`
+    if (value.getDagAction() == null) {
+      log.warn("Skipping null dag action type received for identifier {} ", changeIdentifier);
+      nullDagActionTypeMessagesMeter.mark();
+      return;
+    }
+
+    DagActionStore.FlowActionType dagActionType = DagActionStore.FlowActionType.valueOf(value.getDagAction().toString());
 
     // Used to easily log information to identify the dag action
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
@@ -231,8 +231,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.failedFlowLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
-    this.messageFilteredOutMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGES_FILTERED_OUT);
-    this.malformedMessagesSkippedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MALFORMED_MESSAGES_SKIPPED);
+    this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_DUPLICATE_MESSAGES);
+    this.heartbeatMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_HEARTBEAT_MESSAGES);
+    this.nullDagActionTypeMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_NULL_DAG_ACTION_TYPE_MESSAGES);
     this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
     this.getMetricContext().register(this.produceToConsumeDelayMillis);
   }
