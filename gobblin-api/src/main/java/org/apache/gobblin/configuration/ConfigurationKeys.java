@@ -725,7 +725,7 @@ public class ConfigurationKeys {
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
   public static final boolean DEFAULT_MR_JOB_MAPPER_FAILURE_IS_FATAL = false;
   public static final boolean DEFAULT_MR_PERSIST_WORK_UNITS_THEN_CANCEL = false;
-  public static final String DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = "false";
+  public static final boolean DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION = false;
 
   /**
    * Configuration properties used by the distributed job launcher.

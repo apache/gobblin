@@ -40,7 +40,6 @@ import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -89,28 +88,18 @@ public class GobblinOutputCommitter extends OutputCommitter {
 
         Closer workUnitFileCloser = Closer.create();
 
-        // If the file ends with ".wu" de-serialize it into a WorkUnit
-        if (status.getPath().getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION)) {
-          WorkUnit wu = WorkUnit.createEmpty();
-          try {
-            wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
-          } finally {
-            workUnitFileCloser.close();
-          }
-          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
+        WorkUnit wu = JobLauncherUtils.createEmptyWorkUnitPerExtension(status.getPath());
+        try {
+          wu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
+        } finally {
+          workUnitFileCloser.close();
         }
-
-        // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
-        if (status.getPath().getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-          MultiWorkUnit mwu = MultiWorkUnit.createEmpty();
-          try {
-            mwu.readFields(workUnitFileCloser.register(new DataInputStream(fs.open(status.getPath()))));
-          } finally {
-            workUnitFileCloser.close();
+        if (wu instanceof MultiWorkUnit) {
+          for (WorkUnit eachWU : ((MultiWorkUnit) wu).getWorkUnits()) {
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(eachWU), LOG);
           }
-          for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
-          }
+        } else {
+          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
         }
       }
     } finally {
@@ -173,8 +162,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
   private static class WorkUnitFilter implements PathFilter {
     @Override
     public boolean accept(Path path) {
-      return path.getName().endsWith(AbstractJobLauncher.WORK_UNIT_FILE_EXTENSION)
-          || path.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION);
+      return JobLauncherUtils.hasAnyWorkUnitExtension(path);
     }
   }
 }

@@ -55,6 +55,9 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 @Slf4j
 public class JobLauncherUtils {
 
+  public static final String WORK_UNIT_FILE_EXTENSION = ".wu";
+  public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
   // A cache for proxied FileSystems by owners
   private static Cache<String, FileSystem> fileSystemCacheByOwners = CacheBuilder.newBuilder().build();
 
@@ -114,13 +117,41 @@ public class JobLauncherUtils {
   public static List<WorkUnit> flattenWorkUnits(Collection<WorkUnit> workUnits) {
     List<WorkUnit> flattenedWorkUnits = Lists.newArrayList();
     for (WorkUnit workUnit : workUnits) {
-      if (workUnit instanceof MultiWorkUnit) {
+      if (workUnit.isMultiWorkUnit()) {
         flattenedWorkUnits.addAll(flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits()));
       } else {
         flattenedWorkUnits.add(workUnit);
       }
     }
     return flattenedWorkUnits;
+  }
+
+  /** @return flattened list of {@link WorkUnit}s loaded from `path`, which may possibly hold a multi-work unit */
+  public static List<WorkUnit> loadFlattenedWorkUnits(FileSystem fs, Path path) throws IOException {
+    WorkUnit workUnit = JobLauncherUtils.createEmptyWorkUnitPerExtension(path);
+    SerializationUtils.deserializeState(fs, path, workUnit);
+
+    if (workUnit.isMultiWorkUnit()) {
+      return JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
+    } else {
+      return Lists.newArrayList(workUnit);
+    }
+  }
+
+  /** @return an empty {@link WorkUnit}, potentially an empty {@link MultiWorkUnit}, based on the {@link Path} extension */
+  public static WorkUnit createEmptyWorkUnitPerExtension(Path p) {
+    return JobLauncherUtils.hasMultiWorkUnitExtension(p) ? MultiWorkUnit.createEmpty() : WorkUnit.createEmpty();
+  }
+
+  /** @return whether {@link Path} ends with {@link JobLauncherUtils#MULTI_WORK_UNIT_FILE_EXTENSION} */
+  public static boolean hasMultiWorkUnitExtension(Path p) {
+    return p.getName().endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION);
+  }
+
+  /** @return whether {@link Path} ends with {@link JobLauncherUtils#MULTI_WORK_UNIT_FILE_EXTENSION} or {@link JobLauncherUtils#WORK_UNIT_FILE_EXTENSION} */
+  public static boolean hasAnyWorkUnitExtension(Path p) {
+    return p.getName().endsWith(JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION)
+        || p.getName().endsWith(JobLauncherUtils.WORK_UNIT_FILE_EXTENSION);
   }
 
   /**
