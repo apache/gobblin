@@ -26,7 +26,7 @@ import com.typesafe.config.Config;
 
 
 /**
- * Static / singleton holder to stash the {@link Config} used to construct each kind of {@link org.apache.gobblin.temporal.cluster.TemporalWorker}
+ * Static holder to stash the {@link Config} used to construct each kind of {@link org.apache.gobblin.temporal.cluster.TemporalWorker}
  * (within the current JVM).  Lookup may be by either the {@link Class} of the worker or of any workflow or activity implementation supplied by
  * that worker.  The objective is to facilitate sharing the worker's Config with workflow and activity implementations (running within that worker).
  *
