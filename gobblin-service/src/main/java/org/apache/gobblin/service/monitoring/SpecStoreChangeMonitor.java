@@ -117,8 +117,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
         produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
-    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, specChangesSeenCache, operation,
-        produceTimestamp.toString(), duplicateMessagesMeter, heartbeatMessagesMeter)) {
+    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, operation, produceTimestamp.toString(),
+        specChangesSeenCache, duplicateMessagesMeter, heartbeatMessagesMeter)) {
       return;
     }
 

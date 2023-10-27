@@ -34,8 +34,8 @@ public final class ChangeMonitorUtils {
    * should not be processed. Returns true if the pre-conditions above don't apply, and we should proceed processing
    * the change event
    */
-  public static boolean isValidAndUniqueMessage(String changeIdentifier, LoadingCache<String, String> cache,
-      String operation, String timestamp, ContextAwareMeter duplicateMessagesMeter,
+  public static boolean isValidAndUniqueMessage(String changeIdentifier, String operation, String timestamp,
+      LoadingCache<String, String> cache, ContextAwareMeter duplicateMessagesMeter,
       ContextAwareMeter heartbeatMessagesMeter) {
     // If we've already processed a message with this timestamp and key before then skip duplicate message
     if (cache.getIfPresent(changeIdentifier) != null) {

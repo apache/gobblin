@@ -130,8 +130,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
         flowGroup, flowName, flowExecutionId, tid, operation, produceToConsumeDelayValue);
 
     String changeIdentifier = tid + key;
-    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, dagActionsSeenCache, operation,
-        produceTimestamp.toString(), duplicateMessagesMeter, heartbeatMessagesMeter)) {
+    if (!ChangeMonitorUtils.isValidAndUniqueMessage(changeIdentifier, operation, produceTimestamp.toString(),
+        dagActionsSeenCache, duplicateMessagesMeter, heartbeatMessagesMeter)) {
       return;
     }
     // check after filtering out heartbeat messages expected to have `dagActionValue == null`
