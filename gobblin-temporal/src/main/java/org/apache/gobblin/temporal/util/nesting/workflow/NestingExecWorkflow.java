@@ -29,13 +29,13 @@ import org.apache.gobblin.temporal.util.nesting.work.Workload;
 /**
  * Process all `WORK_ITEM`s of {@link Workload}, from `startIndex` to the end by creating child workflows, where this and
  * descendants should have at most `maxBranchesPerTree`, with at most `maxSubTreesPerTree` of those being child
- * workflows.  (Non-child-workflow branches being activities.)
+ * workflows.  (Non-child-workflow (terminal) branches are the activity executions.)
  *
  * The underlying motivation is to create logical workflows of unbounded size, despite Temporal's event history limit
  * of 50Ki events; see: https://docs.temporal.io/workflows#event-history
  *
  * IMPORTANT: `Math.sqrt(maxBranchesPerTree) == maxSubTreesPerTree` provides a good rule-of-thumb; `maxSubTreesPerTree
- * should not exceed that.
+ * must not exceed that.  This enables consolidation, wherein continued expansion occurs only along the tree's right-most edges.
  *
  * @param <WORK_ITEM> the type of task for which to invoke an appropriate activity
  * @param maxSubTreesForCurrentTreeOverride when the current tree should use different max sub-trees than descendants

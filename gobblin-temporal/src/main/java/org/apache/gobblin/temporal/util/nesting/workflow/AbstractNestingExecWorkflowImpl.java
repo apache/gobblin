@@ -96,9 +96,12 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   protected abstract Promise<ACTIVITY_RESULT> launchAsyncActivity(WORK_ITEM task);
 
   protected NestingExecWorkflow<WORK_ITEM> createChildWorkflow(final WFAddr childAddr) {
+    // preserve the current workflow ID of this parent, but add the (hierarchical) address extension specific to each child
+    String thisWorkflowId = Workflow.getInfo().getWorkflowId();
+    String childWorkflowId = thisWorkflowId.replaceAll("-[^-]+$", "") + "-" + childAddr;
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-        .setWorkflowId("NestingExecWorkflow-" + childAddr)
+        .setWorkflowId(childWorkflowId)
         .build();
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }
