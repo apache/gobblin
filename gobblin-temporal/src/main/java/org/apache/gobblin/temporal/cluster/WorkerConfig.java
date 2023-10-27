@@ -44,28 +44,23 @@ public class WorkerConfig {
 
   /** @return whether initialized now (vs. being previously known) */
   public static boolean forWorker(Class<? extends TemporalWorker> workerClass, Config config) {
-    // return configByFQClassName.put(workerClass.getName(), config) == null;
     return storeAs(workerClass.getName(), config);
   }
 
   /** @return whether initialized now (vs. being previously known) */
   public static boolean withImpl(Class<?> workflowOrActivityImplClass, Config config) {
-    // return configByFQClassName.put(workflowOrActivityImplClass.getName(), config) == null;
     return storeAs(workflowOrActivityImplClass.getName(), config);
   }
 
   public static Optional<Config> ofWorker(Class<? extends TemporalWorker> workerClass) {
     return Optional.ofNullable(configByFQClassName.get(workerClass.getName()));
-    // return Optional.ofNullable(retrieveBy(workerClass.getClass()));
   }
 
   public static Optional<Config> ofImpl(Class<?> workflowOrActivityImplClass) {
     return Optional.ofNullable(configByFQClassName.get(workflowOrActivityImplClass.getName()));
-    // return Optional.ofNullable(retrieveBy(workflowOrActivityImplClass.getClass()));
   }
 
   public static Optional<Config> of(Object workflowOrActivityImpl) {
-    // return ofImpl(workflowOrActivityImpl.getClass());
     return ofImpl(workflowOrActivityImpl.getClass());
   }
 

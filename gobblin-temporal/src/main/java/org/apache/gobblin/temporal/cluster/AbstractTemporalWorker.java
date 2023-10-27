@@ -30,7 +30,7 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-/** Basic boilerplate for a temporal "worker" to register its activity and workflow capabilities and listen on a particular queue */
+/** Basic boilerplate for a {@link TemporalWorker} to register its activity and workflow capabilities and listen on a particular queue */
 public abstract class AbstractTemporalWorker implements TemporalWorker {
     private final WorkflowClient workflowClient;
     private final String queueName;

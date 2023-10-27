@@ -23,7 +23,7 @@ import java.util.Optional;
 
 
 /**
- * `Workload` models a logical collection of homogenous inputs over which a "foreach" operation can asynchronously apply
+ * {@link Workload} models a logical collection of homogenous inputs over which a "foreach" operation can asynchronously apply
  * an arbitrary procedure to each element.  This encapsulates "processing" the entire collection of sequential
  * "work item" specifications by the uniform application of the chosen procedure(s).
  *

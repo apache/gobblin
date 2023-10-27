@@ -27,7 +27,7 @@ import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
 
 /**
- * Process all `WORK_ITEM`s of `workload`, from `startIndex` to the end by creating child workflows, where this and
+ * Process all `WORK_ITEM`s of {@link Workload}, from `startIndex` to the end by creating child workflows, where this and
  * descendants should have at most `maxBranchesPerTree`, with at most `maxSubTreesPerTree` of those being child
  * workflows.  (Non-child-workflow branches being activities.)
  *

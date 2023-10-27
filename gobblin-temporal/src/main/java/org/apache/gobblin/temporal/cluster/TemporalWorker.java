@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.temporal.cluster;
 
-/** Marker interface for a temporal.io "worker", with capability to `start()` and `stop()` */
+/** Marker interface for a temporal.io "worker", with capability to `start()` and `shutdown()` */
 public interface TemporalWorker {
 
   /** Starts the worker */
