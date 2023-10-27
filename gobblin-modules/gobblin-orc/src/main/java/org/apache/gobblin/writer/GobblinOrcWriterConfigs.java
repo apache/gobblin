@@ -40,6 +40,11 @@ public class GobblinOrcWriterConfigs {
    */
   public static final String ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE = ORC_WRITER_PREFIX + "auto.selfTune.max.batch.size";
   /**
+   * The ratio of native ORC Writer buffer size to Gobblin ORC Writer buffer size
+   */
+  public static final String ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR = "auto.selfTune.rowCheck.factor";
+
+  /**
    * How often should the Gobblin ORC Writer check for tuning
    */
   public static final String ORC_WRITER_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = ORC_WRITER_PREFIX + "auto.selfTune.rowsBetweenCheck";
@@ -71,9 +76,14 @@ public class GobblinOrcWriterConfigs {
   public static final int DEFAULT_CONCURRENT_WRITERS = 3;
   public static final double DEFAULT_ORC_WRITER_BATCHSIZE_MEMORY_USAGE_FACTOR = 0.3;
   /**
-   * The ratio of native ORC Writer buffer size to Gobblin ORC Writer buffer size
+   * Factor when calculating a logical max buffer size for the Gobblin ORC Writer as the size of a buffer should not
+   * greatly exceed the size of a stripe, ideally. This is to capture the case when records are extremely large and cause
+   * large buffer sizes to dominate the memory usage
    */
+  public static final double DEFAULT_RECORD_BUFFER_SIZE_MAX_FACTOR = 1.2;
+
   public static final int DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR = 5;
+
   public static final int DEFAULT_MAX_ORC_WRITER_BATCH_SIZE = DEFAULT_ORC_WRITER_BATCH_SIZE;
   public static final int DEFAULT_ORC_AUTO_SELFTUNE_ROWS_BETWEEN_CHECK = 500;
   /**

@@ -91,6 +91,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private int orcFileWriterRowsBetweenCheck;
   private long orcStripeSize;
   private int maxOrcBatchSize;
+  private int rowCheckFactor;
 
   private int concurrentWriterTasks;
   private long orcWriterStripeSizeBytes;
@@ -109,6 +110,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.typeDescription = getOrcSchema();
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
     this.validateORCAfterClose = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_AFTER_CLOSE, false);
+    this.rowCheckFactor = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ?
@@ -312,11 +314,12 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       this.currentOrcWriterMaxUnderlyingMemory = Math.max(this.currentOrcWriterMaxUnderlyingMemory, orcFileWriter.estimateMemory());
     }
     long maxMemoryInFileWriter = Math.max(currentOrcWriterMaxUnderlyingMemory, prevOrcWriterMaxUnderlyingMemory);
-
+    // For large records, prevent the batch size from greatly exceeding the size of a stripe as the native ORC Writer will flush its buffer after a stripe is filled
+    int maxRecordsPerStripeSize = (int) Math.round(this.orcWriterStripeSizeBytes / averageSizePerRecord * GobblinOrcWriterConfigs.DEFAULT_RECORD_BUFFER_SIZE_MAX_FACTOR);
     int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.rowBatchMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
-    newBatchSize = Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize);
+    newBatchSize = Math.min(Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize), maxRecordsPerStripeSize);
     if (Math.abs(newBatchSize - this.batchSize) > GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
       // Add a factor when tuning up the batch size to prevent large sudden increases in memory usage
       if (newBatchSize > this.batchSize) {
@@ -337,7 +340,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   void initializeOrcFileWriter() {
     try {
       this.orcFileWriterRowsBetweenCheck = Math.max(
-          Math.min(this.batchSize * GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, this.orcFileWriterMaxRowsBetweenCheck),
+          Math.min(this.batchSize * this.rowCheckFactor, this.orcFileWriterMaxRowsBetweenCheck),
           this.orcFileWriterMinRowsBetweenCheck
       );
       this.writerConfig.set(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
