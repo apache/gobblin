@@ -95,6 +95,10 @@ public class ConfigurationKeys {
   public static final int DEFAULT_LOAD_SPEC_BATCH_SIZE = 500;
   public static final String SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS = "skip.scheduling.flows.after.num.days";
   public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 365;
+  // Mysql Dag Action Store configuration
+  public static final String MYSQL_DAG_ACTION_STORE_PREFIX = "MysqlDagActionStore.";
+  public static final String MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY = MYSQL_DAG_ACTION_STORE_PREFIX + ".retentionPeriodSec";
+  public static final long DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY = 3 * 24 * 60 * 60; // (3 days in seconds)
   // Scheduler lease determination store configuration
   public static final String MYSQL_LEASE_ARBITER_PREFIX = "MysqlMultiActiveLeaseArbiter";
   public static final String MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".constantsTable";

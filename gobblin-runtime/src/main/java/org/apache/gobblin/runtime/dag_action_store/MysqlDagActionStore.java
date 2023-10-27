@@ -28,6 +28,7 @@ import java.util.HashSet;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
+import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,8 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.util.MySQLStoreUtils;
+
 
 @Slf4j
 public class MysqlDagActionStore implements DagActionStore {
@@ -45,7 +48,10 @@ public class MysqlDagActionStore implements DagActionStore {
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
 
   protected final DataSource dataSource;
+  private final MySQLStoreUtils mySQLStoreUtils;
   private final String tableName;
+  private final long retentionPeriodSeconds;
+  private String thisTableRetentionStatement;
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND dag_action = ?)";
 
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, dag_action) "
@@ -58,6 +64,8 @@ public class MysqlDagActionStore implements DagActionStore {
       + "flow_execution_id varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
       + "dag_action varchar(100) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id, dag_action))";
+  // Deletes rows older than retention time period (in seconds) to prevent this table from growing unbounded.
+  private static final String RETENTION_STATEMENT = "DELETE FROM %s WHERE modified_time < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? SECOND)";
 
   private final int getDagActionMaxRetries;
 
@@ -71,7 +79,8 @@ public class MysqlDagActionStore implements DagActionStore {
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
     this.getDagActionMaxRetries = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
-
+    this.retentionPeriodSeconds = ConfigUtils.getLong(config, ConfigurationKeys.MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY,
+        ConfigurationKeys.DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY);
     this.dataSource = MysqlDataSourceFactory.get(config,
         SharedResourcesBrokerFactory.getImplicitBroker());
     try (Connection connection = dataSource.getConnection();
@@ -81,6 +90,10 @@ public class MysqlDagActionStore implements DagActionStore {
     } catch (SQLException e) {
       throw new IOException("Failure creation table " + tableName, e);
     }
+    this.mySQLStoreUtils = new MySQLStoreUtils(this.dataSource, log);
+    this.thisTableRetentionStatement = String.format(RETENTION_STATEMENT, this.tableName, retentionPeriodSeconds);
+    // Periodically deletes all rows in the table last_modified before the retention period defined by config.
+    mySQLStoreUtils.runSqlCommandWithInterval(thisTableRetentionStatement, 6, TimeUnit.HOURS);
   }
 
   @Override
