@@ -17,7 +17,7 @@
 
 dependencyManagement {
   imports {
-    mavenBom 'com.amazonaws:aws-java-sdk-bom:1.11.8'
+    mavenBom 'com.amazonaws:aws-java-sdk-bom:' + awsVersion
   }
 }
 
