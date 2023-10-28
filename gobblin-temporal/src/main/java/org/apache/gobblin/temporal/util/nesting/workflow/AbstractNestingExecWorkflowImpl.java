@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.util.nesting.workflow;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,8 @@ import org.apache.gobblin.temporal.util.nesting.work.Workload;
 /** Core skeleton of {@link NestingExecWorkflow}: realizing classes need only define {@link #launchAsyncActivity} */
 @Slf4j
 public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT> implements NestingExecWorkflow<WORK_ITEM> {
+  public static final int NUM_SECONDS_TO_PAUSE_BEFORE_CREATING_SUB_TREE_DEFAULT = 10;
+  public static final int MAX_CHILD_SUB_TREE_LEAVES_BEFORE_SHOULD_PAUSE_DEFAULT = 100;
 
   @Override
   public int performWorkload(
@@ -74,6 +77,12 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
           final WorkflowAddr childAddr = addr.createChild(nextChildId);
           final NestingExecWorkflow<WORK_ITEM> child = createChildWorkflow(childAddr);
           if (!workload.isIndexKnownToExceed(childStartIndex)) { // best-effort short-circuiting
+            // IMPORTANT: insert pause before launch of each child workflow that may have direct leaves of its own.  periodic pauses spread the load on the
+            // temporal server, to avoid a sustained burst from submitting potentially very many async activities over the full hierarchical elaboration
+            final int numDirectLeavesChildMayHave = maxBranchesPerTree - subTreeChildMaxSubTreesPerTree;
+            if (numDirectLeavesChildMayHave > 0) {
+              Workflow.sleep(calcPauseDurationBeforeCreatingSubTree(numDirectLeavesChildMayHave));
+            }
             childSubTrees.add(
                 Async.function(child::performWorkload, childAddr, workload, childStartIndex, maxBranchesPerTree,
                     maxSubTreesPerTree, Optional.of(subTreeChildMaxSubTreesPerTree)));
@@ -104,6 +113,14 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
         .setWorkflowId(childWorkflowId)
         .build();
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
+  }
+
+  /** @return how long to pause prior to creating a child workflow, based on `numDirectLeavesChildMayHave` */
+  protected Duration calcPauseDurationBeforeCreatingSubTree(int numDirectLeavesChildMayHave) {
+    // (only pause when an appreciable number of leaves)
+    return numDirectLeavesChildMayHave > MAX_CHILD_SUB_TREE_LEAVES_BEFORE_SHOULD_PAUSE_DEFAULT
+        ? Duration.ofSeconds(NUM_SECONDS_TO_PAUSE_BEFORE_CREATING_SUB_TREE_DEFAULT)
+        : Duration.ZERO;
   }
 
   /**
