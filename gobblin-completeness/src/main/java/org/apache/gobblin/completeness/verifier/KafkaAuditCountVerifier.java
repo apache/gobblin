@@ -156,7 +156,8 @@ public class KafkaAuditCountVerifier {
 
   /**
    * Compare source tier against reference tiers. For each reference tier, calculates percentage by srcCount/refCount.
-   *
+   * We will return the lowest value, which, in other words, we will wait until src tier catches up to all reference
+   * tiers (upto 99.9%) to mark that hour as completed.
    * @param datasetName A dataset short name like 'PageViewEvent'
    * @param beginInMillis Unix timestamp in milliseconds
    * @param endInMillis Unix timestamp in milliseconds
