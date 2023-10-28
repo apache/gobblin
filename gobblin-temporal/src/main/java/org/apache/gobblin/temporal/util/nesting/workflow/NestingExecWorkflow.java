@@ -22,7 +22,7 @@ import java.util.Optional;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
-import org.apache.gobblin.temporal.util.nesting.work.WFAddr;
+import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
 
@@ -42,9 +42,10 @@ import org.apache.gobblin.temporal.util.nesting.work.Workload;
  */
 @WorkflowInterface
 public interface NestingExecWorkflow<WORK_ITEM> {
+  /** @return the number of workload elements processed cumulatively by this Workflow and its children */
   @WorkflowMethod
   int performWorkload(
-      WFAddr addr,
+      WorkflowAddr addr,
       Workload<WORK_ITEM> workload,
       int startIndex,
       int maxBranchesPerTree,

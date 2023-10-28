@@ -31,17 +31,17 @@ import lombok.RequiredArgsConstructor;
 /** Hierarchical address for nesting workflows (0-based). */
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class WFAddr {
+public class WorkflowAddr {
   public static final String SEP = ".";
 
   /** initial, top-level address */
-  public static final WFAddr ROOT = new WFAddr(0);
+  public static final WorkflowAddr ROOT = new WorkflowAddr(0);
 
   @Getter
   @NonNull // IMPORTANT: for jackson (de)serialization (which won't permit `final`)
   private List<Integer> segments;
 
-  public WFAddr(final int firstLevelOnly) {
+  public WorkflowAddr(final int firstLevelOnly) {
     this(Lists.newArrayList(firstLevelOnly));
   }
 
@@ -52,10 +52,10 @@ public class WFAddr {
   }
 
   /** Create a child of the current `WFAddr` */
-  public WFAddr createChild(int childLevel) {
+  public WorkflowAddr createChild(int childLevel) {
     final List<Integer> copy = new ArrayList<>(segments);
     copy.add(childLevel);
-    return new WFAddr(copy);
+    return new WorkflowAddr(copy);
   }
 
   @Override

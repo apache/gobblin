@@ -33,7 +33,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.temporal.util.nesting.work.WFAddr;
+import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
 
@@ -43,7 +43,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
 
   @Override
   public int performWorkload(
-      final WFAddr addr,
+      final WorkflowAddr addr,
       final Workload<WORK_ITEM> workload,
       final int startIndex,
       final int maxBranchesPerTree,
@@ -71,7 +71,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
           // CAUTION: calc these *before* incrementing `subTreeId`!
           final int childStartIndex = startIndex + maxLeaves + (maxBranchesPerTree * subTreeId);
           final int nextChildId = maxLeaves + subTreeId;
-          final WFAddr childAddr = addr.createChild(nextChildId);
+          final WorkflowAddr childAddr = addr.createChild(nextChildId);
           final NestingExecWorkflow<WORK_ITEM> child = createChildWorkflow(childAddr);
           if (!workload.isIndexKnownToExceed(childStartIndex)) { // best-effort short-circuiting
             childSubTrees.add(
@@ -95,7 +95,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   /** Factory for invoking the specific activity by providing it args via {@link Async::function} */
   protected abstract Promise<ACTIVITY_RESULT> launchAsyncActivity(WORK_ITEM task);
 
-  protected NestingExecWorkflow<WORK_ITEM> createChildWorkflow(final WFAddr childAddr) {
+  protected NestingExecWorkflow<WORK_ITEM> createChildWorkflow(final WorkflowAddr childAddr) {
     // preserve the current workflow ID of this parent, but add the (hierarchical) address extension specific to each child
     String thisWorkflowId = Workflow.getInfo().getWorkflowId();
     String childWorkflowId = thisWorkflowId.replaceAll("-[^-]+$", "") + "-" + childAddr;
