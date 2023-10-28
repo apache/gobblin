@@ -161,7 +161,7 @@ public class KafkaAuditCountVerifier {
    * @param beginInMillis Unix timestamp in milliseconds
    * @param endInMillis Unix timestamp in milliseconds
    *
-   * @return The highest percentage value
+   * @return The lowest percentage value
    */
   private double calculateClassicCompleteness(String datasetName, long beginInMillis, long endInMillis,
       Map<String, Long> countsByTier) throws IOException {
