@@ -137,6 +137,8 @@ public class KafkaIngestionHealthCheck implements CommitStep {
   public void execute() {
     this.ingestionLatencies.add(this.statsTracker.getMaxIngestionLatency(TimeUnit.MINUTES));
     this.consumptionRateMBps.add(this.statsTracker.getConsumptionRateMBps());
+    double avgConsumptionRate = getMaxConsumptionRate();
+    log.info("Avg. Consumption Rate = {} MBps, Target Consumption rate = {} MBps", avgConsumptionRate, this.expectedConsumptionRate);
     if (ingestionLatencies.size() < this.slidingWindowSize) {
       log.info("SUCCESS: Num observations: {} smaller than {}", ingestionLatencies.size(), this.slidingWindowSize);
       return;
@@ -146,8 +148,6 @@ public class KafkaIngestionHealthCheck implements CommitStep {
       log.info("SUCCESS: Ingestion Latencies = {}, Ingestion Latency Threshold: {}", this.ingestionLatencies.toString(), this.ingestionLatencyThresholdMinutes);
       return;
     }
-
-    double avgConsumptionRate = getMaxConsumptionRate();
     if (avgConsumptionRate > this.consumptionRateDropOffFraction * this.expectedConsumptionRate) {
       log.info("SUCCESS: Avg. Consumption Rate = {} MBps, Target Consumption rate = {} MBps", avgConsumptionRate, this.expectedConsumptionRate);
       return;

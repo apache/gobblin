@@ -156,12 +156,13 @@ public class KafkaAuditCountVerifier {
 
   /**
    * Compare source tier against reference tiers. For each reference tier, calculates percentage by srcCount/refCount.
-   *
+   * We will return the lowest value, which, in other words, we will wait until src tier catches up to all reference
+   * tiers (upto 99.9%) to mark that hour as completed.
    * @param datasetName A dataset short name like 'PageViewEvent'
    * @param beginInMillis Unix timestamp in milliseconds
    * @param endInMillis Unix timestamp in milliseconds
    *
-   * @return The highest percentage value
+   * @return The lowest percentage value
    */
   private double calculateClassicCompleteness(String datasetName, long beginInMillis, long endInMillis,
       Map<String, Long> countsByTier) throws IOException {
@@ -171,6 +172,7 @@ public class KafkaAuditCountVerifier {
     for (String refTier: this.refTiers) {
       long refCount = countsByTier.get(refTier);
       long srcCount = countsByTier.get(this.srcTier);
+      double tmpPercent;
 
       /*
         If we have a case where an audit map is returned, however, one of the source tiers on another fabric is 0,
@@ -178,9 +180,11 @@ public class KafkaAuditCountVerifier {
         This needs to be added as a non-zero double value divided by 0 is infinity, but 0 divided by 0 is NaN.
        */
       if (srcCount == 0 && refCount == 0) {
-        return 1.0;
+        tmpPercent = 1;
+      } else {
+        tmpPercent =  (double) srcCount / (double) refCount;
       }
-      percent = Double.max(percent, (double) srcCount / (double) refCount);
+      percent = percent < 0 ? tmpPercent : Double.min(percent, tmpPercent);
     }
 
     if (percent < 0) {
