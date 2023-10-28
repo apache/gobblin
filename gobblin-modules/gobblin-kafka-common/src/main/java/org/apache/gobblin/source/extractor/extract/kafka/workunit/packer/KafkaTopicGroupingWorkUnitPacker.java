@@ -73,7 +73,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER_KEY = GOBBLIN_KAFKA_PREFIX + "default.num.topic.partitions.per.container";
   private static final int DEFAULT_DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 10;
 
-  //A global configuration for container capacity. The container capacity refers to the peak rate (in MB/s) that agit
+  //A global configuration for container capacity. The container capacity refers to the peak rate (in MB/s) that a
   //single JVM can consume from Kafka for a single topic and controls the number of partitions of a topic that will be
   // packed into a single workunit. For example, if the container capacity is set to 10, and each topic partition has a
   // weight of 1, then 10 partitions of the topic will be packed into a single workunit. This configuration is topic-independent
