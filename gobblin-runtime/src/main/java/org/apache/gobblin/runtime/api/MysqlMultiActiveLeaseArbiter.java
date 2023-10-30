@@ -215,7 +215,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     initializeConstantsTable();
 
     // Periodically deletes all rows in the table with event_timestamp older than the retention period defined by config.
-    mySQLStoreUtils.runSqlCommandWithInterval(thisTableRetentionStatement, 4, TimeUnit.HOURS);
+    mySQLStoreUtils.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 4, TimeUnit.HOURS);
 
     log.info("MysqlMultiActiveLeaseArbiter initialized");
   }
