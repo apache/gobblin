@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
@@ -29,17 +30,20 @@ import org.slf4j.Logger;
 
 
 /**
- * MySQL based implementations of stores require common functionality that can be stored in a utility class. The
- * functionality includes executing prepared statements on a data source object and executing SQL queries at fixed
- * intervals. The instantiater of the class should provide the data source used within this utility.
+ * Many database stores require common functionality that can be stored in a utility class. The functionality
+ * includes executing prepared statements on a data source object and SQL queries at fixed intervals.
+ * The caller of the class MUST maintain ownership of the {@link DataSource} and close this instance when the
+ * {@link DataSource} is about to be closed well. Both are to be done only once this instance will no longer be used.
  */
-public class MySQLStoreUtils {
+public class DBStatementExecutor {
   private final DataSource dataSource;
   private final Logger log;
+  private final ArrayList<ScheduledThreadPoolExecutor> scheduledExecutors;
 
-  public MySQLStoreUtils(DataSource dataSource, Logger log) {
+  public DBStatementExecutor(DataSource dataSource, Logger log) {
     this.dataSource = dataSource;
     this.log = log;
+    this.scheduledExecutors = new ArrayList<>();
   }
 
   /** `j.u.Function` variant for an operation that may @throw IOException or SQLException: preserves method signature checked exceptions */
@@ -90,5 +94,16 @@ public class MySQLStoreUtils {
       }
     };
     executor.scheduleAtFixedRate(task, 0, interval, timeUnit);
+    this.scheduledExecutors.add(executor);
+  }
+
+  /**
+   * Call before closing the data source object associated with this instance to also shut down any executors expecting
+   * to be run on the data source.
+   */
+  public void close() {
+    for (ScheduledThreadPoolExecutor executor : this.scheduledExecutors) {
+      executor.shutdownNow();
+    }
   }
 }

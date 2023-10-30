@@ -38,7 +38,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.MySQLStoreUtils;
+import org.apache.gobblin.util.DBStatementExecutor;
 
 
 /**
@@ -79,7 +79,7 @@ import org.apache.gobblin.util.MySQLStoreUtils;
 public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
   protected final DataSource dataSource;
-  private final MySQLStoreUtils mySQLStoreUtils;
+  private final DBStatementExecutor dbStatementExecutor;
   private final String leaseArbiterTableName;
   private final String constantsTableName;
   private final int epsilonMillis;
@@ -202,7 +202,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     this.thisTableAcquireLeaseIfFinishedStatement =
         String.format(CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, this.leaseArbiterTableName);
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
-    this.mySQLStoreUtils = new MySQLStoreUtils(this.dataSource, log);
+    this.dbStatementExecutor = new DBStatementExecutor(this.dataSource, log);
     String createArbiterStatement = String.format(
         CREATE_LEASE_ARBITER_TABLE_STATEMENT, leaseArbiterTableName);
     try (Connection connection = dataSource.getConnection();
@@ -215,7 +215,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     initializeConstantsTable();
 
     // Periodically deletes all rows in the table with event_timestamp older than the retention period defined by config.
-    mySQLStoreUtils.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 4, TimeUnit.HOURS);
+    dbStatementExecutor.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 4, TimeUnit.HOURS);
 
     log.info("MysqlMultiActiveLeaseArbiter initialized");
   }
@@ -223,11 +223,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   // Initialize Constants table if needed and insert row into it if one does not exist
   private void initializeConstantsTable() throws IOException {
     String createConstantsStatement = String.format(CREATE_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
-    mySQLStoreUtils.withPreparedStatement(createConstantsStatement, createStatement -> createStatement.executeUpdate(),
+    dbStatementExecutor.withPreparedStatement(createConstantsStatement, createStatement -> createStatement.executeUpdate(),
         true);
 
     String insertConstantsStatement = String.format(UPSERT_CONSTANTS_TABLE_STATEMENT, this.constantsTableName);
-    mySQLStoreUtils.withPreparedStatement(insertConstantsStatement, insertStatement -> {
+    dbStatementExecutor.withPreparedStatement(insertConstantsStatement, insertStatement -> {
       int i = 0;
       insertStatement.setInt(++i, epsilonMillis);
       insertStatement.setInt(++i, lingerMillis);
@@ -341,7 +341,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    */
   protected Optional<GetEventInfoResult> getExistingEventInfo(DagActionStore.DagAction flowAction,
       boolean isReminderEvent, long eventTimeMillis) throws IOException {
-    return mySQLStoreUtils.withPreparedStatement(isReminderEvent ? thisTableGetInfoStatementForReminder : thisTableGetInfoStatement,
+    return dbStatementExecutor.withPreparedStatement(isReminderEvent ? thisTableGetInfoStatementForReminder : thisTableGetInfoStatement,
         getInfoStatement -> {
           int i = 0;
           if (isReminderEvent) {
@@ -396,7 +396,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected int attemptLeaseIfNewRow(DagActionStore.DagAction flowAction) throws IOException {
     String formattedAcquireLeaseNewRowStatement =
         String.format(ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT, this.leaseArbiterTableName);
-    return mySQLStoreUtils.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
+    return dbStatementExecutor.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
         insertStatement -> {
           completeInsertPreparedStatement(insertStatement, flowAction);
           try {
@@ -418,7 +418,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected int attemptLeaseIfExistingRow(String acquireLeaseStatement, DagActionStore.DagAction flowAction,
       boolean needEventTimeCheck, boolean needLeaseAcquisition, Timestamp dbEventTimestamp,
       Timestamp dbLeaseAcquisitionTimestamp) throws IOException {
-    return mySQLStoreUtils.withPreparedStatement(acquireLeaseStatement,
+    return dbStatementExecutor.withPreparedStatement(acquireLeaseStatement,
         insertStatement -> {
           completeUpdatePreparedStatement(insertStatement, flowAction, needEventTimeCheck, needLeaseAcquisition,
               dbEventTimestamp, dbLeaseAcquisitionTimestamp);
@@ -431,7 +431,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    * was successful or not.
    */
   protected SelectInfoResult getRowInfo(DagActionStore.DagAction flowAction) throws IOException {
-    return mySQLStoreUtils.withPreparedStatement(thisTableSelectAfterInsertStatement,
+    return dbStatementExecutor.withPreparedStatement(thisTableSelectAfterInsertStatement,
         selectStatement -> {
           completeWhereClauseMatchingKeyPreparedStatement(selectStatement, flowAction);
           ResultSet resultSet = selectStatement.executeQuery();
@@ -567,7 +567,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     String flowGroup = flowAction.getFlowGroup();
     String flowName = flowAction.getFlowName();
     DagActionStore.FlowActionType flowActionType = flowAction.getFlowActionType();
-    return mySQLStoreUtils.withPreparedStatement(String.format(CONDITIONALLY_COMPLETE_LEASE_STATEMENT, leaseArbiterTableName),
+    return dbStatementExecutor.withPreparedStatement(String.format(CONDITIONALLY_COMPLETE_LEASE_STATEMENT, leaseArbiterTableName),
         updateStatement -> {
           int i = 0;
           updateStatement.setString(++i, flowGroup);

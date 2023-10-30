@@ -352,6 +352,7 @@ public class MysqlBaseSpecStore extends InstrumentedSpecStore {
     return Optional.of(this.specStoreURI);
   }
 
+  // TODO: migrate this class to use common util {@link DBStatementExecutor}
   /** Abstracts recurring pattern around resource management and exception re-mapping. */
   protected <T> T withPreparedStatement(String sql, CheckedFunction<PreparedStatement, T> f, boolean shouldCommit) throws IOException {
     try (Connection connection = this.dataSource.getConnection();

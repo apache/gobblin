@@ -39,7 +39,7 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExponentialBackoff;
-import org.apache.gobblin.util.MySQLStoreUtils;
+import org.apache.gobblin.util.DBStatementExecutor;
 
 
 @Slf4j
@@ -48,7 +48,7 @@ public class MysqlDagActionStore implements DagActionStore {
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
 
   protected final DataSource dataSource;
-  private final MySQLStoreUtils mySQLStoreUtils;
+  private final DBStatementExecutor dbStatementExecutor;
   private final String tableName;
   private final long retentionPeriodSeconds;
   private String thisTableRetentionStatement;
@@ -90,15 +90,15 @@ public class MysqlDagActionStore implements DagActionStore {
     } catch (SQLException e) {
       throw new IOException("Failure creation table " + tableName, e);
     }
-    this.mySQLStoreUtils = new MySQLStoreUtils(this.dataSource, log);
+    this.dbStatementExecutor = new DBStatementExecutor(this.dataSource, log);
     this.thisTableRetentionStatement = String.format(RETENTION_STATEMENT, this.tableName, retentionPeriodSeconds);
     // Periodically deletes all rows in the table last_modified before the retention period defined by config.
-    mySQLStoreUtils.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 6, TimeUnit.HOURS);
+    dbStatementExecutor.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 6, TimeUnit.HOURS);
   }
 
   @Override
   public boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException {
-    return mySQLStoreUtils.withPreparedStatement(String.format(EXISTS_STATEMENT, tableName), existStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(EXISTS_STATEMENT, tableName), existStatement -> {
       int i = 0;
       existStatement.setString(++i, flowGroup);
       existStatement.setString(++i, flowName);
@@ -123,7 +123,7 @@ public class MysqlDagActionStore implements DagActionStore {
   @Override
   public void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType)
       throws IOException {
-    mySQLStoreUtils.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
+    dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
     try {
       int i = 0;
       insertStatement.setString(++i, flowGroup);
@@ -139,7 +139,7 @@ public class MysqlDagActionStore implements DagActionStore {
 
   @Override
   public boolean deleteDagAction(DagAction dagAction) throws IOException {
-    return mySQLStoreUtils.withPreparedStatement(String.format(DELETE_STATEMENT, tableName), deleteStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(DELETE_STATEMENT, tableName), deleteStatement -> {
     try {
       int i = 0;
       deleteStatement.setString(++i, dagAction.getFlowGroup());
@@ -157,7 +157,7 @@ public class MysqlDagActionStore implements DagActionStore {
   // TODO: later change this to getDagActions relating to a particular flow execution if it makes sense
   private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType, ExponentialBackoff exponentialBackoff)
       throws IOException, SQLException {
-    return mySQLStoreUtils.withPreparedStatement(String.format(GET_STATEMENT, tableName), getStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(GET_STATEMENT, tableName), getStatement -> {
       ResultSet rs = null;
       try {
         int i = 0;
@@ -190,7 +190,7 @@ public class MysqlDagActionStore implements DagActionStore {
 
   @Override
   public Collection<DagAction> getDagActions() throws IOException {
-    return mySQLStoreUtils.withPreparedStatement(String.format(GET_ALL_STATEMENT, tableName), getAllStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(GET_ALL_STATEMENT, tableName), getAllStatement -> {
       ResultSet rs = null;
       try {
         HashSet<DagAction> result = new HashSet<>();
