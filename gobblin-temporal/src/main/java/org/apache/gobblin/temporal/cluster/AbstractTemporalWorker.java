@@ -17,17 +17,21 @@
 
 package org.apache.gobblin.temporal.cluster;
 
+import java.util.Arrays;
+
 import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-public abstract class AbstractTemporalWorker {
+/** Basic boilerplate for a {@link TemporalWorker} to register its activity and workflow capabilities and listen on a particular queue */
+public abstract class AbstractTemporalWorker implements TemporalWorker {
     private final WorkflowClient workflowClient;
     private final String queueName;
     private final WorkerFactory workerFactory;
@@ -42,10 +46,13 @@ public abstract class AbstractTemporalWorker {
 
         // Create a Worker factory that can be used to create Workers that poll specific Task Queues.
         workerFactory = WorkerFactory.newInstance(workflowClient);
+
+        stashWorkerConfig(cfg);
     }
 
+    @Override
     public void start() {
-        Worker worker = workerFactory.newWorker(queueName);
+        Worker worker = workerFactory.newWorker(queueName, createWorkerOptions());
         // This Worker hosts both Workflow and Activity implementations.
         // Workflows are stateful, so you need to supply a type to create instances.
         worker.registerWorkflowImplementationTypes(getWorkflowImplClasses());
@@ -55,11 +62,13 @@ public abstract class AbstractTemporalWorker {
         workerFactory.start();
     }
 
-    /**
-     * Shuts down the worker.
-     */
+    @Override
     public void shutdown() {
         workerFactory.shutdown();
+    }
+
+    protected WorkerOptions createWorkerOptions() {
+        return null;
     }
 
     /** @return workflow types for *implementation* classes (not interface) */
@@ -67,4 +76,11 @@ public abstract class AbstractTemporalWorker {
 
     /** @return activity instances; NOTE: activities must be stateless and thread-safe, so a shared instance is used. */
     protected abstract Object[] getActivityImplInstances();
+
+    private final void stashWorkerConfig(Config cfg) {
+        // stash in association with...
+        WorkerConfig.forWorker(this.getClass(), cfg); // the worker itself
+        Arrays.stream(getWorkflowImplClasses()).forEach(clazz -> WorkerConfig.withImpl(clazz, cfg)); // its workflow impls
+        Arrays.stream(getActivityImplInstances()).forEach(obj -> WorkerConfig.withImpl(obj.getClass(), cfg)); // its activity impls
+    }
 }
