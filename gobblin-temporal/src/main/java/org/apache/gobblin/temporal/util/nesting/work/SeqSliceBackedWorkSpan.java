@@ -17,10 +17,11 @@
 
 package org.apache.gobblin.temporal.util.nesting.work;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.NoSuchElementException;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 
 /** Logical sub-sequence of `WORK_ITEM`s, backed for simplicity's sake by an in-memory collection, *SHARED* w/ other work spans */
@@ -51,6 +52,9 @@ public class SeqSliceBackedWorkSpan<WORK_ITEM> implements Workload.WorkSpan<WORK
 
   @Override
   public WORK_ITEM next() {
+    if (nextElemIndex >= startingIndex + numElements) {
+      throw new NoSuchElementException("index " + nextElemIndex + " >= " + startingIndex + " + " + numElements);
+    }
     return sharedElems[nextElemIndex++];
   }
 
