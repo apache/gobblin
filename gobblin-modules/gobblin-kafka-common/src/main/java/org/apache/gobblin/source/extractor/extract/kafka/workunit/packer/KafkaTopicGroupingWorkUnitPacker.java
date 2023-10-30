@@ -20,9 +20,11 @@ package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import java.util.PriorityQueue;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.hadoop.fs.Path;
 
@@ -171,6 +173,9 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
    * - For each topic pack the workunits into a set of topic specific buckets by filling the fullest bucket that can hold
    *   the workunit without exceeding the container capacity.
    * - The topic specific multi-workunits are squeezed and returned as a workunit.
+   *
+   * @param numContainers desired number of containers, which will be the size of return value List<WorkUnit>. The actual
+   *                      num can be smaller or bigger depends on container capacity and total workUnit/partition number
    */
   @Override
   public List<WorkUnit> pack(Map<String, List<WorkUnit>> workUnitsByTopic, int numContainers) {
@@ -226,6 +231,11 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         countEventBuilder.addMetadata("topic", topic);
         this.eventSubmitter.submit(countEventBuilder);
       }
+    }
+
+    // If size of mwuGroups is smaller than numContainers, try to further split the multi WU to respect the container number requirement
+    if(mwuGroups.size() < numContainers) {
+      mwuGroups = splitMultiWorkUnits(mwuGroups, numContainers);
     }
 
     List<WorkUnit> squeezedGroups = squeezeMultiWorkUnits(mwuGroups);
@@ -380,5 +390,41 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
       default:
         throw new RuntimeException("Unsupported computation strategy: " + strategy.name());
     }
+  }
+
+  /**
+   * A method that split a list of {@link MultiWorkUnit} to the size of desiredWUSize if possible. The split approach is to
+   * try split the {@link WorkUnit} within each MWU into two, in order of size WU within. Stop when each {@link MultiWorkUnit}
+   * only contains single {@link WorkUnit} as further split is no possible.
+   * @param multiWorkUnits the list of {@link MultiWorkUnit} to be split
+   * @param desiredWUSize desired number of {@link MultiWorkUnit}
+   * @return splitted MultiWorkUnit
+   */
+  public static List<MultiWorkUnit> splitMultiWorkUnits(List<MultiWorkUnit> multiWorkUnits, int desiredWUSize) {
+    PriorityQueue<MultiWorkUnit> pQueue = new PriorityQueue<>(
+        Comparator.comparing(mwu -> mwu.getWorkUnits().size(), Comparator.reverseOrder()));
+    pQueue.addAll(multiWorkUnits);
+
+    while(pQueue.size() < desiredWUSize) {
+      MultiWorkUnit mwu = pQueue.poll();
+      int size = mwu.getWorkUnits().size();
+      // If the size is smaller  than 2, meaning each mwu only contains a single wu and can't be further split.
+      // Add back the polled element and stop the loop.
+      if(size < 2) {
+        pQueue.add(mwu);
+        break;
+      }
+      // Split the mwu into 2 with evenly distributed wu
+      pQueue.add(MultiWorkUnit.createMultiWorkUnit(mwu.getWorkUnits().subList(0, size/2)));
+      pQueue.add(MultiWorkUnit.createMultiWorkUnit(mwu.getWorkUnits().subList(size/2, size)));
+    }
+
+    log.info("Min size of the container is set to {}, successfully split the multi workunit to {}", desiredWUSize, pQueue.size());
+
+    // If size is the same, meaning no split can be done. Return the original list to avoid construct a new list
+    if(multiWorkUnits.size() == pQueue.size()) {
+      return multiWorkUnits;
+    }
+    return new ArrayList<>(pQueue);
   }
 }
