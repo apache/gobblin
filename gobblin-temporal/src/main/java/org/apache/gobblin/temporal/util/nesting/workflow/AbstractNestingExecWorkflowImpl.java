@@ -118,6 +118,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   /** @return how long to pause prior to creating a child workflow, based on `numDirectLeavesChildMayHave` */
   protected Duration calcPauseDurationBeforeCreatingSubTree(int numDirectLeavesChildMayHave) {
     // (only pause when an appreciable number of leaves)
+    // TODO: use a configuration value, for simpler adjustment, rather than hard-code
     return numDirectLeavesChildMayHave > MAX_CHILD_SUB_TREE_LEAVES_BEFORE_SHOULD_PAUSE_DEFAULT
         ? Duration.ofSeconds(NUM_SECONDS_TO_PAUSE_BEFORE_CREATING_SUB_TREE_DEFAULT)
         : Duration.ZERO;
