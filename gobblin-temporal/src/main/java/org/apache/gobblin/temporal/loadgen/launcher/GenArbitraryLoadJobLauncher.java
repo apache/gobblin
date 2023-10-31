@@ -17,12 +17,14 @@
 
 package org.apache.gobblin.temporal.loadgen.launcher;
 
-import io.temporal.client.WorkflowOptions;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
+import io.temporal.client.WorkflowOptions;
+import org.apache.hadoop.fs.Path;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
@@ -35,7 +37,7 @@ import org.apache.gobblin.temporal.loadgen.work.SimpleGeneratedWorkload;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
-import org.apache.hadoop.fs.Path;
+import org.apache.gobblin.util.PropertiesUtils;
 
 import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX;
 
@@ -67,9 +69,9 @@ public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
 
   @Override
   public void submitJob(List<WorkUnit> workunits) {
-    int numActivities = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES, "<<not-set>>"));
-    int maxBranchesPerTree = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE, "<<not-set>>"));
-    int maxSubTreesPerTree = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE, "<<not-set>>"));
+    int numActivities = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES);
+    int maxBranchesPerTree = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE);
+    int maxSubTreesPerTree = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE);
 
     Workload<IllustrationItem> workload = SimpleGeneratedWorkload.createAs(numActivities);
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(this.queueName).build();
