@@ -231,7 +231,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
 
   protected boolean shouldUseExtendedLogging(WorkUnitClaimCheck wu) {
     try {
-      return Long.valueOf(wu.getCorrelator()) % LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE == 0;
+      return Long.parseLong(wu.getCorrelator()) % LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE == 0;
     } catch (NumberFormatException nfe) {
       log.warn("unexpected, non-numeric correlator: '{}'", wu.getCorrelator());
       return false;
