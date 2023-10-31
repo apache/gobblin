@@ -52,9 +52,9 @@ import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.GOBBL
 @Alpha
 @Slf4j
 public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
-  public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "num.activities";
-  public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "max.branches.per.tree";
-  public static String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "max.sub.trees.per.tree";
+  public static final String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "num.activities";
+  public static final String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "max.branches.per.tree";
+  public static final String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE = GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX + "max.sub.trees.per.tree";
 
   public GenArbitraryLoadJobLauncher(
       Properties jobProps,
@@ -67,9 +67,9 @@ public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
 
   @Override
   public void submitJob(List<WorkUnit> workunits) {
-    int numActivities = Integer.valueOf(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES, "<<not-set>>"));
-    int maxBranchesPerTree = Integer.valueOf(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE, "<<not-set>>"));
-    int maxSubTreesPerTree = Integer.valueOf(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE, "<<not-set>>"));
+    int numActivities = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NUM_ACTIVITIES, "<<not-set>>"));
+    int maxBranchesPerTree = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_BRANCHES_PER_TREE, "<<not-set>>"));
+    int maxSubTreesPerTree = Integer.parseInt(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_MAX_SUB_TREES_PER_TREE, "<<not-set>>"));
 
     Workload<IllustrationItem> workload = SimpleGeneratedWorkload.createAs(numActivities);
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(this.queueName).build();
