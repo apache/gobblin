@@ -50,7 +50,6 @@ import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.NoopAutomaticTroubleshooter;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
@@ -61,8 +60,6 @@ import org.apache.gobblin.util.JobLauncherUtils;
 
 @Slf4j
 public class ProcessWorkUnitImpl implements ProcessWorkUnit {
-  // TODO: replace w/ JobLauncherUtils (once committed)!!!
-  private static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
   private static final int LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE = 100;
 
   @Override
@@ -73,29 +70,20 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       JobState jobState = Help.loadJobState(wu, fs);
       return execute(workUnits, wu, jobState, fs);
     } catch (IOException | InterruptedException e) {
-      /* for testing:
-      return countSumProperties(workUnits, wu);
-    } catch (IOException e) {
-       */
       throw new RuntimeException(e);
     }
   }
 
   protected List<WorkUnit> loadFlattenedWorkUnits(WorkUnitClaimCheck wu, FileSystem fs) throws IOException {
     Path wuPath = new Path(wu.getWorkUnitPath());
-    WorkUnit workUnit = (wuPath.toString().endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)
-        ? MultiWorkUnit.createEmpty()
-        : WorkUnit.createEmpty());
+    WorkUnit workUnit = JobLauncherUtils.createEmptyWorkUnitPerExtension(wuPath);
     Help.deserializeStateWithRetries(fs, wuPath, workUnit, wu);
-
-    return workUnit instanceof MultiWorkUnit
-        ? JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits())
-        : Lists.newArrayList(workUnit);
+    return JobLauncherUtils.flattenWorkUnits(Lists.newArrayList(workUnit));
   }
 
   /**
-   * NOTE: adapted from {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher}!!!
-   * @return count of how many tasks executed (0 if execution ultimately failed, although we *believe* TaskState would have already been recorded beforehand)
+   * NOTE: adapted from {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher.TaskRunner#run(org.apache.hadoop.mapreduce.Mapper.Context)}
+   * @return count of how many tasks executed (0 if execution ultimately failed, but we *believe* TaskState should already have been recorded beforehand)
    */
   protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs) throws IOException, InterruptedException {
     String containerId = "container-id-for-wu-" + wu.getCorrelator();
@@ -132,7 +120,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     }
   }
 
-  /** Demonstration processing to debug WU loading and deserialization */
+  /** Demonstration processing, to isolate debugging of WU loading and deserialization */
   protected int countSumProperties(List<WorkUnit> workUnits, WorkUnitClaimCheck wu) {
     int totalNumProps = workUnits.stream().mapToInt(workUnit -> workUnit.getPropertyNames().size()).sum();
     log.info("opened WU [{}] to find {} properties total at '{}'", wu.getCorrelator(), totalNumProps, wu.getWorkUnitPath());

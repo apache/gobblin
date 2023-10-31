@@ -20,6 +20,7 @@ package org.apache.gobblin.temporal.ddm.work.styles;
 import org.apache.hadoop.fs.Path;
 
 
+/** Marks a type that can indicate a {@link org.apache.gobblin.runtime.JobState} via its {@link Path} */
 public interface JobStateful {
   Path getJobStatePath();
 }

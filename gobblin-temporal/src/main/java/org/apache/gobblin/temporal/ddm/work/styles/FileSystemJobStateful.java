@@ -17,5 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.work.styles;
 
+
+/** Marks a type that can indicate both a {@link org.apache.hadoop.fs.FileSystem} and a {@link org.apache.gobblin.runtime.JobState} */
 public interface FileSystemJobStateful extends JobStateful, FileSystemApt {
 }

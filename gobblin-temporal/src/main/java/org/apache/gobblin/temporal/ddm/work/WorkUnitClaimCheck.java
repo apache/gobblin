@@ -41,12 +41,11 @@ public class WorkUnitClaimCheck implements FileSystemApt, FileSystemJobStateful 
   @NonNull private String correlator;
   @NonNull private URI fileSystemUri;
   @NonNull private String workUnitPath;
-  @NonNull private State stateConfig; // TODO - verify this is the right granularity for carrying this
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override
   public State getFileSystemConfig() {
-    return stateConfig;
+    return new State(); // TODO - figure out how to truly set!
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')

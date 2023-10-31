@@ -48,7 +48,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override
   public State getFileSystemConfig() {
-    return new State(); // TODO!
+    return new State(); // TODO - figure out how to truly set!
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')

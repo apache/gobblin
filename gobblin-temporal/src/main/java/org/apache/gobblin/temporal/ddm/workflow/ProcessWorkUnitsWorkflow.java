@@ -26,6 +26,7 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 /** Temporal workflow for executing {@link WorkUnit}s to fulfill the work they specify. */
 @WorkflowInterface
 public interface ProcessWorkUnitsWorkflow {
+  /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
   @WorkflowMethod
   int process(WUProcessingSpec wuSpec);
 }

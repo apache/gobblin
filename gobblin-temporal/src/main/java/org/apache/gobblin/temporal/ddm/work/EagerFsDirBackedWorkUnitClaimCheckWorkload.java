@@ -17,11 +17,9 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.net.URI;
 import java.util.Comparator;
-import java.util.Optional;
-import org.apache.gobblin.configuration.State;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.hadoop.fs.FileStatus;
 
 
@@ -33,23 +31,14 @@ import org.apache.hadoop.fs.FileStatus;
 @lombok.ToString(callSuper = true)
 public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsDirBackedWorkload<WorkUnitClaimCheck> {
 
-  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI nameNodeUri, String hdfsDir) {
-    this(nameNodeUri, hdfsDir, Optional.empty());
-  }
-
-  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI nameNodeUri, String hdfsDir, State stateConfig) {
-    this(nameNodeUri, hdfsDir, Optional.of(stateConfig));
-  }
-
-  protected EagerFsDirBackedWorkUnitClaimCheckWorkload(URI nameNodeUri, String hdfsDir, Optional<State> optStateConfig) {
-    super(nameNodeUri, hdfsDir);
-    optStateConfig.ifPresent(this::setStateConfig);
+  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI fileSystemUri, String hdfsDir) {
+    super(fileSystemUri, hdfsDir);
   }
 
   @Override
   protected WorkUnitClaimCheck fromFileStatus(FileStatus fileStatus) {
     // begin by setting all correlators to empty
-    return new WorkUnitClaimCheck("", this.getNameNodeUri(), fileStatus.getPath().toString(), this.getStateConfig());
+    return new WorkUnitClaimCheck("", this.getFileSystemUri(), fileStatus.getPath().toString());
   }
 
   @Override
@@ -60,6 +49,7 @@ public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsD
 
   @Override
   protected void acknowledgeOrdering(int index, WorkUnitClaimCheck item) {
+    // later, after the post-total-ordering indices are know, use each item's index as its correlator
     item.setCorrelator(Integer.toString(index));
   }
 }

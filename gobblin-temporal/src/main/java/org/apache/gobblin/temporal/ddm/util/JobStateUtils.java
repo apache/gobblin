@@ -40,6 +40,11 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
 
 
+/**
+ * Utilities for applying {@link JobState} info to various ends:
+ * - creating a {@link SharedResourcesBroker}
+ * - obtaining a {@link StateStore<TaskState>}
+ */
 @Slf4j
 public class JobStateUtils {
   private static final String OUTPUT_DIR_NAME = "output"; // following MRJobLauncher.OUTPUT_DIR_NAME
@@ -66,7 +71,11 @@ public class JobStateUtils {
     return new FsStateStore<>(fs, taskStateStorePath.toUri().getPath(), TaskState.class);
   }
 
-  //!!!!!document dependence on MR_JOB_ROOT_DIR_KEY = "mr.job.root.dir";
+  /**
+   * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
+   * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
+   * @return path to {@link FsStateStore<TaskState>} backing dir
+   */
   public static Path getTaskStateStorePath(JobState jobState, FileSystem fs) {
     Properties jobProps = jobState.getProperties();
     Path jobOutputPath = new Path(

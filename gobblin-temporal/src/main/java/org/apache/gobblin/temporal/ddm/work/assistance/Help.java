@@ -48,6 +48,7 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 
+/** Various capabilities useful in implementing Distributed Data Movement (DDM) */
 @Slf4j
 public class Help {
   public static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
@@ -192,10 +193,10 @@ public class Help {
     }
   }
 
-  // public static StateStore<TaskState> openTaskStateStore(JobStateful js, FileSystem fs) throws IOException {
-  //   return JobStateUtils.openTaskStateStore(loadJobState(js, fs), fs);
   public static StateStore<TaskState> openTaskStateStore(FileSystemJobStateful js, FileSystem fs) throws IOException {
     return JobStateUtils.openTaskStateStoreUncached(loadJobState(js), fs);
+    // public static StateStore<TaskState> openTaskStateStore(JobStateful js, FileSystem fs) throws IOException {
+    //   return JobStateUtils.openTaskStateStore(loadJobState(js, fs), fs);
   }
 
   private static void incrementJobStateAccess() {

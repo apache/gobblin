@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.gobblin.configuration.State;
 
 
+/** Marks a type that can indicate a {@link org.apache.hadoop.fs.FileSystem} via its {@link URI} and configuration */
 public interface FileSystemApt {
 
   URI getFileSystemUri();

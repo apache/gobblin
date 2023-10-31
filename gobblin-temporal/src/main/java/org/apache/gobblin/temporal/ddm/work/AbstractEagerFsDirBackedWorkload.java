@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -26,19 +25,24 @@ import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.temporal.util.nesting.work.SeqSliceBackedWorkSpan;
-import org.apache.gobblin.temporal.util.nesting.work.Workload;
-import org.apache.gobblin.util.HadoopUtils;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
+import org.apache.gobblin.temporal.util.nesting.work.SeqSliceBackedWorkSpan;
+import org.apache.gobblin.temporal.util.nesting.work.Workload;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**
@@ -52,16 +56,15 @@ import org.apache.hadoop.fs.PathFilter;
 @lombok.RequiredArgsConstructor
 @lombok.ToString(exclude = { "stateConfig", "cachedWorkItems" })
 @Slf4j
-public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Workload<WORK_ITEM> {
+public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Workload<WORK_ITEM>, FileSystemApt {
 
-  @Getter(AccessLevel.PROTECTED)
-  @NonNull private URI nameNodeUri;
+  @Getter
+  @NonNull private URI fileSystemUri;
   // NOTE: use `String` rather than `Path` to avoid: com.fasterxml.jackson.databind.exc.MismatchedInputException:
   //   Cannot construct instance of `org.apache.hadoop.fs.Path` (although at least one Creator exists):
   //     cannot deserialize from Object value (no delegate- or property-based Creator)
   @NonNull private String fsDir;
   @Getter(AccessLevel.PROTECTED) @Setter(AccessLevel.PROTECTED)
-  @NonNull private State stateConfig = new State();
   private transient volatile WORK_ITEM[] cachedWorkItems = null;
 
   @Override
@@ -87,13 +90,15 @@ public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Wor
 
   protected abstract WORK_ITEM fromFileStatus(FileStatus fileStatus);
 
-  /** !!!TODO: guide that must be deterministic / give a consistent total ordering for `WORK_ITEM`s */
-  // IMPORTANT: sort for deterministic order (so long as dir contents not changed in iterim)
-  // TODO: handle case of dir contents growing (e.g. use timestamp to filter out newer paths)
+  /**
+   *  IMPORTANT: to satisfy Temporal's required determinism, the `WORK_ITEM`s need a consistent total ordering
+   *  WARNING: this works so long as dir contents are unchanged in iterim
+   *  TODO: handle case of dir contents growing (e.g. use timestamp to filter out newer paths)... how could we handle the case of shrinking/deletion?
+   */
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   protected abstract Comparator<WORK_ITEM> getWorkItemComparator();
 
-  /** TODO: describe motivation!!! */
+  /** Hook for each `WORK_ITEM` to be associated with its final, post-sorting ordinal index */
   protected void acknowledgeOrdering(int index, WORK_ITEM workItem) {
     // no-op
   }
@@ -125,8 +130,14 @@ public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Wor
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
+  @Override
+  public State getFileSystemConfig() {
+    return new State(); // TODO - figure out how to truly set!
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
   protected FileSystem loadFileSystem() throws IOException {
-    return HadoopUtils.getFileSystem(this.nameNodeUri, this.stateConfig);
+    return HadoopUtils.getFileSystem(this.fileSystemUri, this.getFileSystemConfig());
   }
 
   private void sortWorkItems(WORK_ITEM[] workItems) {

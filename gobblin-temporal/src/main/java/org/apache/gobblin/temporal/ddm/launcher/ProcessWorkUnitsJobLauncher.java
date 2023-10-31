@@ -73,7 +73,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
   public void submitJob(List<WorkUnit> workunits) {
     try {
       URI nameNodeUri = new URI(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_NAME_NODE_URI, "<<not-set>>"));
-      // NOTE: `Path` is challenging for temporal to ser/de, but still pre-construct as `Path`, to validate prop str contents
+      // NOTE: `Path` is challenging for temporal to ser/de, but nonetheless do pre-construct as `Path`, to pre-validate this prop string's contents
       Path workUnitsDir = new Path(this.jobProps.getProperty(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_UNITS_DIR, "<<not-set>>"));
       WUProcessingSpec wuSpec = new WUProcessingSpec(nameNodeUri, workUnitsDir.toString());
       if (this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE) &&
