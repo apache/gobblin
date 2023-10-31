@@ -18,6 +18,7 @@
 package org.apache.gobblin.util;
 
 import com.zaxxer.hikari.HikariDataSource;
+import java.io.Closeable;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -35,7 +36,7 @@ import org.slf4j.Logger;
  * The caller of the class MUST maintain ownership of the {@link DataSource} and close this instance when the
  * {@link DataSource} is about to be closed well. Both are to be done only once this instance will no longer be used.
  */
-public class DBStatementExecutor {
+public class DBStatementExecutor implements Closeable {
   private final DataSource dataSource;
   private final Logger log;
   private final ArrayList<ScheduledThreadPoolExecutor> scheduledExecutors;
@@ -101,6 +102,7 @@ public class DBStatementExecutor {
    * Call before closing the data source object associated with this instance to also shut down any executors expecting
    * to be run on the data source.
    */
+  @Override
   public void close() {
     for (ScheduledThreadPoolExecutor executor : this.scheduledExecutors) {
       executor.shutdownNow();
