@@ -97,7 +97,7 @@ public class ConfigurationKeys {
   public static final int DEFAULT_NUM_DAYS_TO_SKIP_AFTER = 365;
   // Mysql Dag Action Store configuration
   public static final String MYSQL_DAG_ACTION_STORE_PREFIX = "MysqlDagActionStore.";
-  public static final String MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SECONDS_KEY = MYSQL_DAG_ACTION_STORE_PREFIX + ".retentionPeriodSeconds";
+  public static final String MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SECONDS_KEY = MYSQL_DAG_ACTION_STORE_PREFIX + "retentionPeriodSeconds";
   public static final long DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY = 3 * 24 * 60 * 60; // (3 days in seconds)
   // Scheduler lease determination store configuration
   public static final String MYSQL_LEASE_ARBITER_PREFIX = "MysqlMultiActiveLeaseArbiter";
