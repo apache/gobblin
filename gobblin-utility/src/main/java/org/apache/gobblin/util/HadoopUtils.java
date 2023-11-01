@@ -1030,6 +1030,15 @@ public class HadoopUtils {
   }
 
   /**
+   * Get a {@link FileSystem} for `fsUri`
+   * @throws IOException
+   */
+  public static FileSystem getFileSystem(URI fsUri, State state) throws IOException {
+    Configuration conf = HadoopUtils.getConfFromState(state, Optional.absent());
+    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(fsUri, conf), state);
+  }
+
+  /**
    * Get a {@link FileSystem} object for the uri specified at {@link ConfigurationKeys#WRITER_FILE_SYSTEM_URI}.
    * @throws IOException
    */

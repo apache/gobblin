@@ -130,12 +130,7 @@ public class JobLauncherUtils {
   public static List<WorkUnit> loadFlattenedWorkUnits(FileSystem fs, Path path) throws IOException {
     WorkUnit workUnit = JobLauncherUtils.createEmptyWorkUnitPerExtension(path);
     SerializationUtils.deserializeState(fs, path, workUnit);
-
-    if (workUnit.isMultiWorkUnit()) {
-      return JobLauncherUtils.flattenWorkUnits(((MultiWorkUnit) workUnit).getWorkUnits());
-    } else {
-      return Lists.newArrayList(workUnit);
-    }
+    return JobLauncherUtils.flattenWorkUnits(Lists.newArrayList(workUnit));
   }
 
   /** @return an empty {@link WorkUnit}, potentially an empty {@link MultiWorkUnit}, based on the {@link Path} extension */
