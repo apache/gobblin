@@ -105,7 +105,9 @@ public class Help {
   }
 
   public static FileSystem loadFileSystemForUriForce(URI fsUri, State fsConfig) throws IOException {
-    // TODO - determine whether this works... unclear whether it led to "FS closed", or that had another cause...
+    // for reasons still not fully understood, we encountered many "FS closed" failures before disabling HDFS caching--especially as num WUs increased.
+    // perhaps caching-facilitated reuse of the same FS across multiple WUs caused prior WU execs to leave the FS in a problematic state for subsequent execs
+    // TODO - more investigation to sort out the true RC... and whether caching definitively is or is not possible for use here!
     // return HadoopUtils.getFileSystem(fsUri, fsConfig);
     Configuration conf = HadoopUtils.getConfFromState(fsConfig);
     conf.setBoolean("fs.hdfs.impl.disable.cache", true);
