@@ -72,9 +72,19 @@ public class PropertiesUtils {
 
   /** @throws {@link NullPointerException} when `key` not in `properties` */
   public static int getRequiredPropAsInt(Properties properties, String key) {
+    return Integer.parseInt(getRequiredPropRaw(properties, key, Optional.of("an integer")));
+  }
+
+  /** @throws {@link NullPointerException} when `key` not in `properties` */
+  public static String getRequiredProp(Properties properties, String key) {
+    return getRequiredPropRaw(properties, key, Optional.absent());
+  }
+
+  /** @throws {@link NullPointerException} when `key` not in `properties` */
+  public static String getRequiredPropRaw(Properties properties, String key, Optional<String> desc) {
     String value = properties.getProperty(key);
-    Preconditions.checkNotNull(value, "'" + key + "' must be set (to an integer)");
-    return Integer.parseInt(value);
+    Preconditions.checkNotNull(value, "'" + key + "' must be set" + desc.transform(s -> " (to " + desc + ")").or(""));
+    return value;
   }
 
   public static long getPropAsLong(Properties properties, String key, long defaultValue) {
