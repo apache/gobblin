@@ -264,7 +264,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     closeInternal();
     // Validate the ORC file after writer close. Default is false as it introduce more load to FS and decrease the performance
     if(this.validateORCAfterClose) {
-      try(Reader reader =OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf))) {
+      try (Reader reader =OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf))) {
       } catch (Exception e) {
         log.error("Found error when validating ORC file during commit phase", e);
         HadoopUtils.deletePath(this.fs, this.stagingFile, false);
