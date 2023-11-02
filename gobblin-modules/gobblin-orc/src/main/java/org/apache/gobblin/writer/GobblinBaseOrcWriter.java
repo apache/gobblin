@@ -29,6 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
+import org.apache.orc.Reader;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
@@ -62,7 +63,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   protected int batchSize;
   protected final S inputSchema;
 
-  private final boolean validateORCDuringCommit;
+  private final boolean validateORCAfterClose;
   private final boolean selfTuningWriter;
   private int selfTuneRowsBetweenCheck;
   private double rowBatchMemoryUsageFactor;
@@ -96,7 +97,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.inputSchema = builder.getSchema();
     this.typeDescription = getOrcSchema();
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
-    this.validateORCDuringCommit = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_DURING_COMMIT, false);
+    this.validateORCAfterClose = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_AFTER_CLOSE, false);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ?
@@ -244,6 +245,16 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         throw new CloseBeforeFlushException(this.inputSchema.toString());
       }
     }
+    // Validate the ORC file after writer close. Default is false as it introduce more load to FS and decrease the performance
+    if(this.validateORCAfterClose) {
+      try(Reader reader =OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf))) {
+      } catch (Exception e) {
+        log.error("Found error when validating ORC file during commit phase", e);
+        HadoopUtils.deletePath(this.fs, this.stagingFile, false);
+        log.error("Delete the malformed ORC file after close the writer: {}", this.stagingFile);
+        throw e;
+      }
+    }
   }
 
   @Override
@@ -261,16 +272,6 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public void commit()
       throws IOException {
     closeInternal();
-    if(this.validateORCDuringCommit) {
-      try {
-        OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf));
-      } catch (Exception e) {
-        log.error("Found error when validating ORC file during commit phase", e);
-        HadoopUtils.deletePath(this.fs, this.stagingFile, false);
-        log.error("Delete the malformed ORC file after close the writer: {}", this.stagingFile);
-        throw e;
-      }
-    }
     super.commit();
 
     if (this.selfTuningWriter) {
