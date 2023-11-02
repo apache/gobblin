@@ -40,6 +40,10 @@ public class DagActionStoreChangeMonitorTest {
   private MockDagActionStoreChangeMonitor mockDagActionStoreChangeMonitor;
   private int txidCounter = 0;
 
+  /**
+   * Note: The class methods accessed in the tests below are overriden to allow access to these package-protected
+   * methods for testing
+   */
   class MockDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
 
     public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
@@ -51,11 +55,17 @@ public class DagActionStoreChangeMonitorTest {
     @Override
     protected void processMessage(DecodeableKafkaRecord record) {
       super.processMessage(record);
+
     }
 
     @Override
     protected void startUp() {
       super.startUp();
+    }
+
+    @Override
+    protected void submitFlowToDagManagerHelper(String flowGroup, String flowName) {
+      super.submitFlowToDagManagerHelper(flowGroup, flowName);
     }
   }
 
@@ -74,44 +84,98 @@ public class DagActionStoreChangeMonitorTest {
   }
 
   /**
-   * Ensure no NPE results from passing a HEARTBEAT type message with a null {@link DagActionValue}
+   * Ensure no NPE results from passing a HEARTBEAT type message with a null {@link DagActionValue} and the message is
+   * filtered out since it's a heartbeat type so no methods are called.
    */
   @Test
-  public void testProcessMessageWithHeartbeat() {
+  public void testProcessMessageWithHeartbeatAndNullDagAction() {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", null);
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
   }
 
   /**
-   * Tests process message with an INSERT type message
+   * Ensure a HEARTBEAT type message with non-empty flow information is filtered out since it's a heartbeat type so no
+   * methods are called.
    */
   @Test
-  public void testProcessMessageWithInsert() {
+  public void testProcessMessageWithHeartbeatAndFlowInfo() {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
+    mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+  }
+
+  /**
+   * Tests process message with an INSERT type message of a `launch` action
+   */
+  @Test
+  public void testProcessMessageWithInsertLaunchType() {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(1)).submitFlowToDagManagerHelper(anyString(), anyString());
   }
 
+  /**
+   * Tests process message with an INSERT type message of a `resume` action. It re-uses the same flow information however
+   * since it is a different tid used every time it will be considered unique and submit a kill request.
+   */
+  @Test
+  public void testProcessMessageWithInsertResumeType() {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
+    mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+  }
 
   /**
-   * Tests process message with an UPDATE type message
+   * Tests process message with an INSERT type message of a `kill` action. Similar to `testProcessMessageWithInsertResumeType`.
+   */
+  @Test
+  public void testProcessMessageWithInsertKillType() {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.KILL);
+    mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+  }
+
+  /**
+   * Tests process message with an UPDATE type message of the 'launch' action above. Although processMessage does not
+   * expect this message type it should handle it gracefully
    */
   @Test
   public void testProcessMessageWithUpdate() {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.UPDATE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
   }
 
   /**
-   * Tests process message with a DELETE type message
+   * Tests process message with a DELETE type message which should be ignored regardless of the flow information.
    */
   @Test
   public void testProcessMessageWithDelete() {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.DELETE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
   }
 
   /**

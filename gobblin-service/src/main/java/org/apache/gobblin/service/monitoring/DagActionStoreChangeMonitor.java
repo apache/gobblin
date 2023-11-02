@@ -17,20 +17,19 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -43,8 +42,6 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-
-
 /**
  * A DagActionStore change monitor that uses {@link DagActionStoreChangeEvent} schema to process Kafka messages received
  * from its corresponding consumer client. This monitor responds to requests to resume or delete a flow and acts as a
@@ -79,7 +76,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       dagActionsSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
   protected DagActionStore dagActionStore;
-
+  @Getter
+  @VisibleForTesting
   protected DagManager dagManager;
   protected Orchestrator orchestrator;
   protected boolean isMultiActiveSchedulerEnabled;
