@@ -17,7 +17,11 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.eventbus.EventBus;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.compress.utils.Sets;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
@@ -188,6 +193,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       if (jobContext.getPartitionNumAttempts(partition) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
         log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better",
             jobContext.getTaskIdForPartition(partition), jobContext.getPartitionNumAttempts(partition));
+        this.yarnService.getEventBus().post(new WorkUnitChangeEvent(
+            Collections.singletonList(jobContext.getTaskIdForPartition(partition)), null));
       }
       if (!UNUSUAL_HELIX_TASK_STATES.contains(jobContext.getPartitionState(partition))) {
         return jobContext.getAssignedParticipant(partition);

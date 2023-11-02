@@ -17,10 +17,13 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.eventbus.Subscribe;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -30,6 +33,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import java.util.stream.Collectors;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
+import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -77,6 +86,8 @@ import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.SerializationUtils;
+
+import static org.apache.gobblin.util.JobLauncherUtils.*;
 
 
 /**
@@ -132,6 +143,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final long helixJobStopTimeoutSeconds;
   private final long helixWorkflowSubmissionTimeoutSeconds;
   private Map<String, TaskConfig> workUnitToHelixConfig;
+  private Map<String, TaskConfig> helixIdTaskConfigMap;
   private Retryer<Boolean> taskRetryer;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
@@ -254,6 +266,42 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
+  /**
+   * Handle {@link WorkUnitChangeEvent}, by default it will do nothing
+   */
+  @Override
+  @Subscribe
+  public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent)
+      throws InvocationTargetException {
+    final JobState jobState = this.jobContext.getJobState();
+    List<String> oldHelixTaskIDs = workUnitChangeEvent.getOldTaskIds();
+    Map<String, List<Integer>> filteredTopicPartition = new HashMap<>();
+    for(String id : oldHelixTaskIDs) {
+      WorkUnit workUnit = getWorkUnitFromStateStore(
+          helixIdTaskConfigMap.get(id).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY));
+      String topicName = workUnit.getProp(KafkaSource.TOPIC_NAME);
+      List<Integer> partitions = filteredTopicPartition.getOrDefault(topicName,
+          new LinkedList<>());
+      partitions.addAll(KafkaUtils.getPartitions(workUnit).stream().map(KafkaPartition::getId).collect(Collectors.toList()));
+      filteredTopicPartition.put(topicName, partitions);
+    }
+    Source<?, ?> source = this.jobContext.getSource();
+    List<WorkUnit> workUnits = ((KafkaSource) source).getWorkunitsForFilteredPartitions(jobState,
+        com.google.common.base.Optional.of(filteredTopicPartition), com.google.common.base.Optional.of(2));
+    try {
+      if(workUnits.size() > 1) {
+        log.info("start to handle workunit change event for: {}", filteredTopicPartition);
+        this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
+        this.addTasksToCurrentJob(workUnits);
+      } else {
+        log.info("New workUnits is smaller than 2, so no action taken for: {}", filteredTopicPartition);
+      }
+    } catch (Exception e) {
+      //todo: emit some event to indicate there is an error handling this event that may cause starvation
+      throw new InvocationTargetException(e);
+    }
+  }
+
   @Override
   protected void executeCancellation() {
     if (this.jobSubmitted) {
@@ -275,17 +323,18 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
-  protected void removeTasksFromCurrentJob(List<String> workUnitIdsToRemove) throws IOException, ExecutionException,
+  protected void removeTasksFromCurrentJob(List<String> helixTaskIdsToRemove) throws IOException, ExecutionException,
                                                                                     RetryException {
     String jobName = this.jobContext.getJobId();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
-      for (String workUnitId : workUnitIdsToRemove) {
+      for (String helixTaskId : helixTaskIdsToRemove) {
+        String workUnitId = helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
         taskRetryer.call(new Callable<Boolean>() {
           @Override
           public Boolean call() throws Exception {
             String taskId = workUnitToHelixConfig.get(workUnitId).getId();
             boolean remove =
-                HelixUtils.deleteTaskFromHelixJob(helixWorkFlowName, jobName, taskId, helixTaskDriver);
+                HelixUtils.deleteTaskFromHelixJob(helixWorkFlowName, jobName, helixTaskId, helixTaskDriver);
             if (remove) {
               log.info(String.format("Removed helix task %s with gobblin task id  %s from helix job %s:%s ", taskId,
                   workUnitId, helixWorkFlowName, jobName));
@@ -514,6 +563,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     rawConfigMap.put(GobblinClusterConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
     TaskConfig taskConfig = TaskConfig.Builder.from(rawConfigMap);
     workUnitToHelixConfig.put(workUnit.getId(), taskConfig);
+    helixIdTaskConfigMap.put(taskConfig.getId(), taskConfig);
     return taskConfig;
   }
 
@@ -524,6 +574,29 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner, Map<String, TaskConfig> taskConfigMap)
       throws IOException {
     taskConfigMap.put(workUnit.getId(), getTaskConfig(workUnit, stateSerDeRunner));
+  }
+
+  /**
+   * get a single {@link WorkUnit} (flattened) from state store.
+   */
+  private WorkUnit getWorkUnitFromStateStore(String workUnitId) {
+    String workUnitFilePath =
+        workUnitToHelixConfig.get(workUnitId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
+    final StateStore stateStore;
+    Path workUnitFile = new Path(workUnitFilePath);
+    final String fileName = workUnitFile.getName();
+    final String storeName = workUnitFile.getParent().getName();
+    if (fileName.endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)) {
+      stateStore = stateStores.getMwuStateStore();
+    } else {
+      stateStore = stateStores.getWuStateStore();
+    }
+    try {
+      return (WorkUnit) stateStore.get(storeName, fileName, workUnitId);
+    } catch (IOException ioException) {
+      log.error("Failed to fetch workunit with ID {} from path {}", workUnitId, workUnitId);
+    }
+    return null;
   }
 
   /**

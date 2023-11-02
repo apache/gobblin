@@ -134,6 +134,7 @@ public class YarnService extends AbstractIdleService {
 
   private final Config config;
 
+  @Getter
   private final EventBus eventBus;
 
   private final Configuration yarnConfiguration;

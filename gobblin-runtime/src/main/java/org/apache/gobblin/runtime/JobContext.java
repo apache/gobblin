@@ -296,7 +296,7 @@ public class JobContext implements Closeable {
    *
    * @return an instance of the {@link Source} class specified in the job configuration
    */
-  Source<?, ?> getSource() {
+  public Source<?, ?> getSource() {
     return this.source;
   }
 
