@@ -41,6 +41,7 @@ public class ServiceConfigKeys {
   public static final boolean DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED = false;
   public static final String GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "jobStatusMonitor.enabled";
   public static final String GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "warmStandby.enabled";
+  public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.enabled";
   public static final String GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "multiActiveScheduler.enabled";
   // If true, will mark up/down d2 servers on leadership so that all requests will be routed to the leader node
   public static final String GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER = GOBBLIN_SERVICE_PREFIX + "d2.onlyAnnounceLeader";

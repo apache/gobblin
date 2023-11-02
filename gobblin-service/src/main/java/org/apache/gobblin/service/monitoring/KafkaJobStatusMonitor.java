@@ -191,6 +191,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         if (jobStatus != null) {
           try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
             addJobStatusToStateStore(jobStatus, this.stateStore, this.eventProducer);
+            //TODO: Add Advance and CleanUp DagTask to DagTaskStream
           }
         }
         return null;

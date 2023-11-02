@@ -23,7 +23,12 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.InMemoryDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
@@ -171,6 +176,12 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowTriggerHandler.class);
+      if(serviceConfig.isDagProcessingEngineEnabled()) {
+        binder.bind(DagManagementStateStore.class).to(InMemoryDagManagementStateStore.class);
+        binder.bind(DagProcFactory.class).in(Singleton.class);
+        binder.bind(DagProcessingEngine.class).in(Singleton.class);
+        binder.bind(DagTaskStream.class).in(Singleton.class);
+      }
     }
 
     binder.bind(FlowConfigsResource.class);

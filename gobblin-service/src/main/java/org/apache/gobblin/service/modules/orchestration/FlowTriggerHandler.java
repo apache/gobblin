@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -29,8 +26,21 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Random;
+
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.JobKey;
+import org.quartz.SchedulerException;
+import org.quartz.Trigger;
+import org.quartz.impl.JobDetailImpl;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
@@ -44,12 +54,6 @@ import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
-import org.quartz.JobDataMap;
-import org.quartz.JobDetail;
-import org.quartz.JobKey;
-import org.quartz.SchedulerException;
-import org.quartz.Trigger;
-import org.quartz.impl.JobDetailImpl;
 
 
 /**
@@ -323,5 +327,41 @@ public class FlowTriggerHandler {
     LocalDateTime localDateTime = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
     Date date = Date.from(localDateTime.atZone(ZoneId.of("UTC")).toInstant());
     return GobblinServiceJobScheduler.utcDateAsUTCEpochMillis(date);
+  }
+
+  /**
+   * Attempts to acquire lease for a given {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}
+   * through lease arbitration and if it fails, it will create and schedule a reminder trigger to check back again.
+   * @param jobProps
+   * @param flowAction
+   * @param eventTimeMillis
+   * @return optionally leaseObtainedStatus if acquired; otherwise schedule reminder to check back again.
+   * @throws IOException
+   */
+  public MultiActiveLeaseArbiter.LeaseAttemptStatus getLeaseOnDagAction(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis) throws IOException {
+
+    if (multiActiveLeaseArbiter.isPresent()) {
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(flowAction, eventTimeMillis);
+      if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+        this.leaseObtainedCount.inc();
+        log.info("Successfully acquired lease for dag action: {}", flowAction);
+      } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
+        this.leasedToAnotherStatusCount.inc();
+        scheduleReminderForEvent(jobProps,
+            (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
+      } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
+        this.noLongerLeasingStatusCount.inc();
+        log.info("Received type of leaseAttemptStatus: [{}, eventTimestamp: {}] ", leaseAttemptStatus.getClass().getName(),
+            eventTimeMillis);
+      }
+      return leaseAttemptStatus;
+    } else {
+      throw new RuntimeException(String.format("Multi-active scheduler is not enabled so trigger event should not be "
+          + "handled with this method."));
+    }
+  }
+
+  public MultiActiveLeaseArbiter getMultiActiveLeaseArbiter() {
+    return this.multiActiveLeaseArbiter.get();
   }
 }
