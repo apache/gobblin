@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.orc.OrcConf;
@@ -260,16 +261,18 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public void commit()
       throws IOException {
     closeInternal();
-    super.commit();
     if(this.validateORCDuringCommit) {
       try {
-        OrcFile.createReader(this.outputFile, new OrcFile.ReaderOptions(conf));
+        OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf));
       } catch (IOException ioException) {
-        log.error("Found error when validating ORC file {} during commit phase", this.outputFile, ioException);
-        log.error("Delete the malformed ORC file is successful: {}", this.fs.delete(this.outputFile, false));
+        log.error("Found error when validating ORC file during commit phase", ioException);
+        HadoopUtils.deletePath(this.fs, this.stagingFile, false);
+        log.error("Delete the malformed ORC file after close the writer: {}", this.stagingFile);
         throw ioException;
       }
     }
+    super.commit();
+
     if (this.selfTuningWriter) {
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(getEstimatedRecordSizeBytes()));
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY,
