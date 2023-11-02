@@ -265,7 +265,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       try {
         OrcFile.createReader(this.outputFile, new OrcFile.ReaderOptions(conf));
       } catch (IOException ioException) {
-        log.error("Found error when validating ORC file during commit phase", ioException);
+        log.error("Found error when validating ORC file {} during commit phase", this.outputFile, ioException);
         log.error("Delete the malformed ORC file is successful: {}", this.fs.delete(this.outputFile, false));
         throw ioException;
       }
