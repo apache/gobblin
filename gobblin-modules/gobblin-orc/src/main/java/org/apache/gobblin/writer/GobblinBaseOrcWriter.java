@@ -61,6 +61,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   protected int batchSize;
   protected final S inputSchema;
 
+  private final boolean validateORCDuringCommit;
   private final boolean selfTuningWriter;
   private int selfTuneRowsBetweenCheck;
   private double rowBatchMemoryUsageFactor;
@@ -94,6 +95,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.inputSchema = builder.getSchema();
     this.typeDescription = getOrcSchema();
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
+    this.validateORCDuringCommit = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_DURING_COMMIT, false);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ?
@@ -259,6 +261,15 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       throws IOException {
     closeInternal();
     super.commit();
+    if(this.validateORCDuringCommit) {
+      try {
+        OrcFile.createReader(this.outputFile, new OrcFile.ReaderOptions(conf));
+      } catch (IOException ioException) {
+        log.error("Found error when validating ORC file during commit phase", ioException);
+        log.error("Delete the malformed ORC file is successful: {}", this.fs.delete(this.outputFile, false));
+        throw ioException;
+      }
+    }
     if (this.selfTuningWriter) {
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_RECORD_SIZE, String.valueOf(getEstimatedRecordSizeBytes()));
       properties.setProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY,

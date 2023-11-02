@@ -23,6 +23,11 @@ package org.apache.gobblin.writer;
 public class GobblinOrcWriterConfigs {
   public static final String ORC_WRITER_PREFIX = "orcWriter.";
   /**
+   * Configuration for enabling validation of ORC file to detect malformation. If enabled, will throw exception and
+   * delete malformed ORC file during commit
+   */
+  public static final String ORC_WRITER_VALIDATE_FILE_DURING_COMMIT = ORC_WRITER_PREFIX + "validate.commit.file";
+  /**
    * Default buffer size in the ORC Writer before sending the records to the native ORC Writer
    */
   public static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
