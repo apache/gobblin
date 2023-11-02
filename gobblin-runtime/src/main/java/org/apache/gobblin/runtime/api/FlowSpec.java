@@ -17,17 +17,6 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-
-import org.apache.commons.lang.StringUtils;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -37,12 +26,20 @@ import com.google.common.collect.Sets;
 import com.linkedin.data.template.StringMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
+import com.typesafe.config.ConfigValueFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
@@ -429,10 +426,8 @@ public class FlowSpec implements Configurable, Spec {
    * @param value
    */
   public FlowSpec addProperty(String path, String value) {
-    Properties properties = this.getConfigAsProperties();
-    properties.setProperty(path, value);
-    Config config = ConfigFactory.parseProperties(properties);
-    return new Builder(this.getUri()).withConfigAsProperties(properties).withConfig(config).build();
+    Config updatedConfig = this.getConfig().withValue(path, ConfigValueFactory.fromAnyRef(value));
+    return new Builder(this.getUri()).withConfig(updatedConfig).build();
   }
 
   @Slf4j
