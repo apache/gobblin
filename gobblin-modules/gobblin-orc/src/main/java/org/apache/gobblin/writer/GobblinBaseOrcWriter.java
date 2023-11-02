@@ -264,11 +264,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     if(this.validateORCDuringCommit) {
       try {
         OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf));
-      } catch (IOException ioException) {
-        log.error("Found error when validating ORC file during commit phase", ioException);
+      } catch (Exception e) {
+        log.error("Found error when validating ORC file during commit phase", e);
         HadoopUtils.deletePath(this.fs, this.stagingFile, false);
         log.error("Delete the malformed ORC file after close the writer: {}", this.stagingFile);
-        throw ioException;
+        throw e;
       }
     }
     super.commit();
