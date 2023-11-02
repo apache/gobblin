@@ -17,20 +17,18 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -165,7 +163,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
             throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
                 + "mode for flowAction: %s", dagAction));
           }
-          submitFlowToDagManagerHelper(flowGroup, flowName);
+          submitFlowToDagManagerHelper(flowGroup, flowName, flowExecutionId);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();
@@ -192,14 +190,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
-  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName) {
+  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName, String flowExecutionId) {
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      this.orchestrator.submitFlowToDagManager(spec);
+      // Adds flowExecutionId to config to ensure they are consistent across hosts
+      FlowSpec updatedSpec = spec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      this.orchestrator.submitFlowToDagManager(updatedSpec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.failedFlowLaunchSubmissions.mark();

@@ -423,6 +423,17 @@ public class FlowSpec implements Configurable, Spec {
     return getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY);
   }
 
+  /**
+   * Create a new FlowSpec object with the added property defined by path and value parameters
+   * @param path key for new property
+   * @param value
+   */
+  public FlowSpec addProperty(String path, String value) {
+    Properties properties = this.getConfigAsProperties();
+    properties.setProperty(path, value);
+    return new Builder(this.getUri()).withConfigAsProperties(properties).build();
+  }
+
   @Slf4j
   public static class Utils {
     private final static String URI_SCHEME = "gobblin-flow";
