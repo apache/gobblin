@@ -431,7 +431,8 @@ public class FlowSpec implements Configurable, Spec {
   public FlowSpec addProperty(String path, String value) {
     Properties properties = this.getConfigAsProperties();
     properties.setProperty(path, value);
-    return new Builder(this.getUri()).withConfigAsProperties(properties).build();
+    Config config = ConfigFactory.parseProperties(properties);
+    return new Builder(this.getUri()).withConfigAsProperties(properties).withConfig(config).build();
   }
 
   @Slf4j
