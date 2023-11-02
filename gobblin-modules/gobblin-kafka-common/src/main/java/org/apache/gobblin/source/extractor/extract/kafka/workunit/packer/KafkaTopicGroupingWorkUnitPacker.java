@@ -393,9 +393,9 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   }
 
   /**
-   * A method that split a list of {@link MultiWorkUnit} to the size of desiredWUSize if possible. The split approach is to
-   * try split the {@link WorkUnit} within each MWU into two, in order of size WU within. Stop when each {@link MultiWorkUnit}
-   * only contains single {@link WorkUnit} as further split is no possible.
+   * A method that split a list of {@link MultiWorkUnit} to the size of desiredWUSize if possible. The approach is to try
+   * to evenly split the {@link WorkUnit} within MWU into two, and always try to split MWU with more partitions first.
+   * Stop when each {@link MultiWorkUnit} only contains single {@link WorkUnit} as further split is no possible.
    * @param multiWorkUnits the list of {@link MultiWorkUnit} to be split
    * @param desiredWUSize desired number of {@link MultiWorkUnit}
    * @return splitted MultiWorkUnit
