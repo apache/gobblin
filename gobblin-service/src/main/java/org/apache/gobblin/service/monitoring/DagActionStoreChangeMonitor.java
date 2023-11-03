@@ -44,7 +44,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
-import static org.apache.gobblin.runtime.api.FlowSpec;
+import static org.apache.gobblin.runtime.api.FlowSpec.Utils;
 
 
 /**
@@ -203,7 +203,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       // Adds flowExecutionId to config to ensure they are consistent across hosts
-      FlowSpec updatedSpec = createFlowSpecWithProperty(spec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      FlowSpec updatedSpec = FlowSpec.Utils.createFlowSpecWithProperty(spec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
       this.orchestrator.submitFlowToDagManager(updatedSpec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
