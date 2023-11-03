@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -42,6 +43,10 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+
+import static org.apache.gobblin.runtime.api.FlowSpec;
+
+
 /**
  * A DagActionStore change monitor that uses {@link DagActionStoreChangeEvent} schema to process Kafka messages received
  * from its corresponding consumer client. This monitor responds to requests to resume or delete a flow and acts as a
@@ -163,7 +168,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
             throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
                 + "mode for flowAction: %s", dagAction));
           }
-          submitFlowToDagManagerHelper(flowGroup, flowName);
+          submitFlowToDagManagerHelper(flowGroup, flowName, flowExecutionId);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();
@@ -190,14 +195,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
-  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName) {
+  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName, String flowExecutionId) {
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      this.orchestrator.submitFlowToDagManager(spec);
+      // Adds flowExecutionId to config to ensure they are consistent across hosts
+      FlowSpec updatedSpec = createFlowSpecWithProperty(spec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      this.orchestrator.submitFlowToDagManager(updatedSpec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.failedFlowLaunchSubmissions.mark();
