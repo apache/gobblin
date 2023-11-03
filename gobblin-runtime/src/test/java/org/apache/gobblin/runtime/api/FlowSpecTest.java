@@ -26,8 +26,6 @@ import org.apache.gobblin.service.FlowId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.runtime.api.FlowSpec.Utils;
-
 
 public class FlowSpecTest {
 
