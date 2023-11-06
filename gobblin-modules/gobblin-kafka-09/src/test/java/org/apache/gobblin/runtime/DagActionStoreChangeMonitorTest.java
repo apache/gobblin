@@ -81,8 +81,8 @@ public class DagActionStoreChangeMonitorTest {
     }
 
     @Override
-    protected void submitFlowToDagManagerHelper(String flowGroup, String flowName) {
-      super.submitFlowToDagManagerHelper(flowGroup, flowName);
+    protected void submitFlowToDagManagerHelper(String flowGroup, String flowName, String flowExecutionId) {
+      super.submitFlowToDagManagerHelper(flowGroup, flowName, flowExecutionId);
     }
   }
 
@@ -111,7 +111,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -125,7 +125,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -138,7 +138,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(1)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(1)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -152,7 +152,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -165,7 +165,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -179,7 +179,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
@@ -192,7 +192,7 @@ public class DagActionStoreChangeMonitorTest {
     mockDagActionStoreChangeMonitor.processMessage(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString());
+    verify(mockDagActionStoreChangeMonitor, times(0)).submitFlowToDagManagerHelper(anyString(), anyString(), anyString());
   }
 
   /**
