@@ -28,8 +28,6 @@ import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
@@ -39,18 +37,16 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
  */
 @Slf4j
 public class InstrumentedGobblinOrcWriter extends GobblinOrcWriter {
-  MetricContext metricContext;
+
   public static final String METRICS_SCHEMA_NAME = "schemaName";
   public static final String METRICS_BYTES_WRITTEN = "bytesWritten";
   public static final String METRICS_RECORDS_WRITTEN = "recordsWritten";
   public static final String METRICS_BUFFER_RESIZES = "bufferResizes";
   public static final String METRICS_BUFFER_SIZE = "bufferSize";
   public static final String ORC_WRITER_METRICS_NAME = "OrcWriterMetrics";
-  private static final String ORC_WRITER_NAMESPACE = "gobblin.orc.writer";
 
   public InstrumentedGobblinOrcWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State properties) throws IOException {
     super(builder, properties);
-    metricContext = Instrumented.getMetricContext(new State(properties), this.getClass());
   }
 
   @Override
