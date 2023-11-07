@@ -62,7 +62,6 @@ public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
   public static final String JOB_PROPS_KEY = "job.props";
   private static final int MAX_JOB_NAME_LENGTH = 128;
-  private static final String DEFAULT_LONG_JOBNAME_PREFIX = "GaaS_job";
 
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
@@ -115,8 +114,8 @@ public class JobExecutionPlan {
       jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId, hash);
       // jobNames are commonly used as a directory name, which is limited to 255 characters (account for potential prefixes added/file name lengths)
       if (jobName.length() >= MAX_JOB_NAME_LENGTH) {
-        // shorten job length but make it uniquely identifiable in multihop flows or concurrent jobs
-        jobName = DEFAULT_LONG_JOBNAME_PREFIX + jobName.hashCode();
+        // shorten job length but make it uniquely identifiable in multihop flows or concurrent jobs, max length 139 characters (128 flow group  + hash)
+        jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, jobName.hashCode());
       }
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
