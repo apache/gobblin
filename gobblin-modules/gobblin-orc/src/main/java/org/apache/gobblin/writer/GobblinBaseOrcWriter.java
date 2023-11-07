@@ -38,6 +38,7 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
@@ -387,6 +388,9 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   }
 
   @VisibleForTesting
+  @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE",
+    justification = "Find bugs believes the eventBuilder is always null and that there is a null check, "
+        + "but both are not true.")
   static void assertOrcFileIsValid(FileSystem fs, Path filePath, OrcFile.ReaderOptions readerOptions, MetricContext metricContext) throws IOException {
     try (Reader ignored = OrcFile.createReader(filePath, readerOptions)) {
     } catch (Exception e) {
