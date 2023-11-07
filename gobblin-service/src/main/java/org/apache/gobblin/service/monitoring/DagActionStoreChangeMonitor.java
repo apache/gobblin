@@ -84,6 +84,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected DagManager dagManager;
   protected Orchestrator orchestrator;
   protected boolean isMultiActiveSchedulerEnabled;
+  @Getter
+  @VisibleForTesting
   protected FlowCatalog flowCatalog;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
