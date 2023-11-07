@@ -15,21 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.workflow;
+package org.apache.gobblin.temporal.workflows.trackingevent.activity;
 
-import java.util.Properties;
+import org.slf4j.Logger;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
-/** Temporal workflow for executing {@link WorkUnit}s to fulfill the work they specify. */
-@WorkflowInterface
-public interface ProcessWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
-  @WorkflowMethod
-  int process(WUProcessingSpec wuSpec, Properties props);
+public class GobblinTrackingEventActivityImpl implements GobblinTrackingEventActivity {
+    private static Logger log = Workflow.getLogger(GobblinTrackingEventActivityImpl.class);
+
+    @Override
+    public void submitGTE(EventSubmitter eventSubmitter, GobblinEventBuilder eventBuilder) {
+        eventSubmitter.submit(eventBuilder);
+    }
 }

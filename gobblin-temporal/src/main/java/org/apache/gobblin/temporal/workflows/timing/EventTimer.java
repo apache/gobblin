@@ -14,22 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.temporal.workflows.timing;
 
-package org.apache.gobblin.temporal.ddm.workflow;
+import java.io.Closeable;
 
-import java.util.Properties;
-
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
+import org.apache.gobblin.metrics.event.TimingEvent;
 
 
-/** Temporal workflow for executing {@link WorkUnit}s to fulfill the work they specify. */
-@WorkflowInterface
-public interface ProcessWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
-  @WorkflowMethod
-  int process(WUProcessingSpec wuSpec, Properties props);
+/**
+ * A timer that can be used to track the duration of an event. This event differs from the {@link TimingEvent} in that
+ * this class is not meant to be used outside of {@link io.temporal.workflow.Workflow} code.
+ *
+ * It also differs from {@link Closeable} because the close method does not throw any checked exceptions
+ */
+public interface EventTimer extends Closeable {
+  void close();
 }

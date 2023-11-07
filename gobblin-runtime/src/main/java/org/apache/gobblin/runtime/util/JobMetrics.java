@@ -42,6 +42,7 @@ import org.apache.gobblin.util.ClustersNames;
  */
 @Slf4j
 public class JobMetrics extends GobblinMetrics {
+  public static final String NAMESPACE = "gobblin.runtime";
 
   public static final CreatorTag DEFAULT_CREATOR_TAG = new CreatorTag( "driver");
   protected final String jobName;

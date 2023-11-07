@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import io.temporal.client.WorkflowClient;
 
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
+import org.apache.gobblin.temporal.workflows.trackingevent.activity.GobblinTrackingEventActivityImpl;
 
 
 public class HelloWorldWorker extends AbstractTemporalWorker {
@@ -31,11 +32,16 @@ public class HelloWorldWorker extends AbstractTemporalWorker {
 
     @Override
     protected Class<?>[] getWorkflowImplClasses() {
-        return new Class[] { GreetingWorkflowImpl.class };
+        return new Class[] {
+            GreetingWorkflowImpl.class,
+        };
     }
 
     @Override
     protected Object[] getActivityImplInstances() {
-        return new Object[] { new FormatActivityImpl() };
+        return new Object[] {
+            new FormatActivityImpl(),
+            new GobblinTrackingEventActivityImpl()
+        };
     }
 }

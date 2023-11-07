@@ -19,6 +19,8 @@ package org.apache.gobblin.metrics.event;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -55,9 +57,17 @@ public class GobblinEventBuilder {
   }
 
   public GobblinEventBuilder(String name, String namespace) {
+    this(name, namespace, Maps.newHashMap());
+  }
+
+  @JsonCreator
+  private GobblinEventBuilder(
+      @JsonProperty("name") String name,
+      @JsonProperty("namespace") String namespace,
+      @JsonProperty("metadata") Map<String, String> metadata) {
     this.name = name;
     this.namespace = namespace;
-    metadata = Maps.newHashMap();
+    this.metadata = metadata;
   }
 
   public ImmutableMap<String, String> getMetadata() {

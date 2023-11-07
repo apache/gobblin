@@ -17,6 +17,8 @@
 package org.apache.gobblin.instrumented;
 
 import org.apache.gobblin.Constructs;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+
 
 /**
  * Shared constants related to gobblin metrics
@@ -24,7 +26,7 @@ import org.apache.gobblin.Constructs;
 public class GobblinMetricsKeys {
 
   /** The FQN of the class that emitted a tracking event */
-  public static final String CLASS_META = "class";
+  public static final String CLASS_META = EventSubmitter.Serializer.CLASS_KEY;
   /** The gobblin construct that emitted the event
    * @see Constructs */
   public static final String CONSTRUCT_META = "construct";

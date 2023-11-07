@@ -135,10 +135,6 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   @Override
   public void cancel() throws Exception {
-    try {
-      this.gobblinYarnAppLauncher.stop();
-    } finally {
-      super.cancel();
-    }
+    this.gobblinYarnAppLauncher.stop();
   }
 }

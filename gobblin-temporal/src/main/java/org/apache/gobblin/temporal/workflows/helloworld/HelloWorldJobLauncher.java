@@ -22,9 +22,10 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
 
 import io.temporal.client.WorkflowOptions;
-import lombok.extern.slf4j.Slf4j;
+import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.metrics.Tag;
@@ -33,6 +34,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
+
 
 
 /**
@@ -44,8 +46,9 @@ import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
  * </p>
  */
 @Alpha
-@Slf4j
 public class HelloWorldJobLauncher extends GobblinTemporalJobLauncher {
+  private static Logger log = Workflow.getLogger(HelloWorldJobLauncher.class);
+
   public HelloWorldJobLauncher(Properties jobProps, Path appWorkDir, List<? extends Tag<?>> metadataTags,
       ConcurrentHashMap<String, Boolean> runningMap)
       throws Exception {
@@ -56,6 +59,8 @@ public class HelloWorldJobLauncher extends GobblinTemporalJobLauncher {
   public void submitJob(List<WorkUnit> workunits) {
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(queueName).build();
     GreetingWorkflow greetingWorkflow = this.client.newWorkflowStub(GreetingWorkflow.class, options);
-    greetingWorkflow.getGreeting("Gobblin");
+
+    String greeting = greetingWorkflow.getGreeting("Gobblin", eventSubmitter);
+    log.info(greeting);
   }
 }

@@ -20,13 +20,19 @@ package org.apache.gobblin.temporal.workflows.helloworld;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
+import org.apache.gobblin.metrics.event.EventSubmitter;
+
+
 @WorkflowInterface
 public interface GreetingWorkflow {
 
     /**
      * This is the method that is executed when the Workflow Execution is started. The Workflow
      * Execution completes when this method finishes execution.
+     *
+     * This method also shows an example of metrics emission using the {@link EventSubmitter} seen in
+     * non-Temporal Gobblin code.
      */
     @WorkflowMethod
-    String getGreeting(String name);
+    String getGreeting(String name, EventSubmitter eventSubmitter);
 }

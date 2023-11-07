@@ -21,13 +21,14 @@ import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+
+import javax.annotation.Nullable;
 
 
 /**
@@ -66,6 +67,7 @@ public class Tag<T> extends AbstractMap.SimpleEntry<String, T> {
     super(key, value);
   }
 
+  @JsonCreator
   public Tag(Map.Entry<? extends String, ? extends T> entry) {
     super(entry);
   }

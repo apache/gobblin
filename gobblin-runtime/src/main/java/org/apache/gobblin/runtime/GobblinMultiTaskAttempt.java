@@ -502,7 +502,7 @@ public class GobblinMultiTaskAttempt {
     }
 
     EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(),
-        "gobblin.runtime");
+        JobMetrics.NAMESPACE);
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
     eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Integer.toString(tasks.size()));
 
