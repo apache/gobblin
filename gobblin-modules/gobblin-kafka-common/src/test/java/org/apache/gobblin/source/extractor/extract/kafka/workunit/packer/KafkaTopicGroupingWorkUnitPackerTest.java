@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.UniversalKafkaSource;
 import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -51,7 +53,7 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
   }
 
   /**
-   * Check that capacity is honored.
+   * Check that capacity is honored. Set numContainers to 0 so the workUnit list size is determined only by the capacity
    */
   @Test
   public void testSingleTopic() {
@@ -64,7 +66,7 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
         .newArrayList(getWorkUnitWithTopicPartition("topic1", 1), getWorkUnitWithTopicPartition("topic1", 2),
             getWorkUnitWithTopicPartition("topic1", 3)));
 
-    List<WorkUnit> workUnits = new KafkaTopicGroupingWorkUnitPacker(source, state, Optional.absent()).pack(workUnitsByTopic, 10);
+    List<WorkUnit> workUnits = new KafkaTopicGroupingWorkUnitPacker(source, state, Optional.absent()).pack(workUnitsByTopic, 0);
     Assert.assertEquals(workUnits.size(), 2);
     Assert.assertEquals(workUnits.get(0).getProp(KafkaSource.TOPIC_NAME), "topic1");
     Assert.assertEquals(workUnits.get(0).getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, 0)), 1);
@@ -91,7 +93,7 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
         .newArrayList(getWorkUnitWithTopicPartition("topic2", 1), getWorkUnitWithTopicPartition("topic2", 2),
             getWorkUnitWithTopicPartition("topic2", 3)));
 
-    List<WorkUnit> workUnits = new KafkaTopicGroupingWorkUnitPacker(source, state, Optional.absent()).pack(workUnitsByTopic, 10);
+    List<WorkUnit> workUnits = new KafkaTopicGroupingWorkUnitPacker(source, state, Optional.absent()).pack(workUnitsByTopic, 0);
     Assert.assertEquals(workUnits.size(), 4);
 
     Assert.assertEquals(workUnits.get(0).getProp(KafkaSource.TOPIC_NAME), "topic1");
@@ -113,8 +115,49 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
     Assert.assertEquals(workUnits.get(3).getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY), 2, 0.001);
   }
 
+  @Test
+  public void testMultiTopicWithNumContainers() {
+    KafkaSource source = new UniversalKafkaSource();
+    SourceState state = new SourceState(new State(props));
+    state.setProp("gobblin.kafka.streaming.enableIndexing", true);
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, Files.createTempDir().getAbsolutePath());
 
-  public WorkUnit getWorkUnitWithTopicPartition(String topic, int partition) {
+    Map<String, List<WorkUnit>> workUnitsByTopic = ImmutableMap.of(
+        "topic1", Lists.newArrayList(getWorkUnitWithTopicPartition("topic1", 1),
+            getWorkUnitWithTopicPartition("topic1", 2)),
+        "topic2", Lists.newArrayList(getWorkUnitWithTopicPartition("topic2", 1),
+            getWorkUnitWithTopicPartition("topic2", 2),
+            getWorkUnitWithTopicPartition("topic2", 3),
+            getWorkUnitWithTopicPartition("topic2", 4)));
+    KafkaTopicGroupingWorkUnitPacker packer = new KafkaTopicGroupingWorkUnitPacker(source, state, Optional.absent());
+    List<WorkUnit> workUnits = packer.pack(workUnitsByTopic, 5);
+    Assert.assertEquals(workUnits.size(), 5);
+
+    int partitionCount = 0;
+    for(WorkUnit workUnit : workUnits) {
+      partitionCount += KafkaUtils.getPartitions(workUnit).size();
+    }
+    Assert.assertEquals(partitionCount, 6);
+
+    workUnitsByTopic = ImmutableMap.of(
+        "topic1", Lists.newArrayList(getWorkUnitWithTopicPartition("topic1", 1),
+            getWorkUnitWithTopicPartition("topic1", 2)),
+        "topic2", Lists.newArrayList(getWorkUnitWithTopicPartition("topic2", 1),
+            getWorkUnitWithTopicPartition("topic2", 2),
+            getWorkUnitWithTopicPartition("topic2", 3),
+            getWorkUnitWithTopicPartition("topic2", 4)));
+    workUnits = packer.pack(workUnitsByTopic, 7);
+    // Total WU size wouldn't be more than 6
+    Assert.assertEquals(workUnits.size(), 6);
+    partitionCount = 0;
+    for(WorkUnit workUnit : workUnits) {
+      partitionCount += KafkaUtils.getPartitions(workUnit).size();
+    }
+    Assert.assertEquals(partitionCount, 6);
+  }
+
+
+    public WorkUnit getWorkUnitWithTopicPartition(String topic, int partition) {
     WorkUnit workUnit = new WorkUnit(new Extract(Extract.TableType.APPEND_ONLY, "kafka", topic));
     workUnit.setProp(KafkaSource.TOPIC_NAME, topic);
     workUnit.setProp(KafkaSource.PARTITION_ID, Integer.toString(partition));
@@ -159,4 +202,33 @@ public class KafkaTopicGroupingWorkUnitPackerTest {
     capacity = KafkaTopicGroupingWorkUnitPacker.getContainerCapacityForTopic(capacities, strategy);
     Assert.assertEquals(capacity, 1.35, delta);
   }
+
+  @Test
+  public void testSplitMultiWorkUnits() {
+    // Create a list of 2 MWU, each contains 3 WU within
+    List<MultiWorkUnit> multiWorkUnitList = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      MultiWorkUnit multiWorkUnit = MultiWorkUnit.createEmpty();
+      for (int j = 0; j < 3; j++) {
+        multiWorkUnit.addWorkUnit(WorkUnit.createEmpty());
+
+      }
+      multiWorkUnitList.add(multiWorkUnit);
+    }
+
+    // minWUSize is smaller than MWU size, so the result should remain the size of list of MWU
+    List<MultiWorkUnit> mwuList = KafkaTopicGroupingWorkUnitPacker.splitMultiWorkUnits(multiWorkUnitList, 1);
+    Assert.assertEquals(mwuList.size(), 2);
+
+    mwuList = KafkaTopicGroupingWorkUnitPacker.splitMultiWorkUnits(multiWorkUnitList, 3);
+    Assert.assertEquals(mwuList.size(), 3);
+
+    mwuList = KafkaTopicGroupingWorkUnitPacker.splitMultiWorkUnits(multiWorkUnitList, 6);
+    Assert.assertEquals(mwuList.size(), 6);
+
+    // minWUSize is bigger than number combining of all WU, so the result will be the sum of all WU
+    mwuList = KafkaTopicGroupingWorkUnitPacker.splitMultiWorkUnits(multiWorkUnitList, 7);
+    Assert.assertEquals(mwuList.size(), 6);
+  }
+
 }
