@@ -26,8 +26,6 @@ import org.apache.gobblin.service.FlowId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.runtime.api.FlowSpec.*;
-
 
 public class FlowSpecTest {
 
@@ -51,7 +49,7 @@ public class FlowSpecTest {
     properties.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, "true");
 
     FlowSpec originalFlowSpec = FlowSpec.builder(flowUri).withConfigAsProperties(properties).build();
-    FlowSpec updatedFlowSpec = createFlowSpecWithProperty(originalFlowSpec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+    FlowSpec updatedFlowSpec = FlowSpec.Utils.createFlowSpecWithProperty(originalFlowSpec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
 
     Properties updatedProperties = updatedFlowSpec.getConfigAsProperties();
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowExecutionId);
