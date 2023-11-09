@@ -40,7 +40,7 @@ public class FlowSpecTest {
   public void testAddProperty() throws URISyntaxException {
     String flowGroup = "myGroup";
     String flowName = "myName";
-    String flowExecutionId = "myId";
+    String flowExecutionId = "1234";
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
 
@@ -50,16 +50,16 @@ public class FlowSpecTest {
     properties.setProperty(ConfigurationKeys.FLOW_NAME_KEY, flowName);
     properties.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, "true");
 
-    FlowSpec originalFlowSpec = FlowSpec.builder(flowUri).withConfigAsProperties(properties).build();
-    FlowSpec updatedFlowSpec = createFlowSpecWithProperty(originalFlowSpec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+    FlowSpec flowSpec = FlowSpec.builder(flowUri).withConfigAsProperties(properties).build();
+    flowSpec.updateConfigAndPropertiesWithProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
 
-    Properties updatedProperties = updatedFlowSpec.getConfigAsProperties();
+    Properties updatedProperties = flowSpec.getConfigAsProperties();
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowExecutionId);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_NAME_KEY), flowName);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY), "true");
 
-    Config updatedConfig = updatedFlowSpec.getConfig();
+    Config updatedConfig = flowSpec.getConfig();
     Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowExecutionId);
     Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
     Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), flowName);

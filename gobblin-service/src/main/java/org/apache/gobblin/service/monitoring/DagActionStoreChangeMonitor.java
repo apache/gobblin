@@ -200,8 +200,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       // Adds flowExecutionId to config to ensure they are consistent across hosts
-      FlowSpec updatedSpec = createFlowSpecWithProperty(spec, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
-      this.orchestrator.submitFlowToDagManager(updatedSpec);
+      spec.updateConfigAndPropertiesWithProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      this.orchestrator.submitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.failedFlowLaunchSubmissions.mark();

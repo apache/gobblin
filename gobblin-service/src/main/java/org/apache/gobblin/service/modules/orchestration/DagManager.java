@@ -484,7 +484,9 @@ public class DagManager extends AbstractIdleService {
           log.error("Exception encountered when shutting down DagManager threads.", e);
         }
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
+      // All exceptions should fail leader transition obviously to avoid case where transition to active fails to
+      // complete but is not apparent
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
     }
@@ -507,6 +509,9 @@ public class DagManager extends AbstractIdleService {
           this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec);
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
+      } else {
+        log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
+        this.dagManagerMetrics.incrementFailedLaunchCount();
       }
       // Upon handling the action, delete it so on leadership change this is not duplicated
       this.dagActionStore.get().deleteDagAction(launchAction);

@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  */
 @Alpha
+@AllArgsConstructor
 @Data
 @EqualsAndHashCode(exclude={"compilationErrors"})
 @SuppressFBWarnings(value="SE_BAD_FIELD",
@@ -76,8 +78,8 @@ public class FlowSpec implements Configurable, Spec {
   /** Human-readable description of the flow spec */
   final String description;
 
-  /** Flow config as a typesafe config object*/
-  final Config config;
+  /** Flow config as a typesafe config object, mutable to allow flowExecutionId to be stored */
+  Config config;
 
   /** Flow config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
@@ -125,6 +127,18 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
+
+  /**
+   * Add new property at the specified path to the Config and configAsProperties objects.
+   * @param path
+   * @param value
+   */
+  public void updateConfigAndPropertiesWithProperty(String path, String value) {
+    Config updatedConfig = this.config.withValue(path, ConfigValueFactory.fromAnyRef(value));
+    this.configAsProperties.setProperty(path, value);
+    setConfig(updatedConfig);
+  }
+
   public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage, numberOfHops));
   }
@@ -518,15 +532,5 @@ public class FlowSpec implements Configurable, Spec {
       return URI_SCHEME.length() + ":".length() // URI separator
         + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
     }
-  }
-
-  /**
-   * Create a new FlowSpec object with the added property defined by path and value parameters
-   * @param path key for new property
-   * @param value
-   */
-  public static FlowSpec createFlowSpecWithProperty(FlowSpec flowSpec, String path, String value) {
-    Config updatedConfig = flowSpec.getConfig().withValue(path, ConfigValueFactory.fromAnyRef(value));
-    return new Builder(flowSpec.getUri()).withConfig(updatedConfig).build();
   }
 }
