@@ -160,4 +160,15 @@ public class MultiWorkUnit extends WorkUnit {
   public static MultiWorkUnit createEmpty() {
     return new MultiWorkUnit();
   }
+
+  /**
+   * Create a new {@link MultiWorkUnit} instance based on provided collection of {@link WorkUnit}s.
+   *
+   * @return a the {@link MultiWorkUnit} instance with the provided collection of {@link WorkUnit}s.
+   */
+  public static MultiWorkUnit createMultiWorkUnit(Collection<WorkUnit> workUnits) {
+    MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+    multiWorkUnit.addWorkUnits(workUnits);
+    return multiWorkUnit;
+  }
 }

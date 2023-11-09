@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -27,6 +28,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
@@ -41,8 +43,6 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-
-import static org.apache.gobblin.runtime.api.FlowSpec.*;
 
 
 /**
@@ -79,10 +79,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       dagActionsSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
   protected DagActionStore dagActionStore;
-
+  @Getter
+  @VisibleForTesting
   protected DagManager dagManager;
   protected Orchestrator orchestrator;
   protected boolean isMultiActiveSchedulerEnabled;
+  @Getter
+  @VisibleForTesting
   protected FlowCatalog flowCatalog;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer

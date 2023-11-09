@@ -24,8 +24,9 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
@@ -37,18 +38,28 @@ import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.state.ConstructState;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JobConfigurationUtils;
+
 
 /**
  * A wrapper for ORC-core writer without dependency on Hive SerDe library.
  */
 @Slf4j
 public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
+  public static final String ORC_WRITER_NAMESPACE = "gobblin.orc.writer";
+  public static final String CORRUPTED_ORC_FILE_DELETION_EVENT = "CorruptedOrcFileDeletion";
 
+  protected final MetricContext metricContext;
   protected final OrcValueWriter<D> valueWriter;
   @VisibleForTesting
   VectorizedRowBatch rowBatch;
@@ -113,6 +124,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.orcWriterStripeSizeBytes = properties.getPropAsLong(OrcConf.STRIPE_SIZE.getAttribute(), (long) OrcConf.STRIPE_SIZE.getDefaultValue());
     this.converterMemoryManager = new OrcConverterMemoryManager(this.rowBatch, properties);
     this.valueWriter = getOrcValueWriter(typeDescription, this.inputSchema, properties);
+    this.metricContext = getMetricContext();
 
     // Track the number of other writer tasks from different datasets ingesting on the same container
     this.concurrentWriterTasks = properties.getPropAsInt(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_CONCURRENT_TASKS, 1);
@@ -262,16 +274,11 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   public void commit()
       throws IOException {
     closeInternal();
-    // Validate the ORC file after writer close. Default is false as it introduce more load to FS and decrease the performance
+    // Validate the ORC file after writer close. Default is false as it introduce more load to FS from an extra read call
     if(this.validateORCAfterClose) {
-      try (Reader reader = OrcFile.createReader(this.stagingFile, new OrcFile.ReaderOptions(conf))) {
-      } catch (Exception e) {
-        log.error("Found error when validating staging ORC file {} during commit phase. "
-            + "Will delete the malformed file and terminate the commit", this.stagingFile, e);
-        HadoopUtils.deletePath(this.fs, this.stagingFile, false);
-        throw e;
-      }
+      assertOrcFileIsValid(this.fs, this.stagingFile, new OrcFile.ReaderOptions(conf), this.metricContext);
     }
+
     super.commit();
 
     if (this.selfTuningWriter) {
@@ -373,6 +380,28 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     }
     if (rowBatch.size == this.batchSize) {
       this.flush();
+    }
+  }
+
+  protected MetricContext getMetricContext() {
+    return Instrumented.getMetricContext(new State(properties), this.getClass());
+  }
+
+  @VisibleForTesting
+  @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_OF_NULL_VALUE",
+    justification = "Find bugs believes the eventBuilder is always null and that there is a null check, "
+        + "but both are not true.")
+  static void assertOrcFileIsValid(FileSystem fs, Path filePath, OrcFile.ReaderOptions readerOptions, MetricContext metricContext) throws IOException {
+    try (Reader ignored = OrcFile.createReader(filePath, readerOptions)) {
+    } catch (Exception e) {
+      log.error("Found error when validating staging ORC file {} during the commit phase. "
+          + "Will delete the malformed file and abort the commit by throwing an exception", filePath, e);
+      HadoopUtils.deletePath(fs, filePath, false);
+      GobblinEventBuilder eventBuilder = new GobblinEventBuilder(CORRUPTED_ORC_FILE_DELETION_EVENT, GobblinBaseOrcWriter.ORC_WRITER_NAMESPACE);
+      eventBuilder.addMetadata("filePath", filePath.toString());
+      EventSubmitter.submit(metricContext, eventBuilder);
+
+      throw e;
     }
   }
 }
