@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.typesafe.config.Config;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Properties;
@@ -26,18 +25,17 @@ import org.apache.gobblin.service.FlowId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.runtime.api.FlowSpec.*;
-
 
 public class FlowSpecTest {
 
   /**
-   * Tests that the addProperty() function to ensure the new flowSpec returned has the original properties and updated
+   * Tests that the addPropertyToConfigAsProperties() function results in a modified configAsProperties object in the
+   * FlowSpec containing both the original properties and the added flowExecutionId property
    * ones
    * @throws URISyntaxException
    */
   @Test
-  public void testAddProperty() throws URISyntaxException {
+  public void testAddPropertyToConfigAsProperties() throws URISyntaxException {
     String flowGroup = "myGroup";
     String flowName = "myName";
     String flowExecutionId = "1234";
@@ -51,18 +49,12 @@ public class FlowSpecTest {
     properties.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, "true");
 
     FlowSpec flowSpec = FlowSpec.builder(flowUri).withConfigAsProperties(properties).build();
-    flowSpec.updateConfigAndPropertiesWithProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+    flowSpec.addPropertyToConfigAsProperties(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
 
     Properties updatedProperties = flowSpec.getConfigAsProperties();
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowExecutionId);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_NAME_KEY), flowName);
     Assert.assertEquals(updatedProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY), "true");
-
-    Config updatedConfig = flowSpec.getConfig();
-    Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), flowExecutionId);
-    Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
-    Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), flowName);
-    Assert.assertEquals(updatedConfig.getString(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY), "true");
   }
 }

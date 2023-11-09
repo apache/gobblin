@@ -93,7 +93,7 @@ public class FlowCompilationValidationHelperTest {
     Assert.assertEquals(dagOptional.get().getStartNodes().size(), 1);
 
     // Update flow spec and check if still compiles and passes checks
-    flowSpec.updateConfigAndPropertiesWithProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "54321");
+    flowSpec.addPropertyToConfigAsProperties(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "54321");
     dagOptional = mockFlowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
     // Assert FlowSpec compilation results in non-null or empty dag
     Assert.assertTrue(dagOptional.isPresent());
