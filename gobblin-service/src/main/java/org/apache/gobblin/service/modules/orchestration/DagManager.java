@@ -484,7 +484,7 @@ public class DagManager extends AbstractIdleService {
           log.error("Exception encountered when shutting down DagManager threads.", e);
         }
       }
-    } catch (Exception e) {
+    } catch (Throwable e) {
       // All exceptions should fail leader transition obviously to avoid case where transition to active fails to
       // complete but is not apparent
       log.error("Exception encountered when activating the new DagManager", e);
