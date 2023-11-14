@@ -249,8 +249,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         return;
       }
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
-      FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.absent(),
-          jobExecutionPlanDagOptional.get());
+      FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
@@ -286,8 +285,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
             SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
 
-        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.absent(),
-            jobExecutionPlanDag);
+        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
         if (flowCompilationTimer.isPresent()) {
           flowCompilationTimer.get().stop(flowMetadata);
         }

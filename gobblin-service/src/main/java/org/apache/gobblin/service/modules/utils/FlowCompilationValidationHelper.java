@@ -65,7 +65,9 @@ public final class FlowCompilationValidationHelper {
    * flowspec can be compiled. If the pre-conditions hold, then a JobExecutionPlan is constructed and returned to the
    * caller.
    * @param flowSpec
-   * @param optionalFlowExecutionId provided for executions of scheduled events which should use a consistent id
+   * @param optionalFlowExecutionId for scheduled (non-ad-hoc) flows, to pass the ID "laundered" via the DB;
+   *                                see: {@link MysqlMultiActiveLeaseArbiter javadoc section titled
+   *                                `Database event_timestamp laundering`}
    * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
    */
   public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec,
@@ -176,6 +178,15 @@ public final class FlowCompilationValidationHelper {
     if (flowCompileFailedTimer.isPresent()) {
       flowCompileFailedTimer.get().stop(flowMetadata);
     }
+  }
+
+  /**
+   * If it is a scheduled flow (which does not have flowExecutionId in the FlowSpec) and the flow compilation is
+   * successful, retrieve flowExecutionId from the JobSpec.
+   */
+  public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
+      Dag<JobExecutionPlan> jobExecutionPlanDag) {
+    addFlowExecutionIdIfAbsent(flowMetadata, Optional.absent(), jobExecutionPlanDag);
   }
 
   /**
