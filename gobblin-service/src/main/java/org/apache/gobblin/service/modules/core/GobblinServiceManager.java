@@ -315,6 +315,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.gitConfigMonitor.setActive(true);
         }
 
+        // TODO: surround by try/catch to disconnect from Helix and fail the leader transition if DagManager is not
+        // transitioned properly
         if (configuration.isDagManagerEnabled()) {
           //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
           if (this.topologyCatalog.getInitComplete().getCount() == 0) {

@@ -484,8 +484,7 @@ public class DagManager extends AbstractIdleService {
           log.error("Exception encountered when shutting down DagManager threads.", e);
         }
       }
-    } catch (RuntimeException | IOException e) {
-      // Catch and throw to avoid case where transition to active fails to complete but is not apparent
+    } catch (IOException e) {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
     }
