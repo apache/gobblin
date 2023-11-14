@@ -399,6 +399,8 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       HadoopUtils.deletePath(fs, filePath, false);
       GobblinEventBuilder eventBuilder = new GobblinEventBuilder(CORRUPTED_ORC_FILE_DELETION_EVENT, GobblinBaseOrcWriter.ORC_WRITER_NAMESPACE);
       eventBuilder.addMetadata("filePath", filePath.toString());
+      eventBuilder.addMetadata("exceptionType", e.getClass().getCanonicalName());
+      eventBuilder.addMetadata("exceptionMessage", e.getMessage());
       EventSubmitter.submit(metricContext, eventBuilder);
 
       throw e;
