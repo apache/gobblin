@@ -80,7 +80,8 @@ public class FlowTriggerHandler {
   private ContextAwareCounter jobDoesNotExistInSchedulerCount;
   private ContextAwareCounter failedToSetEventReminderCount;
   private ContextAwareMeter leasesObtainedDueToReminderCount;
-  private ContextAwareMeter failedPersistingLeaseCount;
+  private ContextAwareMeter failedToRecordLeaseSuccessCount;
+  private ContextAwareMeter completedRecordLeaseSuccessCount;
 
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
@@ -99,7 +100,8 @@ public class FlowTriggerHandler {
     this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
     this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
     this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
-    this.failedPersistingLeaseCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_PERSISTING_LEASE_COUNT);
+    this.failedToRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
+    this.completedRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_COMPLETED_RECORD_LEASE_SUCCESS_COUNT);
   }
 
   /**
@@ -129,9 +131,10 @@ public class FlowTriggerHandler {
         if (persistFlowAction(leaseObtainedStatus)) {
           log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getFlowAction(),
               leaseObtainedStatus.getEventTimeMillis());
+          this.completedRecordLeaseSuccessCount.mark();
           return;
         }
-        this.failedPersistingLeaseCount.mark();
+        this.failedToRecordLeaseSuccessCount.mark();
         // If persisting the flow action failed, then we set another trigger for this event to occur immediately to
         // re-attempt handling the event
         scheduleReminderForEvent(jobProps,
