@@ -18,88 +18,52 @@
 package org.apache.gobblin.service.modules.utils;
 
 import com.google.common.base.Optional;
-import java.io.IOException;
-import java.util.Properties;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.service.modules.core.IdentityFlowToJobSpecCompilerTest;
-import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
+import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-import org.apache.gobblin.util.ConfigUtils;
 import org.junit.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.*;
 
 
 /**
  * Test functionality provided by the helper class re-used between the DagManager and Orchestrator for flow compilation.
  */
 public class FlowCompilationValidationHelperTest {
+  private String dagId = "testDag";
+  private Long jobSpecFlowExecutionId = 1234L;
+  private String newFlowExecutionId = "5678";
+  private String existingFlowExecutionId = "9999";
+  private Dag<JobExecutionPlan> jobExecutionPlanDag;
 
-  class MockFlowCompilationValidationHelper extends FlowCompilationValidationHelper {
-
-    public MockFlowCompilationValidationHelper(SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
-        SpecCompiler specCompiler, UserQuotaManager quotaManager, Optional<EventSubmitter> eventSubmitter,
-        FlowStatusGenerator flowStatusGenerator, boolean isFlowConcurrencyEnabled) {
-      super(sharedFlowMetricsSingleton, specCompiler, quotaManager, eventSubmitter, flowStatusGenerator,
-          isFlowConcurrencyEnabled);
-    }
-
-    /*
-      In overriden function simply return if concurrent execution is allowed or not because flowStatusGenerator will be
-      mocked
-     */
-    @Override
-    protected boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
-        boolean allowConcurrentExecution) {
-      return allowConcurrentExecution;
-    }
+  @BeforeClass
+  public void setup() throws URISyntaxException {
+    jobExecutionPlanDag =  DagTestUtils.buildDag(dagId, jobSpecFlowExecutionId);
 
   }
 
   /*
-  Creates a mock {@link FlowCompilationValidationHelper} which has a valid {@link SpecCompiler} but mocks other
-  components.
-   */
-  MockFlowCompilationValidationHelper createMockFlowCompilationValidationHelper(boolean isFlowConcurrencyEnabled) {
-    SpecCompiler specCompiler = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(new Properties()));
-    specCompiler.onAddSpec(IdentityFlowToJobSpecCompilerTest.initTopologySpec());
-    return new MockFlowCompilationValidationHelper(mock(SharedFlowMetricsSingleton.class), specCompiler,
-        mock(UserQuotaManager.class), Optional.of(mock(EventSubmitter.class)), mock(FlowStatusGenerator.class),
-        isFlowConcurrencyEnabled);
-  }
-
-  /**
-   * Verifies that a flow spec that compiles to create a valid job execution plan dag will also generate one after
-   * having a flow execution id key-value pair added to its config
-   * @throws IOException
-   * @throws InterruptedException
+    Tests that addFlowExecutionIdIfAbsent adds flowExecutionId to a flowMetadata object when it is absent, prioritizing
+    the optional flowExecutionId over the one from the job spec
    */
   @Test
-  public void compileFlowSpec() throws IOException, InterruptedException {
-    MockFlowCompilationValidationHelper mockFlowCompilationValidationHelper = createMockFlowCompilationValidationHelper(true);
-    FlowSpec flowSpec = IdentityFlowToJobSpecCompilerTest.initFlowSpec();
-    Optional<Dag<JobExecutionPlan>> dagOptional = mockFlowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
-    // Assert FlowSpec compilation results in non-null or empty dag
-    Assert.assertTrue(dagOptional.isPresent());
-    Assert.assertNotNull(dagOptional.get());
-    Assert.assertTrue(dagOptional.get().getNodes().size() == 1);
-    Assert.assertEquals(dagOptional.get().getStartNodes().size(), 1);
-
-    // Update flow spec and check if still compiles and passes checks
-    flowSpec.addPropertyToConfigAsProperties(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "54321");
-    dagOptional = mockFlowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
-    // Assert FlowSpec compilation results in non-null or empty dag
-    Assert.assertTrue(dagOptional.isPresent());
-    Assert.assertNotNull(dagOptional.get());
-    Assert.assertTrue(dagOptional.get().getNodes().size() == 1);
-    Assert.assertEquals(dagOptional.get().getStartNodes().size(), 1);
+  public void testAddFlowExecutionIdWhenAbsent() {
+    HashMap<String, String> flowMetadata = new HashMap<>();
+    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.of(newFlowExecutionId), jobExecutionPlanDag);
+    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), newFlowExecutionId);
   }
 
+  /*
+    Tests that addFlowExecutionIdIfAbsent does not update an existing flowExecutionId in a flowMetadata object
+   */
+  @Test
+  public void testSkipAddingFlowExecutionIdWhenPresent() {
+    HashMap<String, String> flowMetadata = new HashMap<>();
+    flowMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, existingFlowExecutionId);
+    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.of(newFlowExecutionId), jobExecutionPlanDag);
+    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), existingFlowExecutionId);
+  }
 }

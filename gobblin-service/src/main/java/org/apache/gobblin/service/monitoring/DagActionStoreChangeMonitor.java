@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -30,7 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -202,9 +202,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      // Adds flowExecutionId to config to ensure they are consistent across hosts
-      spec.addPropertyToConfigAsProperties(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
-      this.orchestrator.submitFlowToDagManager(spec);
+      // Pass flowExecutionId to DagManager to be used for scheduled flows that do not already contain a flowExecutionId
+      this.orchestrator.submitFlowToDagManager(spec, Optional.of(flowExecutionId));
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.failedFlowLaunchSubmissions.mark();

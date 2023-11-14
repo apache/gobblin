@@ -484,7 +484,7 @@ public class DagManager extends AbstractIdleService {
           log.error("Exception encountered when shutting down DagManager threads.", e);
         }
       }
-    } catch (Throwable e) {
+    } catch (RuntimeException | IOException e) {
       // All exceptions should fail leader transition obviously to avoid case where transition to active fails to
       // complete but is not apparent
       log.error("Exception encountered when activating the new DagManager", e);
@@ -506,7 +506,7 @@ public class DagManager extends AbstractIdleService {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec);
+          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec, Optional.absent());
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
       } else {

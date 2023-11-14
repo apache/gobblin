@@ -78,8 +78,7 @@ public class FlowSpec implements Configurable, Spec {
   /** Flow config as a typesafe config object */
   final Config config;
 
-  /** Flow config as a properties collection for backwards compatibility
-   * It can be updated to store properties in addition to ones in the immutable Config object */
+  /** Flow config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
   final Properties configAsProperties;
@@ -124,17 +123,6 @@ public class FlowSpec implements Configurable, Spec {
     } catch (URISyntaxException e) {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
-  }
-
-  /**
-   * Add new property at the specified path to the configAsProperties objects.
-   * Note: this does NOT update the Config so any property added through this function must be retrieved through the
-   * ConfigAsProperties field
-   * @param path
-   * @param value
-   */
-  public void addPropertyToConfigAsProperties(String path, String value) {
-    this.configAsProperties.setProperty(path, value);
   }
 
   public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {
