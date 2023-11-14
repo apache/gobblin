@@ -81,7 +81,7 @@ public class FlowTriggerHandler {
   private ContextAwareCounter failedToSetEventReminderCount;
   private ContextAwareMeter leasesObtainedDueToReminderCount;
   private ContextAwareMeter failedToRecordLeaseSuccessCount;
-  private ContextAwareMeter completedRecordLeaseSuccessCount;
+  private ContextAwareMeter recordedLeaseSuccessCount;
 
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
@@ -101,7 +101,7 @@ public class FlowTriggerHandler {
     this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
     this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
     this.failedToRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
-    this.completedRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_COMPLETED_RECORD_LEASE_SUCCESS_COUNT);
+    this.recordedLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
   }
 
   /**
@@ -131,7 +131,7 @@ public class FlowTriggerHandler {
         if (persistFlowAction(leaseObtainedStatus)) {
           log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getFlowAction(),
               leaseObtainedStatus.getEventTimeMillis());
-          this.completedRecordLeaseSuccessCount.mark();
+          this.recordedLeaseSuccessCount.mark();
           return;
         }
         this.failedToRecordLeaseSuccessCount.mark();
