@@ -52,7 +52,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 @Data
-public class FlowCompilationValidationHelper {
+public final class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;
@@ -146,7 +146,7 @@ public class FlowCompilationValidationHelper {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  protected boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
+  private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
       boolean allowConcurrentExecution) {
     return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup);
   }

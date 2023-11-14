@@ -109,7 +109,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     }
   }
 
-  public static TopologySpec initTopologySpec() {
+  private TopologySpec initTopologySpec() {
     Properties properties = new Properties();
     properties.put("specStore.fs.dir", TOPOLOGY_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
@@ -125,11 +125,11 @@ public class IdentityFlowToJobSpecCompilerTest {
     return topologySpecBuilder.build();
   }
 
-  public static FlowSpec initFlowSpec() {
+  private FlowSpec initFlowSpec() {
     return initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, TEST_SOURCE_NAME, TEST_SINK_NAME);
   }
 
-  private static FlowSpec initFlowSpec(String flowGroup, String flowName, String source, String destination) {
+  private FlowSpec initFlowSpec(String flowGroup, String flowName, String source, String destination) {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "* * * * *");
     properties.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);

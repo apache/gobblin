@@ -485,8 +485,7 @@ public class DagManager extends AbstractIdleService {
         }
       }
     } catch (RuntimeException | IOException e) {
-      // All exceptions should fail leader transition obviously to avoid case where transition to active fails to
-      // complete but is not apparent
+      // Catch and throw to avoid case where transition to active fails to complete but is not apparent
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
     }
