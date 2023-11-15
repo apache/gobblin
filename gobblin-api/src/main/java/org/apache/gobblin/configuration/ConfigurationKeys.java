@@ -117,10 +117,10 @@ public class ConfigurationKeys {
   public static final String ORCHESTRATOR_TRIGGER_EVENT_TIME_NEVER_SET_VAL = "-1";
   public static final String FLOW_IS_REMINDER_EVENT_KEY = "isReminderEvent";
   public static final String SCHEDULER_EVENT_EPSILON_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".epsilonMillis";
-  public static final int DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS = 5000;
+  public static final int DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS = 2000;
   // Note: linger should be on the order of seconds even though we measure in millis
   public static final String SCHEDULER_EVENT_LINGER_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".lingerMillis";
-  public static final int DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS = 30000;
+  public static final int DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS = 90000;
   public static final String SCHEDULER_MAX_BACKOFF_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".maxBackoffMillis";
   public static final int DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS = 10000;
 
