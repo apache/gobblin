@@ -26,7 +26,6 @@ import com.google.common.collect.Sets;
 import com.linkedin.data.template.StringMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -76,7 +75,7 @@ public class FlowSpec implements Configurable, Spec {
   /** Human-readable description of the flow spec */
   final String description;
 
-  /** Flow config as a typesafe config object*/
+  /** Flow config as a typesafe config object */
   final Config config;
 
   /** Flow config as a properties collection for backwards compatibility */
@@ -125,6 +124,7 @@ public class FlowSpec implements Configurable, Spec {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
   }
+
   public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {
     this.compilationErrors.add(new CompilationError(getConfig(), src, dst, errorMessage, numberOfHops));
   }
@@ -517,16 +517,6 @@ public class FlowSpec implements Configurable, Spec {
     public static int maxFlowSpecUriLength() {
       return URI_SCHEME.length() + ":".length() // URI separator
         + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_NAME_LENGTH + URI_PATH_SEPARATOR.length() + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH;
-    }
-
-    /**
-     * Create a new FlowSpec object with the added property defined by path and value parameters
-     * @param path key for new property
-     * @param value
-     */
-    public static FlowSpec createFlowSpecWithProperty(FlowSpec flowSpec, String path, String value) {
-      Config updatedConfig = flowSpec.getConfig().withValue(path, ConfigValueFactory.fromAnyRef(value));
-      return new Builder(flowSpec.getUri()).withConfig(updatedConfig).build();
     }
   }
 }

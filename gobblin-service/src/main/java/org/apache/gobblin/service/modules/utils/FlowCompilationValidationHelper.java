@@ -64,10 +64,14 @@ public final class FlowCompilationValidationHelper {
    * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the
    * flowspec can be compiled. If the pre-conditions hold, then a JobExecutionPlan is constructed and returned to the
    * caller.
+   * @param flowSpec
+   * @param optionalFlowExecutionId for scheduled (non-ad-hoc) flows, to pass the ID "laundered" via the DB;
+   *                                see: {@link MysqlMultiActiveLeaseArbiter javadoc section titled
+   *                                `Database event_timestamp laundering`}
    * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
    */
-  public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec)
-      throws IOException, InterruptedException {
+  public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec,
+      Optional<String> optionalFlowExecutionId) throws IOException, InterruptedException {
     Config flowConfig = flowSpec.getConfig();
     String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -90,7 +94,7 @@ public final class FlowCompilationValidationHelper {
       return Optional.absent();
     }
 
-    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
+    addFlowExecutionIdIfAbsent(flowMetadata, optionalFlowExecutionId, jobExecutionPlanDagOptional.get());
     if (flowCompilationTimer.isPresent()) {
       flowCompilationTimer.get().stop(flowMetadata);
     }
@@ -177,11 +181,23 @@ public final class FlowCompilationValidationHelper {
   }
 
   /**
-   * If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is
-   * successful, retrieve the flowExecutionId from the JobSpec.
+   * If it is a scheduled flow (which does not have flowExecutionId in the FlowSpec) and the flow compilation is
+   * successful, retrieve flowExecutionId from the JobSpec.
    */
   public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
       Dag<JobExecutionPlan> jobExecutionPlanDag) {
+    addFlowExecutionIdIfAbsent(flowMetadata, Optional.absent(), jobExecutionPlanDag);
+  }
+
+  /**
+   * If it is a scheduled flow (which does not have flowExecutionId in the FlowSpec) and the flow compilation is
+   * successful, add a flowExecutionId using the optional parameter if it exists otherwise retrieve it from the JobSpec.
+   */
+  public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
+      Optional<String> optionalFlowExecutionId, Dag<JobExecutionPlan> jobExecutionPlanDag) {
+    if (optionalFlowExecutionId.isPresent()) {
+      flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, optionalFlowExecutionId.get());
+    }
     flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
         jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(
             ConfigurationKeys.FLOW_EXECUTION_ID_KEY));

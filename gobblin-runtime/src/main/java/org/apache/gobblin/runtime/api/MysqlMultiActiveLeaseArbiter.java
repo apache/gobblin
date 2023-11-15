@@ -57,12 +57,13 @@ import org.apache.gobblin.util.DBStatementExecutor;
  *            than epsilon and encapsulate executor communication latency including retry attempts
  *
  * The `event_timestamp` is the time of the flow_action event request.
- * --- Note ---
+ * --- Database event_timestamp laundering ---
  * We only use the participant's local event_timestamp internally to identify the particular flow_action event, but
  * after interacting with the database utilize the CURRENT_TIMESTAMP of the database to insert or keep
- * track of our event. This is to avoid any discrepancies due to clock drift between participants as well as
- * variation in local time and database time for future comparisons.
- * ---Event consolidation---
+ * track of our event, "laundering" or replacing the local timestamp with the database one. This is to avoid any
+ * discrepancies due to clock drift between participants as well as variation in local time and database time for
+ * future comparisons.
+ * --- Event consolidation ---
  * Note that for the sake of simplification, we only allow one event associated with a particular flow's flow_action
  * (ie: only one LAUNCH for example of flow FOO, but there can be a LAUNCH, KILL, & RESUME for flow FOO at once) during
  * the time it takes to execute the flow action. In most cases, the execution time should be so negligible that this

@@ -504,9 +504,12 @@ public class DagManager extends AbstractIdleService {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec);
+          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec, Optional.absent());
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
+      } else {
+        log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
+        this.dagManagerMetrics.incrementFailedLaunchCount();
       }
       // Upon handling the action, delete it so on leadership change this is not duplicated
       this.dagActionStore.get().deleteDagAction(launchAction);
