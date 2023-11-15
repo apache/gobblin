@@ -92,6 +92,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private long orcStripeSize;
   private int maxOrcBatchSize;
   private int rowCheckFactor;
+  private boolean enableLimitBufferSizeOrcStripe;
 
   private int concurrentWriterTasks;
   private long orcWriterStripeSizeBytes;
@@ -135,6 +136,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         GobblinOrcWriterConfigs.DEFAULT_MIN_ORC_WRITER_ROWCHECK);
     this.orcFileWriterMaxRowsBetweenCheck = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_MAX_ROWCHECK,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_ROWCHECK);
+    this.enableLimitBufferSizeOrcStripe = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_ENABLE_BUFFER_LIMIT_ORC_STRIPE, false);
     // Create file-writer
     this.writerConfig = new Configuration();
     // Populate job Configurations into Conf as well so that configurations related to ORC writer can be tuned easily.
@@ -314,12 +316,18 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       this.currentOrcWriterMaxUnderlyingMemory = Math.max(this.currentOrcWriterMaxUnderlyingMemory, orcFileWriter.estimateMemory());
     }
     long maxMemoryInFileWriter = Math.max(currentOrcWriterMaxUnderlyingMemory, prevOrcWriterMaxUnderlyingMemory);
-    // For large records, prevent the batch size from greatly exceeding the size of a stripe as the native ORC Writer will flush its buffer after a stripe is filled
-    int maxRecordsPerStripeSize = (int) Math.round(this.orcWriterStripeSizeBytes / averageSizePerRecord * GobblinOrcWriterConfigs.DEFAULT_RECORD_BUFFER_SIZE_MAX_FACTOR);
     int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.rowBatchMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
+
+    if (this.enableLimitBufferSizeOrcStripe) {
+      // For large records, prevent the batch size from greatly exceeding the size of a stripe as the native ORC Writer will flush its buffer after a stripe is filled
+      int maxRecordsPerStripeSize = (int) Math.round(this.orcWriterStripeSizeBytes * 1.0 / averageSizePerRecord);
+      this.orcFileWriterMaxRowsBetweenCheck = Math.min(this.orcFileWriterMaxRowsBetweenCheck, maxRecordsPerStripeSize);
+      this.maxOrcBatchSize = Math.min(this.maxOrcBatchSize, maxRecordsPerStripeSize);
+    }
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
-    newBatchSize = Math.min(Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize), maxRecordsPerStripeSize);
+    newBatchSize = Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize);
+
     if (Math.abs(newBatchSize - this.batchSize) > GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
       // Add a factor when tuning up the batch size to prevent large sudden increases in memory usage
       if (newBatchSize > this.batchSize) {
