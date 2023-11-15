@@ -231,7 +231,11 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
     } else {
       // As there is no avg record size available, using lower number to make sure we don't hit OOM issue
       state.setProp(KAFKA_MAX_POLL_RECORDS_KEY, DEFAULT_MAX_POLL_RECORDS);
+<<<<<<< HEAD
       log.info("set max.poll.records to be {}", DEFAULT_MAX_POLL_RECORDS);
+=======
+      log.info("set max.poll.records to be 100");
+>>>>>>> 76696ca95 ([GOBBLIN-1956] Make Kafka streaming pipeline be able to config the max poll records during runtime)
     }
     this.kafkaConsumerClientResolver =
         new ClassAliasResolver<>(GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory.class);
