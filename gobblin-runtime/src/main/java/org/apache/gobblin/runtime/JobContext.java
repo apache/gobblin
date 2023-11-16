@@ -95,6 +95,11 @@ public class JobContext implements Closeable {
   private final JobState jobState;
   @Getter(AccessLevel.PACKAGE)
   private final JobCommitPolicy jobCommitPolicy;
+  // A job commit semantic where we want partially successful tasks to commit their data, but still fail the job
+  // WARNING: this is for Gobblin jobs that do not record their watermark, hence this would not lead to duplicate work
+  @Getter(AccessLevel.PACKAGE)
+  private final boolean partialFailTaskFailsJobCommit;
+
   private final Optional<JobMetrics> jobMetricsOptional;
   private final Source<?, ?> source;
 
@@ -146,6 +151,7 @@ public class JobContext implements Closeable {
     this.jobBroker = instanceBroker.newSubscopedBuilder(new JobScopeInstance(this.jobName, this.jobId))
         .withOverridingConfig(ConfigUtils.propertiesToConfig(jobProps)).build();
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
+    this.partialFailTaskFailsJobCommit = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.PARTIAL_FAIL_TASK_FAILS_JOB_COMMIT, "false"));
 
     this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);

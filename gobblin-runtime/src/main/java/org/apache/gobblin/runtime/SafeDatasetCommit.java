@@ -389,7 +389,7 @@ final class SafeDatasetCommit implements Callable<Void> {
       // Backoff the actual high watermark to the low watermark for each task that has not been committed
       if (taskState.getWorkingState() != WorkUnitState.WorkingState.COMMITTED) {
         taskState.backoffActualHighWatermark();
-        if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+        if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS || this.jobContext.isPartialFailTaskFailsJobCommit()) {
           // Determine the final dataset state based on the task states (post commit) and the job commit policy.
           // 1. If COMMIT_ON_FULL_SUCCESS is used, the processing of the dataset is considered failed if any
           //    task for the dataset failed to be committed.
