@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,10 +35,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import java.util.stream.Collectors;
-import org.apache.gobblin.source.Source;
+import org.apache.gobblin.runtime.SourceDecorator;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
+import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -198,6 +201,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.helixMetrics = helixMetrics;
     this.workUnitToHelixConfig = new HashMap<>();
+    this.helixIdTaskConfigMap = new HashMap<>();
     this.taskRetryer = RetryerBuilder.<Boolean>newBuilder()
         .retryIfException()
         .withStopStrategy(StopStrategies.stopAfterAttempt(3)).build();
@@ -267,14 +271,51 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Handle {@link WorkUnitChangeEvent}, by default it will do nothing
+   * The implementation of this method has the assumption that work unit change should never delete without adding new
+   * work units, which will cause starvation. Thus, process {@link WorkUnitChangeEvent} for two scenario:
+   * 1. workUnitChangeEvent only contains old tasks and no new tasks given: recalculate new work unit through kafka
+   * source and pack with a min container setting.
+   * 2. workUnitChangeEvent contains both valid old and new work unit: respect the information and directly remove
+   * old tasks and start new work units
+   *
+   * @param workUnitChangeEvent Event post by EventBus to specify old tasks to be removed and new tasks to be run
+   * @throws InvocationTargetException
    */
   @Override
   @Subscribe
   public void handleWorkUnitChangeEvent(WorkUnitChangeEvent workUnitChangeEvent)
       throws InvocationTargetException {
+    log.info("Received WorkUnitChangeEvent with old Task {} and new WU {}",
+        workUnitChangeEvent.getOldTaskIds(), workUnitChangeEvent.getNewWorkUnits());
     final JobState jobState = this.jobContext.getJobState();
-    List<String> oldHelixTaskIDs = workUnitChangeEvent.getOldTaskIds();
+    List<WorkUnit> workUnits = workUnitChangeEvent.getNewWorkUnits();
+    // Use old task Id to recalculate new work units
+    if(workUnits == null || workUnits.isEmpty()) {
+      workUnits = recalculateWorkUnit(workUnitChangeEvent.getOldTaskIds());
+      // If no new valid work units can be generated, dismiss the WorkUnitChangeEvent
+      if(workUnits == null || workUnits.isEmpty()) {
+        log.info("Not able to update work unit meaningfully, dismiss the WorkUnitChangeEvent");
+        return;
+      }
+    }
+
+    // Follow how AbstractJobLauncher handles work units to make sure consistent behaviour
+    WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits).build();
+    workUnitStream = this.executeHandlers(workUnitStream, this.destDatasetHandlerService);
+    this.processWorkUnitStream(workUnitStream, jobState);
+    try {
+      this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
+      this.addTasksToCurrentJob(workUnits);
+    } catch (Exception e) {
+      //todo: emit some event to indicate there is an error handling this event that may cause starvation
+      log.error("Failed to process WorkUnitChangeEvent with old tasks {} and new workunits {}.",
+          workUnitChangeEvent.getOldTaskIds(), workUnits, e);
+      throw new InvocationTargetException(e);
+    }
+  }
+
+  private List<WorkUnit> recalculateWorkUnit(List<String> oldHelixTaskIDs) {
+    JobState jobState = this.jobContext.getJobState();
     Map<String, List<Integer>> filteredTopicPartition = new HashMap<>();
     for(String id : oldHelixTaskIDs) {
       WorkUnit workUnit = getWorkUnitFromStateStore(
@@ -285,21 +326,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       partitions.addAll(KafkaUtils.getPartitions(workUnit).stream().map(KafkaPartition::getId).collect(Collectors.toList()));
       filteredTopicPartition.put(topicName, partitions);
     }
-    Source<?, ?> source = this.jobContext.getSource();
-    List<WorkUnit> workUnits = ((KafkaSource) source).getWorkunitsForFilteredPartitions(jobState,
-        com.google.common.base.Optional.of(filteredTopicPartition), com.google.common.base.Optional.of(2));
-    try {
-      if(workUnits.size() > 1) {
-        log.info("start to handle workunit change event for: {}", filteredTopicPartition);
-        this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
-        this.addTasksToCurrentJob(workUnits);
-      } else {
-        log.info("New workUnits is smaller than 2, so no action taken for: {}", filteredTopicPartition);
-      }
-    } catch (Exception e) {
-      //todo: emit some event to indicate there is an error handling this event that may cause starvation
-      throw new InvocationTargetException(e);
+    // If a topic contains less than 2 filtered partition, it can't be further split so remove from map
+    filteredTopicPartition.values().removeIf(list -> list == null || list.size() < 2);
+    if(filteredTopicPartition.isEmpty()) {
+      return new ArrayList<>();
     }
+    KafkaSource<?, ?> source = (KafkaSource<?, ?>) ((SourceDecorator<?, ?>) this.jobContext.getSource()).getSource();
+    //TODO: having a smarter way to calculate the new work unit size to replace the current static approach to simply double
+    int newWorkUnitSize = oldHelixTaskIDs.size() * 2;
+    return source.getWorkunitsForFilteredPartitions(jobState,
+        com.google.common.base.Optional.of(filteredTopicPartition), com.google.common.base.Optional.of(newWorkUnitSize));
   }
 
   @Override

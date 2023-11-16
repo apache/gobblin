@@ -17,10 +17,7 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.eventbus.EventBus;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -76,7 +73,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_PREFIX = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "autoScaling.";
   private final String AUTO_SCALING_POLLING_INTERVAL_SECS =
       AUTO_SCALING_PREFIX + "pollingIntervalSeconds";
-  private static final int THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING = 20;
+  private final String TASK_NUMBER_OF_ATTEMPTS_THRESHOLD = AUTO_SCALING_PREFIX + "taskAttemptsThreshold";
+  private final int DEFAULT_TASK_NUMBER_OF_ATTEMPTS_THRESHOLD = 20;
+  private final String SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD = AUTO_SCALING_PREFIX + "splitWorkUnitReachThreshold";
+  private final boolean DEFAULT_SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD = false;
   private final int DEFAULT_AUTO_SCALING_POLLING_INTERVAL_SECS = 60;
   // Only one container will be requested for each N partitions of work
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
@@ -90,6 +90,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
   private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
   private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
+  private int taskAttemptsThreshold;
+  private final boolean splitWorkUnitReachThreshold;
 
   private final String AUTO_SCALING_WINDOW_SIZE = AUTO_SCALING_PREFIX + "windowSize";
 
@@ -130,6 +132,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, GobblinClusterConfigurationKeys.HELIX_DEFAULT_TAG);
     this.defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
+    this.taskAttemptsThreshold = ConfigUtils.getInt(this.config, TASK_NUMBER_OF_ATTEMPTS_THRESHOLD,
+        DEFAULT_TASK_NUMBER_OF_ATTEMPTS_THRESHOLD);
+    this.splitWorkUnitReachThreshold = ConfigUtils.getBoolean(this.config, SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD,
+        DEFAULT_SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD);
   }
 
   @Override
@@ -144,7 +150,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
             this.yarnService, this.partitionsPerContainer, this.overProvisionFactor,
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
-            this.defaultContainerMemoryMbs, this.defaultContainerCores),
+            this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold, this.splitWorkUnitReachThreshold),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -171,6 +177,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final String defaultHelixInstanceTags;
     private final int defaultContainerMemoryMbs;
     private final int defaultContainerCores;
+    private final int taskAttemptsThreshold;
+    private final boolean splitWorkUnitReachThreshold;
 
     /**
      * A static map that keep track of an idle instance and its latest beginning idle time.
@@ -190,12 +198,17 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     }
 
     private String getInuseParticipantForHelixPartition(JobContext jobContext, int partition) {
-      if (jobContext.getPartitionNumAttempts(partition) > THRESHOLD_NUMBER_OF_ATTEMPTS_FOR_LOGGING) {
+      if (jobContext.getPartitionNumAttempts(partition) > taskAttemptsThreshold) {
         log.warn("Helix task {} has been retried for {} times, please check the config to see how we can handle this task better",
             jobContext.getTaskIdForPartition(partition), jobContext.getPartitionNumAttempts(partition));
-        this.yarnService.getEventBus().post(new WorkUnitChangeEvent(
-            Collections.singletonList(jobContext.getTaskIdForPartition(partition)), null));
+        if(splitWorkUnitReachThreshold) {
+          String helixTaskID = jobContext.getTaskIdForPartition(partition);
+          log.info("Sending WorkUnitChangeEvent to split helix task:{}", helixTaskID);
+          this.yarnService.getEventBus().post(new WorkUnitChangeEvent(
+              Collections.singletonList(helixTaskID), null));
+        }
       }
+
       if (!UNUSUAL_HELIX_TASK_STATES.contains(jobContext.getPartitionState(partition))) {
         return jobContext.getAssignedParticipant(partition);
       }
