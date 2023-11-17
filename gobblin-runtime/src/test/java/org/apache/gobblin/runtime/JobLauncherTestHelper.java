@@ -363,6 +363,40 @@ public class JobLauncherTestHelper {
     }
   }
 
+  public void runTestWithCommitSuccessfulTasksPolicyAndFailJob(Properties jobProps) throws Exception {
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    String jobId = JobLauncherUtils.newJobId(jobName).toString();
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL, Boolean.FALSE.toString());
+    jobProps.setProperty(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, "successful");
+    jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSourceWithFaultyExtractor.class.getName());
+    jobProps.setProperty(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
+    jobProps.setProperty(ConfigurationKeys.PARTIAL_FAIL_TASK_FAILS_JOB_COMMIT, "true");
+
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobLauncher.launchJob(null);
+    } catch (JobException e) {
+      List<JobState.DatasetState> datasetStateList = this.datasetStateStore.getAll(jobName, sanitizeJobNameForDatasetStore(jobId) + ".jst");
+      JobState jobState = datasetStateList.get(0);
+
+      Assert.assertEquals(jobState.getState(), JobState.RunningState.FAILED);
+      Assert.assertEquals(jobState.getCompletedTasks(), 4);
+      for (TaskState taskState : jobState.getTaskStates()) {
+        if (taskState.getTaskId().endsWith("0")) {
+          Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.FAILED);
+        } else {
+          Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+          Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
+              TestExtractor.TOTAL_RECORDS);
+        }
+      }
+    } finally {
+      closer.close();
+    }
+  }
+
   public void runTestWithMultipleDatasetsAndFaultyExtractor(Properties jobProps, boolean usePartialCommitPolicy)
       throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);

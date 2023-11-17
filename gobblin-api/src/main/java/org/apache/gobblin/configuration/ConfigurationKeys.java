@@ -205,6 +205,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_FORK_OPERATOR_CLASS = "org.apache.gobblin.fork.IdentityForkOperator";
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
   public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
+
+  public static final String PARTIAL_FAIL_TASK_FAILS_JOB_COMMIT = "job.commit.partial.fail.task.fails.job.commit";
   // If true, commit of different datasets will be performed in parallel
   // only turn on if publisher is thread-safe
   public static final String PARALLELIZE_DATASET_COMMIT = "job.commit.parallelize";

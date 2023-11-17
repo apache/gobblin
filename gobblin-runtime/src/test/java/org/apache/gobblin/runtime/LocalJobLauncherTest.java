@@ -271,6 +271,19 @@ public class LocalJobLauncherTest {
   }
 
   @Test
+  public void testLaunchJobWithCommitSuccessfulTasksPolicyAndFailJob() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJobWithCommitSuccessfulTasksPolicyAndFailJob");
+    try {
+      this.jobLauncherTestHelper.runTestWithCommitSuccessfulTasksPolicyAndFailJob(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
+
+  @Test
   public void testLaunchJobWithMultipleDatasetsAndFaultyExtractor() throws Exception {
     Properties jobProps = loadJobProps();
     jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
