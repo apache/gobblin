@@ -239,7 +239,7 @@ public final class LineageInfo {
    * Remove all lineage related properties from a state
    */
   public static void purgeLineageInfo(State state) {
-    state.removePropsWithPrefix(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE);
+    state.removePropsWithPrefix(LineageEventBuilder.LINEAGE_EVENT_NAMESPACE);
   }
 
   /**
@@ -253,7 +253,7 @@ public final class LineageInfo {
    * Get the full lineage event name from a state
    */
   public static String getFullEventName(State state) {
-    return Joiner.on('.').join(LineageEventBuilder.LIENAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
+    return Joiner.on('.').join(LineageEventBuilder.LINEAGE_EVENT_NAMESPACE, state.getProp(getKey(NAME_KEY)));
   }
 
 
@@ -298,11 +298,11 @@ public final class LineageInfo {
   }
 
   /**
-   * Prefix all keys with {@link LineageEventBuilder#LIENAGE_EVENT_NAMESPACE}
+   * Prefix all keys with {@link LineageEventBuilder#LINEAGE_EVENT_NAMESPACE}
    */
   private static String getKey(Object... objects) {
     Object[] args = new Object[objects.length + 1];
-    args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
+    args[0] = LineageEventBuilder.LINEAGE_EVENT_NAMESPACE;
     System.arraycopy(objects, 0, args, 1, objects.length);
     return LineageEventBuilder.getKey(args);
   }

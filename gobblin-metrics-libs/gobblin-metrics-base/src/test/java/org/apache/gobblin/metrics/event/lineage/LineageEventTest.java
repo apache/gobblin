@@ -196,7 +196,7 @@ public class LineageEventTest {
 
   private void verify(LineageEventBuilder event, String name, Descriptor source, Descriptor destination) {
     Assert.assertEquals(event.getName(), name);
-    Assert.assertEquals(event.getNamespace(), LineageEventBuilder.LIENAGE_EVENT_NAMESPACE);
+    Assert.assertEquals(event.getNamespace(), LineageEventBuilder.LINEAGE_EVENT_NAMESPACE);
     Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.LINEAGE_EVENT_TYPE);
     Assert.assertTrue(event.getSource().equals(source));
     Assert.assertTrue(event.getDestination().equals(destination));

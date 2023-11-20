@@ -41,6 +41,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.TableOperations;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -61,6 +63,8 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyContext;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 
 import static org.mockito.Mockito.any;
 
@@ -107,6 +111,17 @@ public class IcebergDatasetTest {
   @BeforeClass
   public void setUp() throws Exception {
     copyConfigProperties.setProperty("data.publisher.final.dir", "/test");
+  }
+
+  @Test
+  public void testGetDatasetDescriptor() throws URISyntaxException {
+    TableIdentifier tableId = TableIdentifier.of(testDbName, testTblName);
+    IcebergTable table = new IcebergTable(tableId, Mockito.mock(TableOperations.class), SRC_CATALOG_URI);
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    Mockito.when(mockFs.getUri()).thenReturn(SRC_FS_URI);
+    DatasetDescriptor expected = new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, URI.create(SRC_CATALOG_URI), tableId.toString());
+    expected.addMetadata(DatasetConstants.FS_URI, SRC_FS_URI.toString());
+    Assert.assertEquals(table.getDatasetDescriptor(mockFs), expected);
   }
 
   @Test

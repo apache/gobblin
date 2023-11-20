@@ -43,7 +43,7 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 @Slf4j
 public final class LineageEventBuilder extends GobblinEventBuilder {
-  static final String LIENAGE_EVENT_NAMESPACE = getKey(NAMESPACE, "lineage");
+  static final String LINEAGE_EVENT_NAMESPACE = getKey(NAMESPACE, "lineage");
   static final String SOURCE = "source";
   static final String DESTINATION = "destination";
   static final String LINEAGE_EVENT_TYPE = "LineageEvent";
@@ -56,7 +56,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   private Descriptor destination;
 
   public LineageEventBuilder(String name) {
-    super(name, LIENAGE_EVENT_NAMESPACE);
+    super(name, LINEAGE_EVENT_NAMESPACE);
     addMetadata(EVENT_TYPE, LINEAGE_EVENT_TYPE);
   }
 
