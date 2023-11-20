@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.launcher;
 
+import io.temporal.client.WorkflowOptions;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
@@ -25,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 
 import com.typesafe.config.ConfigFactory;
-import io.temporal.client.WorkflowOptions;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.metrics.Tag;

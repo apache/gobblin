@@ -25,6 +25,7 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
+import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
 

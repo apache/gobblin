@@ -24,7 +24,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
+import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
+import org.apache.gobblin.temporal.ddm.workflow.impl.CommitStepWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.NestingExecOfProcessWorkUnitWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.ProcessWorkUnitsWorkflowImpl;
 
@@ -40,12 +42,12 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
 
     @Override
     protected Class<?>[] getWorkflowImplClasses() {
-        return new Class[] { ProcessWorkUnitsWorkflowImpl.class, NestingExecOfProcessWorkUnitWorkflowImpl.class };
+        return new Class[] { ProcessWorkUnitsWorkflowImpl.class, NestingExecOfProcessWorkUnitWorkflowImpl.class, CommitStepWorkflowImpl.class };
     }
 
     @Override
     protected Object[] getActivityImplInstances() {
-        return new Object[] { new ProcessWorkUnitImpl() };
+        return new Object[] { new ProcessWorkUnitImpl(), new CommitActivityImpl() };
     }
 
     @Override
