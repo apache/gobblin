@@ -73,7 +73,8 @@ import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.
 @Slf4j
 public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String GOBBLIN_KAFKA_PREFIX = "gobblin.kafka.";
-  private static final int DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 10;
+  public static final String DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER_KEY = GOBBLIN_KAFKA_PREFIX + "default.num.topic.partitions.per.container";
+  private static final int DEFAULT_DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER = 10;
 
   //A global configuration for container capacity. The container capacity refers to the peak rate (in MB/s) that a
   //single JVM can consume from Kafka for a single topic and controls the number of partitions of a topic that will be
@@ -309,7 +310,8 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
 
   private Double getDefaultWorkUnitSize() {
     return state.getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY,
-        KafkaTopicGroupingWorkUnitPacker.DEFAULT_CONTAINER_CAPACITY) / DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER;
+        KafkaTopicGroupingWorkUnitPacker.DEFAULT_CONTAINER_CAPACITY) /
+        state.getPropAsDouble(DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER_KEY, DEFAULT_DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER);
   }
 
   /**
