@@ -22,8 +22,16 @@ import java.io.IOException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
@@ -39,6 +47,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.iceberg.FindFiles;
+import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.expressions.Expressions;
@@ -405,7 +414,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
   @Test(dependsOnMethods={"testChangeProperty"}, groups={"icebergMetadataWriterTest"})
   public void testWriteAddFileGMCECompleteness() throws IOException {
-    // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelop method
+    // Creating a copy of gmce with static type in GenericRecord to work with writeEnvelope method
     // without risking running into type cast runtime error.
     gmce.setOperationType(OperationType.add_files);
     File hourlyFile = new File(tmpDir, "testDB/testTopicCompleteness/hourly/2021/09/16/10/data.avro");
@@ -546,6 +555,57 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(table.properties().get(TOTAL_COUNT_COMPLETION_WATERMARK_KEY), String.valueOf(expectedWatermark));
   }
 
+  @Test(dependsOnMethods={"testChangePropertyGMCECompleteness"}, groups={"icebergMetadataWriterTest"})
+  public void testKafkaAuditAndGTEEmittedAfterIcebergCommitDuringFlush() throws IOException {
+    State state = getState();
+    state.setProp(GobblinMCEWriter.GMCE_METADATA_WRITER_CLASSES, SpyIcebergMetadataWriter.class.getName());
+    GobblinMCEWriter gobblinMCEWriterWithSpy = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
+    // Set fault tolerant dataset number to be 1 so watermark is updated
+    gobblinMCEWriterWithSpy.setMaxErrorDataset(1);
+
+    Assert.assertEquals(gobblinMCEWriterWithSpy.metadataWriters.size(), 1);
+    Assert.assertEquals(gobblinMCEWriterWithSpy.metadataWriters.get(0).getClass().getName(), SpyIcebergMetadataWriter.class.getName());
+    SpyIcebergMetadataWriter spyIcebergMetadataWriter =
+        (SpyIcebergMetadataWriter) gobblinMCEWriterWithSpy.metadataWriters.get(0);
+
+
+    // For quiet topics, watermark should always be beginning of current hour
+    File hourlyFile = new File(tmpDir, "testDB/testTopic/hourly/2021/09/16/11/failAfterCommit.avro");
+    Files.createParentDirs(hourlyFile);
+    writeRecord(hourlyFile);
+    Assert.assertTrue(hourlyFile.exists());
+    gmce.setOldFilePrefixes(null);
+    gmce.setNewFiles(Lists.newArrayList(DataFile.newBuilder()
+        .setFilePath(hourlyFile.toString())
+        .setFileFormat("avro")
+        .setFileMetrics(DataMetrics.newBuilder().setRecordCount(10L).build())
+        .build()));
+    gmce.setOperationType(OperationType.add_files);
+    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "4000-4001").build());
+    gmce.setAllowedMetadataWriters(new ArrayList<>());
+    GenericRecord genericGmce = GenericData.get().deepCopy(gmce.getSchema(), gmce);
+    gobblinMCEWriterWithSpy.writeEnvelope(new RecordEnvelope<>(genericGmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(70L))));
+
+    gobblinMCEWriterWithSpy.flush();
+
+    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Assert.assertEquals(table.properties().get(TOPIC_NAME_KEY), "testTopic");
+
+    // get the file that patches the path of the file that failed to be added
+    Iterator<org.apache.iceberg.DataFile> result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", hourlyFile.getAbsolutePath())).collect().iterator();
+    Assert.assertTrue(result.hasNext());
+    Assert.assertEquals(result.next().path(), hourlyFile.getAbsolutePath());
+    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-4001");
+
+    // The audit count
+    Assert.assertEquals(spyIcebergMetadataWriter.methodsCalledCounter.get("postCommit").get(), 1);
+    Assert.assertEquals(spyIcebergMetadataWriter.methodsCalledCounter.get("sendAuditCounts"), null);
+    Assert.assertEquals(spyIcebergMetadataWriter.methodsCalledCounter.get("submitSnapshotCommitEvent"), null);
+  }
+
   private String writeRecord(File file) throws IOException {
     GenericData.Record record = new GenericData.Record(avroDataSchema);
     record.put("id", 1L);
@@ -619,6 +679,41 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
 
     public TestAuditCountVerifier(State state, AuditCountClient client) {
       super(state, client);
+    }
+  }
+
+  /**
+   * A spy class for IcebergMetadataWriter to track the methods called and intentionally
+   * invoke failure after the iceberg transaction is committed
+   */
+  public static class SpyIcebergMetadataWriter extends IcebergMetadataWriter {
+    public Map<String, AtomicInteger> methodsCalledCounter = new HashMap<>();
+
+    public SpyIcebergMetadataWriter(State state)
+        throws IOException {
+      super(state);
+    }
+
+    protected void postCommit(TableMetadata tableMetadata, String dbName, String tableName, String topicName,
+        long highWatermark) {
+      String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+      methodsCalledCounter.putIfAbsent(methodName, new AtomicInteger(0));
+      methodsCalledCounter.get(methodName).incrementAndGet();
+      throw new RuntimeException("Intentionally aborting postcommit for testing");
+    }
+
+    @Override
+    public void sendAuditCounts(String topicName, Collection<String> serializedAuditCountMaps) {
+      String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+      methodsCalledCounter.putIfAbsent(methodName, new AtomicInteger(0));
+      methodsCalledCounter.get(methodName).incrementAndGet();
+    }
+
+    protected void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
+        String tableName, Map<String, String> props, Long highWaterMark) {
+      String methodName = new Object() {}.getClass().getEnclosingMethod().getName();
+      methodsCalledCounter.putIfAbsent(methodName, new AtomicInteger(0));
+      methodsCalledCounter.get(methodName).incrementAndGet();
     }
   }
 }

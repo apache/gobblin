@@ -740,7 +740,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
         }
         dataFiles.add(IcebergUtils.getIcebergDataFileWithMetric(file, table.spec(), partition, conf, schemaIdMap));
       } catch (Exception e) {
-        log.warn("Cannot get DataFile for {} dur to {}", file.getFilePath(), e);
+        log.warn("Cannot get DataFile for {} due to {}", file.getFilePath(), e);
       }
     }
     return dataFiles;
@@ -834,6 +834,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   public void flush(String dbName, String tableName) throws IOException {
     Lock writeLock = readWriteLock.writeLock();
     writeLock.lock();
+    boolean transactionCommitted = false;
     try {
       TableIdentifier tid = TableIdentifier.of(dbName, tableName);
       TableMetadata tableMetadata = tableMetadataMap.getOrDefault(tid, new TableMetadata(this.conf));
@@ -890,30 +891,55 @@ public class IcebergMetadataWriter implements MetadataWriter {
           Timer.Context context = new Timer().time()) {
         transaction.commitTransaction();
         log.info("Committing transaction for table {} took {} ms", tid, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+        transactionCommitted = true;
       }
 
-      // Emit GTE for snapshot commits
-      Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
-      Map<String, String> currentProps = tableMetadata.table.get().properties();
-      try (Timer.Context context = new Timer().time()) {
-        submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
-        log.info("Sending snapshot commit event for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
-      }
-
-      try (Timer.Context context = new Timer().time()) {
-        sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
-        log.info("Sending audit counts for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
-      }
-
+      postCommit(tableMetadata, dbName, tableName, topicName, highWatermark);
       //Reset the table metadata for next accumulation period
+      Map<String, String> currentProps = tableMetadata.table.get().properties();
+      Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
       tableMetadata.reset(currentProps, highWatermark);
       log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid));
-    } catch (RuntimeException e) {
-      throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
     } catch (Exception e) {
-      throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
+      throw new IOException(String.format("Failed to flush table %s %s. transactionCommitted=%s",
+          dbName, tableName, transactionCommitted), e);
     } finally {
       writeLock.unlock();
+    }
+  }
+
+  /**
+   * PostCommit operation that executes after the transaction is committed to the Iceberg table. Operations in this
+   * method are considered non-critical to the transaction and will not cause the transaction to fail if they fail,
+   * but should ideally still be executed for observability.
+   *
+   * One example of this is observability events / metrics like {@link org.apache.gobblin.metrics.GobblinTrackingEvent}.
+   * The default behavior is to emit a GTE for the commit event and a kafka audit event
+   *
+   * @param tableMetadata
+   * @param dbName
+   * @param tableName
+   * @param topicName
+   * @param highWatermark
+   * @throws IOException
+   */
+  protected void postCommit(
+      TableMetadata tableMetadata,
+      String dbName,
+      String tableName,
+      String topicName,
+      long highWatermark) throws IOException {
+    // Emit GTE for snapshot commits
+    Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
+    Map<String, String> currentProps = tableMetadata.table.get().properties();
+    try (Timer.Context context = new Timer().time()) {
+      submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
+      log.info("Sending snapshot commit event for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+    }
+
+    try (Timer.Context context = new Timer().time()) {
+      sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
+      log.info("Sending audit counts for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
     }
   }
 
@@ -949,7 +975,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     this.tableMetadataMap.remove(TableIdentifier.of(dbName, tableName));
   }
 
-  private void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
+  protected void submitSnapshotCommitEvent(Snapshot snapshot, TableMetadata tableMetadata, String dbName,
       String tableName, Map<String, String> props, Long highWaterMark) {
     GobblinEventBuilder gobblinTrackingEvent =
         new GobblinEventBuilder(MetadataWriterKeys.ICEBERG_COMMIT_EVENT_NAME);
