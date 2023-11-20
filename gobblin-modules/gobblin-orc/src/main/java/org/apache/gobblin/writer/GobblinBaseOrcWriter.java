@@ -91,7 +91,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private int orcFileWriterRowsBetweenCheck;
   private long orcStripeSize;
   private int maxOrcBatchSize;
-  private int rowCheckFactor;
+  private int batchSizeRowCheckFactor;
   private boolean enableLimitBufferSizeOrcStripe;
 
   private int concurrentWriterTasks;
@@ -111,7 +111,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.typeDescription = getOrcSchema();
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
     this.validateORCAfterClose = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_AFTER_CLOSE, false);
-    this.rowCheckFactor = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR);
+    this.batchSizeRowCheckFactor = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ?
@@ -348,7 +348,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   void initializeOrcFileWriter() {
     try {
       this.orcFileWriterRowsBetweenCheck = Math.max(
-          Math.min(this.batchSize * this.rowCheckFactor, this.orcFileWriterMaxRowsBetweenCheck),
+          Math.min(this.batchSize * this.batchSizeRowCheckFactor, this.orcFileWriterMaxRowsBetweenCheck),
           this.orcFileWriterMinRowsBetweenCheck
       );
       this.writerConfig.set(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
