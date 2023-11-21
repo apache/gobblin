@@ -403,6 +403,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
             log.warn("At least one task in {} did not get committed successfully. Setting dataset state to FAILED. {}", datasetUrn,
                 taskStateException);
           }
+          return;
         }
       }
     }
