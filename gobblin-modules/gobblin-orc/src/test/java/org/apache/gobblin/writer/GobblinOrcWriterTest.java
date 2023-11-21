@@ -268,21 +268,23 @@ public class GobblinOrcWriterTest {
     // Force a larger initial batchSize that can be tuned down
     orcWriter.batchSize = 10;
     orcWriter.rowBatch.ensureSize(10);
+    // Given that the available memory is very high, the resulting batchsize should be maxed out
     orcWriter.availableMemory = 100000000;
-    // Given the amount of available memory and a low stripe size, and estimated rowBatchSize, the resulting batchsize should be maxed out
+    // Consider that the batch size incrementally increases based on the difference between target and current batchsize (10)
     orcWriter.tuneBatchSize(10);
-    System.out.println(orcWriter.batchSize);
-    // Take into account that increases in batchsize are multiplied by a factor to prevent large jumps in batchsize
-    Assert.assertTrue(orcWriter.batchSize == (GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCH_SIZE+10)/2);
+    Assert.assertEquals(orcWriter.batchSize, 505);
+    orcWriter.tuneBatchSize(10);
+    Assert.assertEquals(orcWriter.batchSize, 752);
+
     orcWriter.availableMemory = 100;
     orcWriter.tuneBatchSize(10);
     // Given that the amount of available memory is low, the resulting batchsize should be 1
-    Assert.assertTrue(orcWriter.batchSize == 1);
+    Assert.assertEquals(orcWriter.batchSize,1);
     orcWriter.availableMemory = 10000;
     orcWriter.rowBatch.ensureSize(10000);
     // Since the rowBatch is large, the resulting batchsize should still be 1 even with more memory
     orcWriter.tuneBatchSize(10);
-    Assert.assertTrue(orcWriter.batchSize == 1);
+    Assert.assertEquals(orcWriter.batchSize, 1);
   }
 
   @Test
@@ -321,5 +323,43 @@ public class GobblinOrcWriterTest {
     Assert.assertEquals(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_ESTIMATED_BYTES_ALLOCATED_CONVERTER_MEMORY), "18000");
     Assert.assertNotNull(dummyState.getProp(GobblinOrcWriterConfigs.RuntimeStateConfigs.ORC_WRITER_NATIVE_WRITER_MEMORY));
     Assert.assertNotNull(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute());
+  }
+
+  @Test
+  public void testSelfTuneRowBatchCalculationWithStripeMax() throws Exception {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("orc_writer_test/schema.avsc"));
+    List<GenericRecord> recordList = deserializeAvroRecords(this.getClass(), schema, "orc_writer_test/data_multi.json");
+
+    // Mock WriterBuilder, bunch of mocking behaviors to work-around precondition checks in writer builder
+    FsDataWriterBuilder<Schema, GenericRecord> mockBuilder =
+        (FsDataWriterBuilder<Schema, GenericRecord>) Mockito.mock(FsDataWriterBuilder.class);
+    when(mockBuilder.getSchema()).thenReturn(schema);
+
+    State dummyState = new WorkUnit();
+    String stagingDir = Files.createTempDir().getAbsolutePath();
+    String outputDir = Files.createTempDir().getAbsolutePath();
+    dummyState.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
+    dummyState.setProp(ConfigurationKeys.WRITER_FILE_PATH,  "selfTune");
+    dummyState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, "true");
+    dummyState.setProp(OrcConf.STRIPE_SIZE.getAttribute(), "100");
+    dummyState.setProp(GobblinOrcWriterConfigs.ORC_WRITER_ENABLE_BUFFER_LIMIT_ORC_STRIPE, "true");
+    when(mockBuilder.getFileName(dummyState)).thenReturn("file");
+
+    // Having a closer to manage the life-cycle of the writer object.
+    Closer closer = Closer.create();
+    GobblinOrcWriter orcWriter = closer.register(new GobblinOrcWriter(mockBuilder, dummyState));
+    // Force a larger initial batchSize that can be tuned down
+    orcWriter.batchSize = 10;
+    orcWriter.rowBatch.ensureSize(10);
+    orcWriter.availableMemory = 100000000;
+    // Since the stripe size is 100, the resulting batchsize should be 10 (100/10)
+    orcWriter.tuneBatchSize(10);
+    Assert.assertEquals(orcWriter.batchSize,10);
+
+    // Increasing the estimated record size should decrease the max batch size
+    orcWriter.tuneBatchSize(100);
+    Assert.assertEquals(orcWriter.batchSize,1);
   }
 }

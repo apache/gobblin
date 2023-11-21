@@ -91,6 +91,8 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   private int orcFileWriterRowsBetweenCheck;
   private long orcStripeSize;
   private int maxOrcBatchSize;
+  private int batchSizeRowCheckFactor;
+  private boolean enableLimitBufferSizeOrcStripe;
 
   private int concurrentWriterTasks;
   private long orcWriterStripeSizeBytes;
@@ -109,6 +111,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
     this.typeDescription = getOrcSchema();
     this.selfTuningWriter = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_ENABLED, false);
     this.validateORCAfterClose = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_VALIDATE_FILE_AFTER_CLOSE, false);
+    this.batchSizeRowCheckFactor = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR);
     this.maxOrcBatchSize = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_AUTO_SELFTUNE_MAX_BATCH_SIZE,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_BATCH_SIZE);
     this.batchSize = this.selfTuningWriter ?
@@ -133,6 +136,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
         GobblinOrcWriterConfigs.DEFAULT_MIN_ORC_WRITER_ROWCHECK);
     this.orcFileWriterMaxRowsBetweenCheck = properties.getPropAsInt(GobblinOrcWriterConfigs.ORC_WRITER_MAX_ROWCHECK,
         GobblinOrcWriterConfigs.DEFAULT_MAX_ORC_WRITER_ROWCHECK);
+    this.enableLimitBufferSizeOrcStripe = properties.getPropAsBoolean(GobblinOrcWriterConfigs.ORC_WRITER_ENABLE_BUFFER_LIMIT_ORC_STRIPE, false);
     // Create file-writer
     this.writerConfig = new Configuration();
     // Populate job Configurations into Conf as well so that configurations related to ORC writer can be tuned easily.
@@ -312,11 +316,18 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
       this.currentOrcWriterMaxUnderlyingMemory = Math.max(this.currentOrcWriterMaxUnderlyingMemory, orcFileWriter.estimateMemory());
     }
     long maxMemoryInFileWriter = Math.max(currentOrcWriterMaxUnderlyingMemory, prevOrcWriterMaxUnderlyingMemory);
-
     int newBatchSize = (int) ((this.availableMemory*1.0 / currentPartitionedWriters * this.rowBatchMemoryUsageFactor - maxMemoryInFileWriter
         - this.estimatedBytesAllocatedConverterMemory) / averageSizePerRecord);
+
+    if (this.enableLimitBufferSizeOrcStripe) {
+      // For large records, prevent the batch size from greatly exceeding the size of a stripe as the native ORC Writer will flush its buffer after a stripe is filled
+      int maxRecordsPerStripeSize = (int) Math.round(this.orcWriterStripeSizeBytes * 1.0 / averageSizePerRecord);
+      this.orcFileWriterMaxRowsBetweenCheck = Math.min(this.orcFileWriterMaxRowsBetweenCheck, maxRecordsPerStripeSize);
+      this.maxOrcBatchSize = Math.min(this.maxOrcBatchSize, maxRecordsPerStripeSize);
+    }
     // Handle scenarios where new batch size can be 0 or less due to overestimating memory used by other components
     newBatchSize = Math.min(Math.max(1, newBatchSize), this.maxOrcBatchSize);
+
     if (Math.abs(newBatchSize - this.batchSize) > GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_TUNE_BATCHSIZE_SENSITIVITY * this.batchSize) {
       // Add a factor when tuning up the batch size to prevent large sudden increases in memory usage
       if (newBatchSize > this.batchSize) {
@@ -337,7 +348,7 @@ public abstract class GobblinBaseOrcWriter<S, D> extends FsDataWriter<D> {
   void initializeOrcFileWriter() {
     try {
       this.orcFileWriterRowsBetweenCheck = Math.max(
-          Math.min(this.batchSize * GobblinOrcWriterConfigs.DEFAULT_ORC_WRITER_BATCHSIZE_ROWCHECK_FACTOR, this.orcFileWriterMaxRowsBetweenCheck),
+          Math.min(this.batchSize * this.batchSizeRowCheckFactor, this.orcFileWriterMaxRowsBetweenCheck),
           this.orcFileWriterMinRowsBetweenCheck
       );
       this.writerConfig.set(OrcConf.ROWS_BETWEEN_CHECKS.getAttribute(), String.valueOf(this.orcFileWriterRowsBetweenCheck));
