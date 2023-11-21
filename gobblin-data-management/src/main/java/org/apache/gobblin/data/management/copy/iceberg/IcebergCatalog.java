@@ -20,14 +20,25 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.catalog.TableIdentifier;
 
 
 /**
  * Any catalog from which to access {@link IcebergTable}s.
  */
 public interface IcebergCatalog {
+
   IcebergTable openTable(String dbName, String tableName);
+
+  default IcebergTable openTable(TableIdentifier tableId) {
+    // CHALLENGE: clearly better to implement in the reverse direction - `openTable(String, String)` in terms of `openTable(TableIdentifier)` -
+    // but challenging to do at this point, with multiple derived classes already "in the wild" that implement `openTable(String, String)`
+    return openTable(tableId.namespace().toString(), tableId.name());
+  }
+
   String getCatalogUri();
+
   void initialize(Map<String, String> properties, Configuration configuration);
+
   boolean tableAlreadyExists(IcebergTable icebergTable);
 }

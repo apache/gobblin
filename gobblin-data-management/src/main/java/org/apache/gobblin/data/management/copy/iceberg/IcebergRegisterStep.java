@@ -21,22 +21,29 @@ import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.catalog.TableIdentifier;
 
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
+
 
 /**
  * {@link CommitStep} to perform Iceberg registration.
  */
 @Slf4j
-@AllArgsConstructor
 public class IcebergRegisterStep implements CommitStep {
 
-  private final String dbName;
-  private final String tblName;
+  // store as string for serializability... TODO: explore whether truly necessary (or we could just as well store as `TableIdentifier`)
+  private final String srcTableIdStr;
+  private final String destTableIdStr;
   private final Properties properties;
+
+  public IcebergRegisterStep(TableIdentifier srcTableId, TableIdentifier destTableId, Properties properties) {
+    this.srcTableIdStr = srcTableId.toString();
+    this.destTableIdStr = destTableId.toString();
+    this.properties = properties;
+  }
 
   @Override
   public boolean isCompleted() throws IOException {
@@ -46,12 +53,12 @@ public class IcebergRegisterStep implements CommitStep {
   @Override
   public void execute() throws IOException {
     IcebergTable srcIcebergTable = IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.SOURCE)
-        .openTable(this.dbName, this.tblName);
+        .openTable(TableIdentifier.parse(srcTableIdStr));
     IcebergTable destIcebergTable = IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION)
-        .openTable(this.dbName, this.tblName);
+        .openTable(TableIdentifier.parse(destTableIdStr));
     TableMetadata destinationMetadata = null;
     try {
-      destinationMetadata = destIcebergTable.accessTableMetadata();
+      destinationMetadata = destIcebergTable.accessTableMetadata(); // probe... (first access could throw)
     } catch (IcebergTable.TableNotFoundException tnfe) {
       log.warn("Destination TableMetadata doesn't exist because: " , tnfe);
     }
@@ -59,6 +66,6 @@ public class IcebergRegisterStep implements CommitStep {
   }
   @Override
   public String toString() {
-    return String.format("Registering Iceberg Table: {%s}.{%s} ", this.dbName, this.tblName);
+    return String.format("Registering Iceberg Table: {%s} (dest); (src: {%s})", this.destTableIdStr, this.srcTableIdStr);
   }
 }
