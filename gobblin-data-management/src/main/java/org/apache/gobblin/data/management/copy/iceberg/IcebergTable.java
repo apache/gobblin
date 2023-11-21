@@ -67,6 +67,7 @@ public class IcebergTable {
       this.tableId = tableId;
     }
   }
+
   @Getter
   private final TableIdentifier tableId;
   private final TableOperations tableOps;
@@ -182,11 +183,12 @@ public class IcebergTable {
       return Lists.newArrayList(manifestPathsIterable);
     }
   }
-  protected DatasetDescriptor getDatasetDescriptor(FileSystem fs) {
+
+  public DatasetDescriptor getDatasetDescriptor(FileSystem fs) {
     DatasetDescriptor descriptor = new DatasetDescriptor(
         DatasetConstants.PLATFORM_ICEBERG,
         URI.create(this.catalogUri),
-        this.tableId.name()
+        this.tableId.toString() // use FQ ID, including table namespace
     );
     descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     return descriptor;
