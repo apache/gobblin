@@ -202,10 +202,10 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
-   * j
    * @param spec an instance of {@link FlowSpec}.
    * @return A DAG of {@link JobExecutionPlan}s, which encapsulates the compiled {@link org.apache.gobblin.runtime.api.JobSpec}s
-   * together with the {@link SpecExecutor} where the job can be executed.
+   * together with the {@link SpecExecutor} where the job can be executed; when compilation fails, return `null`, and also add a
+   * {@link org.apache.gobblin.runtime.api.FlowSpec.CompilationError} to `spec` (after casting to a {@link FlowSpec})
    */
   @Override
   public Dag<JobExecutionPlan> compileFlow(Spec spec) {

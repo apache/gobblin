@@ -115,7 +115,7 @@ public final class FlowCompilationValidationHelper {
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
     if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
-      return Optional.of(jobExecutionPlanDag);
+      return Optional.fromNullable(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
           + "concurrent executions are disabled for this flow.", flowGroup, flowName);
