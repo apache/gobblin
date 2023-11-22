@@ -193,17 +193,18 @@ public class IcebergDatasetTest {
         validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
     // ensure short-circuiting was able to avert iceberg manifests scan
     Mockito.verify(mockTable, Mockito.times(1)).getCurrentSnapshotInfoOverviewOnly();
+    Mockito.verify(mockTable, Mockito.times(1)).getTableId();
     Mockito.verifyNoMoreInteractions(mockTable);
   }
 
   /** Exception wrapping is used internally--ensure that doesn't lapse into silently swallowing errors */
   @Test(expectedExceptions = IOException.class)
   public void testGetFilePathsDoesNotSwallowDestFileSystemException() throws IOException {
-    IcebergTable icebergTable = MockIcebergTable.withSnapshots(Lists.newArrayList(SNAPSHOT_PATHS_0));
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(TableIdentifier.of(testDbName, testTblName), Lists.newArrayList(SNAPSHOT_PATHS_0));
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset = new IcebergDataset(testDbName, testTblName, icebergTable, null, new Properties(), sourceFs);
+    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destFsBuilder.build();
@@ -241,10 +242,10 @@ public class IcebergDatasetTest {
     sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
-    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1));
-    IcebergDataset icebergDataset =
-        new TrickIcebergDataset(testDbName, testTblName, srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
+    TableIdentifier tableIdInCommon = TableIdentifier.of(testDbName, testTblName);
+    IcebergTable srcIcebergTbl = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergTable destIcebergTbl = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTbl, destIcebergTbl, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -267,10 +268,10 @@ public class IcebergDatasetTest {
     sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
-    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1));
-    IcebergDataset icebergDataset =
-        new TrickIcebergDataset(testDbName, testTblName, srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
+    TableIdentifier tableIdInCommon = TableIdentifier.of(testDbName, testTblName);
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
+    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -298,9 +299,10 @@ public class IcebergDatasetTest {
     sourceBuilder.addPathsAndFileStatuses(expectedPathsAndFileStatuses);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
-    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1));
-    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
+    TableIdentifier tableIdInCommon = TableIdentifier.of(testDbName, testTblName);
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -326,9 +328,10 @@ public class IcebergDatasetTest {
     sourceBuilder.addPaths(expectedPaths);
     FileSystem sourceFs = sourceBuilder.build();
 
-    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_0));
-    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(Arrays.asList(SNAPSHOT_PATHS_1));
-    IcebergDataset icebergDataset = new TrickIcebergDataset(testDbName, testTblName, srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
+    TableIdentifier tableIdInCommon = TableIdentifier.of(testDbName, testTblName);
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
+    IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -358,13 +361,12 @@ public class IcebergDatasetTest {
    */
   protected IcebergTable validateGetFilePathsGivenDestState(List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
       Optional<List<String>> optExistingSourcePaths, List<String> existingDestPaths, Set<Path> expectedResultPaths) throws IOException {
-    IcebergTable icebergTable = MockIcebergTable.withSnapshots(sourceSnapshotPathSets);
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(TableIdentifier.of(testDbName, testTblName), sourceSnapshotPathSets);
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset =
-        new IcebergDataset(testDbName, testTblName, icebergTable, null, new Properties(), sourceFs);
+    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, new Properties(), sourceFs);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     destFsBuilder.addPaths(existingDestPaths);
@@ -377,7 +379,7 @@ public class IcebergDatasetTest {
     Assert.assertEquals(
         filePathsToFileStatus.values().stream().map(FileStatus::getPath).collect(Collectors.toSet()),
         expectedResultPaths);
-    return icebergTable;
+    return srcIcebergTable;
   }
 
   /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */
@@ -464,9 +466,9 @@ public class IcebergDatasetTest {
    *  Without this, so to lose the mock, we'd be unable to set up any source paths as existing.
    */
   protected static class TrickIcebergDataset extends IcebergDataset {
-    public TrickIcebergDataset(String db, String table, IcebergTable srcIcebergTbl, IcebergTable destIcebergTbl, Properties properties,
+    public TrickIcebergDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties,
         FileSystem sourceFs) {
-      super(db, table, srcIcebergTbl, destIcebergTbl, properties, sourceFs);
+      super(srcIcebergTable, destIcebergTable, properties, sourceFs);
     }
 
     @Override // as the `static` is not mock-able
@@ -581,8 +583,9 @@ public class IcebergDatasetTest {
       }
     }
 
-    public static IcebergTable withSnapshots(List<SnapshotPaths> snapshotPathSets) throws IOException {
+    public static IcebergTable withSnapshots(TableIdentifier tableId, List<SnapshotPaths> snapshotPathSets) throws IOException {
       IcebergTable table = Mockito.mock(IcebergTable.class);
+      Mockito.when(table.getTableId()).thenReturn(tableId);
       int lastIndex = snapshotPathSets.size() - 1;
       Mockito.when(table.getCurrentSnapshotInfoOverviewOnly())
           .thenReturn(snapshotPathSets.get(lastIndex).asSnapshotInfo(lastIndex));
