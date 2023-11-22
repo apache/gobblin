@@ -20,13 +20,17 @@ package org.apache.gobblin.temporal.ddm.activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
-import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 
 
-/** Activity for processing/executing a {@link org.apache.gobblin.source.workunit.WorkUnit}, provided by claim-check */
+/** Activity for reading the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl} by
+ * reading in a {@link WUProcessingSpec} to determine the location of the output task states */
 @ActivityInterface
 public interface CommitActivity {
+  /**
+   * Commit the output of the work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
+   * @param workSpec
+   * @return number of workunits committed
+   */
   @ActivityMethod
-    // CAUTION: void return type won't work, as apparently it mayn't be the return type for `io.temporal.workflow.Functions.Func1`!
   int commit(WUProcessingSpec workSpec);
 }

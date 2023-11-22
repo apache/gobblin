@@ -41,6 +41,7 @@ import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 @Slf4j
 public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   public static final String CHILD_WORKFLOW_ID_BASE = "NestingExecWorkUnits";
+  public static final String COMMIT_STEP_WORKFLOW_ID_BASE = "CommitStepWorkflow";
 
   @Override
   public int process(WUProcessingSpec workSpec) {
@@ -72,8 +73,10 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected CommitStepWorkflow createCommitStepWorkflow() {
-    ChildWorkflowOptions childOpts =
-        ChildWorkflowOptions.newBuilder().setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON).build();
+    ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
+        .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+        .setWorkflowId(Help.qualifyNamePerExec(COMMIT_STEP_WORKFLOW_ID_BASE, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
   }

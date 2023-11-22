@@ -17,19 +17,20 @@
 
 package org.apache.gobblin.temporal.ddm.workflow;
 
-import io.temporal.workflow.Promise;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
-import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 
 
+/**
+ * Workflow for committing the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
+ */
 @WorkflowInterface
 public interface CommitStepWorkflow {
 
     /**
-     * This is the method that is executed when the Workflow Execution is started. The Workflow
-     * Execution completes when this method finishes execution.
+     * Commit the output of the work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
+     * Returns the number of workunits committed
      */
     @WorkflowMethod
     int commit(WUProcessingSpec workSpec);

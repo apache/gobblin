@@ -227,6 +227,15 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
   }
 
+  /**
+   * Reads in a {@link FsStateStore} folder used to store Task state outputs, and returns a queue of {@link TaskState}s
+   * Task State files are populated by the {@link GobblinMultiTaskAttempt} to record the output of remote concurrent tasks (e.g. MR mappers)
+   * @param taskStateStore
+   * @param outputTaskStateDir
+   * @param numDeserializerThreads
+   * @return Queue of TaskStates
+   * @throws IOException
+   */
   public static Queue<TaskState> deserializeTaskStatesFromFolder(StateStore<TaskState> taskStateStore, Path outputTaskStateDir,
       int numDeserializerThreads) throws IOException {
     List<String> taskStateNames = taskStateStore.getTableNames(outputTaskStateDir.getName(), new Predicate<String>() {
@@ -238,28 +247,29 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       }});
 
     if (taskStateNames == null || taskStateNames.isEmpty()) {
-      log.info("No output task state files found in " + outputTaskStateDir);
+      log.warn("No output task state files found in " + outputTaskStateDir);
       return null;
     }
 
     final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(numDeserializerThreads, null)) {
       for (final String taskStateName : taskStateNames) {
-        log.info("Found output task state file " + taskStateName);
+        log.debug("Found output task state file " + taskStateName);
         // Deserialize the TaskState and delete the file
         stateSerDeRunner.submitCallable(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
             TaskState taskState = taskStateStore.getAll(outputTaskStateDir.getName(), taskStateName).get(0);
             taskStateQueue.add(taskState);
+            taskStateStore.delete(outputTaskStateDir.getName(), taskStateName);
             return null;
           }
         }, "Deserialize state for " + taskStateName);
       }
     } catch (IOException ioe) {
-      log.warn("Could not read all task state files.");
+      log.error("Could not read all task state files due to", ioe);
     }
-    log.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
+    log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), outputTaskStateDir));
     return taskStateQueue;
   }
 

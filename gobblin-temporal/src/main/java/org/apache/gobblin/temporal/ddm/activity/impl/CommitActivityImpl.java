@@ -41,7 +41,6 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
@@ -52,12 +51,10 @@ import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
-import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.SerializationUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -66,13 +63,16 @@ import org.apache.hadoop.fs.Path;
 @Slf4j
 public class CommitActivityImpl implements CommitActivity {
 
+  static int DEFAULT_NUM_DESERIALIZATION_THREADS = 10;
+  static int DEFAULT_NUM_COMMIT_THREADS = 1;
   @Override
   public int commit(WUProcessingSpec workSpec) {
-    int numDeserializationThreads = 1;
+    // TODO: Make this configurable
+    int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
-      SharedResourcesBroker<GobblinScopeTypes> instanceBroker = createDefaultInstanceBroker(jobState.getProperties());
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
       Path jobIdParent = new Path(workSpec.getWorkUnitsDir()).getParent();
@@ -83,7 +83,7 @@ public class CommitActivityImpl implements CommitActivity {
           ImmutableList.copyOf(
               TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobOutputPath, numDeserializationThreads));
       commitTaskStates(jobState, taskStateQueue, globalGobblinContext);
-
+      return taskStateQueue.size();
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
@@ -93,27 +93,28 @@ public class CommitActivityImpl implements CommitActivity {
           null
       );
     }
-
-    return 0;
   }
 
-  protected FileSystem loadFileSystemForUri(URI fsUri, State stateConfig) throws IOException {
-    return HadoopUtils.getFileSystem(fsUri, stateConfig);
-  }
-
+  /**
+   * Commit task states to the dataset state store.
+   * @param jobState
+   * @param taskStates
+   * @param jobContext
+   * @throws IOException
+   */
   void commitTaskStates(State jobState, Collection<TaskState> taskStates, JobContext jobContext) throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(taskStates);
-    final boolean shouldCommitDataInJob = shouldCommitDataInJob(jobState);
+    final boolean shouldCommitDataInJob = JobContext.shouldCommitDataInJob(jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.AT_LEAST_ONCE;
-    final int numCommitThreads = 1;
-
+    //TODO: Make this configurable
+    final int numCommitThreads = DEFAULT_NUM_COMMIT_THREADS;
     if (!shouldCommitDataInJob) {
       log.info("Job will not commit data since data are committed by tasks.");
     }
 
     try {
       if (!datasetStatesByUrns.isEmpty()) {
-        log.info("Persisting dataset urns.");
+        log.info("Persisting {} dataset urns.", datasetStatesByUrns.size());
       }
 
       List<Either<Void, ExecutionException>> result = new IteratorExecutor<>(Iterables
@@ -133,14 +134,20 @@ public class CommitActivityImpl implements CommitActivity {
 
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure
-        throw new IOException("Failed to commit dataset state for some dataset(s) of job <jobStub>");
+        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, "<job_name_stub>");
+        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
   }
 
-  public Map<String, JobState.DatasetState> createDatasetStatesByUrns(Collection<TaskState> taskStates) {
+  /**
+   * Organize task states by dataset urns.
+   * @param taskStates
+   * @return
+   */
+  public static Map<String, JobState.DatasetState> createDatasetStatesByUrns(Collection<TaskState> taskStates) {
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
 
     //TODO: handle skipped tasks?
@@ -153,7 +160,7 @@ public class CommitActivityImpl implements CommitActivity {
     return datasetStatesByUrns;
   }
 
-  private String createDatasetUrn(Map<String, JobState.DatasetState> datasetStatesByUrns, TaskState taskState) {
+  private static String createDatasetUrn(Map<String, JobState.DatasetState> datasetStatesByUrns, TaskState taskState) {
     String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
     if (!datasetStatesByUrns.containsKey(datasetUrn)) {
       JobState.DatasetState datasetState = new JobState.DatasetState();
@@ -161,16 +168,6 @@ public class CommitActivityImpl implements CommitActivity {
       datasetStatesByUrns.put(datasetUrn, datasetState);
     }
     return datasetUrn;
-  }
-
-  private static boolean shouldCommitDataInJob(State state) {
-    boolean jobCommitPolicyIsFull =
-        JobCommitPolicy.getCommitPolicy(state.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
-    boolean publishDataAtJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
-        ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
-    boolean jobDataPublisherSpecified =
-        !Strings.isNullOrEmpty(state.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE));
-    return jobCommitPolicyIsFull || publishDataAtJobLevel || jobDataPublisherSpecified;
   }
 
   private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
