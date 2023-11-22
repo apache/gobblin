@@ -193,6 +193,7 @@ public class IcebergDatasetTest {
         validateGetFilePathsGivenDestState(icebergSnapshots, existingDestPaths, expectedResultPaths);
     // ensure short-circuiting was able to avert iceberg manifests scan
     Mockito.verify(mockTable, Mockito.times(1)).getCurrentSnapshotInfoOverviewOnly();
+    Mockito.verify(mockTable, Mockito.times(1)).getTableId();
     Mockito.verifyNoMoreInteractions(mockTable);
   }
 
