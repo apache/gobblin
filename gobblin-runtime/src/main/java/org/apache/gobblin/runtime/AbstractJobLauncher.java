@@ -961,7 +961,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         try {
           this.jobLockOptional.get().close();
         } catch (IOException e) {
-          LOG.error(String.format("Failed to close job lock for job %s: %s", this.jobContext.getJobId(), e), e);
+          LOG.error(String.format("Failed to close job lock for job %s: %s", this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e), e);
         } finally {
           this.jobLockOptional = Optional.absent();
         }
