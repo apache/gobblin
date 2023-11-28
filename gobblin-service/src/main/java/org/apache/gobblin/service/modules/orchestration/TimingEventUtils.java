@@ -47,9 +47,11 @@ public class TimingEventUtils {
     return metadata;
   }
 
+  /**
+   * Retrieves a flowExecutionId from flowMetadata map and returns dummy value if one is not set
+   */
   public static String getFlowExecutionIdFromFlowMetadata(Map<String, String> flowMetadata) {
-    // TODO: change the default value
-    return flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "<<no flowExecutionId set>>");
+    return flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "<<no flowExecutionId>>");
   }
 
   static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
