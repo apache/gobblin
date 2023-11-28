@@ -932,14 +932,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
     // Emit GTE for snapshot commits
     Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
     Map<String, String> currentProps = tableMetadata.table.get().properties();
-    try (Timer.Context context = new Timer().time()) {
-      submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
-      log.info("Sending snapshot commit event for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
-    }
 
+    // Sending the audit count before the snapshot commit event because downstream users are more likely
+    // to consume this audit count API for determining completion since it is agnostic to the system (e.g. Kafka, Brooklin)
+    // The snapshot commit event is more for internal monitoring.
     try (Timer.Context context = new Timer().time()) {
       sendAuditCounts(topicName, tableMetadata.serializedAuditCountMaps);
       log.info("Sending audit counts for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
+    }
+
+    try (Timer.Context context = new Timer().time()) {
+      submitSnapshotCommitEvent(snapshot, tableMetadata, dbName, tableName, currentProps, highWatermark);
+      log.info("Sending snapshot commit event for {} took {} ms", topicName, TimeUnit.NANOSECONDS.toMillis(context.stop()));
     }
   }
 
