@@ -47,6 +47,11 @@ public class TimingEventUtils {
     return metadata;
   }
 
+  public static String getFlowExecutionIdFromFlowMetadata(Map<String, String> flowMetadata) {
+    // TODO: change the default value
+    return flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "<<no flowExecutionId set>>");
+  }
+
   static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
     Map<String, String> jobMetadata = Maps.newHashMap();
     JobSpec jobSpec = jobExecutionPlan.getJobSpec();

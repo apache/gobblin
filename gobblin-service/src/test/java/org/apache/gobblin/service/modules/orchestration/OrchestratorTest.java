@@ -32,6 +32,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -109,7 +110,7 @@ public class OrchestratorTest {
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.mockStatusGenerator, Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger),
          Optional.of(this._mockFlowTriggerHandler), new SharedFlowMetricsSingleton(
-             ConfigUtils.propertiesToConfig(orchestratorProperties)));
+             ConfigUtils.propertiesToConfig(orchestratorProperties)), Optional.of(mock(DagActionStore.class)));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

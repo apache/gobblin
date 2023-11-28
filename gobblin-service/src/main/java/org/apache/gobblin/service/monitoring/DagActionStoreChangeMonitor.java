@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.monitoring;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -168,7 +167,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
             throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
                 + "mode for flowAction: %s", dagAction));
           }
-          submitFlowToDagManagerHelper(flowGroup, flowName, flowExecutionId);
+          submitFlowToDagManagerHelper(dagAction);
         } else {
           log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
           this.unexpectedErrors.mark();
@@ -195,15 +194,15 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
-  protected void submitFlowToDagManagerHelper(String flowGroup, String flowName, String flowExecutionId) {
+  protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction) {
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
-    FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
+    FlowId flowId = new FlowId().setFlowGroup(dagAction.getFlowGroup()).setFlowName(dagAction.getFlowName());
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
       spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       // Pass flowExecutionId to DagManager to be used for scheduled flows that do not already contain a flowExecutionId
-      this.orchestrator.submitFlowToDagManager(spec, Optional.of(flowExecutionId));
+      this.orchestrator.submitFlowToDagManager(spec, dagAction);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       this.failedFlowLaunchSubmissions.mark();

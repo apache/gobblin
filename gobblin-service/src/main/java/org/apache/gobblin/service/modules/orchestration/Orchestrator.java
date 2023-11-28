@@ -103,12 +103,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  @Getter
+  private final Optional<DagActionStore> dagActionStore;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton) {
+      Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
+      Optional<DagActionStore> dagActionStore) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -116,6 +119,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.flowStatusGenerator = flowStatusGenerator;
     this.flowTriggerHandler = flowTriggerHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
+    this.dagActionStore = dagActionStore;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -161,9 +165,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<Logger> log, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton) {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<DagActionStore> dagActionStore) {
     this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, flowTriggerHandler,
-        sharedFlowMetricsSingleton);
+        sharedFlowMetricsSingleton, dagActionStore);
   }
 
 
@@ -266,7 +270,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           return;
         }
 
-        String flowExecutionId = flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+        String flowExecutionId = TimingEventUtils.getFlowExecutionIdFromFlowMetadata(flowMetadata);
         DagActionStore.DagAction flowAction =
             new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
         flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent);
@@ -292,7 +296,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
         // Depending on if DagManager is present, handle execution
         if (this.dagManager.isPresent()) {
-          submitFlowToDagManager((FlowSpec) spec, jobExecutionPlanDag);
+          DagActionStore.DagAction launchAction =
+              new DagActionStore.DagAction(flowGroup, flowName,
+                  TimingEventUtils.getFlowExecutionIdFromFlowMetadata(flowMetadata),
+                  DagActionStore.FlowActionType.LAUNCH);
+          submitFlowToDagManager((FlowSpec) spec, jobExecutionPlanDag, launchAction);
         } else {
           // Schedule all compiled JobSpecs on their respective Executor
           for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
@@ -335,22 +343,25 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  public void submitFlowToDagManager(FlowSpec flowSpec, Optional<String> optionalFlowExecutionId) throws IOException, InterruptedException {
+  public void submitFlowToDagManager(FlowSpec flowSpec, DagActionStore.DagAction flowAction) throws IOException, InterruptedException {
     Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec, optionalFlowExecutionId);
+        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec,
+            Optional.of(flowAction.getFlowExecutionId()));
     if (optionalJobExecutionPlanDag.isPresent()) {
-      submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
+      submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get(), flowAction);
     } else {
       _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
     }
   }
 
-  public void submitFlowToDagManager(FlowSpec flowSpec, Dag<JobExecutionPlan> jobExecutionPlanDag)
+  public void submitFlowToDagManager(FlowSpec flowSpec, Dag<JobExecutionPlan> jobExecutionPlanDag,
+      DagActionStore.DagAction launchAction)
       throws IOException {
     try {
-      //Send the dag to the DagManager.
+      // Send the dag to the DagManager and delete the action after persisting it to avoid redundant execution on start up
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
+      this.dagActionStore.get().deleteDagAction(launchAction);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);
