@@ -900,6 +900,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
       Snapshot snapshot = tableMetadata.table.get().currentSnapshot();
       tableMetadata.reset(currentProps, highWatermark);
       log.info(String.format("Finish commit of new snapshot %s for table %s", snapshot.snapshotId(), tid));
+    } catch (RuntimeException e) {
+      throw new IOException(String.format("Failed to flush table %s %s. transactionCommitted=%s",
+          dbName, tableName, transactionCommitted), e);
     } catch (Exception e) {
       throw new IOException(String.format("Failed to flush table %s %s. transactionCommitted=%s",
           dbName, tableName, transactionCommitted), e);
