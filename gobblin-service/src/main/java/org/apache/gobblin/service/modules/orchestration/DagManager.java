@@ -186,6 +186,10 @@ public class DagManager extends AbstractIdleService {
     public String toString() {
       return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
     }
+
+    DagActionStore.DagAction toDagAction(DagActionStore.FlowActionType actionType) {
+      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, actionType);
+    }
   }
 
   private final BlockingQueue<Dag<JobExecutionPlan>>[] runQueue;
@@ -222,7 +226,7 @@ public class DagManager extends AbstractIdleService {
   @Getter
   @Inject(optional=true)
   @VisibleForTesting
-  public Optional<DagActionStore> dagActionStore;
+  protected Optional<DagActionStore> dagActionStore;
 
   private volatile boolean isActive = false;
 
@@ -323,8 +327,7 @@ public class DagManager extends AbstractIdleService {
       // After persisting the dag, its status will be tracked by active dagManagers so the action should be deleted
       // to avoid duplicate executions upon leadership change
       if (this.dagActionStore.isPresent()) {
-        this.dagActionStore.get().deleteDagAction(new DagActionStore.DagAction(dagId.getFlowGroup(),
-            dagId.getFlowName(), dagId.getFlowExecutionId(), DagActionStore.FlowActionType.LAUNCH));
+        this.dagActionStore.get().deleteDagAction(dagId.toDagAction(DagActionStore.FlowActionType.LAUNCH));
       }
     }
     int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);

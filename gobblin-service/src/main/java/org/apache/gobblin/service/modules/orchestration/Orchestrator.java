@@ -250,9 +250,16 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
-      String flowExecutionId = TimingEventUtils.getFlowExecutionIdFromFlowMetadata(flowMetadata);
+      java.util.Optional<String> flowExecutionId = TimingEventUtils.getFlowExecutionIdFromFlowMetadata(flowMetadata);
+
+      // Unexpected result because flowExecutionId should be provided by above call too 'addFlowExecutionIdIfAbsent'
+      if (!flowExecutionId.isPresent()) {
+        _log.warn("FlowMetadata does not contain flowExecutionId when it should have been provided. Skipping execution "
+            + "of: {}", spec);
+        return;
+      }
       DagActionStore.DagAction flowAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId.get(), DagActionStore.FlowActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
@@ -306,7 +313,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
               Spec jobSpec = jobExecutionPlan.getJobSpec();
 
               if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-                _log.warn("JobSpec does not contain flowExecutionId.");
+                _log.warn("JobSpec does not contain flowExecutionId: {}", jobSpec);
               }
 
               Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);

@@ -349,9 +349,6 @@ class MockedDagManager extends DagManager {
   public MockedDagManager(Config config, boolean instrumentationEnabled) {
     super(config, createJobStatusRetriever(), Mockito.mock(SharedFlowMetricsSingleton.class),
         Mockito.mock(FlowStatusGenerator.class), Mockito.mock(FlowCatalog.class), instrumentationEnabled);
-//    this.dagActionStore = Optional.of(Mockito.mock(MysqlDagActionStore.class)); //Mockito.mock(DagActionStore.class));
-//    this.dagActionStore = mockMysqlDagActionStore();
-//    this.dagStateStore = Mockito.mock(DagStateStore.class);
   }
 
   private static JobStatusRetriever createJobStatusRetriever() {

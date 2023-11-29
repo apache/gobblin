@@ -21,6 +21,7 @@ import java.util.Map;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import java.util.Optional;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -48,11 +49,10 @@ public class TimingEventUtils {
   }
 
   /**
-   * Retrieves a flowExecutionId from flowMetadata map. Throws NPE if flowExecutionId is missing to prevent proceeding
-   * with a flow execution that does not have a flowExecutionId.
+   * Retrieves a flowExecutionId from flowMetadata map if one exists otherwise an empty Optional.
    */
-  public static String getFlowExecutionIdFromFlowMetadata(Map<String, String> flowMetadata) {
-    return flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+  public static Optional<String> getFlowExecutionIdFromFlowMetadata(Map<String, String> flowMetadata) {
+    return Optional.ofNullable(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
   }
 
   static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
