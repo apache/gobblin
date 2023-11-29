@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
@@ -66,8 +65,8 @@ public class DagActionStoreChangeMonitorTest {
 
     public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
         boolean isMultiActiveSchedulerEnabled) {
-      super(topic, config, mock(DagActionStore.class), mock(DagManager.class), numThreads, mock(FlowCatalog.class),
-          mock(Orchestrator.class), isMultiActiveSchedulerEnabled);
+      super(topic, config, mock(DagManager.class), numThreads, mock(FlowCatalog.class), mock(Orchestrator.class),
+          isMultiActiveSchedulerEnabled);
     }
 
     protected void processMessageForTest(DecodeableKafkaRecord record) {

@@ -130,7 +130,10 @@ public class DagManagerFlowTest {
         .thenReturn(Collections.singletonList(flowExecutionId3));
 
     // mock add spec
+    // for very first dag to be added, add dag action to store and check its deleted by the addDag call
+    dagManager.getDagActionStore().get().addDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.FlowActionType.LAUNCH);
     dagManager.addDag(dag1, true, true);
+    Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.FlowActionType.LAUNCH));
     dagManager.addDag(dag2, true, true);
     dagManager.addDag(dag3, true, true);
 
