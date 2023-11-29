@@ -42,7 +42,7 @@ public class ExternalDatasetDescriptorTest {
     ExternalDatasetDescriptor descriptor2 = new ExternalDatasetDescriptor(config2);
     Assert.assertEquals(descriptor2.contains(descriptor1).size(), 0);
 
-    // Verify that same path but different platform points to different dataset
+    // Verify that different path points to different dataset
     Config config3 = ConfigFactory.empty()
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("external"))
         .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/c"));
