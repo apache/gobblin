@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -218,8 +219,10 @@ public class DagManager extends AbstractIdleService {
   private final long failedDagRetentionTime;
   private final DagManagerMetrics dagManagerMetrics;
 
+  @Getter
   @Inject(optional=true)
-  protected Optional<DagActionStore> dagActionStore;
+  @VisibleForTesting
+  public Optional<DagActionStore> dagActionStore;
 
   private volatile boolean isActive = false;
 
@@ -312,9 +315,17 @@ public class DagManager extends AbstractIdleService {
       log.warn("Skipping add dag because this instance of DagManager is not active for dag: {}", dag);
       return;
     }
+
+    DagId dagId = DagManagerUtils.generateDagId(dag);
     if (persist) {
-      //Persist the dag
+      // Persist the dag
       this.dagStateStore.writeCheckpoint(dag);
+      // After persisting the dag, its status will be tracked by active dagManagers so the action should be deleted
+      // to avoid duplicate executions upon leadership change
+      if (this.dagActionStore.isPresent()) {
+        this.dagActionStore.get().deleteDagAction(new DagActionStore.DagAction(dagId.getFlowGroup(),
+            dagId.getFlowName(), dagId.getFlowExecutionId(), DagActionStore.FlowActionType.LAUNCH));
+      }
     }
     int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
     // Add the dag to the specific queue determined by flowExecutionId
@@ -322,7 +333,7 @@ public class DagManager extends AbstractIdleService {
     // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
     // specific DagManagerThread queue
     if (!this.runQueue[queueId].offer(dag)) {
-      throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
+      throw new IOException("Could not add dag" + dagId + "to queue");
     }
     if (setStatus) {
       submitEventsAndSetStatus(dag);
@@ -511,8 +522,6 @@ public class DagManager extends AbstractIdleService {
         log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
         this.dagManagerMetrics.incrementFailedLaunchCount();
       }
-      // Upon handling the action, delete it so on leadership change this is not duplicated
-      this.dagActionStore.get().deleteDagAction(launchAction);
     } catch (URISyntaxException e) {
       log.warn(String.format("Could not create URI object for flowId %s due to exception", flowId), e);
       this.dagManagerMetrics.incrementFailedLaunchCount();

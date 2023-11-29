@@ -77,7 +77,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   protected LoadingCache<String, String>
       dagActionsSeenCache = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.MINUTES).build(cacheLoader);
 
-  protected DagActionStore dagActionStore;
   @Getter
   @VisibleForTesting
   protected DagManager dagManager;
@@ -89,13 +88,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagActionStoreChangeMonitor(String topic, Config config, DagActionStore dagActionStore, DagManager dagManager,
-      int numThreads, FlowCatalog flowCatalog, Orchestrator orchestrator, boolean isMultiActiveSchedulerEnabled) {
+  public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
+      FlowCatalog flowCatalog, Orchestrator orchestrator, boolean isMultiActiveSchedulerEnabled) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
         numThreads);
-    this.dagActionStore = dagActionStore;
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;

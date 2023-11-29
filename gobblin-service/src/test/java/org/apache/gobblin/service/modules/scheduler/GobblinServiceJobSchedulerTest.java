@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 import org.mockito.stubbing.Answer;
@@ -356,7 +355,7 @@ public class GobblinServiceJobSchedulerTest {
     // Mock a GaaS scheduler not in warm standby mode
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
-        FlowTriggerHandler.class)), Optional.of(Mockito.mock(DagActionStore.class)));
+        FlowTriggerHandler.class)));
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -375,7 +374,7 @@ public class GobblinServiceJobSchedulerTest {
     //Mock a GaaS scheduler in warm standby mode, where we don't check quota
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true, Optional.of(Mockito.mock(
-        FlowTriggerHandler.class)), Optional.of(Mockito.mock(DagActionStore.class)));
+        FlowTriggerHandler.class)));
 
     schedulerWithWarmStandbyEnabled.startUp();
     schedulerWithWarmStandbyEnabled.setActive(true);
@@ -398,7 +397,7 @@ public class GobblinServiceJobSchedulerTest {
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
         SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
       super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(
-          FlowTriggerHandler.class)), Optional.of(Mockito.mock(DagActionStore.class)));
+          FlowTriggerHandler.class)));
       if (schedulerService != null) {
         hasScheduler = true;
       }

@@ -48,10 +48,11 @@ public class TimingEventUtils {
   }
 
   /**
-   * Retrieves a flowExecutionId from flowMetadata map and returns dummy value if one is not set
+   * Retrieves a flowExecutionId from flowMetadata map. Throws NPE if flowExecutionId is missing to prevent proceeding
+   * with a flow execution that does not have a flowExecutionId.
    */
   public static String getFlowExecutionIdFromFlowMetadata(Map<String, String> flowMetadata) {
-    return flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "<<no flowExecutionId>>");
+    return flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
   }
 
   static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {

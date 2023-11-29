@@ -52,7 +52,6 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -116,7 +115,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Boolean warmStandbyEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
   protected final Optional<FlowTriggerHandler> flowTriggerHandler;
-  protected final Optional<DagActionStore> dagActionStore;
   @Getter
   protected final Map<String, Spec> scheduledFlowSpecs;
   @Getter
@@ -173,7 +171,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
       @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean warmStandbyEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, Optional<DagActionStore> dagActionStore) throws Exception {
+      Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -190,7 +188,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.warmStandbyEnabled = warmStandbyEnabled;
     this.quotaManager = quotaManager;
     this.flowTriggerHandler = flowTriggerHandler;
-    this.dagActionStore = dagActionStore;
     // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
     // of the scheduler. If one metric exists, then the others should as well.
     MetricFilter filter = MetricFilter.contains(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS);
@@ -213,12 +210,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean warmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<DagActionStore> dagActionStore)
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
         new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log, flowTriggerHandler,
-            sharedFlowMetricsSingleton, dagActionStore),
-        schedulerService, quotaManager, log, warmStandbyEnabled, flowTriggerHandler, dagActionStore);
+            sharedFlowMetricsSingleton),
+        schedulerService, quotaManager, log, warmStandbyEnabled, flowTriggerHandler);
   }
 
   public synchronized void setActive(boolean isActive) {
