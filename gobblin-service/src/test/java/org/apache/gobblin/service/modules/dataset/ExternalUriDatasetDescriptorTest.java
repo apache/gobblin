@@ -26,27 +26,27 @@ import org.junit.Assert;
 import org.testng.annotations.Test;
 
 
-public class ExternalDatasetDescriptorTest {
+public class ExternalUriDatasetDescriptorTest {
 
   @Test
   public void testContains() throws IOException {
     Config config1 = ConfigFactory.empty()
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("external"))
-        .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
-    ExternalDatasetDescriptor descriptor1 = new ExternalDatasetDescriptor(config1);
+        .withValue(DatasetDescriptorConfigKeys.URI_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
+    ExternalUriDatasetDescriptor descriptor1 = new ExternalUriDatasetDescriptor(config1);
 
     // Verify that same path points to same dataset
     Config config2 = ConfigFactory.empty()
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("external"))
-        .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
-    ExternalDatasetDescriptor descriptor2 = new ExternalDatasetDescriptor(config2);
+        .withValue(DatasetDescriptorConfigKeys.URI_KEY, ConfigValueFactory.fromAnyRef("https://a.com/b"));
+    ExternalUriDatasetDescriptor descriptor2 = new ExternalUriDatasetDescriptor(config2);
     Assert.assertEquals(descriptor2.contains(descriptor1).size(), 0);
 
     // Verify that different path points to different dataset
     Config config3 = ConfigFactory.empty()
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("external"))
-        .withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("https://a.com/c"));
-    ExternalDatasetDescriptor descriptor3 = new ExternalDatasetDescriptor(config3);
+        .withValue(DatasetDescriptorConfigKeys.URI_KEY, ConfigValueFactory.fromAnyRef("https://a.com/c"));
+    ExternalUriDatasetDescriptor descriptor3 = new ExternalUriDatasetDescriptor(config3);
     Assert.assertNotEquals(descriptor3.contains(descriptor1).size(), 0);
 
   }

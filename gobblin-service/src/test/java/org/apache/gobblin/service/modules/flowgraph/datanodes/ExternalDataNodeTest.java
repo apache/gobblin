@@ -20,10 +20,9 @@ package org.apache.gobblin.service.modules.flowgraph.datanodes;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-import org.apache.gobblin.service.modules.dataset.ExternalDatasetDescriptor;
+import org.apache.gobblin.service.modules.dataset.ExternalUriDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.util.ConfigUtils;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
@@ -42,6 +41,6 @@ public class ExternalDataNodeTest {
     String id = node.getId();
     Assert.assertEquals(id, expectedNodeId);
     Assert.assertEquals(node.getDefaultDatasetDescriptorPlatform(), "external");
-    Assert.assertEquals(node.getDefaultDatasetDescriptorClass(), ExternalDatasetDescriptor.class.getCanonicalName());
+    Assert.assertEquals(node.getDefaultDatasetDescriptorClass(), ExternalUriDatasetDescriptor.class.getCanonicalName());
   }
 }

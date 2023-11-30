@@ -18,7 +18,7 @@
 package org.apache.gobblin.service.modules.flowgraph.datanodes;
 
 import com.typesafe.config.Config;
-import org.apache.gobblin.service.modules.dataset.ExternalDatasetDescriptor;
+import org.apache.gobblin.service.modules.dataset.ExternalUriDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 
 
@@ -39,6 +39,6 @@ public class ExternalDataNode extends BaseDataNode {
 
   @Override
   public String getDefaultDatasetDescriptorClass() {
-    return ExternalDatasetDescriptor.class.getCanonicalName();
+    return ExternalUriDatasetDescriptor.class.getCanonicalName();
   }
 }

@@ -33,6 +33,8 @@ public class DatasetDescriptorConfigKeys {
   public static final String PATH_KEY = "path";
   public static final String SUBPATHS_KEY = "subPaths";
   public static final String FS_URI_KEY = "fs.uri";
+
+  public static final String URI_KEY = "uri";
   public static final String DATABASE_KEY = "databaseName";
   public static final String TABLE_KEY = "tableName";
   public static final String FORMAT_KEY = "format";

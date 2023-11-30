@@ -24,23 +24,29 @@ import java.util.ArrayList;
 import lombok.Getter;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorErrorUtils;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Describes a external dataset not on HDFS
- * e.g, https://some-api:443/user/123/names where the path is the full URI
+ * Describes a external dataset not on HDFS, for usage with Data-Integration-Library in a generic way - see: https://github.com/linkedin/data-integration-library/tree/master
+ * Datasets under ExternalUriDatasetDescriptor can also be represented by more specific dataset descriptors, e.g. HttpDatasetDescriptor, SqlDatasetDescriptor, etc.
+ * e.g, https://some-api:443/user/123/names for a http URI
+ * e.g, jdbc:mysql://some-db:3306/db for a sql URI
  */
-public class ExternalDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
+public class ExternalUriDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
 
   @Getter
-  private final String path;
+  private final String uri;
 
-  public ExternalDatasetDescriptor(Config config) throws IOException {
+  public ExternalUriDatasetDescriptor(Config config) throws IOException {
     super(config);
-    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PATH_KEY), "Dataset descriptor config must specify path");
-    // refers to the full HTTP url
-    this.path = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY, "");
+    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.URI_KEY), "Dataset descriptor config must specify a uri");
+    // refers to an external URI of a given dataset, see https://github.com/linkedin/data-integration-library/blob/master/docs/parameters/ms.source.uri.md
+    this.uri = config.getString(DatasetDescriptorConfigKeys.URI_KEY);
+  }
+
+  @Override
+  public String getPath() {
+    return this.uri;
   }
 
   /**
