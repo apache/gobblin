@@ -58,7 +58,7 @@ public class ExternalUriDatasetDescriptor extends BaseDatasetDescriptor implemen
   protected ArrayList<String> isPathContaining(DatasetDescriptor inputDatasetDescriptorConfig) {
     ArrayList<String> errors = new ArrayList<>();
     String otherPath = inputDatasetDescriptorConfig.getPath();
-    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.PATH_KEY, this.getPath(), otherPath, false);
+    DatasetDescriptorErrorUtils.populateErrorForDatasetDescriptorKey(errors, inputDatasetDescriptorConfig.getIsInputDataset(), DatasetDescriptorConfigKeys.URI_KEY, this.getPath(), otherPath, false);
     return errors;
   }
 }
