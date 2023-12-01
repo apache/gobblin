@@ -145,7 +145,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final long workFlowExpiryTimeSeconds;
   private final long helixJobStopTimeoutSeconds;
   private final long helixWorkflowSubmissionTimeoutSeconds;
-  private Map<String, TaskConfig> workUnitToHelixConfig;
   private Map<String, TaskConfig> helixIdTaskConfigMap;
   private Retryer<Boolean> taskRetryer;
 
@@ -200,7 +199,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
 
     this.helixMetrics = helixMetrics;
-    this.workUnitToHelixConfig = new HashMap<>();
     this.helixIdTaskConfigMap = new HashMap<>();
     this.taskRetryer = RetryerBuilder.<Boolean>newBuilder()
         .retryIfException()
@@ -319,8 +317,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
     Map<String, List<Integer>> filteredTopicPartition = new HashMap<>();
     for(String id : oldHelixTaskIDs) {
-      WorkUnit workUnit = getWorkUnitFromStateStore(
-          helixIdTaskConfigMap.get(id).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY));
+      WorkUnit workUnit = getWorkUnitFromStateStoreByHelixId(id);
       String topicName = workUnit.getProp(KafkaSource.TOPIC_NAME);
       List<Integer> partitions = filteredTopicPartition.getOrDefault(topicName,
           new LinkedList<>());
@@ -365,27 +362,26 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     String jobName = this.jobContext.getJobId();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
       for (String helixTaskId : helixTaskIdsToRemove) {
-        String workUnitId = helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
         taskRetryer.call(new Callable<Boolean>() {
           @Override
           public Boolean call() throws Exception {
-            String taskId = workUnitToHelixConfig.get(workUnitId).getId();
+            String workUnitId = helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
             boolean remove =
                 HelixUtils.deleteTaskFromHelixJob(helixWorkFlowName, jobName, helixTaskId, helixTaskDriver);
             if (remove) {
-              log.info(String.format("Removed helix task %s with gobblin task id  %s from helix job %s:%s ", taskId,
+              log.info(String.format("Removed helix task %s with gobblin task id %s from helix job %s:%s ", helixTaskId,
                   workUnitId, helixWorkFlowName, jobName));
             } else {
               throw new IOException(
-                  String.format("Cannot remove task %s from helix job %s:%s", workUnitId,
+                  String.format("Cannot remove Helix task %s from helix job %s:%s", helixTaskId,
                       helixWorkFlowName, jobName));
             }
             return true;
           }
         });
-        deleteWorkUnitFromStateStore(workUnitId, stateSerDeRunner);
-        log.info(String.format("remove task state for %s in state store", workUnitId));
-        this.workUnitToHelixConfig.remove(workUnitId);
+        deleteWorkUnitFromStateStoreByHelixId(helixTaskId, stateSerDeRunner);
+        log.info(String.format("Removed task state for Helix task %s in state store", helixTaskId));
+        this.helixIdTaskConfigMap.remove(helixTaskId);
       }
     }
   }
@@ -599,7 +595,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     rawConfigMap.put(ConfigurationKeys.TASK_ID_KEY, workUnit.getId());
     rawConfigMap.put(GobblinClusterConfigurationKeys.TASK_SUCCESS_OPTIONAL_KEY, "true");
     TaskConfig taskConfig = TaskConfig.Builder.from(rawConfigMap);
-    workUnitToHelixConfig.put(workUnit.getId(), taskConfig);
     helixIdTaskConfigMap.put(taskConfig.getId(), taskConfig);
     return taskConfig;
   }
@@ -616,9 +611,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * get a single {@link WorkUnit} (flattened) from state store.
    */
-  private WorkUnit getWorkUnitFromStateStore(String workUnitId) {
+  private WorkUnit getWorkUnitFromStateStoreByHelixId(String helixTaskId) {
     String workUnitFilePath =
-        workUnitToHelixConfig.get(workUnitId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
+        helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
     final StateStore stateStore;
     Path workUnitFile = new Path(workUnitFilePath);
     final String fileName = workUnitFile.getName();
@@ -629,9 +624,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       stateStore = stateStores.getWuStateStore();
     }
     try {
-      return (WorkUnit) stateStore.get(storeName, fileName, workUnitId);
+      return (WorkUnit) stateStore.get(storeName, fileName, helixTaskId);
     } catch (IOException ioException) {
-      log.error("Failed to fetch workunit with ID {} from path {}", workUnitId, workUnitId);
+      log.error("Failed to fetch workunit with ID {} from path {}", helixTaskId, helixTaskId);
     }
     return null;
   }
@@ -639,9 +634,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Delete a single {@link WorkUnit} (flattened) from state store.
    */
-  private void deleteWorkUnitFromStateStore(String workUnitId, ParallelRunner stateSerDeRunner) {
+  private void deleteWorkUnitFromStateStoreByHelixId(String helixTaskId, ParallelRunner stateSerDeRunner) {
     String workUnitFilePath =
-        workUnitToHelixConfig.get(workUnitId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
+        helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
     Path workUnitFile = new Path(workUnitFilePath);
     final String fileName = workUnitFile.getName();
     final String storeName = workUnitFile.getParent().getName();
