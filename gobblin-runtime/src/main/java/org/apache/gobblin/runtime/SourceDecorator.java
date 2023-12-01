@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.eventbus.EventBus;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -28,16 +27,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
+import com.google.common.eventbus.EventBus;
 
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.InfiniteSource;
 import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.Decorator;
-import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.util.Decorator;
 
 
 /**
@@ -78,6 +79,7 @@ public class SourceDecorator<S, D> implements WorkUnitStreamSource<S, D>, Decora
 
   public EventBus getEventBus() {
     if (this.getDecoratedObject() instanceof InfiniteSource) {
+      logger.info("The decorated object is an infinite source. Returning the event bus. decoratedObject={}", this.getDecoratedObject().getClass().getName());
       return ((InfiniteSource) this.getDecoratedObject()).getEventBus();
     } else if (this.getDecoratedObject() instanceof SourceDecorator) {
       return ((SourceDecorator) this.getDecoratedObject()).getEventBus();

@@ -21,9 +21,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
-import io.temporal.client.WorkflowOptions;
+
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.eventbus.EventBus;
+
+import io.temporal.client.WorkflowOptions;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.metrics.Tag;
@@ -62,9 +66,10 @@ public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
       Properties jobProps,
       Path appWorkDir,
       List<? extends Tag<?>> metadataTags,
-      ConcurrentHashMap<String, Boolean> runningMap
+      ConcurrentHashMap<String, Boolean> runningMap,
+      EventBus eventBus
   ) throws Exception {
-    super(jobProps, appWorkDir, metadataTags, runningMap);
+    super(jobProps, appWorkDir, metadataTags, runningMap, eventBus);
   }
 
   @Override

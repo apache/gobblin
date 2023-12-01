@@ -106,7 +106,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
     // Add core Services needed for any application
     addJobExecutionServerAndAdminUI(properties);
-    addMetricsService(properties);
+//    addMetricsService(properties);
     addJMXReportingService();
 
     // Add any additional Services specified via configuration keys
@@ -163,9 +163,17 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     });
 
     LOG.info("Starting the Gobblin application and all its associated Services");
+    for (Service service : this.services) {
+      LOG.info("Starting service " + service.getClass().getSimpleName());
+    }
 
     // Start the application
-    this.serviceManager.startAsync().awaitHealthy();
+    try {
+      this.serviceManager.startAsync().awaitHealthy(30, TimeUnit.SECONDS);
+    } catch (TimeoutException te) {
+      LOG.error("Timeout in starting all services in service manager. Proceeding anyway to unblock shutdown hook", te);
+    }
+    LOG.info("Finished starting all services");
   }
 
   /**

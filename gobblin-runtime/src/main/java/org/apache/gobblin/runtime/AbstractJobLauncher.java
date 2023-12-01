@@ -462,10 +462,15 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
 
         Source<?, ?> source = this.jobContext.getSource();
+        LOG.info("Source is of type {}", source.getClass().getName());
         if (source instanceof InfiniteSource) {
+          LOG.info("Found an instance of {}, registering to its eventBus. thisJobLauncher={}, source={}",
+              InfiniteSource.class.getSimpleName(), this.getClass().getName(), source.getClass().getName());
           ((InfiniteSource) source).getEventBus().register(this);
         } else if (source instanceof SourceDecorator) {
           if (((SourceDecorator<?, ?>) source).getEventBus() != null) {
+            LOG.info("Found a decorateed source, registering to its eventBus. thisJobLauncher={}, source={}",
+                this.getClass().getName(), ((SourceDecorator<?, ?>) source).getDecoratedObject().getClass().getName());
             ((SourceDecorator<?, ?>) source).getEventBus().register(this);
           }
         }

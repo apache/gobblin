@@ -17,14 +17,22 @@
 
 package org.apache.gobblin.temporal.joblauncher;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -33,11 +41,11 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.rest.LauncherTypeEnum;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobException;
@@ -49,10 +57,6 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ParallelRunner;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
@@ -69,6 +73,7 @@ import org.apache.hadoop.fs.Path;
 @Alpha
 @Slf4j
 public abstract class GobblinJobLauncher extends AbstractJobLauncher {
+  protected final EventBus eventBus;
   protected static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   protected final FileSystem fs;
   protected final Path appWorkDir;
@@ -87,7 +92,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
 
   public GobblinJobLauncher(Properties jobProps, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
+      List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventbus)
       throws Exception {
     super(jobProps, HelixUtils.initBaseEventTags(jobProps, metadataTags));
     log.debug("GobblinJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
@@ -101,6 +106,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
+    this.eventBus = eventbus;
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -146,13 +152,9 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       // Start the output TaskState collector service
       this.taskStateCollectorService.startAsync().awaitRunning();
 
-      TimingEvent jobSubmissionTimer =
-          this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_SUBMISSION);
-
       synchronized (this.cancellationRequest) {
         if (!this.cancellationRequested) {
           submitJob(workUnits);
-          jobSubmissionTimer.stop();
           log.info(String.format("Submitted job %s", this.jobContext.getJobId()));
           this.jobSubmitted = true;
         } else {
@@ -160,9 +162,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         }
       }
 
-      TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
       waitJob();
-      jobRunTimer.stop();
       log.info(String.format("Job %s completed", this.jobContext.getJobId()));
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
@@ -207,6 +207,13 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       }
     } finally {
       if (isLaunched) {
+        // NOTE: This code only makes sense when there is 1 source / workflow being launched per application. This is a stop-gap
+        // for recreating batch job behavior in GaaS. Given the current constraints of yarn applications requiring a static proxy user
+        // during application creation, it is not possible to have multiple workflows running in the same application.
+        // and so it makes sense ti just kill the job after this is complete
+        log.info("MHO: Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
+        eventBus.post(new ClusterManagerShutdownRequest());
+
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
           log.info("Job {} is done, remove from running map.", this.jobContext.getJobId());
         } else {
@@ -259,6 +266,12 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
       this.fs.delete(jobStateFilePath, false);
     }
+  }
+
+  @Subscribe
+  public void onSourceFinish(ClusterManagerShutdownRequest shutdownRequest) {
+    log.info("MHO: onSourceFinish: Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
+    this.eventBus.post(shutdownRequest);
   }
 }
 

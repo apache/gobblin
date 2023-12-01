@@ -25,6 +25,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
+import com.google.common.eventbus.EventBus;
+
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
@@ -64,9 +66,9 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   protected String queueName;
 
   public GobblinTemporalJobLauncher(Properties jobProps, Path appWorkDir,
-                                    List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
+                                    List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventBus)
           throws Exception {
-    super(jobProps, appWorkDir, metadataTags, runningMap);
+    super(jobProps, appWorkDir, metadataTags, runningMap, eventBus);
     log.debug("GobblinTemporalJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
 
     String connectionUri = jobProps.getProperty(TEMPORAL_CONNECTION_STRING);

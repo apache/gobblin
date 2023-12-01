@@ -73,19 +73,18 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
   }
 
   protected void startUp() throws Exception {
+    log.info("Starting the FsJobConfigurationManager");
     super.startUp();
     // Schedule the job config fetch task
-    this.fetchJobSpecExecutor.scheduleAtFixedRate(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          fetchJobSpecs();
-        } catch (Exception e) {
-          //Log error and swallow exception to allow executor service to continue scheduling the thread
-          log.error("Failed to fetch job specs due to: ", e);
-        }
+    this.fetchJobSpecExecutor.scheduleAtFixedRate(() -> {
+      try {
+        fetchJobSpecs();
+      } catch (Exception e) {
+        //Log error and swallow exception to allow executor service to continue scheduling the thread
+        log.error("Failed to fetch job specs due to: ", e);
       }
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
+    log.info("Finished scheduling the fetchJobSpec function. Done starting the FsJobConfigurationManager");
   }
 
   @Override

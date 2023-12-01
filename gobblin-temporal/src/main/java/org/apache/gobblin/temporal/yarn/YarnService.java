@@ -207,11 +207,10 @@ class YarnService extends AbstractIdleService {
 
     this.eventBus = eventBus;
 
-    this.gobblinMetrics = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
-        Optional.of(buildGobblinMetrics()) : Optional.<GobblinMetrics>absent();
-
-    this.eventSubmitter = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
-        Optional.of(buildEventSubmitter()) : Optional.<EventSubmitter>absent();
+    // Gobblin metrics have been disabled in the PoC temporarily to make testing kafka integration without having to worry
+    // how the metrics topics are used. Kafka will only be used for GobblinTrackingEvents in the initial POC
+    this.gobblinMetrics = Optional.<GobblinMetrics>absent();
+    this.eventSubmitter = Optional.<EventSubmitter>absent();
 
     this.yarnConfiguration = yarnConfiguration;
     this.fs = fs;

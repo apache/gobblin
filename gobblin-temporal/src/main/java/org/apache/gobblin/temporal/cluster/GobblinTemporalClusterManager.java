@@ -98,14 +98,6 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
   protected final String applicationId;
 
-  // thread used to keep process up for an idle controller
-  private Thread idleProcessThread;
-
-  // set to true to stop the idle process thread
-  private volatile boolean stopIdleProcessThread = false;
-
-  private final boolean isStandaloneMode;
-
   @Getter
   private MutableJobCatalog jobCatalog;
   @Getter
@@ -129,9 +121,6 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
     this.config = GobblinClusterUtils.addDynamicConfig(sysConfig);
 
     this.clusterName = clusterName;
-    this.isStandaloneMode = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
-        GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
-
     this.applicationId = applicationId;
 
     this.fs = GobblinClusterUtils.buildFileSystem(this.config, new Configuration());
@@ -201,14 +190,17 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
    */
   private void stopAppLauncherAndServices() {
     try {
+      log.info("Stopping the Gobblin cluster application launcher");
       this.applicationLauncher.stop();
     } catch (ApplicationException ae) {
       LOGGER.error("Error while stopping Gobblin Cluster application launcher", ae);
     }
 
+    log.info("Stopping the Gobblin cluster job catalog");
     if (this.jobCatalog instanceof Service) {
       ((Service) this.jobCatalog).stopAsync().awaitTerminated();
     }
+    log.info("Stopped the Gobblin cluster job catalog");
   }
 
 
@@ -238,16 +230,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
     LOGGER.info("Stopping the Gobblin Cluster Manager");
 
-    if (this.idleProcessThread != null) {
-      try {
-        this.idleProcessThread.join();
-      } catch (InterruptedException ie) {
-        Thread.currentThread().interrupt();
-      }
-    }
-
     stopAppLauncherAndServices();
-
   }
 
   private GobblinTemporalJobScheduler buildGobblinTemporalJobScheduler(Config sysConfig, Path appWorkDir,
