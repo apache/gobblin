@@ -302,7 +302,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     // Follow how AbstractJobLauncher handles work units to make sure consistent behaviour
     WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits).build();
     workUnitStream = this.executeHandlers(workUnitStream, this.destDatasetHandlerService);
-    this.processWorkUnitStream(workUnitStream, jobState);
+    workUnitStream = this.processWorkUnitStream(workUnitStream, jobState);
+    workUnits = materializeWorkUnitList(workUnitStream);
     try {
       this.removeTasksFromCurrentJob(workUnitChangeEvent.getOldTaskIds());
       this.addTasksToCurrentJob(workUnits);

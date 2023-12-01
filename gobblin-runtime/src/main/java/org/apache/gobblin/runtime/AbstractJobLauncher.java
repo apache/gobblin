@@ -548,8 +548,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           TimingEvent workUnitsPreparationTimer =
               this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION);
-          processWorkUnitStream(workUnitStream, jobState);
-
+          workUnitStream = processWorkUnitStream(workUnitStream, jobState);
           // If it is a streaming source, workunits cannot be counted
           this.jobContext.getJobState().setProp(NUM_WORKUNITS,
               workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
@@ -833,7 +832,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Materialize a {@link WorkUnitStream} into an in-memory list. Note that infinite work unit streams cannot be materialized.
    */
-  private List<WorkUnit> materializeWorkUnitList(WorkUnitStream workUnitStream) {
+  protected List<WorkUnit> materializeWorkUnitList(WorkUnitStream workUnitStream) {
     if (!workUnitStream.isFiniteStream()) {
       throw new UnsupportedOperationException("Cannot materialize an infinite work unit stream.");
     }
