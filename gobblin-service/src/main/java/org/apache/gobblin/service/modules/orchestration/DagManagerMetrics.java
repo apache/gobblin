@@ -78,7 +78,7 @@ public class DagManagerMetrics {
 
   // Metric for unexpected flow handling failures
   private ContextAwareCounter failedLaunchEventsOnActivationCount;
-  private ContextAwareCounter launchEventsAttemptedOnActivationCount;
+  private ContextAwareCounter successfulLaunchEventsOnActivationCount;
   MetricContext metricContext;
 
   public DagManagerMetrics(MetricContext metricContext) {
@@ -108,8 +108,8 @@ public class DagManagerMetrics {
       failedLaunchEventsOnActivationCount = metricContext.contextAwareCounter(
           MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
               ServiceMetricNames.DAG_MANAGER_FAILED_LAUNCH_EVENTS_ON_STARTUP_COUNT));
-      launchEventsAttemptedOnActivationCount = metricContext.contextAwareCounter(
-          ServiceMetricNames.DAG_MANAGER_LAUNCH_EVENTS_ATTEMPTED_ON_STARTUP_COUNT);
+      successfulLaunchEventsOnActivationCount = metricContext.contextAwareCounter(
+          ServiceMetricNames.DAG_MANAGER_SUCCESSFUL_LAUNCH_EVENTS_ON_STARTUP_COUNT);
     }
   }
 
@@ -216,10 +216,10 @@ public class DagManagerMetrics {
     }
   }
 
-  // Increment the count for launches attempted during leader activation
-  public void incrementLaunchAttemptCount() {
+  // Increment the count for num of successful launches attempted during leader activation
+  public void incrementSuccessfulLaunchAttemptCount() {
     if (this.metricContext != null) {
-      this.launchEventsAttemptedOnActivationCount.inc();
+      this.successfulLaunchEventsOnActivationCount.inc();
     }
   }
 

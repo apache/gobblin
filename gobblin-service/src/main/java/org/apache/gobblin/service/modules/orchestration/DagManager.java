@@ -498,7 +498,6 @@ public class DagManager extends AbstractIdleService {
    */
   public void handleLaunchFlowEvent(DagActionStore.DagAction launchAction) {
     Preconditions.checkArgument(launchAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
-    this.dagManagerMetrics.incrementLaunchAttemptCount();
     log.info("Handle launch flow event for action {}", launchAction);
     FlowId flowId = launchAction.getFlowId();
     try {
@@ -508,6 +507,7 @@ public class DagManager extends AbstractIdleService {
           this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec, Optional.absent());
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
+        this.dagManagerMetrics.incrementSuccessfulLaunchAttemptCount();
       } else {
         log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
         this.dagManagerMetrics.incrementFailedLaunchCount();
