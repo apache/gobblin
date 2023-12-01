@@ -86,10 +86,16 @@ public final class FlowCompilationValidationHelper {
     Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
 
     if (!jobExecutionPlanDagOptional.isPresent()) {
+      log.warn("No dag execution plan created for flowGroup: {} flowName: {}",
+          flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
+          flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD));
       return Optional.absent();
     }
 
     if (jobExecutionPlanDagOptional.get() == null || jobExecutionPlanDagOptional.get().isEmpty()) {
+      log.warn("Null or empty dag execution plan created for flowGroup: {} flowName: {}",
+          flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
+          flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD));
       populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
       return Optional.absent();
     }

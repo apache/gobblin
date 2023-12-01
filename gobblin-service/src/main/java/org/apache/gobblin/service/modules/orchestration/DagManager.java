@@ -498,6 +498,7 @@ public class DagManager extends AbstractIdleService {
    */
   public void handleLaunchFlowEvent(DagActionStore.DagAction launchAction) {
     Preconditions.checkArgument(launchAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
+    this.dagManagerMetrics.incrementLaunchAttemptCount();
     log.info("Handle launch flow event for action {}", launchAction);
     FlowId flowId = launchAction.getFlowId();
     try {
