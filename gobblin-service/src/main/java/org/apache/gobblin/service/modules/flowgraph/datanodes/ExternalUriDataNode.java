@@ -25,10 +25,10 @@ import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 /**
  * A DataNode for generic ingress/egress data movement outside of HDFS (HTTP or otherwise)
  */
-public class ExternalDataNode extends BaseDataNode {
+public class ExternalUriDataNode extends BaseDataNode {
   public static final String EXTERNAL_PLATFORM_NAME = "external";
 
-  public ExternalDataNode(Config nodeProps) throws DataNodeCreationException {
+  public ExternalUriDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
   }
 

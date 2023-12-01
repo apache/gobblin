@@ -39,7 +39,7 @@ public class ExternalUriDatasetDescriptor extends BaseDatasetDescriptor implemen
 
   public ExternalUriDatasetDescriptor(Config config) throws IOException {
     super(config);
-    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.URI_KEY), "Dataset descriptor config must specify a uri");
+    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.URI_KEY), "Dataset descriptor config must specify a URI");
     // refers to an external URI of a given dataset, see https://github.com/linkedin/data-integration-library/blob/master/docs/parameters/ms.source.uri.md
     this.uri = config.getString(DatasetDescriptorConfigKeys.URI_KEY);
   }

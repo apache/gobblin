@@ -35,7 +35,7 @@ public class ExternalDataNodeTest {
 
     Config config = ConfigFactory.empty()
         .withValue(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, ConfigValueFactory.fromAnyRef(expectedNodeId));
-    ExternalDataNode node = new ExternalDataNode(config);
+    ExternalUriDataNode node = new ExternalUriDataNode(config);
 
     // Verify the node id
     String id = node.getId();
