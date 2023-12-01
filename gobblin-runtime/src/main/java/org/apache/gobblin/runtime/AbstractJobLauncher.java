@@ -147,6 +147,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // This contains all job context information
   protected final JobContext jobContext;
 
+  // Helper to prepare WorkUnit with necessary information. This final object can make sure the uniqueness of task IDs
+  protected final WorkUnitPreparator workUnitPreparator;
+
   // This (optional) JobLock is used to prevent the next scheduled run
   // of the job from starting if the current run has not finished yet
   protected Optional<JobLock> jobLockOptional = Optional.absent();
@@ -227,6 +230,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker, troubleshooter.getIssueRepository());
       this.eventBus.register(this.jobContext);
+      this.workUnitPreparator = new WorkUnitPreparator(this.jobContext.getJobId());
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
           ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
@@ -712,7 +716,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   protected WorkUnitStream processWorkUnitStream(WorkUnitStream workUnitStream, JobState jobState) {
     // Add task ids
-    workUnitStream = prepareWorkUnits(workUnitStream, jobState);
+    workUnitStream = prepareWorkUnits(workUnitStream);
     // Remove skipped workUnits from the list of work units to execute.
     workUnitStream = workUnitStream.filter(new SkippedWorkUnitsFilter(jobState));
     // Add surviving tasks to jobState
@@ -903,8 +907,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Prepare the flattened {@link WorkUnit}s for execution by populating the job and task IDs.
    */
-  private WorkUnitStream prepareWorkUnits(WorkUnitStream workUnits, JobState jobState) {
-    return workUnits.transform(new WorkUnitPreparator(this.jobContext.getJobId()));
+  private WorkUnitStream prepareWorkUnits(WorkUnitStream workUnits) {
+    return workUnits.transform(workUnitPreparator);
   }
 
   private static abstract class MultiWorkUnitForEach implements Function<WorkUnit, WorkUnit> {
@@ -927,7 +931,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   @RequiredArgsConstructor
   private static class WorkUnitPreparator extends MultiWorkUnitForEach {
-    private static final AtomicInteger taskIdSequence = new AtomicInteger(0);
+    private final AtomicInteger taskIdSequence = new AtomicInteger(0);
     private final String jobId;
 
     @Override
