@@ -200,12 +200,6 @@ public class GobblinServiceGuiceModule implements Module {
               ServiceConfigKeys.TOPOLOGYSPEC_FACTORY_KEY, ServiceConfigKeys.DEFAULT_TOPOLOGY_SPEC_FACTORY));
     }
 
-    // Initialize flow catalog before DagManager is enabled so templates are loaded when initializing the DagManager
-    OptionalBinder.newOptionalBinder(binder, FlowCatalog.class);
-    if (serviceConfig.isFlowCatalogEnabled()) {
-      binder.bind(FlowCatalog.class);
-    }
-
     OptionalBinder.newOptionalBinder(binder, DagManager.class);
     if (serviceConfig.isDagManagerEnabled()) {
       binder.bind(DagManager.class);
@@ -218,6 +212,11 @@ public class GobblinServiceGuiceModule implements Module {
               serviceConfig.getInnerConfig().getString(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY)));
     } else {
       LOGGER.info("No ZooKeeper connection string. Running in single instance mode.");
+    }
+
+    OptionalBinder.newOptionalBinder(binder, FlowCatalog.class);
+    if (serviceConfig.isFlowCatalogEnabled()) {
+      binder.bind(FlowCatalog.class);
     }
 
     if (serviceConfig.isJobStatusMonitorEnabled()) {
