@@ -76,9 +76,9 @@ public class DagManagerMetrics {
   private final Map<String, ContextAwareMeter> executorSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorJobSentMeters = Maps.newConcurrentMap();
 
-  // Metric for unexpected flow handling failures
-  private ContextAwareCounter failedLaunchEventsOnActivationCount;
-  private ContextAwareCounter successfulLaunchEventsOnActivationCount;
+  // Metric for unexpected flow handling outcomes
+  private ContextAwareCounter failedLaunchEventsOnStartupCount;
+  private ContextAwareCounter successfulLaunchEventsOnStartupCount;
   MetricContext metricContext;
 
   public DagManagerMetrics(MetricContext metricContext) {
@@ -105,10 +105,10 @@ public class DagManagerMetrics {
       allRunningMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ServiceMetricNames.JOBS_SENT_TO_SPEC_EXECUTOR));
       // TODO: remove duplicate use of 'GOBBLIN_SERVICE_PREFIX' once startup functionality is stable
-      failedLaunchEventsOnActivationCount = metricContext.contextAwareCounter(
+      failedLaunchEventsOnStartupCount = metricContext.contextAwareCounter(
           MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
               ServiceMetricNames.DAG_MANAGER_FAILED_LAUNCH_EVENTS_ON_STARTUP_COUNT));
-      successfulLaunchEventsOnActivationCount = metricContext.contextAwareCounter(
+      successfulLaunchEventsOnStartupCount = metricContext.contextAwareCounter(
           ServiceMetricNames.DAG_MANAGER_SUCCESSFUL_LAUNCH_EVENTS_ON_STARTUP_COUNT);
     }
   }
@@ -209,17 +209,21 @@ public class DagManagerMetrics {
     }
   }
 
-  // Increment the count for num of failed launches during leader activation
+  /**
+   *   Increment the count for num of failed launches during system startup
+   */
   public void incrementFailedLaunchCount() {
     if (this.metricContext != null) {
-      this.failedLaunchEventsOnActivationCount.inc();
+      this.failedLaunchEventsOnStartupCount.inc();
     }
   }
 
-  // Increment the count for num of successful launches attempted during leader activation
-  public void incrementSuccessfulLaunchAttemptCount() {
+  /**
+   *   Increment the count for num of successful launches during system startup
+   */
+  public void incrementSuccessfulLaunchCount() {
     if (this.metricContext != null) {
-      this.successfulLaunchEventsOnActivationCount.inc();
+      this.successfulLaunchEventsOnStartupCount.inc();
     }
   }
 
