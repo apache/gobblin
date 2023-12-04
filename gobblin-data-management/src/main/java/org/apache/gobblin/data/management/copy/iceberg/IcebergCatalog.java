@@ -28,8 +28,10 @@ import org.apache.iceberg.catalog.TableIdentifier;
  */
 public interface IcebergCatalog {
 
+  /** @return table identified by `dbName` and `tableName` */
   IcebergTable openTable(String dbName, String tableName);
 
+  /** @return table identified by `tableId` */
   default IcebergTable openTable(TableIdentifier tableId) {
     // CHALLENGE: clearly better to implement in the reverse direction - `openTable(String, String)` in terms of `openTable(TableIdentifier)` -
     // but challenging to do at this point, with multiple derived classes already "in the wild" that implement `openTable(String, String)`
