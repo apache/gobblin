@@ -42,11 +42,19 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   @Override
   public IcebergTable openTable(String dbName, String tableName) {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, createTableOperations(tableId), this.getCatalogUri());
+    return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), createTableOperations(tableId), this.getCatalogUri());
   }
 
   protected Catalog createCompanionCatalog(Map<String, String> properties, Configuration configuration) {
     return CatalogUtil.loadCatalog(this.companionCatalogClass.getName(), this.catalogName, properties, configuration);
+  }
+
+  /**
+   * Enable catalog-specific qualification for charting lineage, etc.  This default impl is an identity pass-through that adds no qualification.
+   * @return the name to use for the table identified by {@link TableIdentifier}
+   */
+  protected String calcDatasetDescriptorName(TableIdentifier tableId) {
+    return tableId.toString(); // default to FQ ID with both table namespace and name
   }
 
   protected abstract TableOperations createTableOperations(TableIdentifier tableId);
