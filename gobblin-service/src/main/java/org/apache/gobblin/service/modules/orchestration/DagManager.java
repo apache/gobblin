@@ -469,24 +469,6 @@ public class DagManager extends AbstractIdleService {
               log.error("failed to sync dag state store due to ", e);
             }}, delay, TimeUnit.MINUTES);
         }
-        if (dagActionStore.isPresent()) {
-          Collection<DagActionStore.DagAction> dagActions = dagActionStore.get().getDagActions();
-          for (DagActionStore.DagAction action : dagActions) {
-            switch (action.getFlowActionType()) {
-              case KILL:
-                this.handleKillFlowEvent(new KillFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
-                break;
-              case RESUME:
-                this.handleResumeFlowEvent(new ResumeFlowEvent(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId())));
-                break;
-              case LAUNCH:
-                this.handleLaunchFlowEvent(action);
-                break;
-              default:
-                log.warn("Unsupported dagAction: " + action.getFlowActionType().toString());
-            }
-          }
-        }
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         this.scheduledExecutorPool.shutdown();
@@ -501,44 +483,6 @@ public class DagManager extends AbstractIdleService {
     } catch (IOException e) {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
-    }
-  }
-
-  /**
-   * Used by the DagManager to launch a new execution for a flow action event loaded from the DagActionStore upon
-   * setting this instance of the DagManager to active. Because it may be a completely new DAG not contained in the
-   * dagStore, we compile the flow to generate the dag before calling addDag(), handling any errors that may result in
-   * the process.
-   */
-  public void handleLaunchFlowEvent(DagActionStore.DagAction launchAction) {
-    Preconditions.checkArgument(launchAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
-    log.info("Handle launch flow event for action {}", launchAction);
-    FlowId flowId = launchAction.getFlowId();
-    try {
-      URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-          this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec, Optional.absent());
-      if (optionalJobExecutionPlanDag.isPresent()) {
-        addDag(optionalJobExecutionPlanDag.get(), true, true);
-      } else {
-        log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
-        this.dagManagerMetrics.incrementFailedLaunchCount();
-      }
-    } catch (URISyntaxException e) {
-      log.warn(String.format("Could not create URI object for flowId %s due to exception", flowId), e);
-      this.dagManagerMetrics.incrementFailedLaunchCount();
-    } catch (SpecNotFoundException e) {
-      log.warn(String.format("Spec not found for flowId %s due to exception", flowId), e);
-      this.dagManagerMetrics.incrementFailedLaunchCount();
-    } catch (IOException e) {
-      log.warn(String.format("Failed to add Job Execution Plan for flowId %s OR delete dag action from dagActionStore "
-          + "(check stacktrace) due to exception", flowId), e);
-      this.dagManagerMetrics.incrementFailedLaunchCount();
-    } catch (InterruptedException e) {
-      log.warn(String.format("SpecCompiler failed to reach healthy state before compilation of flowId %s due to "
-              + "exception", flowId), e);
-      this.dagManagerMetrics.incrementFailedLaunchCount();
     }
   }
 

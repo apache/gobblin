@@ -56,6 +56,7 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_DAG_ACTION_STORE_MONITOR_FLOWS_LAUNCHED = DAG_ACTION_STORE_MONITOR_PREFIX + "flows.launched";
 
   public static final String GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS = DAG_ACTION_STORE_MONITOR_PREFIX + "failedFlowLaunchSubmissions";
+  public static final String GOBBLIN_DAG_ACTION_STORE_LAUNCH_SUBMISSIONS_ON_STARTUP = DAG_ACTION_STORE_MONITOR_PREFIX + "launchSubmissionsOnStartup";
   public static final String GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS = DAG_ACTION_STORE_MONITOR_PREFIX + "unexpected.errors";
   public static final String
       GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS = DAG_ACTION_STORE_MONITOR_PREFIX + "produce.to.consume.delay";

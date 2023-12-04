@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -26,6 +27,7 @@ import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
@@ -56,8 +58,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   // Metrics
   private ContextAwareMeter killsInvoked;
   private ContextAwareMeter resumesInvoked;
-  private ContextAwareMeter flowsLaunched;
-  private ContextAwareMeter failedFlowLaunchSubmissions;
+  private ContextAwareMeter launchesSubmitted;
+  private ContextAwareMeter failedLaunchSubmissions;
+  private ContextAwareMeter launchSubmissionsOnStartup;
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
   private ContextAwareMeter duplicateMessagesMeter;
@@ -85,11 +88,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @Getter
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
+  protected DagActionStore dagActionStore;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
-      FlowCatalog flowCatalog, Orchestrator orchestrator, boolean isMultiActiveSchedulerEnabled) {
+      FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
+      boolean isMultiActiveSchedulerEnabled) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
@@ -97,7 +102,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
+    this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+
+    initializeMonitor();
   }
 
   @Override
@@ -105,6 +113,37 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     // Expects underlying consumer to handle initializing partitions and offset for the topic -
     // subscribe to all partitions from latest offset
     return;
+  }
+
+  /**
+   * Load all actions from the DagActionStore to process any missed actions during service startup
+   */
+  private void initializeMonitor() {
+    // TODO: exclude the dag actions that have a lease in the arbiter store if this is processing too many events
+    Collection<DagActionStore.DagAction> dagActions = null;
+    try {
+      dagActions = dagActionStore.getDagActions();
+    } catch (IOException e) {
+      // TODO: handle this exception
+      throw new RuntimeException(e);
+    }
+    // TODO: make this multi-threaded to add parallelism
+    for (DagActionStore.DagAction action : dagActions) {
+        switch (action.getFlowActionType()) {
+          case KILL:
+            dagManager.handleKillFlowRequest(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId()));
+            break;
+          case RESUME:
+            dagManager.handleResumeFlowRequest(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId()));
+            break;
+          case LAUNCH:
+            launchSubmissionsOnStartup.mark();
+            submitFlowToDagManagerHelper(action);
+            break;
+          default:
+            log.warn("Unsupported dagAction: " + action.getFlowActionType().toString());
+        }
+      }
   }
 
   @Override
@@ -192,9 +231,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
+  /**
+   * Used to forward a launch flow action event from the DagActionStore after. Because it may be a completely new DAG
+   * not contained in the dagStore, we compile the flow to generate the dag before calling addDag(), handling any errors
+   * that may result in the process.
+   */
   protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction) {
+    Preconditions.checkArgument(dagAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
+    log.info("Forward launch flow event to DagManager for action {}", dagAction);
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
-    FlowId flowId = new FlowId().setFlowGroup(dagAction.getFlowGroup()).setFlowName(dagAction.getFlowName());
+    FlowId flowId = dagAction.getFlowId();
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
@@ -203,23 +249,23 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       this.orchestrator.submitFlowToDagManager(spec, dagAction);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
-      this.failedFlowLaunchSubmissions.mark();
+      this.failedLaunchSubmissions.mark();
       return;
     } catch (SpecNotFoundException e) {
       log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-      this.failedFlowLaunchSubmissions.mark();
+      this.failedLaunchSubmissions.mark();
       return;
     } catch (IOException e) {
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
-      this.failedFlowLaunchSubmissions.mark();
+      this.failedLaunchSubmissions.mark();
       return;
     } catch (InterruptedException e) {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
-      this.failedFlowLaunchSubmissions.mark();
+      this.failedLaunchSubmissions.mark();
       return;
     }
     // Only mark this if the dag was successfully added
-    this.flowsLaunched.mark();
+    this.launchesSubmitted.mark();
   }
 
   @Override
@@ -228,8 +274,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
-    this.flowsLaunched = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_FLOWS_LAUNCHED);
-    this.failedFlowLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
+    // TODO: rename this metrics to match the variable name after debugging launch related issues
+    this.launchesSubmitted = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_FLOWS_LAUNCHED);
+    this.failedLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
+    this.launchSubmissionsOnStartup = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_LAUNCH_SUBMISSIONS_ON_STARTUP);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
     this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_DUPLICATE_MESSAGES);
