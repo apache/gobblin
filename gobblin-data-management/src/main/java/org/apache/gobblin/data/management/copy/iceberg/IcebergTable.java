@@ -36,6 +36,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -70,8 +71,15 @@ public class IcebergTable {
 
   @Getter
   private final TableIdentifier tableId;
+  /** allow the {@link IcebergCatalog} creating this table to qualify its name when used for lineage, etc. */
+  private final String datasetDescriptorName;
   private final TableOperations tableOps;
   private final String catalogUri;
+
+  @VisibleForTesting
+  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
+    this(tableId, tableId.toString(), tableOps, catalogUri);
+  }
 
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
@@ -188,7 +196,7 @@ public class IcebergTable {
     DatasetDescriptor descriptor = new DatasetDescriptor(
         DatasetConstants.PLATFORM_ICEBERG,
         URI.create(this.catalogUri),
-        this.tableId.toString() // use FQ ID, including table namespace
+        this.datasetDescriptorName
     );
     descriptor.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     return descriptor;
