@@ -370,66 +370,6 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
-  public void testProcessMessageForCancelledAndKilledEvent() throws IOException, ReflectiveOperationException {
-    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
-
-    //Submit GobblinTrackingEvents to Kafka
-    ImmutableList.of(
-        createFlowCompiledEvent(),
-        createJobOrchestratedEvent(1, 4),
-        createJobSLAKilledEvent(),
-        createJobOrchestratedEvent(2, 4),
-        createJobStartSLAKilledEvent(),
-        // Verify that kill event will not retry
-        createJobOrchestratedEvent(3, 4),
-        createJobCancelledEvent()
-    ).forEach(event -> {
-      context.submitEvent(event);
-      kafkaReporter.report();
-    });
-
-    try {
-      Thread.sleep(1000);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
-
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSObservabilityEventProducer());
-    jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
-        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
-        this::convertMessageAndMetadataToDecodableKafkaRecord);
-
-    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
-    Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    //Job orchestrated for retrying
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    //Job orchestrated for retrying
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
-
-    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
-    // Received kill flow event, should not retry the flow even though there is 1 pending attempt left
-    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
-    Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
-
-    jobStatusMonitor.shutDown();
-  }
-
-  @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForFlowPendingResume() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
@@ -485,7 +425,7 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
-  @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
+  @Test (dependsOnMethods = "testProcessMessageForFlowPendingResume")
   public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
 
@@ -668,14 +608,6 @@ public class KafkaAvroJobStatusMonitorTest {
 
   private GobblinTrackingEvent createJobCancelledEvent() {
     return createGTE(TimingEvent.FlowTimings.FLOW_CANCELLED, Maps.newHashMap());
-  }
-
-  private GobblinTrackingEvent createJobSLAKilledEvent() {
-    return createGTE(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED, Maps.newHashMap());
-  }
-
-  private GobblinTrackingEvent createJobStartSLAKilledEvent() {
-    return createGTE(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED, Maps.newHashMap());
   }
 
   private GobblinTrackingEvent createFlowPendingResumeEvent() {

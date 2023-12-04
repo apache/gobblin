@@ -749,7 +749,7 @@ public class DagManager extends AbstractIdleService {
     }
 
     /**
-     * Cancels the dag and sends a cancellation tracking event.
+     * Handles the kill flow execution request to cancel a dag and sends a cancellation tracking event.
      * @param dagToCancel dag node to cancel
      * @throws ExecutionException executionException
      * @throws InterruptedException interruptedException
@@ -761,7 +761,7 @@ public class DagManager extends AbstractIdleService {
         List<DagNode<JobExecutionPlan>> dagNodesToCancel = this.dagToJobs.get(dagToCancel);
         log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
         for (DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-          cancelDagNode(dagNodeToCancel);
+          cancelDagNode(dagNodeToCancel, true);
         }
 
         this.dags.get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
@@ -773,17 +773,19 @@ public class DagManager extends AbstractIdleService {
       removeDagActionFromStore(dagId, DagActionStore.FlowActionType.KILL);
     }
 
-    private void cancelDagNode(DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
+    private void cancelDagNode(DagNode<JobExecutionPlan> dagNodeToCancel, boolean shouldSendCancellationEvent) throws ExecutionException, InterruptedException {
       Properties props = new Properties();
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
         Future future = dagNodeToCancel.getValue().getJobFuture().get();
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
-        sendCancellationEvent(dagNodeToCancel.getValue());
       }
       if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
         props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
             dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+      }
+      if (shouldSendCancellationEvent) {
+        sendCancellationEvent(dagNodeToCancel.getValue());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
     }
@@ -853,19 +855,16 @@ public class DagManager extends AbstractIdleService {
     /**
      * Proceed the execution of each dag node based on job status.
      */
-    private void pollAndAdvanceDag() throws IOException, ExecutionException, InterruptedException {
+    private void pollAndAdvanceDag() {
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
       for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
         try {
-          boolean slaKilled = slaKillIfNeeded(node);
 
           JobStatus jobStatus = pollJobStatus(node);
 
-          boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
-
-          ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
+          ExecutionStatus status = handleSlaCancellationAndRetrieveExecutionStatus(jobStatus, node);
 
           JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
@@ -898,11 +897,11 @@ public class DagManager extends AbstractIdleService {
 
           if (jobStatus != null && jobStatus.isShouldRetry()) {
             log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
-                jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+                node.getValue().getCurrentAttempts(), node.getValue().getMaxAttempts());
             this.jobToDag.get(node).setFlowEvent(null);
             submitJob(node);
           }
-        } catch (Exception e) {
+        } catch (ExecutionException | IOException | InterruptedException | RuntimeException e) {
           // Error occurred while processing dag, continue processing other dags assigned to this thread
           log.error(String.format("Exception caught in DagManager while processing dag %s due to ",
               DagManagerUtils.getFullyQualifiedDagName(node)), e);
@@ -931,7 +930,7 @@ public class DagManager extends AbstractIdleService {
      * @return true if the total time that the job remains in the ORCHESTRATED state exceeds
      * {@value ConfigurationKeys#GOBBLIN_JOB_START_SLA_TIME}.
      */
-    private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
+    private boolean isJobStartSlaExceeded(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
         throws ExecutionException, InterruptedException {
       if (jobStatus == null) {
         return false;
@@ -945,10 +944,9 @@ public class DagManager extends AbstractIdleService {
             DagManagerUtils.getFullyQualifiedDagName(node),
             timeOutForJobStart);
         dagManagerMetrics.incrementCountsStartSlaExceeded(node);
-        cancelDagNode(node);
 
         String dagId = DagManagerUtils.generateDagId(node).toString();
-        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
         this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
         return true;
       } else {
@@ -956,16 +954,30 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, JobStatus jobStatus) {
-      if (slaKilled || killOrphanFlow) {
-        return CANCELLED;
-      } else {
-        if (jobStatus == null) {
-          return PENDING;
-        } else {
-          return valueOf(jobStatus.getEventName());
+
+    /**
+     * Check if the node exceeds either the flow SLA or the job start SLA, if so cancel the job
+     * If the job execution plan defines a retry, return a PENDING_RETRY status instead of CANCELLED if currentAttempt < maxAttempt
+     * If the job is not SLA killed, return the JobStatus' ExecutionStatus
+     * @param node
+     * @param jobStatus
+     * @return
+     */
+    private ExecutionStatus handleSlaCancellationAndRetrieveExecutionStatus(JobStatus jobStatus, DagNode<JobExecutionPlan> dagNode) throws InterruptedException, ExecutionException {
+      if (isJobRuntimeSlaExceeded(dagNode) || isJobStartSlaExceeded(dagNode, jobStatus)) {
+        if (dagNode.getValue().getCurrentAttempts() < dagNode.getValue().getMaxAttempts()) {
+          jobStatus.setShouldRetry(true);
+          // Cancel the job, but don't send the cancellation event as the job will be retried
+          cancelDagNode(dagNode, false);
+          return PENDING_RETRY;
         }
+        cancelDagNode(dagNode, true);
+        return CANCELLED;
       }
+      if (jobStatus == null) {
+        return PENDING;
+      }
+      return valueOf(jobStatus.getEventName());
     }
 
     /**
@@ -977,7 +989,7 @@ public class DagManager extends AbstractIdleService {
      * @throws ExecutionException exception
      * @throws InterruptedException exception
      */
-    private boolean slaKillIfNeeded(DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
+    private boolean isJobRuntimeSlaExceeded(DagNode<JobExecutionPlan> node) {
       long flowStartTime = DagManagerUtils.getFlowStartTime(node);
       long currentTime = System.currentTimeMillis();
       String dagId = DagManagerUtils.generateDagId(node).toString();
@@ -1003,9 +1015,8 @@ public class DagManager extends AbstractIdleService {
             node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), flowSla,
             node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
         dagManagerMetrics.incrementExecutorSlaExceeded(node);
-        cancelDagNode(node);
 
-        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
         this.dags.get(dagId).setMessage("Flow killed due to exceeding SLA of " + flowSla + " ms");
 
         return true;

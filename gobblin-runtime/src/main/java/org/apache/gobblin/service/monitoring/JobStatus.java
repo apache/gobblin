@@ -56,7 +56,8 @@ public class JobStatus {
   private final int maxAttempts;
   private final int currentAttempts;
   private final int currentGeneration;
-  private final boolean shouldRetry;
+  @Setter
+  private boolean shouldRetry;
   private final Supplier<List<Issue>> issues;
   private final int progressPercentage;
   private final long lastProgressEventTime;

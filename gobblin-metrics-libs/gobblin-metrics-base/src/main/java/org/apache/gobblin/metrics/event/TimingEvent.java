@@ -73,8 +73,6 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String FLOW_FAILED = "FlowFailed";
     public static final String FLOW_RUNNING = "FlowRunning";
     public static final String FLOW_CANCELLED = "FlowCancelled";
-    public static final String FLOW_RUN_DEADLINE_EXCEEDED = "FlowRunDeadlineExceeded";
-    public static final String FLOW_START_DEADLINE_EXCEEDED = "FlowStartDeadlineExceeded";
     public static final String FLOW_PENDING_RESUME = "FlowPendingResume";
   }
 
@@ -97,7 +95,6 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     //This state should always move forward, more details can be found in method {@link KafkaJobStatusMonitor.addJobStatusToStateStore}
     public static final String CURRENT_GENERATION_FIELD = "currentGeneration";
     public static final String SHOULD_RETRY_FIELD = "shouldRetry";
-    public static final String DOES_CANCELED_FLOW_MERIT_RETRY = "doesCancelledFlowMeritRetry";
   }
 
   public static final String METADATA_START_TIME = "startTime";
