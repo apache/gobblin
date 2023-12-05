@@ -521,6 +521,7 @@ public class DagManager extends AbstractIdleService {
           this.flowCompilationValidationHelper.createExecutionPlanIfValid(spec, Optional.absent());
       if (optionalJobExecutionPlanDag.isPresent()) {
         addDag(optionalJobExecutionPlanDag.get(), true, true);
+        this.dagManagerMetrics.incrementSuccessfulLaunchCount();
       } else {
         log.warn("Failed flow compilation of spec causing launch flow event to be skipped on startup. Flow {}", flowId);
         this.dagManagerMetrics.incrementFailedLaunchCount();

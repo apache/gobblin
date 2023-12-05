@@ -84,6 +84,10 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     List<JobExecutionPlan> jobExecutionPlans;
     try {
       jobExecutionPlans = getJobExecutionPlans(source, destination, jobSpec);
+      if (jobExecutionPlans.isEmpty()) {
+        flowSpec.addCompilationError(source, destination,
+            String.format("Could not find path between source: %s and destination: %s", source, destination));
+      }
     } catch (InterruptedException | ExecutionException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);
       throw new RuntimeException("Cannot determine topology capabilities", e);
