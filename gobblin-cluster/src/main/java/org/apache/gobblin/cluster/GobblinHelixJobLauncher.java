@@ -618,6 +618,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(GobblinClusterConfigurationKeys.WORK_UNIT_FILE_PATH);
     final StateStore stateStore;
     Path workUnitFile = new Path(workUnitFilePath);
+    String workUnitId = helixIdTaskConfigMap.get(helixTaskId).getConfigMap().get(ConfigurationKeys.TASK_ID_KEY);
     final String fileName = workUnitFile.getName();
     final String storeName = workUnitFile.getParent().getName();
     if (fileName.endsWith(MULTI_WORK_UNIT_FILE_EXTENSION)) {
@@ -626,9 +627,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       stateStore = stateStores.getWuStateStore();
     }
     try {
-      return (WorkUnit) stateStore.get(storeName, fileName, helixTaskId);
+      return (WorkUnit) stateStore.get(storeName, fileName, workUnitId);
     } catch (IOException ioException) {
-      log.error("Failed to fetch workunit with ID {} from path {}", helixTaskId, helixTaskId);
+      log.error("Failed to fetch workUnit for helix task {} from path {}", helixTaskId, workUnitFilePath);
     }
     return null;
   }
