@@ -119,13 +119,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
   private void initializeMonitor() {
-    // TODO: exclude the dag actions that have a lease in the arbiter store if this is processing too many events
     Collection<DagActionStore.DagAction> dagActions = null;
     try {
       dagActions = dagActionStore.getDagActions();
     } catch (IOException e) {
-      // TODO: handle this exception
-      throw new RuntimeException(e);
+      throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
+          + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
     }
     // TODO: make this multi-threaded to add parallelism
     for (DagActionStore.DagAction action : dagActions) {
@@ -263,6 +262,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
       this.failedLaunchSubmissions.mark();
       return;
+    } finally {
+      // Delete the dag action regardless of whether it was processed successfully to avoid accumulating failure cases
+      try {
+        this.dagActionStore.deleteDagAction(dagAction);
+      } catch (IOException e) {
+        log.warn("Failed to delete dag action from dagActionStore. dagAction: {}", dagAction);
+      }
     }
     // Only mark this if the dag was successfully added
     this.launchesSubmitted.mark();
