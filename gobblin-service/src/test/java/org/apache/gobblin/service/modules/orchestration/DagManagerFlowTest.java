@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
@@ -94,8 +95,6 @@ public class DagManagerFlowTest {
     dagManager.setActive(true);
     this.dagNumThreads = dagManager.getNumThreads();
     Thread.sleep(30000);
-    // On active, should proceed request and delete action entry
-    Assert.assertEquals(dagActionStore.getDagActions().size(), 0);
   }
 
   @AfterClass
@@ -324,6 +323,52 @@ public class DagManagerFlowTest {
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
     Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+  }
+
+  @Test
+  public void testRemoveDagActionAfterKillAndResume() throws Exception {
+    Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("7", flowExecutionId, "FINISH_RUNNING", 1);
+
+    // mock add spec
+    dagManager.addDag(dag, true, true);
+
+    // Retrieve flow info
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+
+    // Add kill action to action store and call kill
+    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.KILL);
+    dagManager.handleKillFlowRequest(flowGroup, flowName, flowExecutionId);
+
+    // Check that the kill dag action is removed
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> {
+      try {
+        return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId),
+            DagActionStore.FlowActionType.KILL);
+      } catch (IOException | SQLException e) {
+        throw new RuntimeException(e);
+      }
+    }, "Kill dag action expected to be removed from dagActionStore after kill"
+        + "is processed");
+
+
+    // Add resume action to action store and call resume
+    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.RESUME);
+    dagManager.handleResumeFlowRequest(flowGroup, flowName, flowExecutionId);
+
+    // Check that the resume dag action is removed
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(input -> {
+          try {
+            return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.RESUME);
+          } catch (IOException | SQLException e) {
+            throw new RuntimeException(e);
+          }
+        },
+        "Resume dag action expected to be removed from dagActionStore after resume"
+            + "is processed");
   }
 }
 

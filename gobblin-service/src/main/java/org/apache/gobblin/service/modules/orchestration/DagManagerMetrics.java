@@ -75,9 +75,6 @@ public class DagManagerMetrics {
   private final Map<String, ContextAwareMeter> executorStartSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorJobSentMeters = Maps.newConcurrentMap();
-
-  // Metrics for unexpected flow handling failures
-  private ContextAwareCounter failedLaunchEventsOnActivationCount;
   MetricContext metricContext;
 
   public DagManagerMetrics(MetricContext metricContext) {
@@ -103,9 +100,6 @@ public class DagManagerMetrics {
           ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER));
       allRunningMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ServiceMetricNames.JOBS_SENT_TO_SPEC_EXECUTOR));
-      failedLaunchEventsOnActivationCount = metricContext.contextAwareCounter(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-              ServiceMetricNames.DAG_MANAGER_FAILED_LAUNCH_EVENTS_ON_STARTUP_COUNT));
     }
   }
 
@@ -202,13 +196,6 @@ public class DagManagerMetrics {
       this.getGroupMeterForDag(flowGroup, ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER, groupStartSlaExceededMeters);
       this.allStartSlaExceededMeter.mark();
       this.getExecutorMeterForDag(node, ServiceMetricNames.START_SLA_EXCEEDED_FLOWS_METER, executorStartSlaExceededMeters).mark();
-    }
-  }
-
-  // Increment the count for num of failed launches during leader activation
-  public void incrementFailedLaunchCount() {
-    if (this.metricContext != null) {
-      this.failedLaunchEventsOnActivationCount.inc();
     }
   }
 

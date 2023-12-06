@@ -45,16 +45,18 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   private DagManager dagManager;
   private FlowCatalog flowCatalog;
   private Orchestrator orchestrator;
+  private DagActionStore dagActionStore;
   private boolean isMultiActiveSchedulerEnabled;
 
   @Inject
-  public DagActionStoreChangeMonitorFactory(Config config, DagActionStore dagActionStore, DagManager dagManager,
-      FlowCatalog flowCatalog, Orchestrator orchestrator,
+  public DagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
+      Orchestrator orchestrator, DagActionStore dagActionStore,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
+    this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
   }
 
@@ -67,13 +69,15 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
     return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagManager, numThreads, flowCatalog,
-        orchestrator, isMultiActiveSchedulerEnabled);
+        orchestrator, dagActionStore, isMultiActiveSchedulerEnabled);
   }
 
   @Override
   public DagActionStoreChangeMonitor get() {
     try {
-      return createDagActionStoreMonitor();
+      DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
+      changeMonitor.initializeMonitor();
+      return changeMonitor;
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to initialize DagActionStoreMonitor due to ", e);
     }
