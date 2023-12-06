@@ -305,7 +305,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     Map<String, String> additionalMetadata = Maps.newHashMap();
 
     Preconditions.checkArgument(!datasetWorkUnitStates.isEmpty(),
-        String.format("[%s] publishFileSet got empty work unit states. This is an error in code."), datasetAndPartition.identifier());
+        String.format("[%s] publishFileSet got empty work unit states. This is an error in code.", datasetAndPartition.identifier()));
 
     WorkUnitStatesHelper statesHelper = new WorkUnitStatesHelper(datasetWorkUnitStates);
     WorkUnitState sampledWorkUnitState =  statesHelper.getAny();
