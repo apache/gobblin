@@ -30,6 +30,7 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
@@ -71,6 +72,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   private volatile Long produceToConsumeDelayValue = -1L;
 
+  protected LaunchSubmissionMetricProxy ON_STARTUP;
+  protected LaunchSubmissionMetricProxy POST_STARTUP;
+
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
     public String load(String key) throws Exception {
@@ -105,8 +109,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.orchestrator = orchestrator;
     this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
-
-    initializeMonitor();
   }
 
   @Override
@@ -119,7 +121,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   /**
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
-  private void initializeMonitor() {
+  protected void initializeMonitor() {
     Collection<DagActionStore.DagAction> dagActions = null;
     try {
       dagActions = dagActionStore.getDagActions();
@@ -129,20 +131,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     }
     // TODO: make this multi-threaded to add parallelism
     for (DagActionStore.DagAction action : dagActions) {
-        switch (action.getFlowActionType()) {
-          case KILL:
-            dagManager.handleKillFlowRequest(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId()));
-            break;
-          case RESUME:
-            dagManager.handleResumeFlowRequest(action.getFlowGroup(), action.getFlowName(), Long.parseLong(action.getFlowExecutionId()));
-            break;
-          case LAUNCH:
-            submitFlowToDagManagerHelper(action, true);
-            break;
-          default:
-            log.warn("Unsupported dagAction: " + action.getFlowActionType().toString());
-        }
-      }
+      handleDagAction(action, true);
+    }
   }
 
   @Override
@@ -189,26 +179,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
       if (operation.equals("INSERT")) {
-        log.info("DagAction change ({}) received for flow: {}", dagActionType, dagAction);
-        if (dagActionType.equals(DagActionStore.FlowActionType.RESUME)) {
-          dagManager.handleResumeFlowRequest(flowGroup, flowName,Long.parseLong(flowExecutionId));
-          this.resumesInvoked.mark();
-        } else if (dagActionType.equals(DagActionStore.FlowActionType.KILL)) {
-          dagManager.handleKillFlowRequest(flowGroup, flowName, Long.parseLong(flowExecutionId));
-          this.killsInvoked.mark();
-        } else if (dagActionType.equals(DagActionStore.FlowActionType.LAUNCH)) {
-          // If multi-active scheduler is NOT turned on we should not receive these type of events
-          if (!this.isMultiActiveSchedulerEnabled) {
-            this.unexpectedErrors.mark();
-            throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
-                + "mode for flowAction: %s", dagAction));
-          }
-          submitFlowToDagManagerHelper(dagAction, false);
-        } else {
-          log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagActionType);
-          this.unexpectedErrors.mark();
-          return;
-        }
+        handleDagAction(dagAction, false);
       } else if (operation.equals("UPDATE")) {
         log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
             + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
@@ -231,11 +202,48 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   }
 
   /**
+   * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
+   * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
+   */
+  private void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
+    log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
+        dagAction.getFlowActionType(), dagAction);
+    if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.RESUME)) {
+      dagManager.handleResumeFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
+          Long.parseLong(dagAction.getFlowExecutionId()));
+      this.resumesInvoked.mark();
+    } else if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.KILL)) {
+      dagManager.handleKillFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
+          Long.parseLong(dagAction.getFlowExecutionId()));
+      this.killsInvoked.mark();
+    } else if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.LAUNCH)) {
+      // If multi-active scheduler is NOT turned on we should not receive these type of events
+      if (!this.isMultiActiveSchedulerEnabled) {
+        this.unexpectedErrors.mark();
+        throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
+            + "mode for flowAction: %s", dagAction));
+      }
+      submitFlowToDagManagerHelper(dagAction, isStartup);
+    } else {
+      log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getFlowActionType());
+      this.unexpectedErrors.mark();
+    }
+  }
+
+  /**
+   * Overloaded method to provide the correct metrics proxy on or post startup
+   */
+  protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction, boolean isLoadedOnStartup) {
+    submitFlowToDagManagerHelper(dagAction, isLoadedOnStartup ? ON_STARTUP : POST_STARTUP);
+  }
+
+  /**
    * Used to forward a launch flow action event from the DagActionStore. Because it may be a completely new DAG not
    * contained in the dagStore, we compile the flow to generate the dag before calling addDag(), handling any errors
    * that may result in the process.
    */
-  protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction, boolean isLoadedOnStartup) {
+  protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction,
+      LaunchSubmissionMetricProxy launchSubmissionMetricProxy) {
     Preconditions.checkArgument(dagAction.getFlowActionType() == DagActionStore.FlowActionType.LAUNCH);
     log.info("Forward launch flow event to DagManager for action {}", dagAction);
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
@@ -248,35 +256,19 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       this.orchestrator.submitFlowToDagManager(spec, dagAction);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
-      if (isLoadedOnStartup) {
-        this.failedLaunchSubmissionsOnStartup.mark();
-      } else {
-        this.failedLaunchSubmissions.mark();
-      }
+      launchSubmissionMetricProxy.markFailure();
       return;
     } catch (SpecNotFoundException e) {
       log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-      if (isLoadedOnStartup) {
-        this.failedLaunchSubmissionsOnStartup.mark();
-      } else {
-        this.failedLaunchSubmissions.mark();
-      }
+      launchSubmissionMetricProxy.markFailure();
       return;
     } catch (IOException e) {
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
-      if (isLoadedOnStartup) {
-        this.failedLaunchSubmissionsOnStartup.mark();
-      } else {
-        this.failedLaunchSubmissions.mark();
-      }
+      launchSubmissionMetricProxy.markFailure();
       return;
     } catch (InterruptedException e) {
       log.warn("SpecCompiler failed to reach healthy state before compilation of flowId {}. Exception: ", flowId, e);
-      if (isLoadedOnStartup) {
-        this.failedLaunchSubmissionsOnStartup.mark();
-      } else {
-        this.failedLaunchSubmissions.mark();
-      }
+      launchSubmissionMetricProxy.markFailure();
       return;
     } finally {
       // Delete the dag action regardless of whether it was processed successfully to avoid accumulating failure cases
@@ -287,12 +279,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       }
     }
     // Only mark this if the dag was successfully added
-    if (isLoadedOnStartup) {
-      this.successfulLaunchSubmissionsOnStartup.mark();
-    } else {
-      this.successfulLaunchSubmissions.mark();
-    }
-    return;
+    launchSubmissionMetricProxy.markSuccess();
   }
 
   @Override
@@ -313,10 +300,28 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.nullDagActionTypeMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_NULL_DAG_ACTION_TYPE_MESSAGES);
     this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
     this.getMetricContext().register(this.produceToConsumeDelayMillis);
+
+    // Setup proxy for launch submission metrics
+    this.ON_STARTUP = new LaunchSubmissionMetricProxy(this.successfulLaunchSubmissionsOnStartup, this.failedLaunchSubmissionsOnStartup);
+    this.POST_STARTUP = new LaunchSubmissionMetricProxy(this.successfulLaunchSubmissions, this.failedLaunchSubmissions);
   }
 
   @Override
   protected String getMetricsPrefix() {
     return RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + ".";
+  }
+
+  @Data
+  private static class LaunchSubmissionMetricProxy {
+    private final ContextAwareMeter successMeter;
+    private final ContextAwareMeter failureMeter;
+
+    public void markSuccess() {
+      getSuccessMeter().mark();
+    }
+
+    public void markFailure() {
+      getFailureMeter().mark();
+    }
   }
 }

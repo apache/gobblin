@@ -75,7 +75,9 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   @Override
   public DagActionStoreChangeMonitor get() {
     try {
-      return createDagActionStoreMonitor();
+      DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
+      changeMonitor.initializeMonitor();
+      return changeMonitor;
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to initialize DagActionStoreMonitor due to ", e);
     }
