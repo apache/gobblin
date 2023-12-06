@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
