@@ -30,6 +30,7 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -72,8 +73,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   private volatile Long produceToConsumeDelayValue = -1L;
 
-  protected LaunchSubmissionMetricProxy ON_STARTUP;
-  protected LaunchSubmissionMetricProxy POST_STARTUP;
+  protected LaunchSubmissionMetricProxy ON_STARTUP = new NullLaunchSubmissionMetricProxy();
+  protected LaunchSubmissionMetricProxy POST_STARTUP = new NullLaunchSubmissionMetricProxy();
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -312,9 +313,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   }
 
   @Data
+  @AllArgsConstructor
   private static class LaunchSubmissionMetricProxy {
-    private final ContextAwareMeter successMeter;
-    private final ContextAwareMeter failureMeter;
+    private ContextAwareMeter successMeter;
+    private ContextAwareMeter failureMeter;
+
+    public LaunchSubmissionMetricProxy() {}
 
     public void markSuccess() {
       getSuccessMeter().mark();
@@ -322,6 +326,18 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
     public void markFailure() {
       getFailureMeter().mark();
+    }
+  }
+
+  private static class NullLaunchSubmissionMetricProxy extends LaunchSubmissionMetricProxy {
+    @Override
+    public void markSuccess() {
+      // do nothing
+    }
+
+    @Override
+    public void markFailure() {
+      // do nothing
     }
   }
 }
