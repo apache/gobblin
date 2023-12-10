@@ -30,7 +30,7 @@ public interface CommitStepWorkflow {
 
     /**
      * Commit the output of the work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
-     * Returns the number of workunits committed
+     * @return number of workunits committed
      */
     @WorkflowMethod
     int commit(WUProcessingSpec workSpec);

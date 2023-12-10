@@ -54,9 +54,14 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     if (workunitsProcessed > 0) {
       CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
       int result = commitWorkflow.commit(workSpec);
+      if (result == 0) {
+        log.warn("No work units committed at the job level. They could be committed at a task level.");
+      }
       return result;
+    } else {
+      log.error("No workunits processed, so no commit will be attempted.");
+      return 0;
     }
-    return workunitsProcessed;
   }
 
   protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {

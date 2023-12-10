@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -30,7 +31,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
@@ -141,7 +141,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         throw new RuntimeException("Could not construct TaskCollectorHandler " + handlerTypeName, rfe);
       }
     } else {
-      optionalTaskCollectorHandler = Optional.absent();
+      optionalTaskCollectorHandler = Optional.empty();
     }
 
     isJobProceedOnCollectorServiceFailure =
@@ -190,13 +190,13 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    */
   private void collectOutputTaskStates() throws IOException {
 
-    final Queue<TaskState> taskStateQueue = deserializeTaskStatesFromFolder(taskStateStore, outputTaskStateDir, this.stateSerDeRunnerThreads);
-    if (taskStateQueue == null) {
+    final Optional<Queue<TaskState>> taskStateQueue = deserializeTaskStatesFromFolder(taskStateStore, outputTaskStateDir.getName(), this.stateSerDeRunnerThreads);
+    if (!taskStateQueue.isPresent()) {
       return;
     }
     // Add the TaskStates of completed tasks to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
-    for (TaskState taskState : taskStateQueue) {
+    for (TaskState taskState : taskStateQueue.get()) {
       consumeTaskIssues(taskState);
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
@@ -212,11 +212,11 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       log.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
 
       try {
-        optionalTaskCollectorHandler.get().handle(taskStateQueue);
+        optionalTaskCollectorHandler.get().handle(taskStateQueue.get());
       } catch (Throwable t) {
         if (isJobProceedOnCollectorServiceFailure) {
           log.error("Failed to commit dataset while job proceeds", t);
-          SafeDatasetCommit.setTaskFailureException(taskStateQueue, t);
+          SafeDatasetCommit.setTaskFailureException(taskStateQueue.get(), t);
         } else {
           throw new RuntimeException("Hive Registration as the TaskStateCollectorServiceHandler failed.", t);
         }
@@ -224,21 +224,21 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     }
 
     // Notify the listeners for the completion of the tasks
-    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
+    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue.get())));
   }
 
   /**
    * Reads in a {@link FsStateStore} folder used to store Task state outputs, and returns a queue of {@link TaskState}s
    * Task State files are populated by the {@link GobblinMultiTaskAttempt} to record the output of remote concurrent tasks (e.g. MR mappers)
    * @param taskStateStore
-   * @param outputTaskStateDir
+   * @param taskStateTableName
    * @param numDeserializerThreads
-   * @return Queue of TaskStates
+   * @return Queue of TaskStates, optional if no task states are found in the provided state store
    * @throws IOException
    */
-  public static Queue<TaskState> deserializeTaskStatesFromFolder(StateStore<TaskState> taskStateStore, Path outputTaskStateDir,
+  public static Optional<Queue<TaskState>> deserializeTaskStatesFromFolder(StateStore<TaskState> taskStateStore, String taskStateTableName,
       int numDeserializerThreads) throws IOException {
-    List<String> taskStateNames = taskStateStore.getTableNames(outputTaskStateDir.getName(), new Predicate<String>() {
+    List<String> taskStateNames = taskStateStore.getTableNames(taskStateTableName, new Predicate<String>() {
       @Override
       public boolean apply(String input) {
         return input != null
@@ -247,8 +247,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       }});
 
     if (taskStateNames == null || taskStateNames.isEmpty()) {
-      log.warn("No output task state files found in " + outputTaskStateDir);
-      return null;
+      log.warn("No output task state files found in " + taskStateTableName);
+      return Optional.empty();
     }
 
     final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
@@ -259,9 +259,9 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         stateSerDeRunner.submitCallable(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
-            TaskState taskState = taskStateStore.getAll(outputTaskStateDir.getName(), taskStateName).get(0);
+            TaskState taskState = taskStateStore.getAll(taskStateTableName, taskStateName).get(0);
             taskStateQueue.add(taskState);
-            taskStateStore.delete(outputTaskStateDir.getName(), taskStateName);
+            taskStateStore.delete(taskStateTableName, taskStateName);
             return null;
           }
         }, "Deserialize state for " + taskStateName);
@@ -270,7 +270,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       log.error("Could not read all task state files due to", ioe);
     }
     log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), outputTaskStateDir));
-    return taskStateQueue;
+    return Optional.of(taskStateQueue);
   }
 
   /**

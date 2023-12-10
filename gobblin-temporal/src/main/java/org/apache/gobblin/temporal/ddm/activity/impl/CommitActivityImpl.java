@@ -18,22 +18,21 @@
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.typesafe.config.ConfigFactory;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
@@ -75,11 +74,14 @@ public class CommitActivityImpl implements CommitActivity {
       Path jobOutputPath = new Path(new Path(jobIdParent, "output"), jobIdParent.getName());
       log.info("Output path at: " + jobOutputPath + " with fs at " + fs.getUri());
       StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
-      Collection<TaskState> taskStateQueue =
-          ImmutableList.copyOf(
-              TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobOutputPath, numDeserializationThreads));
-      commitTaskStates(jobState, taskStateQueue, globalGobblinContext);
-      return taskStateQueue.size();
+      Optional<Queue<TaskState>> taskStateQueue =
+              TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobOutputPath.getName(), numDeserializationThreads);
+      if (!taskStateQueue.isPresent()) {
+        log.error("No task states found at " + jobOutputPath);
+        return 0;
+      }
+      commitTaskStates(jobState, ImmutableList.copyOf(taskStateQueue.get()), globalGobblinContext);
+      return taskStateQueue.get().size();
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
@@ -98,13 +100,16 @@ public class CommitActivityImpl implements CommitActivity {
    * @param jobContext
    * @throws IOException
    */
-  void commitTaskStates(State jobState, Collection<TaskState> taskStates, JobContext jobContext) throws IOException {
+  private void commitTaskStates(State jobState, Collection<TaskState> taskStates, JobContext jobContext) throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(taskStates);
     final boolean shouldCommitDataInJob = JobContext.shouldCommitDataInJob(jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.AT_LEAST_ONCE;
     //TODO: Make this configurable
     final int numCommitThreads = DEFAULT_NUM_COMMIT_THREADS;
     if (!shouldCommitDataInJob) {
+      if (Strings.isNullOrEmpty(jobState.getProp(ConfigurationKeys.JOB_DATA_PUBLISHER_TYPE))) {
+        log.warn("No data publisher is configured for this job. This can lead to non-atomic commit behavior.");
+      }
       log.info("Job will not commit data since data are committed by tasks.");
     }
 
@@ -129,7 +134,7 @@ public class CommitActivityImpl implements CommitActivity {
       IteratorExecutor.logFailures(result, null, 10);
 
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
-        // TODO: propagate cause of failure
+        // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
         String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, "<job_name_stub>");
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
@@ -141,7 +146,7 @@ public class CommitActivityImpl implements CommitActivity {
   /**
    * Organize task states by dataset urns.
    * @param taskStates
-   * @return
+   * @return A map of dataset urns to dataset task states.
    */
   public static Map<String, JobState.DatasetState> createDatasetStatesByUrns(Collection<TaskState> taskStates) {
     Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
@@ -165,12 +170,4 @@ public class CommitActivityImpl implements CommitActivity {
     }
     return datasetUrn;
   }
-
-  private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
-    log.warn("Creating a job specific {}. Objects will only be shared at the job level.",
-        SharedResourcesBroker.class.getSimpleName());
-    return SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(jobProps),
-        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
-  }
-
 }
