@@ -209,7 +209,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Finish any additional steps defined in handler on driver level.
     // Currently implemented handler for Hive registration only.
     if (optionalTaskCollectorHandler.isPresent()) {
-      log.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
+      log.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.get().size() + " tasks");
 
       try {
         optionalTaskCollectorHandler.get().handle(taskStateQueue.get());
@@ -228,7 +228,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   }
 
   /**
-   * Reads in a {@link FsStateStore} folder used to store Task state outputs, and returns a queue of {@link TaskState}s
+   * Reads in a @{@link StateStore} and deserializes all task states found in the provided table name
    * Task State files are populated by the {@link GobblinMultiTaskAttempt} to record the output of remote concurrent tasks (e.g. MR mappers)
    * @param taskStateStore
    * @param taskStateTableName
@@ -269,7 +269,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     } catch (IOException ioe) {
       log.error("Could not read all task state files due to", ioe);
     }
-    log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), outputTaskStateDir));
+    log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), taskStateTableName));
     return Optional.of(taskStateQueue);
   }
 

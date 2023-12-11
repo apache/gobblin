@@ -128,7 +128,8 @@ public class CommitActivityImpl implements CommitActivity {
                       entry.getValue(), false, jobContext);
                 }
               }).iterator(), numCommitThreads,
-          ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("Commit-thread-%d")))
+          // TODO: Rewrite executorUtils to use java util optional
+          ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log), com.google.common.base.Optional.of("Commit-thread-%d")))
           .executeAndGetResults();
 
       IteratorExecutor.logFailures(result, null, 10);
