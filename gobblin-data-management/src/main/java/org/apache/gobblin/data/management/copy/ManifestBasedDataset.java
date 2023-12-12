@@ -176,10 +176,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static boolean shouldCopy(FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, OwnerAndPermission replicatedPermission)
       throws IOException {
-    if (fileInSource.isDirectory() || fileInSource.getModificationTime() == fileInTarget.getModificationTime()) {
-      // if source is dir or source and dst has same version, we compare the permission to determine whether it needs another sync
+    if (fileInSource.isDirectory() || fileInSource.getModificationTime() <= fileInTarget.getModificationTime()) {
+      // even if destination has a newer version than the source, we still copy the file if the owner or permission is different
       return !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
     }
-    return fileInSource.getModificationTime() > fileInTarget.getModificationTime();
+    // Source is newer than the target, must copy
+    return true;
   }
 }
