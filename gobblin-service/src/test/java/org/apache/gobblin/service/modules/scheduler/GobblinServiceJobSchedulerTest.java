@@ -338,6 +338,7 @@ public class GobblinServiceJobSchedulerTest {
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
+    // We need to test adhoc flows since scheduled flows do not have a quota check in the scheduler
     FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"), "flowName0", "group1",
         ConfigFactory.empty(), true);
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"), "flowName1", "group1",
@@ -364,10 +365,9 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
     Assert.assertThrows(RuntimeException.class, () -> scheduler.onAddSpec(flowSpec1));
+    // We don't check scheduledFlowSpecs size here because it results in a flaky timing issue where the spec may be
+    // deleted for adhoc flows before we assert the size.
 
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
-    // Second flow should not be added to scheduled flows since it was rejected
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // set scheduler to be inactive and unschedule flows
     scheduler.setActive(false);
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
