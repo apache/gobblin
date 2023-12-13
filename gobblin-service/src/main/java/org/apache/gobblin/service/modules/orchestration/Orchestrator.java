@@ -238,7 +238,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      Config flowConfig = ((FlowSpec) spec).getConfig();
+      FlowSpec flowSpec = (FlowSpec) spec;
+      Config flowConfig = (flowSpec).getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
@@ -252,7 +253,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
         return;
       }
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
       java.util.Optional<String> flowExecutionId = TimingEventUtils.getFlowExecutionIdFromFlowMetadata(flowMetadata);
 
@@ -303,7 +304,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
         // Depending on if DagManager is present, handle execution
         if (this.dagManager.isPresent()) {
-          submitFlowToDagManager((FlowSpec) spec, jobExecutionPlanDag);
+          submitFlowToDagManager(flowSpec, jobExecutionPlanDag);
         } else {
           // Schedule all compiled JobSpecs on their respective Executor
           for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
@@ -336,6 +337,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
                   + " for flow: " + spec, e);
             }
           }
+          deleteSpecFromCatalogIfAdhoc(flowSpec);
         }
       }
     } else {
@@ -344,6 +346,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  /*
+  Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
+   */
+  private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
+    if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
+    }
   }
 
   public void submitFlowToDagManager(FlowSpec flowSpec, DagActionStore.DagAction flowAction) throws IOException, InterruptedException {
@@ -364,10 +375,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // Send the dag to the DagManager
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
 
-      // Delete spec from flow catalog for adhoc executions after persisting it in DagManager
-      if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
-      }
+      // Adhoc flow can be deleted after persisting it in DagManager
+      deleteSpecFromCatalogIfAdhoc(flowSpec);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);
