@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -176,11 +177,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
 
   private static boolean shouldCopy(FileSystem targetFs, FileStatus fileInSource, FileStatus fileInTarget, OwnerAndPermission replicatedPermission)
       throws IOException {
-    if (fileInSource.isDirectory() || fileInSource.getModificationTime() <= fileInTarget.getModificationTime()) {
-      // even if destination has a newer version than the source, we still copy the file if the owner or permission is different
-      return !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
-    }
-    // Source is newer than the target, must copy
-    return true;
+    // Copy only if source is newer than target or if the owner or permission is different
+    return fileInSource.getModificationTime() > fileInTarget.getModificationTime() || !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
   }
 }
