@@ -375,7 +375,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // Send the dag to the DagManager
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
 
-      // Adhoc flow can be deleted after persisting it in DagManager
+      /*
+      Adhoc flows can be deleted after persisting it in DagManager as the DagManager's failure recovery method ensures
+      it will be executed in the event of downtime. Note that the responsibility of the multi-active scheduler mode ends
+      after this method is completed AND the consumption of a launch type event is committed to the consumer.
+       */
       deleteSpecFromCatalogIfAdhoc(flowSpec);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
