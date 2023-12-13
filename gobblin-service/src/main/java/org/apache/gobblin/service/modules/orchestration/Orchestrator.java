@@ -66,7 +66,6 @@ import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -365,9 +364,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       // Send the dag to the DagManager
       this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
 
-      // Delete spec from flow catalog for an adhoc execution or run immediately execution after persisting it in DagManager
-      if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY) ||
-          PropertiesUtils.getPropAsBoolean(flowSpec.getConfigAsProperties(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+      // Delete spec from flow catalog for adhoc executions after persisting it in DagManager
+      if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
         this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
       }
     } catch (Exception ex) {

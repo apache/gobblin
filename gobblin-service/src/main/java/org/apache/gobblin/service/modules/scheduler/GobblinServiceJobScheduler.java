@@ -113,7 +113,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<HelixManager> helixManager;
   protected final Orchestrator orchestrator;
   protected final Boolean isWarmStandbyEnabled;
-  protected final Boolean isMultiActiveSchedulerEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
   protected final Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
@@ -172,7 +171,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
       @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) throws Exception {
+      Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -187,7 +186,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
     this.isWarmStandbyEnabled = isWarmStandbyEnabled;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.quotaManager = quotaManager;
     this.flowTriggerHandler = flowTriggerHandler;
     // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
@@ -212,12 +210,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, boolean isMultiActiveSchedulerEnabled)
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
         new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log, flowTriggerHandler,
             sharedFlowMetricsSingleton, flowCatalog),
-        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler, isMultiActiveSchedulerEnabled);
+        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -822,10 +820,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
               }
             }
           }
-          // Note that we only remove the spec from the flow catalog for non multi-active-scheduler configuration
-          if (!isMultiActiveSchedulerEnabled) {
-            GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
-          }
+          // Note that we only remove the spec from the flow catalog after it is orchestrated
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
           GobblinServiceJobScheduler.this.lastUpdatedTimeForFlowSpec.remove(specUri.toString());
         }
