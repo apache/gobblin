@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
