@@ -71,14 +71,16 @@ public class IcebergTable {
 
   @Getter
   private final TableIdentifier tableId;
-  /** allow the {@link IcebergCatalog} creating this table to qualify its name when used for lineage, etc. */
+  /** allow the {@link IcebergCatalog} creating this table to qualify its {@link DatasetDescriptor#getName()} used for lineage, etc. */
   private final String datasetDescriptorName;
+  /** allow the {@link IcebergCatalog} creating this table to specify the {@link DatasetDescriptor#getPlatform()} used for lineage, etc. */
+  private final String datasetDescriptorPlatform;
   private final TableOperations tableOps;
   private final String catalogUri;
 
   @VisibleForTesting
   IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
-    this(tableId, tableId.toString(), tableOps, catalogUri);
+    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri);
   }
 
   /** @return metadata info limited to the most recent (current) snapshot */
@@ -194,7 +196,7 @@ public class IcebergTable {
 
   public DatasetDescriptor getDatasetDescriptor(FileSystem fs) {
     DatasetDescriptor descriptor = new DatasetDescriptor(
-        DatasetConstants.PLATFORM_ICEBERG,
+        datasetDescriptorPlatform,
         URI.create(this.catalogUri),
         this.datasetDescriptorName
     );
