@@ -348,15 +348,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  /*
-  Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
-   */
-  private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
-    if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-      this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
-    }
-  }
-
   public void submitFlowToDagManager(FlowSpec flowSpec, DagActionStore.DagAction flowAction) throws IOException, InterruptedException {
     Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
         this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec,
@@ -438,6 +429,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       } catch (Exception e) {
         _log.error(String.format("Could not delete JobSpec: %s for flow: %s", jobSpec, spec), e);
       }
+    }
+  }
+
+  /*
+Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
+ */
+  private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
+    if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
     }
   }
 
