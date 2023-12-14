@@ -34,12 +34,10 @@ import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.commit.SetPermissionCommitStep;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclStatus;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
