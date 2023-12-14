@@ -232,8 +232,7 @@ public class JobExecutionPlanDagFactoryTest {
 
     Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlan));
 
-    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY).length(), 139);
-
+    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY).length(), 142);
   }
 
   @Test
@@ -256,6 +255,28 @@ public class JobExecutionPlanDagFactoryTest {
 
     Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getLong(FlowSpec.MODIFICATION_TIME_KEY), currentTime);
     Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EDGE_ID_KEY), "source:destination:edgeName1");
+  }
+
+  @Test
+  public void testMaintainJobNameInDag() throws Exception {
+    // flowName and flowGroup are both 128 characters long, the maximum for flowName and flowGroup
+    Config flowConfig = ConfigBuilder.create().addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "uwXJwZPAPygvmSAfhtrzXL7ovIEKOBZdulBiNIGzaT7vILrK9QB5EDJj0fc4pkgNHuIKZ3d18TZzyH6a9HpaZACwpWpIpf8SYcSfKtXeoF8IJY064BqEUXR32k3ox31G")
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "4mdfSGSv6GoFW7ICWubN2ORK4s5PMTQ60yIWkcbJOVneTSPn12cXT5ueEgij907tjzLlbcjdVjWFITFf9Y5sB9i0EvKGmTbUF98hJGoQlAhmottaipDEFTdbyzt5Loxg")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?").build();
+
+    Config jobConfig = ConfigBuilder.create()
+        .addPrimitive(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "source:destination:edgeName1")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?")
+        .addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "jobNameTest")
+        .addPrimitive(JobExecutionPlan.JOB_MAINTAIN_JOBNAME, "true").build();
+
+    FlowSpec flowSpec = FlowSpec.builder("testFlowSpec").withConfig(flowConfig).build();
+    JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
+        ConfigValueFactory.fromAnyRef("testUri")), new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty());
+
+    Dag<JobExecutionPlan> dag1 = new JobExecutionPlanDagFactory().createDag(Arrays.asList(jobExecutionPlan));
+
+    Assert.assertEquals(dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY),"jobNameTest");
   }
 
 }
