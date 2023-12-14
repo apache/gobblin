@@ -71,7 +71,7 @@ public class IcebergTable {
 
   @Getter
   private final TableIdentifier tableId;
-  /** allow the {@link IcebergCatalog} creating this table to qualify its {@link DatasetDescriptor#getName()} when used for lineage, etc. */
+  /** allow the {@link IcebergCatalog} creating this table to qualify its {@link DatasetDescriptor#getName()} used for lineage, etc. */
   private final String datasetDescriptorName;
   /** allow the {@link IcebergCatalog} creating this table to specify the {@link DatasetDescriptor#getPlatform()} used for lineage, etc. */
   private final String datasetDescriptorPlatform;
