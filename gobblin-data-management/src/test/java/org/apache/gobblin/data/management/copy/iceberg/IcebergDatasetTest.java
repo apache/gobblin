@@ -117,10 +117,11 @@ public class IcebergDatasetTest {
   public void testGetDatasetDescriptor() throws URISyntaxException {
     TableIdentifier tableId = TableIdentifier.of(testDbName, testTblName);
     String qualifiedTableName = "foo_prefix." + tableId.toString();
-    IcebergTable table = new IcebergTable(tableId, qualifiedTableName, Mockito.mock(TableOperations.class), SRC_CATALOG_URI);
+    String platformName = "Floe";
+    IcebergTable table = new IcebergTable(tableId, qualifiedTableName, platformName, Mockito.mock(TableOperations.class), SRC_CATALOG_URI);
     FileSystem mockFs = Mockito.mock(FileSystem.class);
     Mockito.when(mockFs.getUri()).thenReturn(SRC_FS_URI);
-    DatasetDescriptor expected = new DatasetDescriptor(DatasetConstants.PLATFORM_ICEBERG, URI.create(SRC_CATALOG_URI), qualifiedTableName);
+    DatasetDescriptor expected = new DatasetDescriptor(platformName, URI.create(SRC_CATALOG_URI), qualifiedTableName);
     expected.addMetadata(DatasetConstants.FS_URI, SRC_FS_URI.toString());
     Assert.assertEquals(table.getDatasetDescriptor(mockFs), expected);
   }
