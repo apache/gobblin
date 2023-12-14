@@ -407,6 +407,33 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
+  @Nonnull
+  @Override
+  public MetricContext getMetricContext() {
+    return this.metricContext;
+  }
+
+  @Override
+  public boolean isInstrumentationEnabled() {
+    return null != this.metricContext;
+  }
+
+  @Override
+  public List<Tag<?>> generateTags(State state) {
+    return Collections.emptyList();
+  }
+
+  @Override
+  public void switchMetricContext(List<Tag<?>> tags) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void switchMetricContext(MetricContext context) {
+    throw new UnsupportedOperationException();
+  }
+
+
   private void deleteFromExecutor(Spec spec, Properties headers) {
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
@@ -433,37 +460,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /*
-Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
+   Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
  */
   private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
     if (!flowSpec.getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
     }
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return null != this.metricContext;
-  }
-
-  @Override
-  public List<Tag<?>> generateTags(State state) {
-    return Collections.emptyList();
-  }
-
-  @Override
-  public void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
   }
 }
