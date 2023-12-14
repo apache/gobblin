@@ -338,6 +338,7 @@ public class GobblinServiceJobSchedulerTest {
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
+    // We need to test adhoc flows since scheduled flows do not have a quota check in the scheduler
     FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"), "flowName0", "group1",
         ConfigFactory.empty(), true);
     FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"), "flowName1", "group1",
@@ -354,7 +355,8 @@ public class GobblinServiceJobSchedulerTest {
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler not in warm standby mode
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService,
+        Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
         FlowTriggerHandler.class)));
 
     schedulerService.startAsync().awaitRunning();
@@ -363,17 +365,17 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
     Assert.assertThrows(RuntimeException.class, () -> scheduler.onAddSpec(flowSpec1));
+    // We don't check scheduledFlowSpecs size here because it results in a flaky timing issue where the spec may be
+    // deleted for adhoc flows before we assert the size.
 
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
-    // Second flow should not be added to scheduled flows since it was rejected
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 1);
     // set scheduler to be inactive and unschedule flows
     scheduler.setActive(false);
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
 
     //Mock a GaaS scheduler in warm standby mode, where we don't check quota
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true, Optional.of(Mockito.mock(
+        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), null, mockOrchestrator, schedulerService,
+        Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true, Optional.of(Mockito.mock(
         FlowTriggerHandler.class)));
 
     schedulerWithWarmStandbyEnabled.startUp();
@@ -396,8 +398,8 @@ public class GobblinServiceJobSchedulerTest {
     public TestGobblinServiceJobScheduler(String serviceName, Config config,
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
         SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
-      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService, quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(
-          FlowTriggerHandler.class)));
+      super(serviceName, config, Optional.absent(), flowCatalog, topologyCatalog, orchestrator, schedulerService,
+          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(FlowTriggerHandler.class)));
       if (schedulerService != null) {
         hasScheduler = true;
       }

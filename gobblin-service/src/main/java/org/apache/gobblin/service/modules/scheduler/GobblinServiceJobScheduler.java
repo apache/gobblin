@@ -112,7 +112,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Optional<FlowCatalog> flowCatalog;
   protected final Optional<HelixManager> helixManager;
   protected final Orchestrator orchestrator;
-  protected final Boolean warmStandbyEnabled;
+  protected final Boolean isWarmStandbyEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
   protected final Optional<FlowTriggerHandler> flowTriggerHandler;
   @Getter
@@ -170,7 +170,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Config config,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
-      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean warmStandbyEnabled,
+      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
       Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
@@ -185,7 +185,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.skipSchedulingFlowsAfterNumDays = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
-    this.warmStandbyEnabled = warmStandbyEnabled;
+    this.isWarmStandbyEnabled = isWarmStandbyEnabled;
     this.quotaManager = quotaManager;
     this.flowTriggerHandler = flowTriggerHandler;
     // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
@@ -209,13 +209,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
-      Optional<Logger> log, boolean warmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
+      Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog, topologyCatalog,
         new Orchestrator(config, flowStatusGenerator, topologyCatalog, dagManager, log, flowTriggerHandler,
-            sharedFlowMetricsSingleton),
-        schedulerService, quotaManager, log, warmStandbyEnabled, flowTriggerHandler);
+            sharedFlowMetricsSingleton, flowCatalog),
+        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -560,7 +560,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
     // Check quota limits against adhoc flows before saving the schedule
     // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
-    if (!this.warmStandbyEnabled && !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+    if (!this.isWarmStandbyEnabled && !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       // This block should be reachable only for the execution for the adhoc flows
       // For flow that has scheduler but run-immediately set to be true, we won't check the quota as we will use a different execution id later
       if (quotaManager.isPresent()) {
@@ -820,7 +820,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
               }
             }
           }
-          GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
+          // Note that we only remove the spec from the flow catalog after it is orchestrated
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
           GobblinServiceJobScheduler.this.lastUpdatedTimeForFlowSpec.remove(specUri.toString());
         }

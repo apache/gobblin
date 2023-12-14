@@ -346,13 +346,14 @@ public class GobblinServiceManagerTest {
 
   @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
+    int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties)).setExplain(true);
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // explain job should not be persisted
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0);
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), sizeBeforeTest);
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
@@ -506,7 +507,7 @@ null, null, null, null);
             "Waiting for job to get orchestrated...");
   }
 
-  @Test
+  @Test (dependsOnMethods = "testGitCreate")
   public void testBadGet() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
@@ -520,7 +521,7 @@ null, null, null, null);
     Assert.fail("Get should have raised a 404 error");
   }
 
-  @Test
+  @Test (dependsOnMethods = "testBadGet")
   public void testBadDelete() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
@@ -534,7 +535,7 @@ null, null, null, null);
     Assert.fail("Get should have raised a 404 error");
   }
 
-  @Test
+  @Test (dependsOnMethods = "testBadDelete")
   public void testBadUpdate() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1b");
