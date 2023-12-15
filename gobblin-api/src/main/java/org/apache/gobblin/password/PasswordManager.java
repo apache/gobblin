@@ -113,6 +113,7 @@ public class PasswordManager {
       try (Closer closer = Closer.create()) {
         if (!fs.exists(currentMasterPasswordFile) ||
             fs.getFileStatus(currentMasterPasswordFile).isDirectory()) {
+          LOG.warn("Master password path '" + currentMasterPasswordFile + "' not a FileSystem file.");
           continue;
         }
         InputStream in = closer.register(fs.open(currentMasterPasswordFile));
@@ -124,18 +125,23 @@ public class PasswordManager {
         suffix = "." + String.valueOf(i);
       } catch (FileNotFoundException fnf) {
         // It is ok for password files not being present
-        LOG.warn("Master password file " + currentMasterPasswordFile + " not found.");
+        LOG.warn("Master password file '" + currentMasterPasswordFile + "' not found.");
       } catch (IOException ioe) {
         exception = ioe;
-        LOG.warn("Master password could not be read from file " + currentMasterPasswordFile);
+        LOG.warn("Master password file could not be read from '" + currentMasterPasswordFile + "'");
       } catch (Exception e) {
-        LOG.warn("Encryptor could not be instantiated.");
+        LOG.warn("Encryptor could not be instantiated using file '" + currentMasterPasswordFile + "'.", e);
       }
     } while (i++ < numOfEncryptionKeys);
 
     // Throw exception if could not read any existing password file
-    if (encryptors.size() < 1 && exception != null) {
-      throw new RuntimeException("Master Password could not be read from any master password file.", exception);
+    if (encryptors.size() < 1) {
+      if (exception != null) {
+        throw new RuntimeException("Master password could not be read from any master password file.", exception);
+      } else {
+        // TODO: determine whether to always throw whenever no encryptors, despite `exception == null`!  (for now, at least give notice by logging)
+        LOG.error("No master password loaded, despite " + numOfEncryptionKeys + " encryption keys!");
+      }
     }
     return encryptors;
   }

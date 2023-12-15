@@ -720,6 +720,8 @@ public class DagManager extends AbstractIdleService {
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
+      } else {
+        log.warn("No Job future when canceling DAG node (hence, not sending cancellation event) - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
       }
       if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
         props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
