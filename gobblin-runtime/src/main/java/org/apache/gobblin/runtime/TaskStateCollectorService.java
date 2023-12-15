@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -29,10 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Queues;
@@ -67,8 +65,6 @@ import org.apache.gobblin.util.ParallelRunner;
  */
 @Slf4j
 public class TaskStateCollectorService extends AbstractScheduledService {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(TaskStateCollectorService.class);
 
   private final JobState jobState;
 
@@ -145,7 +141,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         throw new RuntimeException("Could not construct TaskCollectorHandler " + handlerTypeName, rfe);
       }
     } else {
-      optionalTaskCollectorHandler = Optional.absent();
+      optionalTaskCollectorHandler = Optional.empty();
     }
 
     isJobProceedOnCollectorServiceFailure =
@@ -166,13 +162,13 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
   @Override
   protected void startUp() throws Exception {
-    LOGGER.info("Starting the " + TaskStateCollectorService.class.getSimpleName());
+    log.info("Starting the " + TaskStateCollectorService.class.getSimpleName());
     super.startUp();
   }
 
   @Override
   protected void shutDown() throws Exception {
-    LOGGER.info("Stopping the " + TaskStateCollectorService.class.getSimpleName());
+    log.info("Stopping the " + TaskStateCollectorService.class.getSimpleName());
     try {
       runOneIteration();
     } finally {
@@ -193,42 +189,14 @@ public class TaskStateCollectorService extends AbstractScheduledService {
    * @throws IOException if it fails to collect the output {@link TaskState}s
    */
   private void collectOutputTaskStates() throws IOException {
-    List<String> taskStateNames = taskStateStore.getTableNames(outputTaskStateDir.getName(), new Predicate<String>() {
-      @Override
-      public boolean apply(String input) {
-        return input.endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
-        && !input.startsWith(FsStateStore.TMP_FILE_PREFIX);
-      }});
 
-    if (taskStateNames == null || taskStateNames.size() == 0) {
-      LOGGER.debug("No output task state files found in " + this.outputTaskStateDir);
+    final Optional<Queue<TaskState>> taskStateQueue = deserializeTaskStatesFromFolder(taskStateStore, outputTaskStateDir.getName(), this.stateSerDeRunnerThreads);
+    if (!taskStateQueue.isPresent()) {
       return;
     }
-
-    final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
-    try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, null)) {
-      for (final String taskStateName : taskStateNames) {
-        LOGGER.debug("Found output task state file " + taskStateName);
-        // Deserialize the TaskState and delete the file
-        stateSerDeRunner.submitCallable(new Callable<Void>() {
-          @Override
-          public Void call() throws Exception {
-            TaskState taskState = taskStateStore.getAll(outputTaskStateDir.getName(), taskStateName).get(0);
-            taskStateQueue.add(taskState);
-            taskStateStore.delete(outputTaskStateDir.getName(), taskStateName);
-            return null;
-          }
-        }, "Deserialize state for " + taskStateName);
-      }
-    } catch (IOException ioe) {
-      LOGGER.warn("Could not read all task state files.");
-    }
-
-    LOGGER.info(String.format("Collected task state of %d completed tasks", taskStateQueue.size()));
-
     // Add the TaskStates of completed tasks to the JobState so when the control
     // returns to the launcher, it sees the TaskStates of all completed tasks.
-    for (TaskState taskState : taskStateQueue) {
+    for (TaskState taskState : taskStateQueue.get()) {
       consumeTaskIssues(taskState);
       taskState.setJobState(this.jobState);
       this.jobState.addTaskState(taskState);
@@ -241,14 +209,14 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     // Finish any additional steps defined in handler on driver level.
     // Currently implemented handler for Hive registration only.
     if (optionalTaskCollectorHandler.isPresent()) {
-      LOGGER.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");
+      log.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.get().size() + " tasks");
 
       try {
-        optionalTaskCollectorHandler.get().handle(taskStateQueue);
+        optionalTaskCollectorHandler.get().handle(taskStateQueue.get());
       } catch (Throwable t) {
         if (isJobProceedOnCollectorServiceFailure) {
           log.error("Failed to commit dataset while job proceeds", t);
-          SafeDatasetCommit.setTaskFailureException(taskStateQueue, t);
+          SafeDatasetCommit.setTaskFailureException(taskStateQueue.get(), t);
         } else {
           throw new RuntimeException("Hive Registration as the TaskStateCollectorServiceHandler failed.", t);
         }
@@ -256,7 +224,53 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     }
 
     // Notify the listeners for the completion of the tasks
-    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue)));
+    this.eventBus.post(new NewTaskCompletionEvent(ImmutableList.copyOf(taskStateQueue.get())));
+  }
+
+  /**
+   * Reads in a {@link StateStore} and deserializes all task states found in the provided table name
+   * Task State files are populated by the {@link GobblinMultiTaskAttempt} to record the output of remote concurrent tasks (e.g. MR mappers)
+   * @param taskStateStore
+   * @param taskStateTableName
+   * @param numDeserializerThreads
+   * @return Queue of TaskStates, optional if no task states are found in the provided state store
+   * @throws IOException
+   */
+  public static Optional<Queue<TaskState>> deserializeTaskStatesFromFolder(StateStore<TaskState> taskStateStore, String taskStateTableName,
+      int numDeserializerThreads) throws IOException {
+    List<String> taskStateNames = taskStateStore.getTableNames(taskStateTableName, new Predicate<String>() {
+      @Override
+      public boolean apply(String input) {
+        return input != null
+            && input.endsWith(AbstractJobLauncher.TASK_STATE_STORE_TABLE_SUFFIX)
+            && !input.startsWith(FsStateStore.TMP_FILE_PREFIX);
+      }});
+
+    if (taskStateNames == null || taskStateNames.isEmpty()) {
+      log.warn("No output task state files found in " + taskStateTableName);
+      return Optional.empty();
+    }
+
+    final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
+    try (ParallelRunner stateSerDeRunner = new ParallelRunner(numDeserializerThreads, null)) {
+      for (final String taskStateName : taskStateNames) {
+        log.debug("Found output task state file " + taskStateName);
+        // Deserialize the TaskState and delete the file
+        stateSerDeRunner.submitCallable(new Callable<Void>() {
+          @Override
+          public Void call() throws Exception {
+            TaskState taskState = taskStateStore.getAll(taskStateTableName, taskStateName).get(0);
+            taskStateQueue.add(taskState);
+            taskStateStore.delete(taskStateTableName, taskStateName);
+            return null;
+          }
+        }, "Deserialize state for " + taskStateName);
+      }
+    } catch (IOException ioe) {
+      log.error("Could not read all task state files due to", ioe);
+    }
+    log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), taskStateTableName));
+    return Optional.of(taskStateQueue);
   }
 
   /**
@@ -267,7 +281,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   private void reportJobProgress(TaskState taskState) {
     String stringSize = taskState.getProp(ServiceConfigKeys.WORK_UNIT_SIZE);
     if (stringSize == null) {
-      LOGGER.warn("Expected to report job progress but work unit byte size property null");
+      log.warn("Expected to report job progress but work unit byte size property null");
       return;
     }
 
@@ -275,7 +289,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
 
     // If progress reporting is enabled, value should be present
     if (!this.jobState.contains(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE)) {
-      LOGGER.warn("Expected to report job progress but total bytes to copy property null");
+      log.warn("Expected to report job progress but total bytes to copy property null");
       return;
     }
     this.totalSizeToCopy = this.jobState.getPropAsLong(ServiceConfigKeys.TOTAL_WORK_UNIT_SIZE);
@@ -287,7 +301,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       this.workUnitsCompletedSoFar += 1;
 
       if (this.totalNumWorkUnits == 0) {
-        LOGGER.warn("Expected to report job progress but work units are not countable");
+        log.warn("Expected to report job progress but work units are not countable");
         return;
       }
       newPercentageCopied = this.workUnitsCompletedSoFar / this.totalNumWorkUnits;
@@ -307,7 +321,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       Map<String, String> progress = new HashMap<>();
       progress.put(TimingEvent.JOB_COMPLETION_PERCENTAGE, String.valueOf(percentageToReport));
 
-      LOGGER.info("Sending copy progress event with percentage " + percentageToReport + "%");
+      log.info("Sending copy progress event with percentage " + percentageToReport + "%");
       new TimingEvent(this.eventSubmitter, TimingEvent.JOB_COMPLETION_PERCENTAGE).stop(progress);
     }
   }
