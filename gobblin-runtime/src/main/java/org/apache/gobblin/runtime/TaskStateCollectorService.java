@@ -228,7 +228,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   }
 
   /**
-   * Reads in a @{@link StateStore} and deserializes all task states found in the provided table name
+   * Reads in a {@link StateStore} and deserializes all task states found in the provided table name
    * Task State files are populated by the {@link GobblinMultiTaskAttempt} to record the output of remote concurrent tasks (e.g. MR mappers)
    * @param taskStateStore
    * @param taskStateTableName

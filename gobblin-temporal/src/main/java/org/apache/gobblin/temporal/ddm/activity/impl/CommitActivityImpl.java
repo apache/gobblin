@@ -74,14 +74,15 @@ public class CommitActivityImpl implements CommitActivity {
       Path jobOutputPath = new Path(new Path(jobIdParent, "output"), jobIdParent.getName());
       log.info("Output path at: " + jobOutputPath + " with fs at " + fs.getUri());
       StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
-      Optional<Queue<TaskState>> taskStateQueue =
+      Optional<Queue<TaskState>> taskStateQueueOpt =
               TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobOutputPath.getName(), numDeserializationThreads);
-      if (!taskStateQueue.isPresent()) {
+      if (!taskStateQueueOpt.isPresent()) {
         log.error("No task states found at " + jobOutputPath);
         return 0;
       }
-      commitTaskStates(jobState, ImmutableList.copyOf(taskStateQueue.get()), globalGobblinContext);
-      return taskStateQueue.get().size();
+      Queue<TaskState> taskStateQueue = taskStateQueueOpt.get();
+      commitTaskStates(jobState, ImmutableList.copyOf(taskStateQueue), globalGobblinContext);
+      return taskStateQueue.size();
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(

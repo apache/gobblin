@@ -59,7 +59,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       }
       return result;
     } else {
-      log.error("No workunits processed, so no commit will be attempted.");
+      log.error("No work units processed, so no commit attempted.");
       return 0;
     }
   }
