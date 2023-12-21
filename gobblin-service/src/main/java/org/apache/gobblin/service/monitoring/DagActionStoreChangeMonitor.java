@@ -123,6 +123,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
   protected void initializeMonitor() {
+    // These metrics need to be created before handleDagAction() is called on any dagAction
     createDagActionMetrics();
     Collection<DagActionStore.DagAction> dagActions = null;
     try {
