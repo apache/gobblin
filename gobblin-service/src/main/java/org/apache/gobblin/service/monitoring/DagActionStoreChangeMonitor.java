@@ -110,6 +110,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.orchestrator = orchestrator;
     this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+
+    /*
+    Metrics need to be created before initializeMonitor() below is called (or more specifically handleDagAction() is
+    called on any dagAction)
+     */
+    buildMetricsContextAndMetrics();
   }
 
   @Override
@@ -123,8 +129,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
   protected void initializeMonitor() {
-    // These metrics need to be created before handleDagAction() is called on any dagAction
-    createDagActionMetrics();
     Collection<DagActionStore.DagAction> dagActions = null;
     try {
       dagActions = dagActionStore.getDagActions();
@@ -136,6 +140,23 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     for (DagActionStore.DagAction action : dagActions) {
       handleDagAction(action, true);
     }
+  }
+
+  /*
+   Override this method to do the same sequence as the parent class, except create metrics. Instead, we create metrics
+   earlier upon class initialization because they are used immediately as dag actions are loaded and processed from
+   the DagActionStore.
+  */
+  @Override
+  protected void startUp() {
+    // Method that starts threads that processes queues
+    processQueues();
+    // Main thread that constantly polls messages from kafka
+    consumerExecutor.execute(() -> {
+      while (!shutdownRequested) {
+        consume();
+      }
+    });
   }
 
   @Override
@@ -288,13 +309,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @Override
   protected void createMetrics() {
     super.createMetrics();
-  }
-
-  /*
-  A separate function is needed to create these metrics when the monitor is initialized because they are used
-  immediately as dag actions are processed upon loading from the DagActionStore.
-  */
-  private void createDagActionMetrics() {
     // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
