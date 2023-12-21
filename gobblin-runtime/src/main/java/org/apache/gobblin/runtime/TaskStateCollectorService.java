@@ -280,7 +280,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         }, "Deserialize state for " + taskStateName);
       }
     } catch (IOException ioe) {
-      log.error("Could not read all task state files due to", ioe);
+      log.error("Could not read all task state files [missing final total: " + numStateStoreMissing.get() + "] - ", ioe);
     }
     log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), taskStateTableName));
     return Optional.of(taskStateQueue);
