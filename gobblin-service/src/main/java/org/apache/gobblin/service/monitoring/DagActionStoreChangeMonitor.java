@@ -123,6 +123,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
   protected void initializeMonitor() {
+    createDagActionMetrics();
     Collection<DagActionStore.DagAction> dagActions = null;
     try {
       dagActions = dagActionStore.getDagActions();
@@ -286,6 +287,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @Override
   protected void createMetrics() {
     super.createMetrics();
+  }
+
+  /*
+  A separate function is needed to create these metrics when the monitor is initialized because they are used
+  immediately as dag actions are processed upon loading from the DagActionStore.
+  */
+  private void createDagActionMetrics() {
     // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
