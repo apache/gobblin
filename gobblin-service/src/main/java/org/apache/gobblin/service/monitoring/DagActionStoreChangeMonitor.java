@@ -110,6 +110,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.orchestrator = orchestrator;
     this.dagActionStore = dagActionStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+
+    /*
+    Metrics need to be created before initializeMonitor() below is called (or more specifically handleDagAction() is
+    called on any dagAction)
+     */
+    buildMetricsContextAndMetrics();
   }
 
   @Override
@@ -134,6 +140,23 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     for (DagActionStore.DagAction action : dagActions) {
       handleDagAction(action, true);
     }
+  }
+
+  /*
+   Override this method to do the same sequence as the parent class, except create metrics. Instead, we create metrics
+   earlier upon class initialization because they are used immediately as dag actions are loaded and processed from
+   the DagActionStore.
+  */
+  @Override
+  protected void startUp() {
+    // Method that starts threads that processes queues
+    processQueues();
+    // Main thread that constantly polls messages from kafka
+    consumerExecutor.execute(() -> {
+      while (!shutdownRequested) {
+        consume();
+      }
+    });
   }
 
   @Override

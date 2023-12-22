@@ -99,7 +99,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   protected Counter messagesRead;
   @Getter
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
-  private final ScheduledExecutorService consumerExecutor;
+  protected final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
   private final BlockingQueue[] queues;
   private ContextAwareGauge[] queueSizeGauges;
@@ -253,7 +253,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    * Note: All records from a KafkaPartition are added to the same queue.
    * A queue can contain records from multiple partitions if partitions > numThreads(queues)
    */
-  private void consume() {
+  protected void consume() {
     try {
       Iterator<KafkaConsumerRecord> itr = gobblinKafkaConsumerClient.consume();
       // TODO: we may be committing too early and only want to commit after process messages
@@ -275,7 +275,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
    * Assigns a queue to each thread of the {@link #queueExecutor}
    * Note: Assumption here is that {@link #numThreads} is same a number of queues
    */
-  private void processQueues() {
+  protected void processQueues() {
     for(BlockingQueue queue : queues) {
       queueExecutor.execute(new QueueProcessor(queue));
     }
