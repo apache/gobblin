@@ -27,6 +27,7 @@ import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -42,6 +43,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.RuntimeExceptionWithoutStackTrace;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
@@ -50,6 +52,7 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ParallelRunner;
@@ -252,6 +255,8 @@ public class TaskStateCollectorService extends AbstractScheduledService {
     }
 
     final Queue<TaskState> taskStateQueue = Queues.newConcurrentLinkedQueue();
+    AtomicLong numStateStoreMissing = new AtomicLong(0L);
+    GrowthMilestoneTracker growthTracker = new GrowthMilestoneTracker();
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(numDeserializerThreads, null)) {
       for (final String taskStateName : taskStateNames) {
         log.debug("Found output task state file " + taskStateName);
@@ -259,15 +264,23 @@ public class TaskStateCollectorService extends AbstractScheduledService {
         stateSerDeRunner.submitCallable(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
-            TaskState taskState = taskStateStore.getAll(taskStateTableName, taskStateName).get(0);
-            taskStateQueue.add(taskState);
+            List<TaskState> matchingTaskStates = taskStateStore.getAll(taskStateTableName, taskStateName);
+            if (matchingTaskStates.isEmpty()) {
+              long currNumMissing = numStateStoreMissing.incrementAndGet();
+              // only log selective milestones to avoid flooding log w/ O(100k) stacktraces
+              if (growthTracker.isAnotherMilestone(currNumMissing)) {
+                throw new RuntimeExceptionWithoutStackTrace("missing task state [running total: " + currNumMissing + "] - " + taskStateName);
+              }
+              return null; // otherwise, when not a milestone, silently skip
+            }
+            taskStateQueue.add(matchingTaskStates.get(0));
             taskStateStore.delete(taskStateTableName, taskStateName);
             return null;
           }
         }, "Deserialize state for " + taskStateName);
       }
     } catch (IOException ioe) {
-      log.error("Could not read all task state files due to", ioe);
+      log.error("Could not read all task state files [missing final total: " + numStateStoreMissing.get() + "] - ", ioe);
     }
     log.info(String.format("Collected task state of %d completed tasks in %s", taskStateQueue.size(), taskStateTableName));
     return Optional.of(taskStateQueue);
