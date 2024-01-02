@@ -432,7 +432,11 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "org.apache.gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
-  public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.path.type";
+
+  @Deprecated // Use WRITER_FILE_PATH instead as configuration is not type safe with WRITER_FILE_PATH when stored in config
+  public static final String WRITER_FILE_PATH_TYPE_DEPRECATED = WRITER_PREFIX + ".file.path.type";
+
+  public static final String WRITER_FILE_PATH_TYPE = WRITER_PREFIX + ".file.pathType";
   public static final String WRITER_FILE_OWNER = WRITER_PREFIX + ".file.owner";
   public static final String WRITER_FILE_GROUP = WRITER_PREFIX + ".file.group";
   public static final String WRITER_FILE_REPLICATION_FACTOR = WRITER_PREFIX + ".file.replication.factor";
