@@ -19,6 +19,7 @@ package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,7 @@ import java.util.function.BiConsumer;
 import lombok.SneakyThrows;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
+import org.apache.gobblin.util.deprecation.DeprecationUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -175,6 +177,8 @@ public class WriterUtils {
   }
 
   private static WriterFilePathType getWriterFilePathType(State state) {
+    DeprecationUtils.renameDeprecatedKeys(state, ConfigurationKeys.WRITER_FILE_PATH_TYPE,
+        Arrays.asList(ConfigurationKeys.WRITER_FILE_PATH_TYPE_DEPRECATED));
     String pathTypeStr =
         state.getProp(ConfigurationKeys.WRITER_FILE_PATH_TYPE, ConfigurationKeys.DEFAULT_WRITER_FILE_PATH_TYPE);
     return WriterFilePathType.valueOf(pathTypeStr.toUpperCase());
