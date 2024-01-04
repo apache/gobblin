@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import lombok.Getter;
 import org.apache.gobblin.source.InfiniteSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ import org.apache.gobblin.source.workunit.WorkUnitStream;
 public class SourceDecorator<S, D> implements WorkUnitStreamSource<S, D>, Decorator {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDecorator.class);
 
+  @Getter
   private final Source<S, D> source;
   private final String jobId;
   private final Logger logger;

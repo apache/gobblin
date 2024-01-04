@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.PriorityQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.hadoop.fs.Path;
 
@@ -134,6 +135,10 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String MIN_WORKUNIT_SIZE_KEY = "gobblin.kafka.minWorkUnitSize";
 
   private static final String NUM_CONTAINERS_EVENT_NAME = "NumContainers";
+
+  // id to append to the task output directory to make it unique to avoid multiple flush publishers attempting to move
+  // the same file. Make it static and atomic as during runtime packing can happen multiple times simultaneously
+  private static AtomicInteger uniqueId = new AtomicInteger(0);
 
   private final long packingStartTimeMillis;
   private final double minimumContainerCapacity;
@@ -305,7 +310,8 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
 
   private Double getDefaultWorkUnitSize() {
     return state.getPropAsDouble(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY,
-        KafkaTopicGroupingWorkUnitPacker.DEFAULT_CONTAINER_CAPACITY) / state.getPropAsDouble(DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER_KEY, DEFAULT_DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER);
+        KafkaTopicGroupingWorkUnitPacker.DEFAULT_CONTAINER_CAPACITY) /
+        state.getPropAsDouble(DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER_KEY, DEFAULT_DEFAULT_NUM_TOPIC_PARTITIONS_PER_CONTAINER);
   }
 
   /**
@@ -339,9 +345,6 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
     if (state.getPropAsBoolean(INDEXING_ENABLED, DEFAULT_INDEXING_ENABLED)) {
       List<WorkUnit> indexedWorkUnitList = new ArrayList<>();
 
-      // id to append to the task output directory to make it unique to avoid multiple flush publishers
-      // attempting to move the same file.
-      int uniqueId = 0;
       for (MultiWorkUnit mwu : multiWorkUnits) {
         // Select a sample WU.
         WorkUnit indexedWorkUnit = mwu.getWorkUnits().get(0);
@@ -355,7 +358,8 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
 
         // Need to make the task output directory unique to file move conflicts in the flush publisher.
         String outputDir = state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR);
-        indexedWorkUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(outputDir, Integer.toString(uniqueId++)));
+        indexedWorkUnit.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR,
+            new Path(outputDir, Integer.toString(uniqueId.getAndIncrement())));
         indexedWorkUnitList.add(indexedWorkUnit);
       }
       return indexedWorkUnitList;

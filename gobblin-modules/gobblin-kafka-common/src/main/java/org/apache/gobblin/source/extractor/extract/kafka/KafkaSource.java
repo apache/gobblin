@@ -244,10 +244,17 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       Collection<KafkaTopic> topics;
       if(filteredTopicPartition.isPresent()) {
-        // If filteredTopicPartition present, use it to construct the whitelist pattern while leave blacklist empty
-        topics = this.kafkaConsumerClient.get().getFilteredTopics(Collections.emptyList(),
-            filteredTopicPartitionMap.keySet().stream().map(Pattern::compile).collect(Collectors.toList()));
+        if(filteredTopicPartition.get().isEmpty()) {
+          // return an empty list as filteredTopicPartition is present but contains no valid entry
+          return new ArrayList<>();
+        } else {
+          // If filteredTopicPartition present, use it to construct the whitelist pattern while leave blacklist empty
+          topics = this.kafkaConsumerClient.get()
+              .getFilteredTopics(Collections.emptyList(),
+                  filteredTopicPartitionMap.keySet().stream().map(Pattern::compile).collect(Collectors.toList()));
+        }
       } else {
+        // get topics based on job level config
         topics = getValidTopics(getFilteredTopics(state), state);
       }
       this.topicsToProcess = topics.stream().map(KafkaTopic::getName).collect(toSet());
@@ -263,6 +270,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
       int numOfThreads = state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
           ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT);
+      // No need to allocate more thread than the topic size, but minimum should 1
+      numOfThreads = Math.max(Math.min(numOfThreads, topics.size()), 1);
       ExecutorService threadPool =
           Executors.newFixedThreadPool(numOfThreads, ExecutorsUtils.newThreadFactory(Optional.of(LOG)));
 
@@ -277,7 +286,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
 
       for (KafkaTopic topic : topics) {
-        LOG.info("Discovered topic " + topic);
+        LOG.info("Discovered topic {} with {} number of partitions", topic.getName(), topic.getPartitions().size());
         if (topic.getTopicSpecificState().isPresent()) {
           topicSpecificStateMap.computeIfAbsent(topic.getName(), k -> new State())
               .addAllIfNotExist(topic.getTopicSpecificState().get());
@@ -343,6 +352,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   protected void populateClientPool(int count,
       GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory,
       Config config) {
+    // Clear the pool first as clients within may already be close
+    kafkaConsumerClientPool.clear();
     for (int i = 0; i < count; i++) {
       kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
     }

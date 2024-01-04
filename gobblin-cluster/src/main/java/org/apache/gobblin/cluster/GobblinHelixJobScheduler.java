@@ -275,13 +275,14 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     Properties combinedProps = new Properties();
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
-
-    return new GobblinHelixJobLauncher(combinedProps,
+    GobblinHelixJobLauncher gobblinHelixJobLauncher = new GobblinHelixJobLauncher(combinedProps,
         this.jobHelixManager,
         this.appWorkDir,
         this.metadataTags,
         this.jobRunningMap,
         Optional.of(this.helixMetrics));
+    this.eventBus.register(gobblinHelixJobLauncher);
+    return gobblinHelixJobLauncher;
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {

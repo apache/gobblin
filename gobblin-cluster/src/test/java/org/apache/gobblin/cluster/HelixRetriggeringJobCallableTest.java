@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import com.google.common.eventbus.EventBus;
 import java.io.File;
 import java.util.Optional;
 import java.util.Properties;
@@ -59,8 +60,8 @@ public class HelixRetriggeringJobCallableTest {
     MutableJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
     SchedulerService schedulerService = new SchedulerService(new Properties());
     Path appWorkDir = new Path(TMP_DIR);
-    GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), getMockHelixManager(), Optional.empty(), null,
-        appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
+    GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), getMockHelixManager(), Optional.empty(),
+        new EventBus("Test"), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
     GobblinHelixJobLauncher jobLauncher = HelixRetriggeringJobCallable.buildJobLauncherForCentralizedMode(jobScheduler, getDummyJob());
     String jobId = jobLauncher.getJobId();
     Assert.assertNotNull(jobId);
