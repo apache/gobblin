@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -68,21 +69,17 @@ public class DagManagerUtils {
     return getFlowId(dag.getStartNodes().get(0));
   }
 
-  public static DagActionStore.DagAction createDagAction(Dag<JobExecutionPlan> dag, DagActionStore.FlowActionType flowActionType) {
-    return createDagAction(dag.getStartNodes().get(0), flowActionType);
-  }
-
-  public static DagActionStore.DagAction createDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionStore.FlowActionType flowActionType) {
-    return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, flowActionType);
+  public static DagActionStore.DagAction createDagActionFromDag(Dag<JobExecutionPlan> dag, DagActionStore.FlowActionType flowActionType) {
+    return createDagActionFromDagNode(dag.getStartNodes().get(0), flowActionType);
   }
 
   // todo - dag action object does not have any identifier to tell if it is for a complete dag or just for one dag node
-  public static DagActionStore.DagAction createDagAction(DagNode<JobExecutionPlan> dagNode, DagActionStore.FlowActionType flowActionType) {
+  public static DagActionStore.DagAction createDagActionFromDagNode(DagNode<JobExecutionPlan> dagNode, DagActionStore.FlowActionType flowActionType) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName =  jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     String flowExecutionId = jobConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-    return createDagAction(flowGroup, flowName, flowExecutionId, flowActionType);
+    return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, flowActionType);
   }
 
   static FlowId getFlowId(DagNode<JobExecutionPlan> dagNode) {
@@ -136,10 +133,6 @@ public class DagManagerUtils {
 
   public static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
-  }
-
-  public static String generateDagNodeId(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
-    return Dag.DagNode.createId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
   }
 
   /**
@@ -397,14 +390,12 @@ public class DagManagerUtils {
     }
   }
 
-  public static void submitInitializationEventsAndSetStatus(Dag<JobExecutionPlan> dag, Optional<EventSubmitter> eventSubmitter) {
-    if (eventSubmitter.isPresent()) {
-      for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-        JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
-        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-        eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
-        jobExecutionPlan.setExecutionStatus(PENDING);
-      }
+  public static void submitAndSet(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) {
+    for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
+      JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+      eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
+      jobExecutionPlan.setExecutionStatus(PENDING);
     }
   }
 
@@ -454,5 +445,19 @@ public class DagManagerUtils {
   public static boolean hasRunningJobs(String dagId, Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs) {
     List<DagNode<JobExecutionPlan>> dagNodes = dagToJobs.get(dagId);
     return dagNodes != null && !dagNodes.isEmpty();
+  }
+
+  public static String calcJobId(Config jobConfig) {
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName =jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
+    String jobGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_GROUP_KEY, "");
+    String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
+
+    return calcJobId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
+  }
+
+  public static String calcJobId(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
+    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
   }
 }

@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,19 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.typesafe.config.Config;
-
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -261,15 +253,12 @@ public class Dag<T> {
     private T value;
     //List of parent Nodes that are dependencies of this Node.
     private List<DagNode<T>> parentNodes;
-    private String id;
 
     //Constructor
     public DagNode(T value) {
       this.value = value;
-      if (this.getValue() instanceof JobExecutionPlan) {
-        this.id = createId(((JobExecutionPlan) this.getValue()).getJobSpec().getConfig());
-      }
     }
+
 
     public void addParentNode(DagNode<T> node) {
       if (parentNodes == null) {
@@ -294,20 +283,6 @@ public class Dag<T> {
     @Override
     public int hashCode() {
       return this.getValue().hashCode();
-    }
-
-    public static String createId(Config jobConfig) {
-      String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-      String flowName =jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-      long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
-      String jobGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_GROUP_KEY, "");
-      String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
-
-      return createId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
-    }
-
-    public static String createId(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
-      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
     }
   }
 

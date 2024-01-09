@@ -47,6 +47,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLATE_KEY;
@@ -72,6 +73,7 @@ public class JobExecutionPlan {
   private int currentAttempts = 0;
   private Optional<Future> jobFuture = Optional.absent();
   private long flowStartTime = 0L;
+  private final String id;
 
   public static class Factory {
     public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";
@@ -233,6 +235,7 @@ public class JobExecutionPlan {
     this.jobSpec = jobSpec;
     this.specExecutor = specExecutor;
     this.maxAttempts = ConfigUtils.getInt(jobSpec.getConfig(), JOB_MAX_ATTEMPTS, 1);
+    this.id = DagManagerUtils.calcJobId(jobSpec.getConfig());
   }
 
   /**

@@ -324,16 +324,7 @@ public class DagManager extends AbstractIdleService {
       throw new IOException("Could not add dag" + dagId + "to queue");
     }
     if (setStatus) {
-      submitEventsAndSetStatus(dag);
-    }
-  }
-
-  private void submitEventsAndSetStatus(Dag<JobExecutionPlan> dag) {
-    for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-      JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
-      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-      new TimingEvent(eventSubmitter, TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
-      jobExecutionPlan.setExecutionStatus(PENDING);
+      DagManagerUtils.submitAndSet(dag, this.eventSubmitter);
     }
   }
 
