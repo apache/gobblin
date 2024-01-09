@@ -73,6 +73,9 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.zkClient
   compile externalDependency.joptSimple
+  compile externalDependency.opentelemetryApi
+  compile externalDependency.opentelemetrySdk
+  compile externalDependency.opentelemetryExporterOtlp
 
   testCompile project(":gobblin-example")
 

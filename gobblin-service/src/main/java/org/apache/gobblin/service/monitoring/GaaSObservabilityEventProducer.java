@@ -17,11 +17,22 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import com.google.common.base.Optional;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
@@ -49,6 +60,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -61,6 +73,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
+
+  public static final String GAAS_OBSERVABILITY_METRICS_NAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
 
   protected MetricContext metricContext;
   protected State state;
@@ -77,6 +91,35 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ISSUES_READ_FAILED_METRIC_NAME));
     }
+  }
+
+  private void setupMetrics(State state) {
+    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefix(state.getProperties(), Optional.of(GAAS_OBSERVABILITY_METRICS_NAME));
+    AttributesBuilder attributesBuilder = Attributes.builder();
+    for (String key : metricProps.stringPropertyNames()) {
+      attributesBuilder.put(AttributeKey.stringKey(key), metricProps.getProperty(key));
+    }
+    Resource metricsResource = Resource.getDefault().merge(Resource.create(attributesBuilder.build()));
+    OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
+    builder.setEndpoint(getMetricsUrl(collectorEndpoint));
+    exporter = builder.build();
+
+
+    SdkMeterProvider meterProvider =
+        SdkMeterProvider.builder()
+            .setResource(metricsResource)
+            .registerMetricReader(
+                PeriodicMetricReader.builder(exporter)
+                    .setInterval(Duration.ofMillis(METRIC_READER_INTERVAL_MS))
+                    .build())
+            .build();
+
+    OpenTelemetrySdk openTelemetrySdk =
+        OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
+
+    Runtime.getRuntime()
+        .addShutdownHook(new Thread(openTelemetrySdk.getSdkMeterProvider()::shutdown));
+    return openTelemetrySdk;
   }
 
   public void emitObservabilityEvent(final State jobState) {
