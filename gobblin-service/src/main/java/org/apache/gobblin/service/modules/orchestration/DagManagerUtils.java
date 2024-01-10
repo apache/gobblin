@@ -402,7 +402,7 @@ public class DagManagerUtils {
   /**
    * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
    */
-  public static JobStatus pollJobStatus(DagNode<JobExecutionPlan> dagNode, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
+  public static Optional<JobStatus> pollJobStatus(DagNode<JobExecutionPlan> dagNode, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -416,9 +416,9 @@ public class DagManagerUtils {
   /**
    * Retrieve the flow's {@link JobStatus} (i.e. job status with {@link JobStatusRetriever#NA_KEY} as job name/group) from a dag
    */
-  public static  JobStatus pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
+  public static Optional<JobStatus> pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     if (dag == null || dag.isEmpty()) {
-      return null;
+      return Optional.absent();
     }
     Config jobConfig = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
@@ -428,7 +428,10 @@ public class DagManagerUtils {
     return pollStatus(flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, jobStatusRetriever, jobStatusPolledTimer);
   }
 
-  public static  JobStatus pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
+  /**
+   * Retrieve the flow's {@link JobStatus} and update the timer if jobStatusPolledTimer is present.
+   */
+  public static Optional<JobStatus> pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
     JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     long pollStartTime = System.nanoTime();
     Iterator<JobStatus> jobStatusIterator =
@@ -436,9 +439,9 @@ public class DagManagerUtils {
     Instrumented.updateTimer(jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
 
     if (jobStatusIterator.hasNext()) {
-      return jobStatusIterator.next();
+      return Optional.of(jobStatusIterator.next());
     } else {
-      return null;
+      return Optional.absent();
     }
   }
 
