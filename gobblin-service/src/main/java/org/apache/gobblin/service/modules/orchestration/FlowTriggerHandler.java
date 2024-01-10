@@ -111,13 +111,14 @@ public class FlowTriggerHandler {
    * @param flowAction
    * @param eventTimeMillis
    * @param isReminderEvent
+   * @param skipFlowExecutionIdReplacement
    * @throws IOException
    */
   public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis,
-      boolean isReminderEvent) throws IOException {
+      boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
     if (multiActiveLeaseArbiter.isPresent()) {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(
-          flowAction, eventTimeMillis, isReminderEvent);
+          flowAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
       // The flow action contained in the`LeaseAttemptStatus` from the lease arbiter contains an updated flow execution
       // id. From this point onwards, always use the newer version of the flow action to easily track the action through
       // orchestration and execution.
