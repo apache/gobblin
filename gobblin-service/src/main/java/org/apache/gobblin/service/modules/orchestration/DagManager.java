@@ -634,7 +634,7 @@ public class DagManager extends AbstractIdleService {
     private void finishResumingDags() throws IOException {
       for (Map.Entry<String, Dag<JobExecutionPlan>> dag : this.resumingDags.entrySet()) {
         Optional<JobStatus> flowStatus = DagManagerUtils.pollFlowStatus(dag.getValue(), this.jobStatusRetriever, this.jobStatusPolledTimer);
-        if (!flowStatus.isPresent() || !flowStatus.get().getEventName().equals(PENDING_RESUME.name())) {
+        if (!flowStatus.toJavaUtil().filter(fs -> fs.getEventName().equals(PENDING_RESUME.name())).isPresent()) {
           continue;
         }
 
