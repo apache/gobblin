@@ -415,6 +415,7 @@ public class DagManagerUtils {
 
   /**
    * Retrieve the flow's {@link JobStatus} (i.e. job status with {@link JobStatusRetriever#NA_KEY} as job name/group) from a dag
+   * Returns empty optional if dag is null/empty or job status is not found.
    */
   public static Optional<JobStatus> pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     if (dag == null || dag.isEmpty()) {
@@ -430,6 +431,7 @@ public class DagManagerUtils {
 
   /**
    * Retrieve the flow's {@link JobStatus} and update the timer if jobStatusPolledTimer is present.
+   * Returns empty optional if job status is not found.
    */
   public static Optional<JobStatus> pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
     JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
