@@ -54,7 +54,7 @@ public interface MultiActiveLeaseArbiter {
    * @param eventTimeMillis is the time this flow action was triggered
    * @param isReminderEvent true if the flow action event we're checking on is a reminder event
    * @param adoptConsensusFlowExecutionId if true then replaces the flowAction flowExecutionId returned in
-   *                                      LeaseAttemptStatuses with the consensual eventTime
+   *                                      LeaseAttemptStatuses with the consensus eventTime
    *
    * @return LeaseAttemptStatus
    * @throws IOException
