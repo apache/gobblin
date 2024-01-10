@@ -25,8 +25,6 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nonnull;
-
 import org.apache.commons.lang3.StringUtils;
 
 import com.codahale.metrics.Meter;
@@ -40,6 +38,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
+
+import javax.annotation.Nonnull;
 
 import org.apache.gobblin.Constructs;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -247,12 +247,20 @@ public class Instrumented implements Instrumentable, Closeable {
     });
   }
 
+  public static void updateTimer(Timer timer, final long duration, final TimeUnit unit) {
+    updateTimer(Optional.of(timer), duration, unit);
+  }
+
   /**
    * Marks a meter only if it is defined.
    * @param meter an Optional&lt;{@link com.codahale.metrics.Meter}&gt;
    */
   public static void markMeter(Optional<Meter> meter) {
     markMeter(meter, 1);
+  }
+
+  public static void markMeter(Meter meter) {
+    markMeter(Optional.of(meter), 1);
   }
 
   /**

@@ -56,7 +56,7 @@ public final class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;
-  private final Optional<EventSubmitter> eventSubmitter;
+  private final EventSubmitter eventSubmitter;
   private final FlowStatusGenerator flowStatusGenerator;
   private final boolean isFlowConcurrencyEnabled;
 
@@ -66,7 +66,7 @@ public final class FlowCompilationValidationHelper {
    * caller.
    * @param flowSpec
    * @param optionalFlowExecutionId for scheduled (non-ad-hoc) flows, to pass the ID "laundered" via the DB;
-   *                                see: {@link MysqlMultiActiveLeaseArbiter javadoc section titled
+   *                                see: {@link org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter javadoc section titled
    *                                `Database event_timestamp laundering`}
    * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
    */
@@ -79,8 +79,7 @@ public final class FlowCompilationValidationHelper {
     //Wait for the SpecCompiler to become healthy.
     specCompiler.awaitHealthy();
 
-    Optional<TimingEvent> flowCompilationTimer =
-        this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
+    TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
     Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
         validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName);
     Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
@@ -89,15 +88,13 @@ public final class FlowCompilationValidationHelper {
       return Optional.absent();
     }
 
-    if (jobExecutionPlanDagOptional.get() == null || jobExecutionPlanDagOptional.get().isEmpty()) {
+    if (jobExecutionPlanDagOptional.get().isEmpty()) {
       populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
       return Optional.absent();
     }
 
     addFlowExecutionIdIfAbsent(flowMetadata, optionalFlowExecutionId, jobExecutionPlanDagOptional.get());
-    if (flowCompilationTimer.isPresent()) {
-      flowCompilationTimer.get().stop(flowMetadata);
-    }
+    flowCompilationTimer.stop(flowMetadata);
     return jobExecutionPlanDagOptional;
   }
 
@@ -133,9 +130,7 @@ public final class FlowCompilationValidationHelper {
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
           + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
-      if (eventSubmitter.isPresent()) {
-        new TimingEvent(eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-      }
+      new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       return Optional.absent();
     }
   }
@@ -158,7 +153,7 @@ public final class FlowCompilationValidationHelper {
    * @param spec
    * @param flowMetadata
    */
-  public static void populateFlowCompilationFailedEventMessage(Optional<EventSubmitter> eventSubmitter, Spec spec,
+  public static void populateFlowCompilationFailedEventMessage(EventSubmitter eventSubmitter, Spec spec,
       Map<String, String> flowMetadata) {
     // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
     // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
@@ -172,12 +167,7 @@ public final class FlowCompilationValidationHelper {
     }
     flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
-    Optional<TimingEvent> flowCompileFailedTimer = eventSubmitter.transform(submitter ->
-        new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED));
-
-    if (flowCompileFailedTimer.isPresent()) {
-      flowCompileFailedTimer.get().stop(flowMetadata);
-    }
+    new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED).stop(flowMetadata);
   }
 
   /**
