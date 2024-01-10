@@ -267,24 +267,24 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           return;
         }
 
-        // Skip flowExecutionId replacement for adhoc flows
+        // Adopt consensus flowExecutionId for scheduled flows
         flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent,
-            !flowSpec.isScheduled());
+            flowSpec.isScheduled());
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         Optional<TimingEvent> flowCompilationTimer =
           this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
-        Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
+        Optional<Dag<JobExecutionPlan>> compiledDagOptional =
             this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
                 flowName);
 
-        if (!jobExecutionPlanDagOptional.isPresent()) {
+        if (!compiledDagOptional.isPresent()) {
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
           return;
         }
-        Dag<JobExecutionPlan> jobExecutionPlanDag = jobExecutionPlanDagOptional.get();
-        if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+        Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
+        if (compiledDag == null || compiledDag.isEmpty()) {
           FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
           sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
@@ -295,17 +295,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
             SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
 
-        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, compiledDag);
         if (flowCompilationTimer.isPresent()) {
           flowCompilationTimer.get().stop(flowMetadata);
         }
 
         // Depending on if DagManager is present, handle execution
         if (this.dagManager.isPresent()) {
-          submitFlowToDagManager(flowSpec, jobExecutionPlanDag);
+          submitFlowToDagManager(flowSpec, compiledDag);
         } else {
           // Schedule all compiled JobSpecs on their respective Executor
-          for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
+          for (Dag.DagNode<JobExecutionPlan> dagNode : compiledDag.getNodes()) {
             DagManagerUtils.incrementJobAttempt(dagNode);
             JobExecutionPlan jobExecutionPlan = dagNode.getValue();
 

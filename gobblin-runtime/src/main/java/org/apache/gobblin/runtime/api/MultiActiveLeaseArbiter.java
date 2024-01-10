@@ -53,14 +53,14 @@ public interface MultiActiveLeaseArbiter {
    * @param flowAction uniquely identifies the flow and the present action upon it
    * @param eventTimeMillis is the time this flow action was triggered
    * @param isReminderEvent true if the flow action event we're checking on is a reminder event
-   * @param skipFlowExecutionIdReplacement if true then does not replace the flowExecutionId in the flowAction returned
-   *                                       in LeaseAttemptStatuses
+   * @param adoptConsensusFlowExecutionId if true then replaces the flowAction flowExecutionId returned in
+   *                                      LeaseAttemptStatuses with the consensual eventTime
    *
    * @return LeaseAttemptStatus
    * @throws IOException
    */
   LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis, boolean isReminderEvent,
-      boolean skipFlowExecutionIdReplacement)
+      boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
   /**

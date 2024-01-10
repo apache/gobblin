@@ -238,7 +238,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
-      boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
+      boolean isReminderEvent, boolean adoptConsensusFlowExecutionId) throws IOException {
     log.info("Multi-active scheduler about to handle trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
         flowAction, isReminderEvent ? "reminder" : "original", eventTimeMillis);
     // Query lease arbiter table about this flow action
@@ -250,7 +250,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
             + " then go ahead and insert", flowAction, isReminderEvent ? "reminder" : "original", eventTimeMillis);
         int numRowsUpdated = attemptLeaseIfNewRow(flowAction);
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.empty(),
-           isReminderEvent, skipFlowExecutionIdReplacement);
+           isReminderEvent, adoptConsensusFlowExecutionId);
       }
 
       // Extract values from result set
@@ -289,7 +289,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           + "with database eventTimestamp {} (in epoch-millis)", flowAction, isReminderEvent ? "reminder" : "original",
           eventTimeMillis, dbCurrentTimestamp.getTime());
 
-      /* Note that we use `skipFlowExecutionIdReplacement` parameter's value to determine whether we should use the db
+      /* Note that we use `adoptConsensusFlowExecutionId` parameter's value to determine whether we should use the db
       laundered event timestamp as the flowExecutionId or maintain the original one
        */
 
@@ -297,7 +297,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       if (leaseValidityStatus == 1) {
         if (isWithinEpsilon) {
           DagActionStore.DagAction updatedFlowAction =
-              skipFlowExecutionIdReplacement ? flowAction : flowAction.updateFlowExecutionId(dbEventTimestamp.getTime());
+              adoptConsensusFlowExecutionId ? flowAction.updateFlowExecutionId(dbEventTimestamp.getTime()) : flowAction;
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
               updatedFlowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
@@ -305,7 +305,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
         DagActionStore.DagAction updatedFlowAction =
-            skipFlowExecutionIdReplacement ? flowAction : flowAction.updateFlowExecutionId(dbCurrentTimestamp.getTime());
+            adoptConsensusFlowExecutionId ? flowAction.updateFlowExecutionId(dbCurrentTimestamp.getTime()) : flowAction;
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             updatedFlowAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
@@ -325,7 +325,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         int numRowsUpdated = attemptLeaseIfExistingRow(thisTableAcquireLeaseIfMatchingAllStatement, flowAction,
             true,true, dbEventTimestamp, dbLeaseAcquisitionTimestamp);
         return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.of(dbCurrentTimestamp),
-            isReminderEvent, skipFlowExecutionIdReplacement);
+            isReminderEvent, adoptConsensusFlowExecutionId);
       } // No longer leasing this event
         if (isWithinEpsilon) {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 5: Same event, no longer leasing event"
@@ -338,7 +338,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         int numRowsUpdated = attemptLeaseIfExistingRow(thisTableAcquireLeaseIfFinishedStatement, flowAction,
             true, false, dbEventTimestamp, null);
         return evaluateStatusAfterLeaseAttempt(numRowsUpdated, flowAction, Optional.of(dbCurrentTimestamp),
-            isReminderEvent, skipFlowExecutionIdReplacement);
+            isReminderEvent, adoptConsensusFlowExecutionId);
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
@@ -490,7 +490,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    */
   protected LeaseAttemptStatus evaluateStatusAfterLeaseAttempt(int numRowsUpdated,
       DagActionStore.DagAction flowAction, Optional<Timestamp> dbCurrentTimestamp, boolean isReminderEvent,
-      boolean skipFlowExecutionIdReplacement)
+      boolean adoptConsensusFlowExecutionId)
       throws SQLException, IOException {
     // Fetch values in row after attempted insert
     SelectInfoResult selectInfoResult = getRowInfo(flowAction);
@@ -499,7 +499,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       return new NoLongerLeasingStatus();
     }
     DagActionStore.DagAction updatedFlowAction =
-        skipFlowExecutionIdReplacement ? flowAction : flowAction.updateFlowExecutionId(selectInfoResult.eventTimeMillis);
+        adoptConsensusFlowExecutionId ? flowAction.updateFlowExecutionId(selectInfoResult.eventTimeMillis) : flowAction;
     if (numRowsUpdated == 1) {
       log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", updatedFlowAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
