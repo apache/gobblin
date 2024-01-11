@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.yarn;
 
+import com.typesafe.config.ConfigValueFactory;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Comparator;
@@ -32,6 +33,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.compress.utils.Sets;
+import org.apache.gobblin.runtime.messaging.DynamicWorkUnitConfigKeys;
+import org.apache.gobblin.runtime.messaging.DynamicWorkUnitConsumer;
+import org.apache.gobblin.runtime.messaging.MessageBuffer;
+import org.apache.gobblin.runtime.messaging.handler.SplitMessageHandler;
+import org.apache.gobblin.runtime.messaging.hdfs.FileSystemMessageBuffer;
 import org.apache.gobblin.stream.WorkUnitChangeEvent;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
@@ -92,6 +98,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
   private int taskAttemptsThreshold;
   private final boolean splitWorkUnitReachThreshold;
+  MessageBuffer fileSystemMessageBuffer;
 
   private final String AUTO_SCALING_WINDOW_SIZE = AUTO_SCALING_PREFIX + "windowSize";
 
@@ -136,6 +143,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         DEFAULT_TASK_NUMBER_OF_ATTEMPTS_THRESHOLD);
     this.splitWorkUnitReachThreshold = ConfigUtils.getBoolean(this.config, SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD,
         DEFAULT_SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD);
+
+    this.startDynamicWorkUnitConsumer();
   }
 
   @Override
@@ -321,6 +330,16 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           TimeUnit.MINUTES.toMillis(maxIdleTimeInMinutesBeforeScalingDown);
     }
   }
+
+  private void startDynamicWorkUnitConsumer() {
+    this.fileSystemMessageBuffer = new FileSystemMessageBuffer.Factory(
+        config.withValue(DynamicWorkUnitConfigKeys.DYNAMIC_WORKUNIT_HDFS_PATH,
+            ConfigValueFactory.fromAnyRef(yarnService.getAppWorkDir().toString()))).getBuffer(
+        DynamicWorkUnitConfigKeys.DYNAMIC_WORKUNIT_HDFS_FOLDER);
+    DynamicWorkUnitConsumer dynamicWorkUnitConsumer = new DynamicWorkUnitConsumer(Collections.singletonList(new SplitMessageHandler()));
+    fileSystemMessageBuffer.subscribe(dynamicWorkUnitConsumer);
+  }
+
 
   /**
    * A FIFO queue with fixed size and returns maxValue among all elements within the queue in constant time.

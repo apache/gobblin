@@ -139,6 +139,8 @@ public class YarnService extends AbstractIdleService {
 
   private final Configuration yarnConfiguration;
   private final FileSystem fs;
+  @Getter
+  private final Path appWorkDir;
 
   private final Optional<GobblinMetrics> gobblinMetrics;
   private final Optional<EventSubmitter> eventSubmitter;
@@ -296,6 +298,7 @@ public class YarnService extends AbstractIdleService {
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
+    this.appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
   }
 
   @SuppressWarnings("unused")
@@ -629,7 +632,6 @@ public class YarnService extends AbstractIdleService {
 
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
       throws IOException {
-    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
     Map<String, LocalResource> resourceMap = Maps.newHashMap();
