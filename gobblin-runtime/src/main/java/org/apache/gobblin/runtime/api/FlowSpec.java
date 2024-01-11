@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.linkedin.data.template.StringMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -35,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +58,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  */
 @Alpha
+@AllArgsConstructor
 @Data
 @EqualsAndHashCode(exclude={"compilationErrors"})
 @SuppressFBWarnings(value="SE_BAD_FIELD",
@@ -75,8 +78,8 @@ public class FlowSpec implements Configurable, Spec {
   /** Human-readable description of the flow spec */
   final String description;
 
-  /** Flow config as a typesafe config object */
-  final Config config;
+  /** Flow config as a typesafe config object which can be replaced */
+  Config config;
 
   /** Flow config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
@@ -123,6 +126,19 @@ public class FlowSpec implements Configurable, Spec {
     } catch (URISyntaxException e) {
       throw new RuntimeException("Unable to create a FlowSpec URI: " + e, e);
     }
+  }
+
+  /**
+   * Add property to Config (also propagated to the Properties field)
+   * @param key
+   * @param value
+   */
+  public void addProperty(String key, String value) {
+    this.config = config.withValue(key, ConfigValueFactory.fromAnyRef(value));
+    // Make sure configAsProperties has been initialized and is updated
+    this.getConfigAsProperties();
+    this.configAsProperties.setProperty(key, value);
+
   }
 
   public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {

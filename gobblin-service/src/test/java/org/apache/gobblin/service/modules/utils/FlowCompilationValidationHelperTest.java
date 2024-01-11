@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.utils;
 
-import com.google.common.base.Optional;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -35,7 +34,6 @@ import org.testng.annotations.Test;
 public class FlowCompilationValidationHelperTest {
   private String dagId = "testDag";
   private Long jobSpecFlowExecutionId = 1234L;
-  private String newFlowExecutionId = "5678";
   private String existingFlowExecutionId = "9999";
   private Dag<JobExecutionPlan> jobExecutionPlanDag;
 
@@ -46,14 +44,13 @@ public class FlowCompilationValidationHelperTest {
   }
 
   /*
-    Tests that addFlowExecutionIdIfAbsent adds flowExecutionId to a flowMetadata object when it is absent, prioritizing
-    the optional flowExecutionId over the one from the job spec
+    Tests that addFlowExecutionIdIfAbsent adds the jobSpec flowExecutionId to a flowMetadata object when it is absent
    */
   @Test
   public void testAddFlowExecutionIdWhenAbsent() {
     HashMap<String, String> flowMetadata = new HashMap<>();
-    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.of(newFlowExecutionId), jobExecutionPlanDag);
-    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), newFlowExecutionId);
+    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), String.valueOf(jobSpecFlowExecutionId));
   }
 
   /*
@@ -63,7 +60,7 @@ public class FlowCompilationValidationHelperTest {
   public void testSkipAddingFlowExecutionIdWhenPresent() {
     HashMap<String, String> flowMetadata = new HashMap<>();
     flowMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, existingFlowExecutionId);
-    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, Optional.of(newFlowExecutionId), jobExecutionPlanDag);
+    FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata,jobExecutionPlanDag);
     Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), existingFlowExecutionId);
   }
 }
