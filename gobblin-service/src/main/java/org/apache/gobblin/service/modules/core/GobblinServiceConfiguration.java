@@ -47,9 +47,6 @@ public class GobblinServiceConfiguration {
   private final boolean isMultiActiveSchedulerEnabled;
 
   @Getter
-  private final boolean isTopologyCatalogEnabled;
-
-  @Getter
   private final boolean isFlowCatalogEnabled;
 
   @Getter
@@ -63,9 +60,6 @@ public class GobblinServiceConfiguration {
 
   @Getter
   private final boolean isGitConfigMonitorEnabled;
-
-  @Getter
-  private final boolean isDagManagerEnabled;
 
   @Getter
   private final boolean isJobStatusMonitorEnabled;
@@ -93,8 +87,6 @@ public class GobblinServiceConfiguration {
     this.innerConfig = Objects.requireNonNull(config, "Config cannot be null");
     this.serviceWorkDir = serviceWorkDir;
 
-    isTopologyCatalogEnabled =
-        ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_CATALOG_ENABLED_KEY, true);
     isFlowCatalogEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
 
@@ -113,8 +105,6 @@ public class GobblinServiceConfiguration {
     this.isMultiActiveSchedulerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY, false);
 
     this.isHelixManagerEnabled = config.hasPath(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY);
-    this.isDagManagerEnabled =
-        ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED);
     this.isJobStatusMonitorEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, true);
     this.isSchedulerEnabled =

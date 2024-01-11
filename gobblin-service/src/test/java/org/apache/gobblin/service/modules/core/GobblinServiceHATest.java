@@ -23,7 +23,6 @@ import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +45,12 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.TestServiceDatabaseConfig;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 @Test
@@ -173,13 +172,13 @@ public class GobblinServiceHATest {
     node2ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
 
     // Start Node 1
-    this.node1GobblinServiceManager = GobblinServiceManager.create("CoreService1", "1",
-        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), new Path(NODE_1_SERVICE_WORK_DIR));
+    this.node1GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
+        node1ServiceCoreProperties, "CoreService1", "1", NODE_1_SERVICE_WORK_DIR);
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
-    this.node2GobblinServiceManager = GobblinServiceManager.create("CoreService2", "2",
-        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), new Path(NODE_2_SERVICE_WORK_DIR));
+    this.node2GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
+        node2ServiceCoreProperties, "CoreService2", "2", NODE_2_SERVICE_WORK_DIR);
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client

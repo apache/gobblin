@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -31,12 +25,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -68,8 +74,6 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -83,8 +87,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
-  protected final Optional<TopologyCatalog> topologyCatalog;
-  protected final Optional<DagManager> dagManager;
+  protected final TopologyCatalog topologyCatalog;
+  protected final DagManager dagManager;
 
   protected final MetricContext metricContext;
 
@@ -110,7 +114,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
   @Inject
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
+  public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -135,9 +139,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
-    if (this.dagManager.isPresent()) {
-      this.dagManager.get().setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
-    }
+    this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
@@ -182,9 +184,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
-    if (topologyCatalog.isPresent()) {
-      this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
-    }
+    this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
   }
 
   /** {@inheritDoc} */
@@ -209,13 +209,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } catch (Exception e) {
       _log.error("Failed to update Spec: " + updatedSpec, e);
     }
-
   }
 
   public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis, boolean isReminderEvent)
       throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
-    this.topologyCatalog.get().getInitComplete().await();
+    this.topologyCatalog.getInitComplete().await();
 
     //Wait for the SpecCompiler to become healthy.
     this.getSpecCompiler().awaitHealthy();
@@ -279,39 +278,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowCompilationTimer.stop(flowMetadata);
 
         // Depending on if DagManager is present, handle execution
-        if (this.dagManager.isPresent()) {
-          submitFlowToDagManager(flowSpec, compiledDag);
-        } else {
-          // Schedule all compiled JobSpecs on their respective Executor
-          for (Dag.DagNode<JobExecutionPlan> dagNode : compiledDag.getNodes()) {
-            DagManagerUtils.incrementJobAttempt(dagNode);
-            JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-
-            // Run this spec on selected executor
-            SpecProducer producer = null;
-            try {
-              producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-              Spec jobSpec = jobExecutionPlan.getJobSpec();
-
-              if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-                _log.warn("JobSpec does not contain flowExecutionId: {}", jobSpec);
-              }
-
-              Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);
-              _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
-
-              TimingEvent jobOrchestrationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.LauncherTimings.JOB_ORCHESTRATED);
-
-              producer.addSpec(jobSpec);
-
-              jobOrchestrationTimer.stop(jobMetadata);
-            } catch (Exception e) {
-              _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
-                  + " for flow: " + spec, e);
-            }
-          }
-          deleteSpecFromCatalogIfAdhoc(flowSpec);
-        }
+        submitFlowToDagManager(flowSpec, compiledDag);
       }
     } else {
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
@@ -337,7 +304,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       throws IOException {
     try {
       // Send the dag to the DagManager
-      this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
+      this.dagManager.addDag(jobExecutionPlanDag, true, true);
 
       /*
       Adhoc flows can be deleted after persisting it in DagManager as the DagManager's failure recovery method ensures
@@ -364,10 +331,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (spec instanceof FlowSpec) {
       //Send the dag to the DagManager to stop it.
       //Also send it to the SpecProducer to do any cleanup tasks on SpecExecutor.
-      if (this.dagManager.isPresent()) {
-        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
-        this.dagManager.get().stopDag(spec.getUri());
-      }
+      _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
+      this.dagManager.stopDag(spec.getUri());
       // We need to recompile the flow to find the spec producer,
       // If compilation result is different, its remove request can go to some different spec producer
       deleteFromExecutor(spec, headers);
