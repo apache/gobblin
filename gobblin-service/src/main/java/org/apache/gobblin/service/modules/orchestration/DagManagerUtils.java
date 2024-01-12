@@ -28,7 +28,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -332,8 +331,8 @@ public class DagManagerUtils {
     return dagNode.getValue().getSpecExecutor().getUri().toString();
   }
 
-  static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
-    if (eventSubmitter.isPresent() && !dag.isEmpty()) {
+  static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+    if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
       Config config = getDagJobConfig(dag);
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
@@ -345,7 +344,7 @@ public class DagManagerUtils {
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, dag.getMessage());
       }
 
-      eventSubmitter.get().getTimingEvent(flowEvent).stop(flowMetadata);
+      eventSubmitter.getTimingEvent(flowEvent).stop(flowMetadata);
     }
   }
 

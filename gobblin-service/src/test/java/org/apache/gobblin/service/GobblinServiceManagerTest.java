@@ -28,9 +28,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-
-import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
-import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jgit.api.Git;
@@ -61,12 +58,19 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
+import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
 
 
 public class GobblinServiceManagerTest {
@@ -193,12 +197,27 @@ public class GobblinServiceManagerTest {
     this.gitForPush.commit().setMessage("First commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
 
-    this.gobblinServiceManager = GobblinServiceManager.create("CoreService", "1",
-        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(SERVICE_WORK_DIR));
+    this.gobblinServiceManager = createTestGobblinServiceManager(serviceCoreProperties);
+
     this.gobblinServiceManager.start();
 
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
         this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);
+  }
+
+  public static GobblinServiceManager createTestGobblinServiceManager(Properties serviceCoreProperties) {
+    return createTestGobblinServiceManager(serviceCoreProperties, "CoreService", "1", SERVICE_WORK_DIR);
+  }
+
+  public static GobblinServiceManager createTestGobblinServiceManager(Properties serviceCoreProperties,
+      String serviceName, String serviceId, String serviceWorkDir) {
+    GobblinServiceManager gobblinServiceManager = GobblinServiceManager.create(serviceName, serviceId,
+        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(serviceWorkDir));
+
+    DagManager spiedDagManager = spy(gobblinServiceManager.getDagManager());
+    doNothing().when(spiedDagManager).setActive(anyBoolean());
+    gobblinServiceManager.dagManager = spiedDagManager;
+    return gobblinServiceManager;
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -555,8 +574,7 @@ null, null, null, null);
 
   private void serviceReboot() throws Exception {
     this.gobblinServiceManager.stop();
-    this.gobblinServiceManager = GobblinServiceManager.create("CoreService", "1",
-        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(SERVICE_WORK_DIR));
+    this.gobblinServiceManager = createTestGobblinServiceManager(serviceCoreProperties);
     this.gobblinServiceManager.start();
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
         this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);

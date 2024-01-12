@@ -31,9 +31,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.ObjectUtils;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
-import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -97,9 +94,12 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
+import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.util.ConfigUtils;
@@ -188,9 +188,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Inject(optional = true)
   protected GitConfigMonitor gitConfigMonitor;
 
-  @Inject(optional = true)
+  @Inject
   @Getter
-  protected DagManager dagManager;
+  @VisibleForTesting
+  public DagManager dagManager;
 
   @Inject(optional = true)
   protected KafkaJobStatusMonitor jobStatusMonitor;
@@ -317,12 +318,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
         // TODO: surround by try/catch to disconnect from Helix and fail the leader transition if DagManager is not
         // transitioned properly
-        if (configuration.isDagManagerEnabled()) {
-          //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
-          if (this.topologyCatalog.getInitComplete().getCount() == 0) {
-            this.dagManager.setActive(true);
-            this.eventBus.register(this.dagManager);
-          }
+        //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
+        if (this.topologyCatalog.getInitComplete().getCount() == 0) {
+          this.dagManager.setActive(true);
+          this.eventBus.register(this.dagManager);
         }
 
         if (configuration.isOnlyAnnounceLeader()) {
@@ -346,10 +345,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.gitConfigMonitor.setActive(false);
         }
 
-        if (configuration.isDagManagerEnabled()) {
-          this.dagManager.setActive(false);
-          this.eventBus.unregister(this.dagManager);
-        }
+        this.dagManager.setActive(false);
+        this.eventBus.unregister(this.dagManager);
 
         if (configuration.isOnlyAnnounceLeader()) {
           this.d2Announcer.markDownServer();
@@ -359,9 +356,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   private void registerServicesInLauncher(){
-    if (configuration.isTopologyCatalogEnabled()) {
-      this.serviceLauncher.addService(topologyCatalog);
-    }
+    this.serviceLauncher.addService(topologyCatalog);
 
     if (configuration.isFlowCatalogEnabled()) {
       this.serviceLauncher.addService(flowCatalog);
@@ -371,9 +366,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       }
     }
 
-    if (configuration.isDagManagerEnabled()) {
-      this.serviceLauncher.addService(dagManager);
-    }
+    this.serviceLauncher.addService(dagManager);
 
     this.serviceLauncher.addService(databaseManager);
     this.serviceLauncher.addService(issueRepository);
@@ -526,10 +519,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     //Activate the DagManager service, after the topologyCatalog has been initialized.
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
-      if (configuration.isDagManagerEnabled()) {
-        this.dagManager.setActive(true);
-        this.eventBus.register(this.dagManager);
-      }
+      this.dagManager.setActive(true);
+      this.eventBus.register(this.dagManager);
     }
   }
 
