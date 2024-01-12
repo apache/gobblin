@@ -276,7 +276,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         Optional<TimingEvent> flowCompilationTimer =
           this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =
-            this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
+            this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
                 flowName);
 
         if (!compiledDagOptional.isPresent()) {
@@ -285,7 +285,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         }
         Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
         if (compiledDag == null || compiledDag.isEmpty()) {
-          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
+          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
           sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
               SharedFlowMetricsSingleton.CompiledState.FAILED);

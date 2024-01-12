@@ -28,7 +28,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
@@ -101,25 +100,25 @@ public final class FlowCompilationValidationHelper {
   /**
    * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
    * already running and emits a FLOW FAILED event. Otherwise, this check passes.
-   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile spec, else absent Optional
+   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile flowSpec, else absent Optional
    * @throws IOException
    */
-  public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, Spec spec,
+  public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
       String flowGroup, String flowName) throws IOException {
     boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig,
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, isFlowConcurrencyEnabled);
 
-    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
 
     if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
       return Optional.fromNullable(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
           + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(flowSpec,
           SharedFlowMetricsSingleton.CompiledState.SKIPPED);
       Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
-      if (!((FlowSpec) spec).isScheduled()) {
+      if (!flowSpec.isScheduled()) {
         // For ad-hoc flow, we might already increase quota, we need to decrease here
         for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
           quotaManager.releaseQuota(dagNode);
@@ -127,9 +126,9 @@ public final class FlowCompilationValidationHelper {
       }
 
       // Send FLOW_FAILED event
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
-          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
+          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow flowSpec to change this behaviour.");
       if (eventSubmitter.isPresent()) {
         new TimingEvent(eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       }
@@ -152,11 +151,11 @@ public final class FlowCompilationValidationHelper {
 
   /**
    * Abstraction used to populate the message of and emit a FlowCompileFailed event for the Orchestrator.
-   * @param spec
+   * @param flowSpec
    * @param flowMetadata
    */
-  public static void populateFlowCompilationFailedEventMessage(Optional<EventSubmitter> eventSubmitter, Spec spec,
-      Map<String, String> flowMetadata) {
+  public static void populateFlowCompilationFailedEventMessage(Optional<EventSubmitter> eventSubmitter,
+      FlowSpec flowSpec, Map<String, String> flowMetadata) {
     // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
     // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
     // In this case, the current time is used as the flow executionId.
@@ -164,8 +163,8 @@ public final class FlowCompilationValidationHelper {
         Long.toString(System.currentTimeMillis()));
 
     String message = "Flow was not compiled successfully.";
-    if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
-      message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
+    if (!flowSpec.getCompilationErrors().isEmpty()) {
+      message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
     }
     flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
