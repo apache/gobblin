@@ -140,6 +140,8 @@ public class FlowSpec implements Configurable, Spec {
   /**
    * Add property to Config (also propagated to the Properties field). These two fields should only be modified through
    * this method to prevent inconsistency between them.
+   * Note that when the property is being added, config and configAsProperties can have different values, but they will
+   * be consistent by the time method returns.
    * @param key
    * @param value
    */
