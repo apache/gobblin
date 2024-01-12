@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -31,12 +25,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -68,8 +74,6 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -83,20 +87,20 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
-  protected final Optional<TopologyCatalog> topologyCatalog;
-  protected final Optional<DagManager> dagManager;
+  protected final TopologyCatalog topologyCatalog;
+  protected final DagManager dagManager;
 
   protected final MetricContext metricContext;
 
-  protected final Optional<EventSubmitter> eventSubmitter;
+  protected final EventSubmitter eventSubmitter;
   private final boolean isFlowConcurrencyEnabled;
   @Getter
-  private Optional<Meter> flowOrchestrationSuccessFulMeter;
+  private Meter flowOrchestrationSuccessFulMeter;
   @Getter
-  private Optional<Meter> flowOrchestrationFailedMeter;
+  private Meter flowOrchestrationFailedMeter;
   @Getter
-  private Optional<Timer> flowOrchestrationTimer;
-  private Optional<Counter> flowFailedForwardToDagManagerCounter;
+  private Timer flowOrchestrationTimer;
+  private Counter flowFailedForwardToDagManagerCounter;
   @Setter
   private FlowStatusGenerator flowStatusGenerator;
 
@@ -109,10 +113,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
-      Optional<FlowCatalog> flowCatalog) {
+  @Inject
+  public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -135,25 +139,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
-    if (this.dagManager.isPresent()) {
-      this.dagManager.get().setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
-    }
+    this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
-    if (instrumentationEnabled) {
-      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
-      this.flowOrchestrationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER));
-      this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
-      this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
-      this.flowFailedForwardToDagManagerCounter = Optional.of(this.metricContext.counter(ServiceMetricNames.FLOW_FAILED_FORWARD_TO_DAG_MANAGER_COUNT));
-      this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
-    } else {
-      this.metricContext = null;
-      this.flowOrchestrationSuccessFulMeter = Optional.absent();
-      this.flowOrchestrationFailedMeter = Optional.absent();
-      this.flowOrchestrationTimer = Optional.absent();
-      this.flowFailedForwardToDagManagerCounter = Optional.absent();
-      this.eventSubmitter = Optional.absent();
-    }
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
+    this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
+    this.flowOrchestrationFailedMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER);
+    this.flowOrchestrationTimer = this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER);
+    this.flowFailedForwardToDagManagerCounter = this.metricContext.counter(ServiceMetricNames.FLOW_FAILED_FORWARD_TO_DAG_MANAGER_COUNT);
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build();
+
     this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
@@ -162,15 +156,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.flowCompilationValidationHelper = new FlowCompilationValidationHelper(sharedFlowMetricsSingleton, specCompiler,
         quotaManager, eventSubmitter, flowStatusGenerator, isFlowConcurrencyEnabled);
   }
-
-  @Inject
-  public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog) {
-    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true, flowTriggerHandler,
-        sharedFlowMetricsSingleton, flowCatalog);
-  }
-
 
   @VisibleForTesting
   public SpecCompiler getSpecCompiler() {
@@ -199,9 +184,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
-    if (topologyCatalog.isPresent()) {
-      this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
-    }
+    this.specCompiler.onDeleteSpec(deletedSpecURI, deletedSpecVersion, headers);
   }
 
   /** {@inheritDoc} */
@@ -226,13 +209,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } catch (Exception e) {
       _log.error("Failed to update Spec: " + updatedSpec, e);
     }
-
   }
 
   public void orchestrate(Spec spec, Properties jobProps, long triggerTimestampMillis, boolean isReminderEvent)
       throws Exception {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
-    this.topologyCatalog.get().getInitComplete().await();
+    this.topologyCatalog.getInitComplete().await();
 
     //Wait for the SpecCompiler to become healthy.
     this.getSpecCompiler().awaitHealthy();
@@ -261,9 +243,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
               jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow orchestration skipped because no trigger timestamp "
               + "associated with flow action.");
-          if (this.eventSubmitter.isPresent()) {
-            new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-          }
+          new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
           return;
         }
 
@@ -273,8 +253,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
-        Optional<TimingEvent> flowCompilationTimer =
-          this.eventSubmitter.transform(submitter -> new TimingEvent(submitter, TimingEvent.FlowTimings.FLOW_COMPILED));
+        TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =
             this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
                 flowName);
@@ -284,7 +263,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           return;
         }
         Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
-        if (compiledDag == null || compiledDag.isEmpty()) {
+        if (compiledDag.isEmpty()) {
           FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
           sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
@@ -296,47 +275,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
             SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
 
         FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, compiledDag);
-        if (flowCompilationTimer.isPresent()) {
-          flowCompilationTimer.get().stop(flowMetadata);
-        }
+        flowCompilationTimer.stop(flowMetadata);
 
         // Depending on if DagManager is present, handle execution
-        if (this.dagManager.isPresent()) {
-          submitFlowToDagManager(flowSpec, compiledDag);
-        } else {
-          // Schedule all compiled JobSpecs on their respective Executor
-          for (Dag.DagNode<JobExecutionPlan> dagNode : compiledDag.getNodes()) {
-            DagManagerUtils.incrementJobAttempt(dagNode);
-            JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-
-            // Run this spec on selected executor
-            SpecProducer producer = null;
-            try {
-              producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-              Spec jobSpec = jobExecutionPlan.getJobSpec();
-
-              if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-                _log.warn("JobSpec does not contain flowExecutionId: {}", jobSpec);
-              }
-
-              Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);
-              _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
-
-              Optional<TimingEvent> jobOrchestrationTimer = this.eventSubmitter.transform(
-                  submitter -> new TimingEvent(submitter, TimingEvent.LauncherTimings.JOB_ORCHESTRATED));
-
-              producer.addSpec(jobSpec);
-
-              if (jobOrchestrationTimer.isPresent()) {
-                jobOrchestrationTimer.get().stop(jobMetadata);
-              }
-            } catch (Exception e) {
-              _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
-                  + " for flow: " + spec, e);
-            }
-          }
-          deleteSpecFromCatalogIfAdhoc(flowSpec);
-        }
+        submitFlowToDagManager(flowSpec, compiledDag);
       }
     } else {
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
@@ -362,7 +304,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       throws IOException {
     try {
       // Send the dag to the DagManager
-      this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
+      this.dagManager.addDag(jobExecutionPlanDag, true, true);
 
       /*
       Adhoc flows can be deleted after persisting it in DagManager as the DagManager's failure recovery method ensures
@@ -373,15 +315,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);
-      if (this.flowFailedForwardToDagManagerCounter.isPresent()) {
-        this.flowFailedForwardToDagManagerCounter.get().inc();
-      }
-      if (this.eventSubmitter.isPresent()) {
-        // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
-        Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
-        flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
-        new TimingEvent(this.eventSubmitter.get(), TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-      }
+      this.flowFailedForwardToDagManagerCounter.inc();
+      // pronounce failed before stack unwinds, to ensure flow not marooned in `COMPILED` state; (failure likely attributable to DB connection/failover)
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+      flowMetadata.put(TimingEvent.METADATA_MESSAGE, failureMessage);
+      new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       throw ex;
     }
   }
@@ -393,10 +331,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (spec instanceof FlowSpec) {
       //Send the dag to the DagManager to stop it.
       //Also send it to the SpecProducer to do any cleanup tasks on SpecExecutor.
-      if (this.dagManager.isPresent()) {
-        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
-        this.dagManager.get().stopDag(spec.getUri());
-      }
+      _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
+      this.dagManager.stopDag(spec.getUri());
       // We need to recompile the flow to find the spec producer,
       // If compilation result is different, its remove request can go to some different spec producer
       deleteFromExecutor(spec, headers);

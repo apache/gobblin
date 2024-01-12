@@ -46,12 +46,12 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.TestServiceDatabaseConfig;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PortUtils;
 
 
@@ -177,13 +177,13 @@ public class GobblinServiceRedirectTest {
     node2ServiceCoreProperties.put(ServiceConfigKeys.SERVICE_PORT, port2);
 
     // Start Node 1
-    this.node1GobblinServiceManager = GobblinServiceManager.create("RedirectCoreService1", "1",
-        ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), new Path(NODE_1_SERVICE_WORK_DIR));
+    this.node1GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
+        node1ServiceCoreProperties, "RedirectCoreService1", "1", NODE_1_SERVICE_WORK_DIR);
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
-    this.node2GobblinServiceManager = GobblinServiceManager.create("RedirectCoreService2", "2",
-        ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), new Path(NODE_2_SERVICE_WORK_DIR));
+    this.node2GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
+        node2ServiceCoreProperties, "RedirectCoreService2", "2", NODE_2_SERVICE_WORK_DIR);
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client

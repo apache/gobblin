@@ -19,12 +19,10 @@ package org.apache.gobblin.service.monitoring;
 
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Supplier;
@@ -60,15 +58,12 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   @Getter
   protected final MetricContext metricContext;
-  @Getter
-  protected final Boolean dagManagerEnabled;
 
   private final MultiContextIssueRepository issueRepository;
 
-  protected JobStatusRetriever(boolean dagManagerEnabled, MultiContextIssueRepository issueRepository) {
+  protected JobStatusRetriever(MultiContextIssueRepository issueRepository) {
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.issueRepository = Objects.requireNonNull(issueRepository);
-    this.dagManagerEnabled = dagManagerEnabled;
   }
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
@@ -186,7 +181,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
           Comparator.comparing(this::getJobGroup).thenComparing(this::getJobName).thenComparing(this::getJobExecutionId)
       ).collect(Collectors.toList())));
       return new FlowStatus(exec.getFlowName(), exec.getFlowGroup(), exec.getFlowExecutionId(), jobStatuses.iterator(),
-            getFlowStatusFromJobStatuses(dagManagerEnabled, jobStatuses.iterator()));
+            getFlowStatusFromJobStatuses(jobStatuses.iterator()));
     }).collect(Collectors.toList());
   }
 
@@ -227,31 +222,15 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
         && jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
   }
 
-  public static ExecutionStatus getFlowStatusFromJobStatuses(boolean dagManagerEnabled, Iterator<JobStatus> jobStatusIterator) {
+  public static ExecutionStatus getFlowStatusFromJobStatuses(Iterator<JobStatus> jobStatusIterator) {
     ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
 
-    if (dagManagerEnabled) {
-      while (jobStatusIterator.hasNext()) {
-        JobStatus jobStatus = jobStatusIterator.next();
-        // Check if this is the flow status instead of a single job status
-        if (JobStatusRetriever.isFlowStatus(jobStatus)) {
-          flowExecutionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
-        }
+    while (jobStatusIterator.hasNext()) {
+      JobStatus jobStatus = jobStatusIterator.next();
+      // Check if this is the flow status instead of a single job status
+      if (JobStatusRetriever.isFlowStatus(jobStatus)) {
+        flowExecutionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
       }
-    } else {
-      Set<ExecutionStatus> jobStatuses = new HashSet<>();
-      while (jobStatusIterator.hasNext()) {
-        JobStatus jobStatus = jobStatusIterator.next();
-        // because in absence of DagManager we do not get all flow level events, we will ignore the flow level events
-        // we actually get and purely calculate flow status based on flow statuses.
-        if (!JobStatusRetriever.isFlowStatus(jobStatus)) {
-          jobStatuses.add(ExecutionStatus.valueOf(jobStatus.getEventName()));
-        }
-      }
-
-      List<ExecutionStatus> statusesInDescendingSalience = ImmutableList.of(ExecutionStatus.FAILED, ExecutionStatus.CANCELLED,
-          ExecutionStatus.RUNNING, ExecutionStatus.ORCHESTRATED, ExecutionStatus.COMPLETE);
-      flowExecutionStatus = statusesInDescendingSalience.stream().filter(jobStatuses::contains).findFirst().orElse(ExecutionStatus.$UNKNOWN);
     }
 
     return flowExecutionStatus;

@@ -37,7 +37,6 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.spec_executorInstance.LocalFsSpecProducer;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.ServiceConfigKeys;
 
 
 /**
@@ -54,7 +53,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   @Inject
   public LocalFsJobStatusRetriever(Config config, MultiContextIssueRepository issueRepository) {
-    super(ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_DAG_MANAGER_ENABLED, issueRepository);
+    super(issueRepository);
     this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 

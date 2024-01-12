@@ -179,7 +179,7 @@ public class EventSubmitter {
       }
 
       // Timestamp is set by metric context.
-      this.metricContext.get().submitEvent(new GobblinTrackingEvent(0l, this.namespace, name, finalMetadata));
+      this.metricContext.get().submitEvent(new GobblinTrackingEvent(0L, this.namespace, name, finalMetadata));
     }
   }
 
