@@ -125,8 +125,17 @@ public class FileListUtils {
   public static List<FileStatus> listFilesRecursively(FileSystem fs, Path path, PathFilter fileFilter,
       boolean applyFilterToDirectories)
       throws IOException {
-    return listFilesRecursivelyHelper(fs, Lists.newArrayList(), fs.getFileStatus(path), fileFilter,
-        applyFilterToDirectories, false);
+    return listFilesRecursively(fs, fs.getFileStatus(path), fileFilter, applyFilterToDirectories);
+  }
+
+  /**
+   * Helper method to list out all files under a specified {@link FileStatus}. If applyFilterToDirectories is false, the supplied
+   * {@link PathFilter} will only be applied to files.
+   */
+  public static List<FileStatus> listFilesRecursively(FileSystem fs, FileStatus beneathThisFile, PathFilter fileFilter,
+      boolean applyFilterToDirectories)
+      throws IOException {
+    return listFilesRecursivelyHelper(fs, Lists.newArrayList(), beneathThisFile, fileFilter, applyFilterToDirectories, false);
   }
 
   private static List<FileStatus> listFilesRecursivelyHelper(FileSystem fs, List<FileStatus> files,
