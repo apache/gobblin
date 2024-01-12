@@ -88,12 +88,12 @@ public class FlowSpec implements Configurable, Spec {
   */
 
   /** Flow config as a typesafe config object which can be replaced */
-  volatile Config config;
+  private volatile Config config;
 
   /** Flow config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
-  volatile Properties configAsProperties;
+  private volatile Properties configAsProperties;
 
   /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   final Optional<Set<URI>> templateURIs;
@@ -138,11 +138,12 @@ public class FlowSpec implements Configurable, Spec {
   }
 
   /**
-   * Add property to Config (also propagated to the Properties field).
+   * Add property to Config (also propagated to the Properties field). These two fields should only be modified through
+   * this method to prevent inconsistency between them.
    * @param key
    * @param value
    */
-  public void addProperty(String key, String value) {
+  public synchronized void addProperty(String key, String value) {
     this.config = config.withValue(key, ConfigValueFactory.fromAnyRef(value));
     /* Make sure configAsProperties has been initialized. If it's just initialized, setting the property will be a
     redundant operation. However, if it already existed we need to update/add the key-value pair.
