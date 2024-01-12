@@ -79,7 +79,8 @@ public class FlowSpec implements Configurable, Spec {
   final String description;
 
   /* Note that since getConfig() and getConfigAsProperties() are independent accessors, `volatile` doesn't ensure a
-  * consistent view between them. In a multi-threaded scenario one should use the following access mechanism:
+  * consistent view between them. If one wants to access both, they should briefly synchronize on the FlowSpec object
+  * while obtaining them:
   *    FlowSpec fs = ...
   *    synchronized (fs) {
   *      fs.getConfig()
