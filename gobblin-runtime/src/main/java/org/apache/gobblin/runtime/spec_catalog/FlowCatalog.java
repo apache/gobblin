@@ -296,11 +296,11 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public Spec getSpecs(URI uri) throws SpecNotFoundException {
+  public FlowSpec getSpecs(URI uri) throws SpecNotFoundException {
     try {
-      return specStore.getSpec(uri);
+      return (FlowSpec) specStore.getSpec(uri);
     } catch (IOException e) {
-      throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
+      throw new RuntimeException("Cannot retrieve FlowSpec from Spec store for URI: " + uri, e);
     }
   }
 

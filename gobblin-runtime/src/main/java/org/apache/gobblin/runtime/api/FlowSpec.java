@@ -78,13 +78,22 @@ public class FlowSpec implements Configurable, Spec {
   /** Human-readable description of the flow spec */
   final String description;
 
+  /* Note that since getConfig() and getConfigAsProperties() are independent accessors, `volatile` doesn't ensure a
+  * consistent view between them. In a multi-threaded scenario one should use the following access mechanism:
+  *    FlowSpec fs = ...
+  *    synchronized (fs) {
+  *      fs.getConfig()
+  *      fs.getConfigAsProperties()
+  *    }
+  */
+
   /** Flow config as a typesafe config object which can be replaced */
-  Config config;
+  volatile Config config;
 
   /** Flow config as a properties collection for backwards compatibility */
   // Note that this property is not strictly necessary as it can be generated from the typesafe
   // config. We use it as a cache until typesafe config is more widely adopted in Gobblin.
-  final Properties configAsProperties;
+  volatile Properties configAsProperties;
 
   /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   final Optional<Set<URI>> templateURIs;
@@ -129,13 +138,15 @@ public class FlowSpec implements Configurable, Spec {
   }
 
   /**
-   * Add property to Config (also propagated to the Properties field)
+   * Add property to Config (also propagated to the Properties field).
    * @param key
    * @param value
    */
   public void addProperty(String key, String value) {
     this.config = config.withValue(key, ConfigValueFactory.fromAnyRef(value));
-    // Make sure configAsProperties has been initialized and is updated
+    /* Make sure configAsProperties has been initialized. If it's just initialized, setting the property will be a
+    redundant operation. However, if it already existed we need to update/add the key-value pair.
+     */
     this.getConfigAsProperties();
     this.configAsProperties.setProperty(key, value);
 

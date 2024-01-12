@@ -95,7 +95,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
 
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
+      FlowSpec spec = flowCatalog.getSpecs(flowUri);
       return FlowSpec.Utils.toFlowConfig(spec);
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowId.getFlowName(), e);

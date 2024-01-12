@@ -97,7 +97,7 @@ public final class FlowCompilationValidationHelper {
   /**
    * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
    * already running and emits a FLOW FAILED event. Otherwise, this check passes.
-   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile flowSpec, else absent Optional
+   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile flowSpec, else Optional.absent()
    * @throws IOException
    */
   public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
