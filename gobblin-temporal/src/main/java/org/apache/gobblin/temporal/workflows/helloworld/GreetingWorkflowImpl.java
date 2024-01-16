@@ -24,9 +24,9 @@ import org.slf4j.Logger;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.temporal.workflows.timing.TemporalEventTimer;
-import org.apache.gobblin.temporal.workflows.trackingevent.activity.GobblinTrackingEventActivity;
+import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivity;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.temporal.workflows.metrics.TrackingEventMetadata;
 
 
 public class GreetingWorkflowImpl implements GreetingWorkflow {
@@ -51,16 +51,17 @@ public class GreetingWorkflowImpl implements GreetingWorkflow {
      * The activity options that were defined above are passed in as a parameter.
      */
     private final FormatActivity formatActivity = Workflow.newActivityStub(FormatActivity.class, options);
-    private final GobblinTrackingEventActivity timerActivity = Workflow.newActivityStub(GobblinTrackingEventActivity.class, options);
+    private final SubmitGTEActivity
+        timerActivity = Workflow.newActivityStub(SubmitGTEActivity.class, options);
 
     // This is the entry point to the Workflow.
     @Override
-    public String getGreeting(String name, EventSubmitter eventSubmitter) {
+    public String getGreeting(String name, TrackingEventMetadata trackingEventMetadata) {
         /**
          * Example of the {@link TemporalEventTimer.Factory} invoking child activity for instrumentation.
          */
-        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(timerActivity, eventSubmitter);
-        try (TemporalEventTimer timer = timerFactory.get("getGreetingTime")) {
+        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(timerActivity, trackingEventMetadata);
+        try (TemporalEventTimer timer = timerFactory.create("getGreetingTime")) {
             LOG.info("Executing getGreeting");
             return formatActivity.composeGreeting(name);
         }

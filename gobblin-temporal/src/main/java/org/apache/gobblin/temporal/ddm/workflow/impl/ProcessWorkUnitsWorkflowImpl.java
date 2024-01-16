@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -39,15 +38,12 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -59,9 +55,10 @@ import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
-import org.apache.gobblin.temporal.workflows.timing.EventTimer;
-import org.apache.gobblin.temporal.workflows.timing.TemporalEventTimer;
-import org.apache.gobblin.temporal.workflows.trackingevent.activity.GobblinTrackingEventActivity;
+import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
+import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivity;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.temporal.workflows.metrics.TrackingEventMetadata;
 
 
 @Slf4j
@@ -71,27 +68,25 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   private final ActivityOptions options = ActivityOptions.newBuilder()
       .setStartToCloseTimeout(Duration.ofSeconds(60))
       .build();
-  private final GobblinTrackingEventActivity trackingEventActivity = Workflow.newActivityStub(
-      GobblinTrackingEventActivity.class, options);
+  private final SubmitGTEActivity submitGTEActivity = Workflow.newActivityStub(
+      SubmitGTEActivity.class, options);
 
   private static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
 
   @Override
-  public int process(WUProcessingSpec workSpec, Properties props) {
+  public int process(WUProcessingSpec workSpec) {
     // NOTE: We are using the metrics tags from Job Props to create the metric context for the timer and NOT
     // the deserialized jobState from HDFS that is created by the real distcp job. This is because the AZ runtime
     // settings we want are for the job launcher that launched this Yarn job.
-    State state = new State(props);
 
     try {
       FileSystem fs = Help.loadFileSystemForce(workSpec);
       JobState jobState = Help.loadJobStateUncached(workSpec, fs);
-      List<Tag<?>> tags = getTags(state, jobState);
-      EventSubmitter eventSubmitter = new EventSubmitter.Builder(
-          Instrumented.getMetricContext(state, getClass(), tags),
-          JobMetrics.NAMESPACE).build();
+      List<Tag<?>> tagsFromCurrentJob = workSpec.getTags();
+      String metricsSuffix = workSpec.getMetricsSuffix();
+      List<Tag<?>> tags = getTags(tagsFromCurrentJob, metricsSuffix, jobState);
 
-      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(trackingEventActivity, eventSubmitter);
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(submitGTEActivity, new TrackingEventMetadata(tags, JobMetrics.NAMESPACE));
       try (EventTimer timer = timerFactory.getJobTimer()) {
         return performWork(workSpec);
       }
@@ -142,10 +137,8 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
   }
 
-  private List<Tag<?>> getTags(State stateFromCurJob, JobState jobStateFromHdfs) {
-    // Alternatively, the tags should also exist in the eventSubmitter in the job launcher
-    List<Tag<?>> tagsFromCurJob = GobblinMetrics.getCustomTagsFromState(stateFromCurJob);
-    // add tags jobState in the form of tags on HDFS and the rest of the fields will come from the current job
+  private List<Tag<?>> getTags(List<Tag<?>> tagsFromCurJob, String metricsSuffix, JobState jobStateFromHdfs) {
+    // Construct new tags list by combining subset of tags on HDFS job state and the rest of the fields from the current job
     Map<String, Tag<?>> tagsMap = new HashMap<>();
     Set<String> tagKeysFromJobState = new HashSet<>(Arrays.asList(
         TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
@@ -156,19 +149,19 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
     // Step 1, Add tags from the AZ props using the original job (the one that launched this yarn app)
     tagsFromCurJob.forEach(tag -> tagsMap.put(tag.getKey(), tag));
+
     // Step 2. Add tags from the jobState (the original MR job on HDFS)
     GobblinMetrics.getCustomTagsFromState(jobStateFromHdfs).stream()
         .filter(tag -> tagKeysFromJobState.contains(tag.getKey()))
         .forEach(tag -> tagsMap.put(tag.getKey(), tag));
 
-    // TEMP step: Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions with the original job
-    String suffix = stateFromCurJob.getProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX,
-        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX);
-    Consumer<String> addSuffix =  (key) -> tagsMap.put(key, new Tag<>(key, tagsMap.get(key).getValue() + suffix));
+    // Step 2a (optional): Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions when testing
+    Consumer<String> addSuffix =  (key) -> tagsMap.put(key, new Tag<>(key, tagsMap.get(key).getValue() + metricsSuffix));
     addSuffix.accept(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
     addSuffix.accept(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
 
-    // Step 3. Consolidate back into a list with no dupes
+    // Step 3: Overwrite any pre-existing metadata with name of the current caller
+    tagsMap.put(GobblinMetricsKeys.CLASS_META, new Tag<>(GobblinMetricsKeys.CLASS_META, getClass().getCanonicalName()));
     return new ArrayList<>(tagsMap.values());
   }
 }

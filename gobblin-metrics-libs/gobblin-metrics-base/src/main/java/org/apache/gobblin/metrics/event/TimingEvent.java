@@ -128,7 +128,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     super(name);
     this.stopped = false;
     this.submitter = submitter;
-    this.startTime = System.currentTimeMillis();
+    this.startTime = getTime();
   }
 
   /**
@@ -136,6 +136,10 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
    */
   public void stop() {
     stop(Maps.<String, String>newHashMap());
+  }
+
+  public Long getTime() {
+    return System.currentTimeMillis();
   }
 
   /**
@@ -162,7 +166,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     }
 
     this.stopped = true;
-    this.endTime = System.currentTimeMillis();
+    this.endTime = getTime();
     this.duration = this.endTime - this.startTime;
 
     this.metadata.put(EventSubmitter.EVENT_TYPE, METADATA_TIMING_EVENT);

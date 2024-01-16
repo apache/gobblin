@@ -15,17 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows.trackingevent.activity;
+package org.apache.gobblin.temporal.workflows.metrics;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
 @ActivityInterface
-public interface GobblinTrackingEventActivity {
+public interface SubmitGTEActivity {
     @ActivityMethod
-    void submitGTE(EventSubmitter eventSubmitter, GobblinEventBuilder eventBuilder);
+    void submitGTE(GobblinEventBuilder eventBuilder, TrackingEventMetadata trackingEventMetadata);
 }

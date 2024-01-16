@@ -15,21 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows.trackingevent.activity;
+package org.apache.gobblin.temporal.workflows.metrics;
 
 import org.slf4j.Logger;
 
 import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
-public class GobblinTrackingEventActivityImpl implements GobblinTrackingEventActivity {
-    private static Logger log = Workflow.getLogger(GobblinTrackingEventActivityImpl.class);
+public class SubmitGTEActivityImpl implements SubmitGTEActivity {
+    private static Logger log = Workflow.getLogger(SubmitGTEActivityImpl.class);
 
     @Override
-    public void submitGTE(EventSubmitter eventSubmitter, GobblinEventBuilder eventBuilder) {
-        eventSubmitter.submit(eventBuilder);
+    public void submitGTE(GobblinEventBuilder eventBuilder, TrackingEventMetadata trackingEventMetadata) {
+        trackingEventMetadata.createEventSubmitter().submit(eventBuilder);
     }
 }

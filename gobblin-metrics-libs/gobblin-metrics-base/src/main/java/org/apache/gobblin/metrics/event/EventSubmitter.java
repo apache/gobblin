@@ -17,23 +17,9 @@
 
 package org.apache.gobblin.metrics.event;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
-import com.codahale.metrics.Gauge;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -53,8 +39,6 @@ import org.apache.gobblin.metrics.Tag;
  * </p>
  *
  */
-@JsonSerialize(using = EventSubmitter.Serializer.class)
-@JsonDeserialize(using = EventSubmitter.Deserializer.class)
 public class EventSubmitter {
 
   public static final String EVENT_TYPE = "eventType";
@@ -229,67 +213,4 @@ public class EventSubmitter {
         null;
   }
 
-  /**
-   * Serializer for jackson that does its best to serialize a {@link EventSubmitter} from a json representation.
-   * NOTE: Due to the nested bidirectional nature of the {@link org.apache.gobblin.metrics.InnerMetricContext} and
-   * usage of {@link Gauge} this is not a perfect serialization but it is sufficient for passing important monitoring
-   * like original Azkaban flow name and gobblin job id
-   */
-  public static class Serializer extends StdSerializer<EventSubmitter> {
-    public static final String CLASS_KEY = "class";
-    public Serializer() {
-      this(null);
-    }
-
-    public Serializer(Class<EventSubmitter> t) {
-      super(t);
-    }
-
-    @Override
-    public void serialize(EventSubmitter value, JsonGenerator jgen, SerializerProvider provider)
-        throws IOException {
-      jgen.writeStartObject();
-      jgen.writeStringField("callerClass", value.getTags().stream().filter(tag -> tag.getKey().equals(
-          CLASS_KEY)).findAny().map(tag -> String.valueOf(tag.getValue())).orElse(getClass().getName()));
-      jgen.writeStringField("namespace", value.getNamespace());
-      jgen.writeObjectField("tags", value.getTags());
-      jgen.writeEndObject();
-    }
-  }
-
-  public static class Deserializer extends StdDeserializer<EventSubmitter> {
-    public Deserializer() {
-      this(null);
-    }
-
-    public Deserializer(Class<EventSubmitter> t) {
-      super(t);
-    }
-
-    @Override
-    public EventSubmitter deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException {
-      JsonNode node = jp.getCodec().readTree(jp);
-
-      String namespace = node.get("namespace").asText();
-      ObjectMapper objectMapper = new ObjectMapper();
-      JavaType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Tag.class);
-      List<Tag<?>> tags = objectMapper.readValue(node.get("tags").toString(), type);
-
-      String callerClassStr = node.get("callerClass").asText();
-      Class callerClass;
-      try {
-        callerClass = Class.forName(callerClassStr);
-      } catch (ClassNotFoundException e) {
-        throw new IOException(e);
-      }
-
-      // NOTE: This metric context is constructed differently from some other uses cases AbstractJobLauncher,
-      // which uses JobMetrics.get() instead. Or the GobblinOrcWriter, which uses Instrumented.getMetricContext
-      // The reason for is that we cannot create a circular dependency on the metrics module when adding the deserializer
-      int randomId = new Random().nextInt(Integer.MAX_VALUE);
-      MetricContext metricContext = MetricContext.builder(callerClass.getCanonicalName() + "." + randomId).addTags(tags).build();
-      return new Builder(metricContext, namespace).build();
-    }
-  }
 }

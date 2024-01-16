@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.launcher;
 
-import io.temporal.client.WorkflowOptions;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
@@ -26,11 +25,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.ConfigFactory;
-import org.apache.hadoop.fs.Path;
 
+import io.temporal.client.WorkflowOptions;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
@@ -84,12 +88,18 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
         wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
       }
       Help.propagateGaaSFlowExecutionContext(Help.loadJobState(wuSpec, Help.loadFileSystem(wuSpec)));
+
+      wuSpec.setTags(GobblinMetrics.getCustomTagsFromState(new State(jobProps)));
+      wuSpec.setMetricsSuffix(this.jobProps.getProperty(
+          GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX,
+          GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX));
+
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
           .setWorkflowId(Help.qualifyNamePerExec(WORKFLOW_ID_BASE, wuSpec, ConfigFactory.parseProperties(jobProps)))
           .build();
       ProcessWorkUnitsWorkflow workflow = this.client.newWorkflowStub(ProcessWorkUnitsWorkflow.class, options);
-      workflow.process(wuSpec, jobProps);
+      workflow.process(wuSpec);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

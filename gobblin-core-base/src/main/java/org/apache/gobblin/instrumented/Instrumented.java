@@ -20,6 +20,7 @@ package org.apache.gobblin.instrumented;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -113,7 +114,7 @@ public class Instrumented implements Instrumentable, Closeable {
    * @param tags Additional tags to add to the returned context.
    * @return A {@link org.apache.gobblin.metrics.MetricContext} with the appropriate tags and parent.
    */
-  public static MetricContext getMetricContext(State state, Class<?> klazz, List<Tag<?>> tags) {
+  public static MetricContext getMetricContext(State state, Class<?> klazz, Collection<Tag<?>> tags) {
     int randomId = RAND.nextInt(Integer.MAX_VALUE);
 
     List<Tag<?>> generatedTags = Lists.newArrayList();

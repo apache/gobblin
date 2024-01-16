@@ -15,83 +15,85 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows.timing;
+package org.apache.gobblin.temporal.workflows.metrics;
 
 import java.time.Duration;
 import java.time.Instant;
 
 import io.temporal.workflow.Workflow;
+import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.temporal.workflows.trackingevent.activity.GobblinTrackingEventActivity;
 
 
 /**
  * Boiler plate for tracking elapsed time of events that is compatible with {@link Workflow}
  * by using activities to record time
+ *
+ * This class is very similar to {@link TimingEvent} but uses {@link Workflow} compatible APIs. It's possible to refactor
+ * this class to inherit the {@link TimingEvent} but extra care would be needed to remove the {@link EventSubmitter} field
+ * since that class is not serializable without losing some information
  */
+@RequiredArgsConstructor
 public class TemporalEventTimer implements EventTimer {
-  private final GobblinTrackingEventActivity trackingEventActivity;
-  private final EventSubmitter eventSubmitter;
+  private final SubmitGTEActivity trackingEventActivity;
   private final GobblinEventBuilder eventBuilder;
-
-  private Instant startTime;
-
-  private TemporalEventTimer(GobblinTrackingEventActivity trackingEventActivity, EventSubmitter eventSubmitter, GobblinEventBuilder eventBuilder) {
-    this.trackingEventActivity = trackingEventActivity;
-    this.eventBuilder = eventBuilder;
-    this.eventSubmitter = eventSubmitter;
-    this.startTime = getCurrentTime();
-  }
+  private final TrackingEventMetadata trackingEventMetadata;
+  private final Instant startTime;
 
   @Override
-  public void close() {
-    close(getCurrentTime());
+  public void stop() {
+    stop(getCurrentTime());
   }
 
-  private void close(Instant endTime) {
+  private void stop(Instant endTime) {
     this.eventBuilder.addMetadata(EventSubmitter.EVENT_TYPE, TimingEvent.METADATA_TIMING_EVENT);
     this.eventBuilder.addMetadata(TimingEvent.METADATA_START_TIME, Long.toString(this.startTime.toEpochMilli()));
     this.eventBuilder.addMetadata(TimingEvent.METADATA_END_TIME, Long.toString(endTime.toEpochMilli()));
     Duration duration = Duration.between(this.startTime, endTime);
     this.eventBuilder.addMetadata(TimingEvent.METADATA_DURATION, Long.toString(duration.toMillis()));
 
-    trackingEventActivity.submitGTE(this.eventSubmitter, this.eventBuilder);
+    trackingEventActivity.submitGTE(this.eventBuilder, trackingEventMetadata);
   }
 
-  private Instant getCurrentTime() {
+  private static Instant getCurrentTime() {
     return Instant.ofEpochMilli(Workflow.currentTimeMillis());
   }
 
   public static class Factory {
-    private final GobblinTrackingEventActivity trackingEventActivity;
-    private final EventSubmitter eventSubmitter;
+    private final SubmitGTEActivity submitGTEActivity;
+    private final TrackingEventMetadata trackingEventMetadata;
 
-    public Factory(GobblinTrackingEventActivity trackingEventActivity, EventSubmitter eventSubmitter) {
-      this.trackingEventActivity = trackingEventActivity;
-      this.eventSubmitter = eventSubmitter;
+    public Factory(SubmitGTEActivity submitGTEActivity, TrackingEventMetadata trackingEventMetadata) {
+        this.submitGTEActivity = submitGTEActivity;
+        this.trackingEventMetadata = trackingEventMetadata;
     }
 
-    public TemporalEventTimer get(String eventName) {
-      GobblinEventBuilder eventBuilder = new GobblinEventBuilder(eventName, eventSubmitter.getNamespace());
-      return new TemporalEventTimer(this.trackingEventActivity, eventSubmitter, eventBuilder);
+    public TemporalEventTimer create(String eventName, Instant startTime) {
+      GobblinEventBuilder eventBuilder = new GobblinEventBuilder(eventName, trackingEventMetadata.getNamespace());
+      return new TemporalEventTimer(submitGTEActivity, eventBuilder, this.trackingEventMetadata, startTime);
+    }
+
+    public TemporalEventTimer create(String eventName) {
+      return create(eventName, getCurrentTime());
     }
 
     /**
-     * Creates a timer that emits separate events at the start and end of a job
+     * Creates a timer that emits separate events at the start and end of a job. This imitates the behavior in
+     * {@link org.apache.gobblin.runtime.AbstractJobLauncher} by using stubs to be compatible with the
+     * {@link org.apache.gobblin.runtime.job_monitor.KafkaAvroJobMonitor}
+     *
      * @return a timer that emits an event at the beginning of the job and a completion event ends at the end of the job
      */
     public EventTimer getJobTimer() {
-      TemporalEventTimer startTimer = get(TimingEvent.LauncherTimings.JOB_START);
-      Instant jobStartTime = startTimer.startTime;
-      startTimer.close(Instant.EPOCH); // Job start event contains a stub end time
+      TemporalEventTimer startTimer = create(TimingEvent.LauncherTimings.JOB_START);
+      startTimer.stop(Instant.EPOCH); // Job start event contains a stub end time
 
       return () -> {
-        TemporalEventTimer endTimer = get(TimingEvent.LauncherTimings.JOB_COMPLETE);
-        endTimer.startTime = jobStartTime;
-        endTimer.close();
+        TemporalEventTimer endTimer = create(TimingEvent.LauncherTimings.JOB_COMPLETE, startTimer.startTime);
+        endTimer.stop();
       };
     }
   }
