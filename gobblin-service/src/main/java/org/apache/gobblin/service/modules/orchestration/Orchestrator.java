@@ -255,7 +255,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       } else {
         TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =
-            this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, spec, flowGroup,
+            this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
                 flowName);
 
         if (!compiledDagOptional.isPresent()) {
@@ -264,7 +264,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         }
         Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
         if (compiledDag.isEmpty()) {
-          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, spec, flowMetadata);
+          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);
           sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
               SharedFlowMetricsSingleton.CompiledState.FAILED);
@@ -288,10 +288,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  public void submitFlowToDagManager(FlowSpec flowSpec, DagActionStore.DagAction flowAction) throws IOException, InterruptedException {
+  public void submitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
     Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec,
-            Optional.of(flowAction.getFlowExecutionId()));
+        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
     if (optionalJobExecutionPlanDag.isPresent()) {
       submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
     } else {

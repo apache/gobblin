@@ -642,7 +642,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
       try {
-          FlowSpec spec = (FlowSpec) this.flowCatalog.get().getSpecs(specURI);
+          FlowSpec spec = this.flowCatalog.get().getSpecs(specURI);
           Properties properties = spec.getConfigAsProperties();
           _log.info(jobSchedulerTracePrefixBuilder(properties) + "Unscheduled Spec");
         } catch (SpecNotFoundException e) {

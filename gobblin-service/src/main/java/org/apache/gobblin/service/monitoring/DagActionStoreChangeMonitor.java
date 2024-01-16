@@ -34,6 +34,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
@@ -275,9 +276,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     FlowSpec spec = null;
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
-      // Pass flowExecutionId to DagManager to be used for scheduled flows that do not already contain a flowExecutionId
-      this.orchestrator.submitFlowToDagManager(spec, dagAction);
+      spec = flowCatalog.getSpecs(flowUri);
+      /* Update the spec to contain the flowExecutionId from the dagAction for scheduled flows that do not already
+      contain a flowExecutionId. Adhoc flowSpecs are already consistent with the dagAction so there's no effective
+      change. It's crucial to adopt the consensus flowExecutionId here to prevent creating a new one during compilation.
+      */
+      spec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
+      this.orchestrator.submitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       launchSubmissionMetricProxy.markFailure();

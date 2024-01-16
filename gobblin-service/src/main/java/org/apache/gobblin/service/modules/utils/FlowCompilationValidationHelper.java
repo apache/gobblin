@@ -28,7 +28,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
@@ -65,13 +64,10 @@ public final class FlowCompilationValidationHelper {
    * flowspec can be compiled. If the pre-conditions hold, then a JobExecutionPlan is constructed and returned to the
    * caller.
    * @param flowSpec
-   * @param optionalFlowExecutionId for scheduled (non-ad-hoc) flows, to pass the ID "laundered" via the DB;
-   *                                see: {@link org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter javadoc section titled
-   *                                `Database event_timestamp laundering`}
    * @return jobExecutionPlan dag if one can be constructed for the given flowSpec
    */
-  public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec,
-      Optional<String> optionalFlowExecutionId) throws IOException, InterruptedException {
+  public Optional<Dag<JobExecutionPlan>> createExecutionPlanIfValid(FlowSpec flowSpec)
+      throws IOException, InterruptedException {
     Config flowConfig = flowSpec.getConfig();
     String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -93,7 +89,7 @@ public final class FlowCompilationValidationHelper {
       return Optional.absent();
     }
 
-    addFlowExecutionIdIfAbsent(flowMetadata, optionalFlowExecutionId, jobExecutionPlanDagOptional.get());
+    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
     flowCompilationTimer.stop(flowMetadata);
     return jobExecutionPlanDagOptional;
   }
@@ -101,25 +97,25 @@ public final class FlowCompilationValidationHelper {
   /**
    * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
    * already running and emits a FLOW FAILED event. Otherwise, this check passes.
-   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile spec, else absent Optional
+   * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile flowSpec, else Optional.absent()
    * @throws IOException
    */
-  public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, Spec spec,
+  public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
       String flowGroup, String flowName) throws IOException {
     boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig,
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, isFlowConcurrencyEnabled);
 
-    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
 
     if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
       return Optional.fromNullable(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
           + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(flowSpec,
           SharedFlowMetricsSingleton.CompiledState.SKIPPED);
       Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
-      if (!isScheduledFlow((FlowSpec) spec)) {
+      if (!flowSpec.isScheduled()) {
         // For ad-hoc flow, we might already increase quota, we need to decrease here
         for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
           quotaManager.releaseQuota(dagNode);
@@ -127,9 +123,9 @@ public final class FlowCompilationValidationHelper {
       }
 
       // Send FLOW_FAILED event
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
-          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flow spec to change this behaviour.");
+          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
       new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       return Optional.absent();
     }
@@ -150,11 +146,11 @@ public final class FlowCompilationValidationHelper {
 
   /**
    * Abstraction used to populate the message of and emit a FlowCompileFailed event for the Orchestrator.
-   * @param spec
+   * @param flowSpec
    * @param flowMetadata
    */
-  public static void populateFlowCompilationFailedEventMessage(EventSubmitter eventSubmitter, Spec spec,
-      Map<String, String> flowMetadata) {
+  public static void populateFlowCompilationFailedEventMessage(EventSubmitter eventSubmitter,
+      FlowSpec flowSpec, Map<String, String> flowMetadata) {
     // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
     // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
     // In this case, the current time is used as the flow executionId.
@@ -162,8 +158,8 @@ public final class FlowCompilationValidationHelper {
         Long.toString(System.currentTimeMillis()));
 
     String message = "Flow was not compiled successfully.";
-    if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
-      message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
+    if (!flowSpec.getCompilationErrors().isEmpty()) {
+      message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
     }
     flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
@@ -171,32 +167,13 @@ public final class FlowCompilationValidationHelper {
   }
 
   /**
-   * If it is a scheduled flow (which does not have flowExecutionId in the FlowSpec) and the flow compilation is
-   * successful, retrieve flowExecutionId from the JobSpec.
+   * If it is a scheduled flow run without multi-active scheduler configuration (where the FlowSpec does not have a
+   * flowExecutionId) and the flow compilation is successful, retrieve flowExecutionId from the JobSpec.
    */
   public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
       Dag<JobExecutionPlan> jobExecutionPlanDag) {
-    addFlowExecutionIdIfAbsent(flowMetadata, Optional.absent(), jobExecutionPlanDag);
-  }
-
-  /**
-   * If it is a scheduled flow (which does not have flowExecutionId in the FlowSpec) and the flow compilation is
-   * successful, add a flowExecutionId using the optional parameter if it exists otherwise retrieve it from the JobSpec.
-   */
-  public static void addFlowExecutionIdIfAbsent(Map<String,String> flowMetadata,
-      Optional<String> optionalFlowExecutionId, Dag<JobExecutionPlan> jobExecutionPlanDag) {
-    if (optionalFlowExecutionId.isPresent()) {
-      flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, optionalFlowExecutionId.get());
-    }
     flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
         jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(
             ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
-  }
-
-  /**
-   * Return true if the spec contains a schedule, false otherwise.
-   */
-  public static boolean isScheduledFlow(FlowSpec spec) {
-    return spec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY);
   }
 }
