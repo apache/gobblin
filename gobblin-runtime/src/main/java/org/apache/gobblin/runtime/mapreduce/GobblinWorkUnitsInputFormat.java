@@ -60,6 +60,8 @@ import lombok.extern.slf4j.Slf4j;
 public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text> {
 
   private static final String MAX_MAPPERS = GobblinWorkUnitsInputFormat.class.getName() + ".maxMappers";
+  private static final String MAX_INPUT_FILES_TO_LOG = GobblinWorkUnitsInputFormat.class.getName() + ".maxInputFilesToLog";
+  private static final int DEFAULT_MAX_INPUT_FILES_TO_LOG = 10;
 
   /**
    * Set max mappers used in MR job.
@@ -72,9 +74,14 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     return conf.getInt(MAX_MAPPERS, Integer.MAX_VALUE);
   }
 
+  public static int getMaxInputFilesToLog(Configuration conf) {
+    return conf.getInt(MAX_INPUT_FILES_TO_LOG, DEFAULT_MAX_INPUT_FILES_TO_LOG);
+  }
+
   @Override
   public List<InputSplit> getSplits(JobContext context)
       throws IOException, InterruptedException {
+    int maxInputFilesToLog = this.getMaxInputFilesToLog(context.getConfiguration());
 
     Path[] inputPaths = FileInputFormat.getInputPaths(context);
     if (inputPaths == null || inputPaths.length == 0) {
@@ -91,7 +98,9 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       if (inputs == null) {
         throw new IOException(String.format("Path %s does not exist.", path));
       }
-      log.info(String.format("Found %d input files at %s: %s", inputs.length, path, Arrays.toString(inputs)));
+      int numInputsToLog = Math.min(inputs.length, maxInputFilesToLog);
+      FileStatus[] firstNumInputs = Arrays.copyOf(inputs, numInputsToLog);
+      log.info(String.format("Found %d input files at %s: **first %d only** %s", inputs.length, path, numInputsToLog, Arrays.toString(firstNumInputs)));
       for (FileStatus input : inputs) {
         allPaths.add(input.getPath().toString());
       }
