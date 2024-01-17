@@ -159,10 +159,8 @@ public class StreamModelTaskRunner {
     LoggingUncaughtExceptionHandler exceptionHandler = new LoggingUncaughtExceptionHandler(Optional.absent());
     thread.setUncaughtExceptionHandler(exceptionHandler);
     thread.start();
-    if (!ExponentialBackoff.awaitCondition().callable(() -> {
-      return this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)
-    || exceptionHandler.getException() != null;
-     }).
+    if (!ExponentialBackoff.awaitCondition().callable(() ->
+        this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone) || exceptionHandler.getException() != null).
         initialDelay(initialDelay).maxDelay(initialDelay).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
       throw new TimeoutException("Forks did not finish withing specified timeout.");
     }
