@@ -324,7 +324,7 @@ public class DagManager extends AbstractIdleService {
       throw new IOException("Could not add dag" + dagId + "to queue");
     }
     if (setStatus) {
-      DagManagerUtils.submitAndSet(dag, this.eventSubmitter);
+      DagManagerUtils.submitPendingExecStatus(dag, this.eventSubmitter);
     }
   }
 
@@ -633,15 +633,18 @@ public class DagManager extends AbstractIdleService {
      */
     private void finishResumingDags() throws IOException {
       for (Map.Entry<String, Dag<JobExecutionPlan>> dag : this.resumingDags.entrySet()) {
-        Optional<JobStatus> flowStatus = DagManagerUtils.pollFlowStatus(dag.getValue(), this.jobStatusRetriever, this.jobStatusPolledTimer);
-        if (!flowStatus.toJavaUtil().filter(fs -> fs.getEventName().equals(PENDING_RESUME.name())).isPresent()) {
+        java.util.Optional<JobStatus> flowStatus = DagManagerUtils.pollFlowStatus(dag.getValue(), this.jobStatusRetriever, this.jobStatusPolledTimer);
+        if (!flowStatus.filter(fs -> fs.getEventName().equals(PENDING_RESUME.name())).isPresent()) {
           continue;
         }
 
         boolean dagReady = true;
         for (DagNode<JobExecutionPlan> node : dag.getValue().getNodes()) {
-          Optional<JobStatus> jobStatus = DagManagerUtils.pollJobStatus(node, this.jobStatusRetriever, this.jobStatusPolledTimer);
-          if (!jobStatus.isPresent() || jobStatus.get().getEventName().equals(FAILED.name()) || jobStatus.get().getEventName().equals(CANCELLED.name())) {
+          java.util.Optional<JobStatus> jobStatus = DagManagerUtils.pollJobStatus(node, this.jobStatusRetriever, this.jobStatusPolledTimer);
+          if (jobStatus.filter(js -> {
+            String jobName = js.getEventName();
+            return jobName.equals(FAILED.name()) || jobName.equals(CANCELLED.name());
+          }).isPresent()) {
             dagReady = false;
             break;
           }
@@ -771,7 +774,7 @@ public class DagManager extends AbstractIdleService {
         try {
           boolean slaKilled = slaKillIfNeeded(node);
 
-          Optional<JobStatus> jobStatus = DagManagerUtils.pollJobStatus(node, this.jobStatusRetriever, this.jobStatusPolledTimer);
+          java.util.Optional<JobStatus> jobStatus = DagManagerUtils.pollJobStatus(node, this.jobStatusRetriever, this.jobStatusPolledTimer);
 
           boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
 
@@ -806,7 +809,7 @@ public class DagManager extends AbstractIdleService {
               break;
           }
 
-          if (jobStatus.isPresent() && jobStatus.get().isShouldRetry()) {
+          if (jobStatus.filter(JobStatus::isShouldRetry).isPresent()) {
             log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
                 jobStatus.get().getCurrentAttempts(), jobStatus.get().getMaxAttempts());
             this.jobToDag.get(node).setFlowEvent(null);
@@ -841,7 +844,7 @@ public class DagManager extends AbstractIdleService {
      * @return true if the total time that the job remains in the ORCHESTRATED state exceeds
      * {@value ConfigurationKeys#GOBBLIN_JOB_START_SLA_TIME}.
      */
-    private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, Optional<JobStatus> jobStatus)
+    private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, java.util.Optional<JobStatus> jobStatus)
         throws ExecutionException, InterruptedException {
       if (!jobStatus.isPresent()) {
         return false;
@@ -866,15 +869,11 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, Optional<JobStatus> jobStatus) {
+    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, java.util.Optional<JobStatus> jobStatus) {
       if (slaKilled || killOrphanFlow) {
         return CANCELLED;
       } else {
-        if (!jobStatus.isPresent()) {
-          return PENDING;
-        } else {
-          return valueOf(jobStatus.get().getEventName());
-        }
+        return jobStatus.map(status -> valueOf(status.getEventName())).orElse(PENDING);
       }
     }
 
@@ -1101,8 +1100,8 @@ public class DagManager extends AbstractIdleService {
       for (Iterator<String> dagIdIterator = this.dagIdstoClean.iterator(); dagIdIterator.hasNext();) {
         String dagId = dagIdIterator.next();
         Dag<JobExecutionPlan> dag = this.dags.get(dagId);
-        Optional<JobStatus> flowStatus = DagManagerUtils.pollFlowStatus(dag, this.jobStatusRetriever, this.jobStatusPolledTimer);
-        if (flowStatus.isPresent() && FlowStatusGenerator.FINISHED_STATUSES.contains(flowStatus.get().getEventName())) {
+        java.util.Optional<JobStatus> flowStatus = DagManagerUtils.pollFlowStatus(dag, this.jobStatusRetriever, this.jobStatusPolledTimer);
+        if (flowStatus.filter(fs -> FlowStatusGenerator.FINISHED_STATUSES.contains(fs.getEventName())).isPresent()) {
           FlowId flowId = DagManagerUtils.getFlowId(dag);
           switch(dag.getFlowEvent()) {
             case TimingEvent.FlowTimings.FLOW_SUCCEEDED:

@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -123,7 +122,7 @@ public class DagManagerUtils {
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
   }
 
-  public static DagManager.DagId generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
+  public static DagManager.DagId generateDagId(DagNode<JobExecutionPlan> dagNode) {
     return generateDagId(dagNode.getValue().getJobSpec().getConfig());
   }
 
@@ -219,7 +218,7 @@ public class DagManagerUtils {
       DagNode<JobExecutionPlan> node = nodesToExpand.poll();
       ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (executionStatus == ExecutionStatus.PENDING || executionStatus == ExecutionStatus.PENDING_RETRY
+      if (executionStatus == PENDING || executionStatus == ExecutionStatus.PENDING_RETRY
           || executionStatus == ExecutionStatus.PENDING_RESUME) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
         List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
@@ -390,7 +389,7 @@ public class DagManagerUtils {
     }
   }
 
-  public static void submitAndSet(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) {
+  public static void submitPendingExecStatus(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) {
     for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
       Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
@@ -402,7 +401,7 @@ public class DagManagerUtils {
   /**
    * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
    */
-  public static Optional<JobStatus> pollJobStatus(DagNode<JobExecutionPlan> dagNode, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
+  public static java.util.Optional<JobStatus> pollJobStatus(DagNode<JobExecutionPlan> dagNode, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -417,9 +416,9 @@ public class DagManagerUtils {
    * Retrieve the flow's {@link JobStatus} (i.e. job status with {@link JobStatusRetriever#NA_KEY} as job name/group) from a dag
    * Returns empty optional if dag is null/empty or job status is not found.
    */
-  public static Optional<JobStatus> pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
+  public static java.util.Optional<JobStatus> pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     if (dag == null || dag.isEmpty()) {
-      return Optional.absent();
+      return java.util.Optional.empty();
     }
     Config jobConfig = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
@@ -433,17 +432,17 @@ public class DagManagerUtils {
    * Retrieve the flow's {@link JobStatus} and update the timer if jobStatusPolledTimer is present.
    * Returns empty optional if job status is not found.
    */
-  public static Optional<JobStatus> pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
-    JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
+  public static java.util.Optional<JobStatus> pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
+                                               JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
     long pollStartTime = System.nanoTime();
     Iterator<JobStatus> jobStatusIterator =
         jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
     Instrumented.updateTimer(jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
 
     if (jobStatusIterator.hasNext()) {
-      return Optional.of(jobStatusIterator.next());
+      return java.util.Optional.of(jobStatusIterator.next());
     } else {
-      return Optional.absent();
+      return java.util.Optional.empty();
     }
   }
 
