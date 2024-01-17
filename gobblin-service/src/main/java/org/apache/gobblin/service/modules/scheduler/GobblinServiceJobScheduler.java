@@ -615,6 +615,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
       if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
         _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
+        // Use 0 for trigger event time of a run-immediately flow
+        jobConfig.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
         this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
       }
     } else {
