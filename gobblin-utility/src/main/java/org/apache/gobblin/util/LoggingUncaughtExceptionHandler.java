@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +32,8 @@ import com.google.common.base.Optional;
 public class LoggingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
 
   private final Logger logger;
+  @Getter
+  private Throwable exception = null;
 
   public LoggingUncaughtExceptionHandler(Optional<Logger> logger) {
     if (logger.isPresent()) {
@@ -42,6 +45,7 @@ public class LoggingUncaughtExceptionHandler implements Thread.UncaughtException
 
   @Override
   public void uncaughtException(Thread t, Throwable e) {
+    exception = e;
     this.logger.error(String.format("Thread %s threw an uncaught exception: %s", t, e), e);
   }
 }

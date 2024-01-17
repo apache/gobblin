@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.api.client.repackaged.com.google.common.base.Throwables;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -155,12 +156,18 @@ public class StreamModelTaskRunner {
     Thread thread = new Thread(() -> connectableStream.connect());
     thread.setName(this.getClass().getSimpleName());
     //Log uncaught exceptions (e.g.OOMEs) to prevent threads from dying silently
-    thread.setUncaughtExceptionHandler(new LoggingUncaughtExceptionHandler(Optional.absent()));
+    LoggingUncaughtExceptionHandler exceptionHandler = new LoggingUncaughtExceptionHandler(Optional.absent());
+    thread.setUncaughtExceptionHandler(exceptionHandler);
     thread.start();
-
-    if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
+    if (!ExponentialBackoff.awaitCondition().callable(() -> {
+      return this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)
+    || exceptionHandler.getException() != null;
+     }).
         initialDelay(initialDelay).maxDelay(initialDelay).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
       throw new TimeoutException("Forks did not finish withing specified timeout.");
+    }
+    if (exceptionHandler.getException() != null) {
+      throw Throwables.propagate(exceptionHandler.getException());
     }
   }
 
