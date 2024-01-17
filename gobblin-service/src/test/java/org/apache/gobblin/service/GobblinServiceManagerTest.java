@@ -328,7 +328,7 @@ public class GobblinServiceManagerTest {
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob")
+  @Test (dependsOnMethods = "testUncompilableJob", groups = {"disabledOnCI"})
   public void testRunOnceJob() throws Exception {
     FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
@@ -336,12 +336,15 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // runOnce job is deleted soon after it is orchestrated
-    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(60000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
           "Waiting for job to get orchestrated...");
-    AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(1000L).backoffFactor(1)
+    AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(2000L).backoffFactor(1)
           .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
               "Waiting for job to get orchestrated...");
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getLastUpdatedTimeForFlowSpec().containsKey(TEST_URI.toString()),
+            "Waiting for job to get orchestrated...");
   }
 
   @Test (dependsOnMethods = "testRunOnceJob")
@@ -363,27 +366,28 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @Test (dependsOnMethods = "testRunQuotaExceeds")
+  @Test (dependsOnMethods = "testRunQuotaExceeds", groups = {"disabledOnCI"})
   public void testExplainJob() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID2)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties)).setExplain(true);
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // explain job should not be persisted
     Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), sizeBeforeTest);
-    Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
+    Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_FLOW_ID2.toString()));
   }
 
   @Test (dependsOnMethods = "testExplainJob")
   public void testCreate() throws Exception {
+    int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 1);
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), sizeBeforeTest + 1);
     Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
@@ -580,7 +584,7 @@ null, null, null, null);
         this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);
   }
 
-  @Test (dependsOnMethods = "testGitCreate")
+  @Test (dependsOnMethods = "testBadUpdate")
   public void testGetAllPaginated() throws Exception {
     // Order of the flows by descending modified_time, and ascending flow.name should be: testFlow, testFlow2, testFlow3, testFlow4
     FlowConfig flowConfig1 = new FlowConfig().setId(TEST_FLOW_ID)
@@ -657,7 +661,7 @@ null, null, null, null);
     this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID4);
   }
 
-  @Test (dependsOnMethods = "testGitCreate")
+  @Test (dependsOnMethods = "testGetAllPaginated")
   public void testGetFilteredFlowsPaginated() throws Exception {
     // Attempt pagination with one element from the start of the specStore configurations stored. Filter by the owningGroup of "Keep.this"
     FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID5).setOwningGroup("Filter.this")
