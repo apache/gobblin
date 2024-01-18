@@ -57,7 +57,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.apache.gobblin.service.ExecutionStatus.PENDING;
+import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 public class DagManagerUtils {
@@ -218,12 +218,11 @@ public class DagManagerUtils {
       DagNode<JobExecutionPlan> node = nodesToExpand.poll();
       ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (executionStatus == PENDING || executionStatus == ExecutionStatus.PENDING_RETRY
-          || executionStatus == ExecutionStatus.PENDING_RESUME) {
+      if (executionStatus == PENDING || executionStatus == PENDING_RETRY || executionStatus == PENDING_RESUME) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
         List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
         for (DagNode<JobExecutionPlan> parentNode : parentNodes) {
-          if (getExecutionStatus(parentNode) != ExecutionStatus.COMPLETE) {
+          if (getExecutionStatus(parentNode) != COMPLETE) {
             addFlag = false;
             break;
           }
@@ -231,10 +230,10 @@ public class DagManagerUtils {
         if (addFlag) {
           nextNodesToExecute.add(node);
         }
-      } else if (executionStatus == ExecutionStatus.COMPLETE) {
+      } else if (executionStatus == COMPLETE) {
         //Explore the children of COMPLETED node as next candidates for execution.
         nodesToExpand.addAll(dag.getChildren(node));
-      } else if ((executionStatus == ExecutionStatus.FAILED) || (executionStatus == ExecutionStatus.CANCELLED)) {
+      } else if ((executionStatus == FAILED) || (executionStatus == CANCELLED)) {
         switch (failureOption) {
           case FINISH_RUNNING:
             return new HashSet<>();
