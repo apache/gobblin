@@ -18,18 +18,14 @@
 package org.apache.gobblin.service.monitoring;
 
 import com.google.common.base.Optional;
-import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.common.AttributesBuilder;
-import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
-import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
-import io.opentelemetry.sdk.resources.Resource;
+import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -49,6 +45,8 @@ import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.OpenTelemetryMetrics;
+import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
@@ -60,7 +58,6 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -73,16 +70,20 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
-
-  public static final String GAAS_OBSERVABILITY_METRICS_NAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
+  public static final String GAAS_OBSERVABILITY_METRICS_PREFIX = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics.";
+  public static final String GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME = "gaas.observability.jobStatus";
+  public static final String GAAS_OBSERVABILITY_GROUP_NAME = GAAS_OBSERVABILITY_METRICS_PREFIX + "groupName";
 
   protected MetricContext metricContext;
   protected State state;
+
+  protected OpenTelemetryMetricsBase opentelemetryMetrics;
+  private LongCounter jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
   protected boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
 
-  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled, OpenTelemetryMetricsBase opentelemetryMetrics) {
     this.state = state;
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;
@@ -90,41 +91,44 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
       this.metricContext = Instrumented.getMetricContext(state, getClass());
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ISSUES_READ_FAILED_METRIC_NAME));
+      this.opentelemetryMetrics = opentelemetryMetrics;
+      setupMetrics(state);
     }
   }
 
+  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+    this(state, issueRepository, instrumentationEnabled, OpenTelemetryMetrics.getInstance(state));
+  }
+
   private void setupMetrics(State state) {
-    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefix(state.getProperties(), Optional.of(GAAS_OBSERVABILITY_METRICS_NAME));
-    AttributesBuilder attributesBuilder = Attributes.builder();
-    for (String key : metricProps.stringPropertyNames()) {
-      attributesBuilder.put(AttributeKey.stringKey(key), metricProps.getProperty(key));
-    }
-    Resource metricsResource = Resource.getDefault().merge(Resource.create(attributesBuilder.build()));
-    OtlpHttpMetricExporterBuilder builder = OtlpHttpMetricExporter.builder();
-    builder.setEndpoint(getMetricsUrl(collectorEndpoint));
-    exporter = builder.build();
+//    this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+//        .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+//        .ofLongs()
+//        .buildObserver()
 
-
-    SdkMeterProvider meterProvider =
-        SdkMeterProvider.builder()
-            .setResource(metricsResource)
-            .registerMetricReader(
-                PeriodicMetricReader.builder(exporter)
-                    .setInterval(Duration.ofMillis(METRIC_READER_INTERVAL_MS))
-                    .build())
-            .build();
-
-    OpenTelemetrySdk openTelemetrySdk =
-        OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
-
-    Runtime.getRuntime()
-        .addShutdownHook(new Thread(openTelemetrySdk.getSdkMeterProvider()::shutdown));
-    return openTelemetrySdk;
+    this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+        .counterBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+        .build();
   }
 
   public void emitObservabilityEvent(final State jobState) {
     GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
+    sendMetrics(event);
+  }
+
+  public void sendMetrics(GaaSObservabilityEventExperimental event) {
+    Attributes tags = Attributes.builder()
+        .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
+        .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
+        .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
+        .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
+        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId())
+        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId())
+        .build();
+    int jobStatus = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
+    this.jobStatusMetric.add(jobStatus, tags);
+//    this.jobStatusMetric.record(jobStatus, tags);
   }
 
   /**

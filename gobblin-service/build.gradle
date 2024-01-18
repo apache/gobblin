@@ -73,12 +73,8 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.zkClient
   compile externalDependency.joptSimple
-  compile externalDependency.opentelemetryApi
-  compile externalDependency.opentelemetrySdk
-  compile externalDependency.opentelemetryExporterOtlp
 
   testCompile project(":gobblin-example")
-
   // Required for adding Test class into classpath
   testCompile project(":gobblin-runtime").sourceSets.test.output
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
