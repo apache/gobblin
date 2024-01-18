@@ -388,6 +388,12 @@ public class DagManagerUtils {
     }
   }
 
+  /**
+   * Set the execution status of all the {@link DagNode}s of the provided dag.
+   * Also emits a {@link TimingEvent.LauncherTimings#JOB_PENDING} for each of those dag nodes.
+   * @param dag dag whose status is to change.
+   * @param eventSubmitter event submitter that will send the event.
+   */
   public static void submitPendingExecStatus(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) {
     for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
