@@ -24,6 +24,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.hadoop.conf.Configuration;
@@ -94,6 +96,27 @@ public class TestRecordStream {
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
     Assert.assertEquals(writer.messages, Lists.newArrayList(new BasicTestControlMessage("1"), new BasicTestControlMessage("2")));
   }
+
+  @Test
+  public void testExceptionsFailTheJob() throws Exception {
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
+        FlushControlMessage.builder().flushReason("flush1").build(), new RecordEnvelope<>("b"),
+        FlushControlMessage.builder().flushReason("flush2").build()});
+    MyConverter converter = new MyConverter();
+    MyFlushDataWriterWithException writer = new MyFlushDataWriterWithException();
+
+    Task task = setupTask(extractor, writer, converter);
+    //Single fork which is the same as streaming pipeline
+    task.getTaskState().setProp(TaskConfigurationKeys.TASK_IS_SINGLE_BRANCH_SYNCHRONOUS, true);
+
+    //It should fail the task directly without hanging therer for a long time
+    Executors.newSingleThreadExecutor().submit(() -> {
+      task.run();
+      task.commit();
+    }).get(60, TimeUnit.SECONDS);
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.FAILED);
+  }
+
 
   @Test
   public void testFlushControlMessages() throws Exception {
@@ -593,6 +616,20 @@ public class TestRecordStream {
     @Override
     public void flush() throws IOException {
       flush_messages.add("flush called");
+    }
+  }
+
+  static class MyFlushDataWriterWithException extends MyDataWriter {
+    private List<String> flush_messages = new ArrayList<>();
+
+    @Override
+    public ControlMessageHandler getMessageHandler() {
+      return new MyFlushControlMessageHandler(this);
+    }
+
+    @Override
+    public void flush() throws IOException {
+      throw new OutOfMemoryError("test Error");
     }
   }
 
