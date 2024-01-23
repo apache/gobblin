@@ -554,7 +554,7 @@ null, null, null, null);
     Assert.fail("Get should have gotten a 404 error");
   }
 
-  // TODO: re-enable after pudating test
+  // TODO: re-enable after updating test
   @Test (dependsOnMethods = "testDelete", enabled = false, groups = {"disabledOnCI"})
   public void testGitCreate() throws Exception {
     // push a new config file
