@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,6 +41,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -60,6 +63,25 @@ public class JobLauncherUtils {
 
   // A cache for proxied FileSystems by owners
   private static Cache<String, FileSystem> fileSystemCacheByOwners = CacheBuilder.newBuilder().build();
+
+  /** Calculate monotonically-increasing paths for multi-WU files */
+  @AllArgsConstructor
+  @NotThreadSafe
+  public static class WorkUnitPathCalculator {
+    private int nextMultiWorkUnitTaskId;
+
+    public WorkUnitPathCalculator() {
+      this(0);
+    }
+
+    // Serialize each work unit into a file named after the task ID
+    public Path calcNextPath(WorkUnit workUnit, String jobId, Path basePath) {
+      String workUnitFileName = workUnit.isMultiWorkUnit()
+          ? JobLauncherUtils.newMultiTaskId(jobId, nextMultiWorkUnitTaskId++) + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION
+          : workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
+      return new Path(basePath, workUnitFileName);
+    }
+  }
 
   /**
    * Create a new job ID.

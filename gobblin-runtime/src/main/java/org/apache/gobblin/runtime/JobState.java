@@ -163,6 +163,13 @@ public class JobState extends SourceState implements JobProgress {
     this.setId(jobId);
   }
 
+  public JobState(Properties properties) {
+    this(
+        JobState.getStateFromProps(properties),
+        JobState.getJobNameFromProps(properties),
+        JobState.getJobIdFromProps(properties));
+  }
+
   public JobState(State properties, String jobName, String jobId) {
     super(properties);
     this.jobName = jobName;
@@ -189,6 +196,17 @@ public class JobState extends SourceState implements JobProgress {
   public static String getJobIdFromProps(Properties props) {
     return props.containsKey(ConfigurationKeys.JOB_ID_KEY) ? props.getProperty(ConfigurationKeys.JOB_ID_KEY)
         : JobLauncherUtils.newJobId(JobState.getJobNameFromProps(props));
+  }
+
+  public static State getStateFromProps(Properties props) {
+    return getStateFromProps(props, getJobIdFromProps(props));
+  }
+
+  public static State getStateFromProps(Properties props, String jobIdPropValue) {
+    State state = new State();
+    state.addAll(props);
+    state.setProp(ConfigurationKeys.JOB_ID_KEY, jobIdPropValue); // in case not yet directly defined as such
+    return state;
   }
 
   public static String getJobGroupFromState(State state) {
