@@ -672,7 +672,7 @@ public class DagManager extends AbstractIdleService {
       log.info("Cancel flow with DagId {}", dagToCancel);
       if (this.dagToJobs.containsKey(dagToCancel)) {
         List<DagNode<JobExecutionPlan>> dagNodesToCancel = this.dagToJobs.get(dagToCancel);
-        log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
+        log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), dagToCancel);
         for (DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
           cancelDagNode(dagNodeToCancel);
         }

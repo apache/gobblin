@@ -58,9 +58,10 @@ import org.quartz.impl.JobDetailImpl;
  * for a flow action event. After acquiring the lease, it persists the flow action event to the {@link DagActionStore}
  * to be eventually acted upon by the host with the active DagManager. Once it has completed this action, it will mark
  * the lease as completed by calling the
- * {@link MysqlMultiActiveLeaseArbiter.recordLeaseSuccess()} method. Hosts that do not gain the lease for the event,
- * instead schedule a reminder using the {@link SchedulerService} to check back in on the previous lease owner's
- * completion status after the lease should expire to ensure the event is handled in failure cases.
+ * {@link MysqlMultiActiveLeaseArbiter#recordLeaseSuccess(MultiActiveLeaseArbiter.LeaseObtainedStatus)} method. Hosts
+ * that do not gain the lease for the event, instead schedule a reminder using the {@link SchedulerService} to check
+ * back in on the previous lease owner's completion status after the lease should expire to ensure the event is handled
+ * in failure cases.
  */
 @Slf4j
 public class FlowTriggerHandler {

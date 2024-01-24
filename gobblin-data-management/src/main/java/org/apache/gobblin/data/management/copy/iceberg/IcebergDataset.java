@@ -68,16 +68,15 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   private final IcebergTable destIcebergTable;
   protected final Properties properties;
   protected final FileSystem sourceFs;
+  protected final boolean shouldIncludeMetadataPath;
   private final boolean shouldTolerateMissingSourceFiles = true; // TODO: make parameterizable, if desired
 
-  /** Destination database name */
-  public static final String DESTINATION_DATABASE_KEY = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".destination.database";
-
-  public IcebergDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem sourceFs) {
+  public IcebergDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem sourceFs, boolean shouldIncludeMetadataPath) {
     this.srcIcebergTable = srcIcebergTable;
     this.destIcebergTable = destIcebergTable;
     this.properties = properties;
     this.sourceFs = sourceFs;
+    this.shouldIncludeMetadataPath = shouldIncludeMetadataPath;
   }
 
   @Override
@@ -135,7 +134,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
-    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus(targetFs, copyConfig);
+    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus(targetFs, copyConfig, this.shouldIncludeMetadataPath);
     log.info("~{}~ found {} candidate source paths", fileSet, pathToFileStatus.size());
 
     Configuration defaultHadoopConfiguration = new Configuration();
@@ -168,9 +167,10 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
   /**
    * Finds all files of the Iceberg's current snapshot
+   * @param shouldIncludeMetadataPath whether to consider "metadata.json" (`getMetadataPath()`) as eligible for inclusion
    * @return a map of path, file status for each file that needs to be copied
    */
-  protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
+  protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig, boolean shouldIncludeMetadataPath) throws IOException {
     IcebergTable icebergTable = this.getSrcIcebergTable();
     /** @return whether `pathStr` is present on `targetFs`, caching results while tunneling checked exceptions outward */
     Function<String, Boolean> isPresentOnTarget = CheckedExceptionFunction.wrapToTunneled(pathStr ->
@@ -180,6 +180,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     );
 
     // check first for case of nothing to replicate, to avoid needless scanning of a potentially massive iceberg
+    // NOTE: if `shouldIncludeMetadataPath` was false during the prior executions, this condition will be false
     IcebergSnapshotInfo currentSnapshotOverview = icebergTable.getCurrentSnapshotInfoOverviewOnly();
     if (currentSnapshotOverview.getMetadataPath().map(isPresentOnTarget).orElse(false) &&
         isPresentOnTarget.apply(currentSnapshotOverview.getManifestListPath())) {
@@ -207,7 +208,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
           // some of the children pointed to within could have been copied prior, when they previously appeared as a
           // child of the current file's predecessor (which this new meta file now replaces).
           if (!isPresentOnTarget.apply(manListPath)) {
-            List<String> missingPaths = snapshotInfo.getSnapshotApexPaths();
+            List<String> missingPaths = snapshotInfo.getSnapshotApexPaths(shouldIncludeMetadataPath);
             for (IcebergSnapshotInfo.ManifestFileInfo mfi : snapshotInfo.getManifestFiles()) {
               if (!isPresentOnTarget.apply(mfi.getManifestFilePath())) {
                 missingPaths.add(mfi.getManifestFilePath());
@@ -226,13 +227,20 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
           } else {
             log.info("~{}~ snapshot '{}' already present on target... skipping (including contents)",
                 this.getFileSetId(), snapshotInfo.getSnapshotId());
-            // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot reusing mf-list
+            // IMPORTANT: separately consider metadata path, to handle case of 'metadata-only' snapshot reusing manifest list
             Optional<String> metadataPath = snapshotInfo.getMetadataPath();
             Optional<String> nonReplicatedMetadataPath = metadataPath.filter(p -> !isPresentOnTarget.apply(p));
             metadataPath.ifPresent(ignore ->
-                log.info("~{}~ metadata IS {} already present on target", this.getFileSetId(), nonReplicatedMetadataPath.isPresent() ? "NOT" : "ALSO")
+                log.info("~{}~ metadata IS {} present on target",
+                    this.getFileSetId(),
+                    !nonReplicatedMetadataPath.isPresent()
+                        ? "already"
+                        : shouldIncludeMetadataPath ? "NOT YET" : "NOT CHOSEN TO BE")
             );
-            return nonReplicatedMetadataPath.map(p -> Lists.newArrayList(p).iterator()).orElse(Collections.emptyIterator());
+            return nonReplicatedMetadataPath
+                .filter(ignore -> shouldIncludeMetadataPath)
+                .map(p -> Lists.newArrayList(p).iterator())
+                .orElse(Collections.emptyIterator());
           }
         })
     );
