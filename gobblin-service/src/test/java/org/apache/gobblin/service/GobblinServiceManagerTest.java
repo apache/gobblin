@@ -72,7 +72,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 
-// Adding useless comment to open a PR and run checks. 
+// Adding useless comment to open a PR and run checks.
 public class GobblinServiceManagerTest {
 
   private static final Logger logger = LoggerFactory.getLogger(GobblinServiceManagerTest.class);
@@ -80,7 +80,6 @@ public class GobblinServiceManagerTest {
 
   private static final String SERVICE_WORK_DIR = "/tmp/serviceWorkDir/";
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/serviceCore/";
-  private static final String SPEC_DESCRIPTION = "Test ServiceCore";
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/serviceCore/topologyTestSpecStore";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/serviceCore/flowTestSpecStore";
   private static final String GIT_CLONE_DIR = "/tmp/serviceCore/clone";
