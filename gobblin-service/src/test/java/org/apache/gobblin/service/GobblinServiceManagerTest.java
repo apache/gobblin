@@ -116,7 +116,6 @@ public class GobblinServiceManagerTest {
   private static final String TEST_SINK_NAME = "testSink";
 
   private final URI TEST_URI = FlowSpec.Utils.createFlowSpecUri(TEST_FLOW_ID);
-  private final URI TEST_URI2 = FlowSpec.Utils.createFlowSpecUri(TEST_FLOW_ID2);
 
   private GobblinServiceManager gobblinServiceManager;
   private FlowConfigV2Client flowConfigClient;
@@ -329,7 +328,7 @@ public class GobblinServiceManagerTest {
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob", enabled = false, groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testUncompilableJob", groups = {"disabledOnCI"})
   public void testRunOnceJob() throws Exception {
     FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
@@ -348,7 +347,7 @@ public class GobblinServiceManagerTest {
             "Waiting for job to get orchestrated...");
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob")
+  @Test (dependsOnMethods = "testRunOnceJob")
   public void testRunQuotaExceeds() throws Exception {
     Map<String, String> props = flowProperties;
     props.put(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_USER_TO_PROXY_KEY, "testUser");
@@ -367,8 +366,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  // TODO: re-enable the following disabled tests once we can reduce flakiness
-  @Test (dependsOnMethods = "testRunQuotaExceeds", enabled = false, groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testRunQuotaExceeds", groups = {"disabledOnCI"})
   public void testExplainJob() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID2)
@@ -381,7 +379,7 @@ public class GobblinServiceManagerTest {
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_FLOW_ID2.toString()));
   }
 
-  @Test (dependsOnMethods = "testRunQuotaExceeds", groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testExplainJob")
   public void testCreate() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
@@ -393,9 +391,9 @@ public class GobblinServiceManagerTest {
     Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
-  @Test (dependsOnMethods = "testCreate", enabled = false, groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testCreate")
   public void testCreateAgain() throws Exception {
-    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID2)
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
         .setProperties(new StringMap(flowProperties));
 
@@ -409,7 +407,7 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(exception.getStatus(), HttpStatus.CONFLICT_409);
   }
 
-  @Test (dependsOnMethods = "testCreate")
+  @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
     FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(TEST_FLOW_ID);
 
@@ -423,7 +421,7 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
   }
 
-  @Test (dependsOnMethods = "testGet")
+  @Test (dependsOnMethods = "testCreateAgain")
   public void testGetAll() throws Exception {
     FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
@@ -436,7 +434,7 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
   }
 
-  @Test (dependsOnMethods = "testGetAll", enabled = false)
+  @Test (dependsOnMethods = "testCreateAgain", enabled = false)
   public void testGetFilteredFlows() throws Exception {
     // Not implemented for FsSpecStore
 
@@ -453,7 +451,7 @@ null, null, null, null);
     Assert.assertEquals(flowConfigs.size(), 2);
   }
 
-  @Test (dependsOnMethods = "testGetAll") // depends on testGetAll until testGetFilteredFlows is enabled
+  @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
