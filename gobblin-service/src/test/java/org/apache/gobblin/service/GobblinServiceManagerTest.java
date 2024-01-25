@@ -328,44 +328,47 @@ public class GobblinServiceManagerTest {
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
   }
 
-  // Disabled because of timing issue with scheduler
-  @Test (dependsOnMethods = "testUncompilableJob", enabled = false, groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testUncompilableJob")
   public void testRunOnceJob() throws Exception {
-    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+    FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    URI uri = FlowSpec.Utils.createFlowSpecUri(flowId);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // runOnce job is deleted soon after it is orchestrated
-    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(60000L).backoffFactor(1)
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
           "Waiting for job to get orchestrated...");
     AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(2000L).backoffFactor(1)
-          .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
+          .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()),
               "Waiting for job to get orchestrated...");
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
-        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getLastUpdatedTimeForFlowSpec().containsKey(TEST_URI.toString()),
+        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getLastUpdatedTimeForFlowSpec().containsKey(uri.toString()),
             "Waiting for job to get orchestrated...");
   }
 
-  // Disabled because whether the test will raise the 503 exception is timing dependent
-  @Test (dependsOnMethods = "testUncompilableJob", enabled = false, groups = {"disabledOnCI"})
+  // TODO: redesign the test to ensure it throw a 503 exception
+  @Test (dependsOnMethods = "testRunOnceJob")
   public void testRunQuotaExceeds() throws Exception {
     Map<String, String> props = flowProperties;
     props.put(ServiceAzkabanConfigKeys.AZKABAN_PROJECT_USER_TO_PROXY_KEY, "testUser");
-    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+    FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
-    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+    FlowId flowId2 = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    FlowConfig flowConfig2 = new FlowConfig().setId(flowId2)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(props));
 
     try {
       this.flowConfigClient.createFlowConfig(flowConfig2);
     } catch (RestLiResponseException e) {
-      /* Note: this exception may NOT occur if the first job above is processed immediately so TEST_FLOW_ID2 will remain
-      in the FlowCatalog
+      /* Note: this exception may NOT occur if the first job above is processed immediately so the second create will be
+      allowed for the quota
        */
       Assert.assertEquals(e.getStatus(), HttpStatus.SERVICE_UNAVAILABLE_503);
     }
