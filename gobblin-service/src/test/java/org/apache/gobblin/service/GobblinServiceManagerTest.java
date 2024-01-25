@@ -90,6 +90,7 @@ public class GobblinServiceManagerTest {
   private static final String GROUP_OWNERSHIP_CONFIG_DIR = Files.createTempDir().getAbsolutePath();
 
   private static final String TEST_GROUP_NAME = "testGroup";
+  private static final String TEST_GROUP_NAME2 = "testGroup2";
   private static final String TEST_FLOW_NAME = "testFlow";
   private static final String TEST_FLOW_NAME2 = "testFlow2";
   private static final String TEST_FLOW_NAME3 = "testFlow3";
@@ -343,10 +344,10 @@ public class GobblinServiceManagerTest {
           "Waiting for job to get orchestrated...");
     AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(2000L).backoffFactor(1)
           .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()),
-              "Waiting for job to get orchestrated...");
+              "Timed out waiting for run once job to get deleted from scheduledFlowSpecs");
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
         .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getLastUpdatedTimeForFlowSpec().containsKey(uri.toString()),
-            "Waiting for job to get orchestrated...");
+            "Timed out waiting for run once job to get deleted from getLastUpdatedTimeForFlowSpec");
   }
 
   // TODO: redesign the test to ensure it throw a 503 exception
@@ -395,14 +396,14 @@ public class GobblinServiceManagerTest {
   public void testCreate() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    URI uri = FlowSpec.Utils.createFlowSpecUri(flowId);
     FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
     Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), sizeBeforeTest + 1);
-    // TODO: remove scheduler related assertions until they are debugged
-    // Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(flowId.toString()));
+     Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
   }
 
   /*
@@ -468,25 +469,43 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.deleteFlowConfig(flowId);
   }
 
-  // TODO: re-enable after updating filters
-  @Test (dependsOnMethods = "testGetAll", enabled = false, groups = {"disabledOnCI"})
+  /*
+      This tests the getAll method using one filter (group name). Note that to remove dependency on other tests, we
+      do not check for number of items from the group name used for other tests.
+     */
+  @Test (dependsOnMethods = "testGetAll")//, enabled = false, groups = {"disabledOnCI"})
   public void testGetFilteredFlows() throws Exception {
     // Not implemented for FsSpecStore
 
-    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME, null, null, null, null, null,
-null, null, null, null);
-    Assert.assertEquals(flowConfigs.size(), 2);
+    // Add 1 config with group name 2 & check size
+    FlowId flowId2 = createFlowIdWithUniqueName(TEST_GROUP_NAME2);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig);
 
-    flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME, TEST_FLOW_NAME2, null, null, null, null,
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME2, null, null, null, null, null,
         null, null, null, null);
     Assert.assertEquals(flowConfigs.size(), 1);
 
-    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
-        TEST_SCHEDULE, null, null, null);
+    // Add another and check size
+    FlowId flowId3 = createFlowIdWithUniqueName(TEST_GROUP_NAME2);
+    flowConfig = new FlowConfig().setId(flowId3)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig);
+
+    // Check for flow with flowId3's name
+    flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME2, null, null, null, null, null,
+        null, null, null, null);
     Assert.assertEquals(flowConfigs.size(), 2);
+
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, flowId3.getFlowName(), null, null, null, null,
+        TEST_SCHEDULE, null, null, null);
+    Assert.assertEquals(flowConfigs.size(), 1);
   }
 
-  @Test (dependsOnMethods = "testGetAll") // depends on testGetAll until testGetFilteredFlows is enabled
+  @Test (dependsOnMethods = "testGetFilteredFlows") // depends on testGetAll until testGetFilteredFlows is enabled
   public void testUpdate() throws Exception {
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
 
@@ -676,25 +695,23 @@ null, null, null, null);
     // Start at index 0 and return 1 element
     flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore,1);
     Assert.assertEquals(flowConfigs.size(), 1);
-    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow");
+    // TODO: remove these assertions which are flaky because the flows above all show up with the same modification time
+//    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), TEST_FLOW_ID.getFlowName());
+
+    // Attempt pagination with one element from the specStore configurations stored
+    // Start at index 0 and return 2 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore,2);
+    Assert.assertEquals(flowConfigs.size(), 2);
 
     // Attempt pagination with one element from the specStore configurations stored with offset of 1
-    // Start at index 1 and return 1 element
-    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore + 1,1);
-    Assert.assertEquals(flowConfigs.size(), 1);
-    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow2");
-
-    // Attempt pagination with one element from the specStore configurations stored with offset of 2
-    // Start at index 2 and return 1 element
-    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore + 2,1);
-    Assert.assertEquals(flowConfigs.size(), 1);
-    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow3");
+    // Start at index 1 and return 3 element
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore + 1,3);
+    Assert.assertEquals(flowConfigs.size(), 3);
 
     // Attempt pagination with one element from the specStore configurations stored with offset of 3
-    // Start at index 2 and return 1 element
-    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore + 3,1);
+    // Start at index 3 and return 1 element because there aren't any  more configs
+    flowConfigs = this.flowConfigClient.getAllFlowConfigs(sizeBefore + 3,2);
     Assert.assertEquals(flowConfigs.size(), 1);
-    Assert.assertEquals(((FlowConfig)(flowConfigs.toArray()[0])).getId().getFlowName(), "testFlow4");
 
     // Attempt pagination with 20 element from the specStore configurations stored with offset of 1
     // Start at index 1 and return 20 elements if there exists 20 elements.
