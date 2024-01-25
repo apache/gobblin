@@ -33,22 +33,37 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+
+import javax.annotation.Nullable;
+import lombok.Data;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import javax.annotation.Nullable;
-import lombok.Data;
-
 
 public class RecursiveCopyableDatasetTest {
+
+  @Test
+  public void testTargetDatasetPath() throws Exception {
+    Path source = new Path("/source");
+    Path target = new Path("/target");
+
+    List<FileStatus> sourceFiles = Lists.newArrayList(createFileStatus(source, "file1"), createFileStatus(source, "file2"));
+    List<FileStatus> targetFiles = Lists.newArrayList(createFileStatus(target, "file3"));
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, target.toString());
+    RecursiveCopyableDataset dataset = new TestRecursiveCopyableDataset(source, target, sourceFiles, targetFiles, properties);
+
+    Assert.assertEquals(dataset.getDatasetPath(), target.toString());
+  }
 
   @Test
   public void testSimpleCopy() throws Exception {

@@ -66,10 +66,11 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   public static final String USE_NEW_PRESERVE_LOGIC_KEY = CONFIG_PREFIX + ".useNewPreserveLogic";
 
   private final Path rootPath;
+  private Path targetPath;
   private final FileSystem fs;
   private final PathFilter pathFilter;
-  // Glob used to find this dataset
-  private final Path glob;
+  // deepest non glob search path used to find this dataset
+  private final Path nonGlobSearchPath;
   private final CopyableFileFilter copyableFileFilter;
   private final boolean update;
   private final boolean delete;
@@ -89,11 +90,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     this.rootPath = PathUtils.getPathWithoutSchemeAndAuthority(rootPath);
     this.fs = fs;
-
     this.pathFilter = DatasetUtils.instantiatePathFilter(properties);
     this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(properties);
-    this.glob = glob;
-
     this.update = Boolean.parseBoolean(properties.getProperty(UPDATE_KEY));
     this.delete = Boolean.parseBoolean(properties.getProperty(DELETE_KEY));
     this.deleteEmptyDirectories = Boolean.parseBoolean(properties.getProperty(DELETE_EMPTY_DIRECTORIES_KEY));
@@ -103,6 +101,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
         Boolean.parseBoolean(properties.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
     this.useNewPreserveLogic = Boolean.parseBoolean(properties.getProperty(USE_NEW_PRESERVE_LOGIC_KEY));
     this.properties = properties;
+    this.nonGlobSearchPath = PathUtils.deepestNonGlobPath(glob);
   }
 
   protected Collection<? extends CopyEntity> getCopyableFilesImpl(CopyConfiguration configuration,
@@ -190,9 +189,8 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   public Collection<? extends CopyEntity> getCopyableFiles(FileSystem targetFs, CopyConfiguration configuration)
       throws IOException {
 
-    Path nonGlobSearchPath = PathUtils.deepestNonGlobPath(this.glob);
-    Path targetPath =
-        new Path(configuration.getPublishDir(), PathUtils.relativizePath(this.rootPath, nonGlobSearchPath));
+    this.targetPath =
+        new Path(configuration.getPublishDir(), PathUtils.relativizePath(this.rootPath, this.nonGlobSearchPath));
 
     Map<Path, FileStatus> filesInSource =
         createPathMap(getFilesAtPath(this.fs, this.rootPath, this.pathFilter), this.rootPath);
@@ -239,7 +237,14 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
   }
 
   @Override
+  // this is more like a getTargetDatasetPath
+  // this should preferably be called after the call to getCopyableFiles() because targetPath is set in getCopyableFiles
   public String getDatasetPath() {
-    return Path.getPathWithoutSchemeAndAuthority(this.rootPath).toString();
+    if (this.targetPath == null) {
+      // if getCopyableFiles() is not called that sets targetPath, it will try to
+      this.targetPath = new Path(CopyConfiguration.calculatePublishDir(this.fs, this.properties),
+          PathUtils.relativizePath(this.rootPath, this.nonGlobSearchPath));;
+    }
+    return Path.getPathWithoutSchemeAndAuthority(this.targetPath).toString();
   }
 }

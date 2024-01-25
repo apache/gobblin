@@ -19,12 +19,6 @@ package org.apache.gobblin.data.management.copy;
 
 import java.util.Properties;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-
-import org.apache.gobblin.util.PropertiesUtils;
-import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -32,11 +26,17 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.ResourcePool;
 
 
@@ -120,11 +120,8 @@ public class CopyConfiguration {
           properties.containsKey(DESTINATION_GROUP_KEY) ? Optional.of(properties.getProperty(DESTINATION_GROUP_KEY))
               : Optional.<String>absent();
       this.preserve = PreserveAttributes.fromMnemonicString(properties.getProperty(PRESERVE_ATTRIBUTES_KEY));
-      Path publishDirTmp = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
-      if (!publishDirTmp.isAbsolute()) {
-        publishDirTmp = new Path(targetFs.getWorkingDirectory(), publishDirTmp);
-      }
-      this.publishDir = publishDirTmp;
+
+      this.publishDir = calculatePublishDir(targetFs, properties);
       this.copyContext = new CopyContext();
       this.targetFs = targetFs;
       if (properties.containsKey(PRIORITIZER_ALIAS_KEY)) {
@@ -148,6 +145,14 @@ public class CopyConfiguration {
         this.abortOnSingleDatasetFailure = this.config.getBoolean(ABORT_ON_SINGLE_DATASET_FAILURE);
       }
     }
+  }
+
+  static Path calculatePublishDir(FileSystem targetFs, Properties properties) {
+    Path publishDirTmp = new Path(properties.getProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR));
+    if (!publishDirTmp.isAbsolute()) {
+      publishDirTmp = new Path(targetFs.getWorkingDirectory(), publishDirTmp);
+    }
+    return publishDirTmp;
   }
 
   public static CopyConfigurationBuilder builder(FileSystem targetFs, Properties properties) {
