@@ -238,7 +238,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
   @Override
   // this is more like a getTargetDatasetPath
-  // this should preferably be called after the call to getCopyableFiles() because
+  // this should preferably be called after the call to getCopyableFiles() because targetPath is set in getCopyableFiles
   public String getDatasetPath() {
     if (this.targetPath == null) {
       // if getCopyableFiles() is not called that sets targetPath, it will try to
