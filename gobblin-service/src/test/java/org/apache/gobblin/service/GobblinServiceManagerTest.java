@@ -576,20 +576,20 @@ public class GobblinServiceManagerTest {
     Assert.fail("Get should have gotten a 404 error");
   }
 
-  // TODO: re-enable after updating test
-  @Test (dependsOnMethods = "testDelete", enabled = false, groups = {"disabledOnCI"})
+  @Test (dependsOnMethods = "testDelete")
   public void testGitCreate() throws Exception {
+    URI uri = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName("testGitFlow"));
     // push a new config file
-    File testFlowFile = new File(GIT_CLONE_DIR + "/gobblin-config/testGroup/testFlow.pull");
+    File testFlowFile = new File(GIT_CLONE_DIR + "/gobblin-config/testGroup/testGitFlow.pull");
     testFlowFile.getParentFile().mkdirs();
 
-    Files.write("{\"id\":{\"flowName\":\"testFlow\",\"flowGroup\":\"testGroup\"},\"param1\":\"value20\"}", testFlowFile, Charsets.UTF_8);
+    Files.write("{\"id\":{\"flowName\":\"testGitFlow\",\"flowGroup\":\"testGroup\"},\"param1\":\"value20\"}", testFlowFile, Charsets.UTF_8);
 
     Collection<Spec> specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
-    Assert.assertEquals(specs.size(), 0);
+    int previousSize = specs.size();
 
     // add, commit, push
-    this.gitForPush.add().addFilepattern("gobblin-config/testGroup/testFlow.pull").call();
+    this.gitForPush.add().addFilepattern("gobblin-config/testGroup/testGitFlow.pull").call();
     this.gitForPush.commit().setMessage("second commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
 
@@ -597,14 +597,14 @@ public class GobblinServiceManagerTest {
     TimeUnit.SECONDS.sleep(10);
 
     // spec generated using git monitor do not have schedule, so their life cycle should be similar to runOnce jobs
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0);
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), previousSize);
 
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
-        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
+        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()),
             "Waiting for job to get orchestrated...");
   }
 
-  @Test (dependsOnMethods = "testDelete") // Depends on testDelete until testGitCreate enabled
+  @Test (dependsOnMethods = "testGitCreate")
   public void testBadGet() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
 
