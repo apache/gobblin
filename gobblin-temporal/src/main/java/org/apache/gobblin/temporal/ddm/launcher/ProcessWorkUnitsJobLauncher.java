@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 
 import com.typesafe.config.ConfigFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.metrics.Tag;
@@ -38,6 +40,7 @@ import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.slf4j.MDC;
 
 import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX;
 
@@ -83,6 +86,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
         int maxSubTreesPerTree = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE);
         wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
       }
+      this.setupMDCFromJobState(Help.loadJobState(wuSpec, Help.loadFileSystem(wuSpec)));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
           .setWorkflowId(Help.qualifyNamePerExec(WORKFLOW_ID_BASE, wuSpec, ConfigFactory.parseProperties(jobProps)))
@@ -92,5 +96,12 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private void setupMDCFromJobState(JobState jobState) {
+    // TODO: log4j2 has better syntax around conditional logging such that the key does not need to be included in the value
+    MDC.put(ConfigurationKeys.FLOW_NAME_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_NAME_KEY, jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY, "NA")));
+    MDC.put(ConfigurationKeys.FLOW_GROUP_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_GROUP_KEY, jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY, "NA")));
+    MDC.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobState.getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "NA")));
   }
 }
