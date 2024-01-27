@@ -86,13 +86,13 @@ public class IcebergTable {
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
     TableMetadata current = accessTableMetadata();
-    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()));
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), Optional.of(current));
   }
 
   /** @return metadata info for most recent snapshot, wherein manifests and their child data files ARE NOT listed */
   public IcebergSnapshotInfo getCurrentSnapshotInfoOverviewOnly() throws IOException {
     TableMetadata current = accessTableMetadata();
-    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), true);
+    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), Optional.of(current), true);
   }
 
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
@@ -104,7 +104,8 @@ public class IcebergTable {
       try {
         return IcebergTable.this.createSnapshotInfo(
             snapshot,
-            currentSnapshotId == snapshot.snapshotId() ? Optional.of(current.metadataFileLocation()) : Optional.empty()
+            currentSnapshotId == snapshot.snapshotId() ? Optional.of(current.metadataFileLocation()) : Optional.empty(),
+            currentSnapshotId == snapshot.snapshotId() ? Optional.of(current) : Optional.empty()
         );
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -160,16 +161,19 @@ public class IcebergTable {
     return Optional.ofNullable(current).orElseThrow(() -> new TableNotFoundException(this.tableId));
   }
 
-  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation) throws IOException {
-    return createSnapshotInfo(snapshot, metadataFileLocation, false);
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, Optional<TableMetadata> currentTableMetadata)
+      throws IOException {
+    return createSnapshotInfo(snapshot, metadataFileLocation, currentTableMetadata, false);
   }
 
-  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, boolean skipManifestFileInfo) throws IOException {
+  protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, Optional<TableMetadata> currentTableMetadata,
+      boolean skipManifestFileInfo) throws IOException {
     // TODO: verify correctness, even when handling 'delete manifests'!
     return new IcebergSnapshotInfo(
         snapshot.snapshotId(),
         Instant.ofEpochMilli(snapshot.timestampMillis()),
         metadataFileLocation,
+        currentTableMetadata,
         snapshot.manifestListLocation(),
         // NOTE: unable to `.stream().map(m -> calcManifestFileInfo(m, tableOps.io()))` due to checked exception
         skipManifestFileInfo ? Lists.newArrayList() : calcAllManifestFileInfos(snapshot.allManifests(tableOps.io()), tableOps.io())
