@@ -339,7 +339,7 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // runOnce job is deleted soon after it is orchestrated
-    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(4000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
           "Waiting for job to get orchestrated...");
     AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(2000L).backoffFactor(1)
@@ -505,9 +505,10 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfigs.size(), 1);
   }
 
-  @Test (dependsOnMethods = "testGetFilteredFlows") // depends on testGetAll until testGetFilteredFlows is enabled
+  @Test (dependsOnMethods = "testGetFilteredFlows")
   public void testUpdate() throws Exception {
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    URI uri = FlowSpec.Utils.createFlowSpecUri(flowId);
 
     // Original flow config
     Map<String, String> flowProperties = Maps.newHashMap();
@@ -538,8 +539,7 @@ public class GobblinServiceManagerTest {
 
     FlowConfig retrievedFlowConfig = this.flowConfigClient.getFlowConfig(flowId);
 
-    // // TODO: remove scheduler related assertions until they are debugged
-    // Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
+    Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), flowId.getFlowName());
     Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
