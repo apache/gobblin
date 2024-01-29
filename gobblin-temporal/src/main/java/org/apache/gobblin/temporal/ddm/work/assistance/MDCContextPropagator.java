@@ -34,14 +34,17 @@ import org.slf4j.MDC;
 @Slf4j
 public class MDCContextPropagator implements ContextPropagator {
 
+  @Override
   public String getName() {
     return this.getClass().getName();
   }
 
+  @Override
   public Object getCurrentContext() {
     return MDC.getCopyOfContextMap();
   }
 
+  @Override
   public void setCurrentContext(Object context) {
     Map<String, String> contextMap = (Map<String, String>)context;
     for (Map.Entry<String, String> entry : contextMap.entrySet()) {
@@ -49,6 +52,7 @@ public class MDCContextPropagator implements ContextPropagator {
     }
   }
 
+  @Override
   public Map<String, Payload> serializeContext(Object context) {
     Map<String, String> contextMap = (Map<String, String>)context;
     Map<String, Payload> serializedContext = new HashMap<>();
@@ -59,6 +63,7 @@ public class MDCContextPropagator implements ContextPropagator {
     return serializedContext;
   }
 
+  @Override
   public Object deserializeContext(Map<String, Payload> context) {
     Map<String, String> contextMap = new HashMap<>();
     for (Map.Entry<String, Payload> entry : context.entrySet()) {
