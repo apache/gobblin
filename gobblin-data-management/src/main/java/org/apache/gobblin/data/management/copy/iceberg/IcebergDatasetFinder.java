@@ -30,8 +30,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.CatalogProperties;
-import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
@@ -52,6 +52,10 @@ import org.apache.gobblin.util.HadoopUtils;
 @RequiredArgsConstructor
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
+
+  public static final String ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = ICEBERG_DATASET_PREFIX + ".copy.metadata.path";
+  public static final String DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = "false";
+
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
   public static final String ICEBERG_CATALOG_KEY = "catalog";
   /**
@@ -149,7 +153,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
     // TODO: Rethink strategy to enforce dest iceberg table
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
-    return new IcebergDataset(srcIcebergTable, destIcebergTable, properties, fs);
+    return new IcebergDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
   }
 
   protected static IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
@@ -159,6 +163,10 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     Configuration configuration = HadoopUtils.getConfFromProperties(properties);
     String icebergCatalogClassName = catalogProperties.getOrDefault(ICEBERG_CATALOG_CLASS_KEY, DEFAULT_ICEBERG_CATALOG_CLASS);
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
+  }
+
+  protected static boolean getConfigShouldCopyMetadataPath(Properties properties) {
+    return Boolean.valueOf(properties.getProperty(ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH, DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH));
   }
 
   /** @return property value or `null` */

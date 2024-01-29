@@ -199,11 +199,15 @@ public class IcebergTableTest extends HiveMetastoreTest {
     verifyManifestFiles(manifestFileInfos, snapshotInfo.getManifestFilePaths(), perSnapshotFilesets);
     verifyAnyOrder(snapshotInfo.getAllDataFilePaths(), flatten(perSnapshotFilesets), "data filepaths");
     // verify all aforementioned paths collectively equal `getAllPaths()`
+    boolean shouldIncludeMetadataPath = false;
     List<String> allPathsExpected = Lists.newArrayList(snapshotInfo.getManifestListPath());
-    snapshotInfo.getMetadataPath().ifPresent(allPathsExpected::add);
     allPathsExpected.addAll(snapshotInfo.getManifestFilePaths());
     allPathsExpected.addAll(snapshotInfo.getAllDataFilePaths());
-    verifyAnyOrder(snapshotInfo.getAllPaths(), allPathsExpected, "all paths, metadata and data");
+    verifyAnyOrder(snapshotInfo.getAllPaths(shouldIncludeMetadataPath), allPathsExpected, "all paths, metadata and data, except metadataPath itself");
+
+    boolean shouldIncludeMetadataPathIfAvailable = true;
+    snapshotInfo.getMetadataPath().ifPresent(allPathsExpected::add);
+    verifyAnyOrder(snapshotInfo.getAllPaths(shouldIncludeMetadataPathIfAvailable), allPathsExpected, "all paths, metadata and data, including metadataPath");
   }
 
   protected String calcMetadataBasePath(TableIdentifier tableId) {
