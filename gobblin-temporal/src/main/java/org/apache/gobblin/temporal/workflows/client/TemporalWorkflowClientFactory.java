@@ -41,6 +41,8 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.temporal.ddm.work.assistance.MDCContextPropagator;
+
 
 public class TemporalWorkflowClientFactory {
     public static WorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
@@ -107,7 +109,9 @@ public class TemporalWorkflowClientFactory {
     }
 
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service, String namespace) {
-        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace(namespace).build();
+        WorkflowClientOptions options = WorkflowClientOptions.newBuilder().setNamespace(namespace)
+            .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
+            .build();
         return WorkflowClient.newInstance(service, options);
     }
 

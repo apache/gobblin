@@ -46,6 +46,7 @@ import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.JobStateful;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.SerializationUtils;
+import org.slf4j.MDC;
 
 
 /** Various capabilities useful in implementing Distributed Data Movement (DDM) */
@@ -206,5 +207,12 @@ public class Help {
     if (numAccesses % LOG_CACHE_STATS_EVERY_N_ACCESSES == 0) {
       log.info("JobState(numAccesses: {}) - {}", numAccesses, jobStateByPath.stats());
     }
+  }
+
+  public static void propagateGaaSFlowExecutionContext(JobState jobState) {
+    // TODO: log4j2 has better syntax around conditional logging such that the key does not need to be included in the value
+    MDC.put(ConfigurationKeys.FLOW_NAME_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_NAME_KEY, jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY, "<<NOT SET>>")));
+    MDC.put(ConfigurationKeys.FLOW_GROUP_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_GROUP_KEY, jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY, "<<NOT SET>>")));
+    MDC.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobState.getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "<<NOT SET>>")));
   }
 }
