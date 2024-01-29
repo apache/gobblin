@@ -30,6 +30,8 @@ import org.slf4j.MDC;
 /**
  * Context propagator for MDC in Temporal GaaS flows, which is used to share context between workflows and activities.
  * Keys added to MDC will show up in Temporal headers serialized as protobufs
+ * See documentation at https://docs.temporal.io/dev-guide/go/observability#context-propagators and
+ * https://javadoc.io/doc/io.temporal/temporal-sdk/1.12.0/io/temporal/common/context/ContextPropagator.html
  */
 @Slf4j
 public class MDCContextPropagator implements ContextPropagator {
