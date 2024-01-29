@@ -206,14 +206,14 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         cancelJob(jobListener);
       }
     } finally {
-      if (isLaunched) {
-        // NOTE: This code only makes sense when there is 1 source / workflow being launched per application. This is a stop-gap
-        // for recreating batch job behavior in GaaS. Given the current constraints of yarn applications requiring a static proxy user
-        // during application creation, it is not possible to have multiple workflows running in the same application.
-        // and so it makes sense ti just kill the job after this is complete
-        log.info("MHO: Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
-        eventBus.post(new ClusterManagerShutdownRequest());
+      // NOTE: This code only makes sense when there is 1 source / workflow being launched per application. This is a stop-gap
+      // for recreating batch job behavior in GaaS. Given the current constraints of yarn applications requiring a static proxy user
+      // during application creation, it is not possible to have multiple workflows running in the same application.
+      // and so it makes sense ti just kill the job after this is complete
+      log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
+      eventBus.post(new ClusterManagerShutdownRequest());
 
+      if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
           log.info("Job {} is done, remove from running map.", this.jobContext.getJobId());
         } else {
@@ -266,12 +266,6 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
       this.fs.delete(jobStateFilePath, false);
     }
-  }
-
-  @Subscribe
-  public void onSourceFinish(ClusterManagerShutdownRequest shutdownRequest) {
-    log.info("MHO: onSourceFinish: Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
-    this.eventBus.post(shutdownRequest);
   }
 }
 

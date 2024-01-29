@@ -141,7 +141,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
-    this.applicationLauncher = new ServiceBasedAppLauncher(properties, this.clusterName);
+    this.applicationLauncher = new ServiceBasedAppLauncherWithoutMetrics(properties, this.clusterName);
 
     // create a job catalog for keeping track of received jobs if a job config path is specified
     if (this.config.hasPath(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX

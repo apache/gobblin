@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -44,6 +46,7 @@ import org.apache.gobblin.runtime.services.JMXReportingService;
 import org.apache.gobblin.runtime.services.MetricsReportingService;
 import org.apache.gobblin.util.ApplicationLauncherUtils;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -75,6 +78,8 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
    * The name of the application. Not applicable for YARN jobs, which uses a separate key for the application name.
    */
   public static final String APP_NAME = "app.name";
+  public static final String STARTUP_TIMEOUT = "app.start.waitForServices.seconds";
+  public static final Duration DEFAULT_STARTUP_TIMEOUT = ChronoUnit.FOREVER.getDuration();
 
   /**
    * The number of seconds to wait for the application to stop, the default value is {@link #DEFAULT_APP_STOP_TIME_SECONDS}
@@ -91,6 +96,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceBasedAppLauncher.class);
 
   private final int stopTime;
+  private final Duration startupTimeout;
   private final String appId;
   private final List<Service> services;
 
@@ -101,12 +107,13 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
   public ServiceBasedAppLauncher(Properties properties, String appName) throws Exception {
     this.stopTime = Integer.parseInt(properties.getProperty(APP_STOP_TIME_SECONDS, DEFAULT_APP_STOP_TIME_SECONDS));
+    this.startupTimeout = properties.containsKey(STARTUP_TIMEOUT) ? Duration.ofSeconds(PropertiesUtils.getPropAsInt(properties, STARTUP_TIMEOUT, 0)) : DEFAULT_STARTUP_TIMEOUT;
     this.appId = ApplicationLauncherUtils.newAppId(appName);
     this.services = new ArrayList<>();
 
     // Add core Services needed for any application
     addJobExecutionServerAndAdminUI(properties);
-//    addMetricsService(properties);
+    addMetricsService(properties);
     addJMXReportingService();
 
     // Add any additional Services specified via configuration keys
@@ -169,7 +176,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
     // Start the application
     try {
-      this.serviceManager.startAsync().awaitHealthy(30, TimeUnit.SECONDS);
+      this.serviceManager.startAsync().awaitHealthy(startupTimeout.getSeconds(), TimeUnit.SECONDS);
     } catch (TimeoutException te) {
       LOG.error("Timeout in starting all services in service manager. Proceeding anyway to unblock shutdown hook", te);
     }
@@ -258,7 +265,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     }
   }
 
-  private void addMetricsService(Properties properties) {
+  protected void addMetricsService(Properties properties) {
     if (GobblinMetrics.isEnabled(properties)) {
       addService(new MetricsReportingService(properties, this.appId));
     }
