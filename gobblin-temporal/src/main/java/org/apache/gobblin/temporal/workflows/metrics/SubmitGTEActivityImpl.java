@@ -28,7 +28,7 @@ public class SubmitGTEActivityImpl implements SubmitGTEActivity {
     private static Logger log = Workflow.getLogger(SubmitGTEActivityImpl.class);
 
     @Override
-    public void submitGTE(GobblinEventBuilder eventBuilder, TrackingEventMetadata trackingEventMetadata) {
-        trackingEventMetadata.createEventSubmitter().submit(eventBuilder);
+    public void submitGTE(GobblinEventBuilder eventBuilder, EventSubmitterContext eventSubmitterContext) {
+        eventSubmitterContext.create().submit(eventBuilder);
     }
 }

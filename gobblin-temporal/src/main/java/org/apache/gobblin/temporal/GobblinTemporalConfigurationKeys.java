@@ -46,9 +46,14 @@ public interface GobblinTemporalConfigurationKeys {
   /**
    * Suffix for metrics emitted by GobblinTemporalJobLauncher for preventing collisions with prod jobs
    * during testing
+   *
    */
   String GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX = PREFIX + "job.metrics.suffix";
-  String DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX = "";
+  /**
+   * Default suffix for metrics emitted by GobblinTemporalJobLauncher for preventing collisions with prod jobs
+   * is not empty because temporal is still in alpha stages, and should not accidentally affect a prod job
+   */
+  String DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX = "-temporal";
 
   /**
    * Number of worker processes to spin up per task runner

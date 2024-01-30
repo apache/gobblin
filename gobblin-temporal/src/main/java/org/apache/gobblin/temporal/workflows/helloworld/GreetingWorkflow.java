@@ -20,7 +20,7 @@ package org.apache.gobblin.temporal.workflows.helloworld;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
-import org.apache.gobblin.temporal.workflows.metrics.TrackingEventMetadata;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 @WorkflowInterface
@@ -34,5 +34,5 @@ public interface GreetingWorkflow {
      * non-Temporal Gobblin code.
      */
     @WorkflowMethod
-    String getGreeting(String name, TrackingEventMetadata trackingEventMetadata);
+    String getGreeting(String name, EventSubmitterContext eventSubmitterContext);
 }

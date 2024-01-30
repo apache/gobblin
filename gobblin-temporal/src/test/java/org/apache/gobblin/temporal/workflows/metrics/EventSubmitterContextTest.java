@@ -34,7 +34,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 
 import static org.apache.gobblin.instrumented.GobblinMetricsKeys.CLASS_META;
 
-public class TrackingEventMetadataTest{
+public class EventSubmitterContextTest {
   private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private final String NAMESPACE = "test-namespace";
   @Test
@@ -45,11 +45,11 @@ public class TrackingEventMetadataTest{
     state.setProp("someState", "stub");
     MetricContext metricContext = Instrumented.getMetricContext(state, getClass(), tags);
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, NAMESPACE).build();
-    TrackingEventMetadata trackingEventMetadata = new TrackingEventMetadata(eventSubmitter);
-    byte[] asBytes = OBJECT_MAPPER.writeValueAsBytes(trackingEventMetadata);
+    EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(eventSubmitter);
+    byte[] asBytes = OBJECT_MAPPER.writeValueAsBytes(eventSubmitterContext);
 
-    TrackingEventMetadata deserEventMetadata = OBJECT_MAPPER.readValue(asBytes, TrackingEventMetadata.class);
-    EventSubmitter deserEventSubmitter = deserEventMetadata.createEventSubmitter();
+    EventSubmitterContext deserEventMetadata = OBJECT_MAPPER.readValue(asBytes, EventSubmitterContext.class);
+    EventSubmitter deserEventSubmitter = deserEventMetadata.create();
     Assert.assertTrue(deserEventSubmitter.getTags().contains(tags.get(0)));
     Assert.assertEquals(deserEventSubmitter.getNamespace(), NAMESPACE);
 

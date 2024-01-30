@@ -17,7 +17,6 @@
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,10 +28,10 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.jetbrains.annotations.NotNull;
 
 import com.typesafe.config.ConfigFactory;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
@@ -56,43 +55,40 @@ import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
-import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivity;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
-import org.apache.gobblin.temporal.workflows.metrics.TrackingEventMetadata;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 @Slf4j
 public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   public static final String CHILD_WORKFLOW_ID_BASE = "NestingExecWorkUnits";
   public static final String COMMIT_STEP_WORKFLOW_ID_BASE = "CommitStepWorkflow";
-  private final ActivityOptions options = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(60))
-      .build();
-  private final SubmitGTEActivity submitGTEActivity = Workflow.newActivityStub(
-      SubmitGTEActivity.class, options);
-
-  private static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
 
   @Override
   public int process(WUProcessingSpec workSpec) {
-    // NOTE: We are using the metrics tags from Job Props to create the metric context for the timer and NOT
-    // the deserialized jobState from HDFS that is created by the real distcp job. This is because the AZ runtime
-    // settings we want are for the job launcher that launched this Yarn job.
-
     try {
-      FileSystem fs = Help.loadFileSystemForce(workSpec);
-      JobState jobState = Help.loadJobStateUncached(workSpec, fs);
-      List<Tag<?>> tagsFromCurrentJob = workSpec.getTags();
-      String metricsSuffix = workSpec.getMetricsSuffix();
-      List<Tag<?>> tags = getTags(tagsFromCurrentJob, metricsSuffix, jobState);
-
-      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(submitGTEActivity, new TrackingEventMetadata(tags, JobMetrics.NAMESPACE));
-      try (EventTimer timer = timerFactory.getJobTimer()) {
+      EventSubmitterContext eventSubmitterContext = getEventSubmitterContext(workSpec);
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+      try (EventTimer timer = timerFactory.createJobTimer()) {
         return performWork(workSpec);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @NotNull
+  private EventSubmitterContext getEventSubmitterContext(WUProcessingSpec workSpec)
+      throws IOException {
+    // NOTE: We are using the metrics tags from Job Props to create the metric context for the timer and NOT
+    // the deserialized jobState from HDFS that is created by the real distcp job. This is because the AZ runtime
+    // settings we want are for the job launcher that launched this Yarn job.
+    FileSystem fs = Help.loadFileSystemForce(workSpec);
+    JobState jobState = Help.loadJobStateUncached(workSpec, fs);
+    List<Tag<?>> tagsFromCurrentJob = workSpec.getTags();
+    String metricsSuffix = workSpec.getMetricsSuffix();
+    List<Tag<?>> tags = getTags(tagsFromCurrentJob, metricsSuffix, jobState);
+    return new EventSubmitterContext(tags, JobMetrics.NAMESPACE);
   }
 
   public int performWork(WUProcessingSpec workSpec) {

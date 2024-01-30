@@ -26,5 +26,5 @@ import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 @ActivityInterface
 public interface SubmitGTEActivity {
     @ActivityMethod
-    void submitGTE(GobblinEventBuilder eventBuilder, TrackingEventMetadata trackingEventMetadata);
+    void submitGTE(GobblinEventBuilder eventBuilder, EventSubmitterContext eventSubmitterContext);
 }
