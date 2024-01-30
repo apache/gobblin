@@ -315,13 +315,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
 
     if (readTimeTableMetadataHolder.size() != 1) {
       final int firstNumToShow = 5;
+      String newline = System.lineSeparator();
       String errMsg = readTimeTableMetadataHolder.size() == 0
           ? String.format("~%s~ no table metadata ever encountered!", this.getFileSetId())
           : String.format("~%s~ multiple metadata (%d) encountered (exactly 1 expected) - first %d: [%s]",
               this.getFileSetId(), readTimeTableMetadataHolder.size(), firstNumToShow,
               readTimeTableMetadataHolder.stream().limit(firstNumToShow).map(md ->
-                  md.uuid() + " - " + md.location()
-              ).collect(Collectors.joining("\n", "\n", "\n")));
+                  md.uuid() + " - " + md.metadataFileLocation()
+              ).collect(Collectors.joining(newline, newline, newline)));
       throw new RuntimeException(errMsg);
     }
     return new GetFilePathsToFileStatusResult(results, readTimeTableMetadataHolder.get(0));
