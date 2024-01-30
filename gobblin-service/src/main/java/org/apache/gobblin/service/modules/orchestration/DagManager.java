@@ -289,6 +289,25 @@ public class DagManager extends AbstractIdleService {
   }
 
   /**
+   * Method to submit a {@link Dag} to the {@link DagManager} and delete adhoc flowSpecs from the FlowCatalog after
+   * persisting it in the other addDag method called. The DagManager's failure recovery method ensures the flow will be
+   * executed in the event of downtime.
+   * @param flowSpec
+   * @param dag
+   * @param persist
+   * @param setStatus
+   * @throws IOException
+   */
+  public synchronized void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
+      throws IOException {
+    addDag(dag, persist, setStatus);
+    // Only the active dagManager should delete the flowSpec
+    if (isActive) {
+      deleteSpecFromCatalogIfAdhoc(flowSpec);
+    }
+  }
+
+  /**
    * Method to submit a {@link Dag} to the {@link DagManager}. The {@link DagManager} optionally persists the
    * submitted dag to the {@link DagStateStore} and then adds the dag to a {@link BlockingQueue} to be picked up
    * by one of the {@link DagManagerThread}s.
@@ -467,6 +486,15 @@ public class DagManager extends AbstractIdleService {
       if (this.isActive) {
         addDag(dag, false, false);
       }
+    }
+  }
+
+  /*
+   Deletes spec from flowCatalog if it is an adhoc flow (not containing a job schedule)
+  */
+  private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
+    if (!flowSpec.isScheduled()) {
+      this.flowCatalog.remove(flowSpec.getUri(), new Properties(), false);
     }
   }
 
