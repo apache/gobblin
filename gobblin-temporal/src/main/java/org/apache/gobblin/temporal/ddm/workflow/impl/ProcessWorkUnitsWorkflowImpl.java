@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.jetbrains.annotations.NotNull;
@@ -54,9 +53,9 @@ import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
-import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 @Slf4j
@@ -91,7 +90,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     return new EventSubmitterContext(tags, JobMetrics.NAMESPACE);
   }
 
-  public int performWork(WUProcessingSpec workSpec) {
+  private int performWork(WUProcessingSpec workSpec) {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
     int workunitsProcessed = processingWorkflow.performWorkload(
@@ -147,14 +146,16 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     tagsFromCurJob.forEach(tag -> tagsMap.put(tag.getKey(), tag));
 
     // Step 2. Add tags from the jobState (the original MR job on HDFS)
+    List<String> targetKeysToAddSuffix = Arrays.asList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
     GobblinMetrics.getCustomTagsFromState(jobStateFromHdfs).stream()
         .filter(tag -> tagKeysFromJobState.contains(tag.getKey()))
-        .forEach(tag -> tagsMap.put(tag.getKey(), tag));
-
-    // Step 2a (optional): Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions when testing
-    Consumer<String> addSuffix =  (key) -> tagsMap.put(key, new Tag<>(key, tagsMap.get(key).getValue() + metricsSuffix));
-    addSuffix.accept(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-    addSuffix.accept(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+        .forEach(tag -> {
+          // Step 2a (optional): Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions when testing
+          String value = targetKeysToAddSuffix.contains(tag.getKey())
+              ? tag.getValue() + metricsSuffix
+              : String.valueOf(tag.getValue());
+          tagsMap.put(tag.getKey(), new Tag<>(tag.getKey(), value));
+        });
 
     // Step 3: Overwrite any pre-existing metadata with name of the current caller
     tagsMap.put(GobblinMetricsKeys.CLASS_META, new Tag<>(GobblinMetricsKeys.CLASS_META, getClass().getCanonicalName()));

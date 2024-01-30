@@ -41,7 +41,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 public class TemporalEventTimer implements EventTimer {
   private final SubmitGTEActivity trackingEventActivity;
   private final GobblinEventBuilder eventBuilder;
-  private final EventSubmitterContext _eventSubmitterContext;
+  private final EventSubmitterContext eventSubmitterContext;
   private final Instant startTime;
 
   @Override
@@ -49,12 +49,7 @@ public class TemporalEventTimer implements EventTimer {
     stop(getCurrentTime());
   }
 
-  /**
-   * Add additional metadata that will be submitted via the {@link EventSubmitter} when the timer is stopped
-   * via {@link #stop()}
-   * @param key
-   * @param metadata
-   */
+  @Override
   public void addMetadata(String key, String metadata) {
     this.eventBuilder.addMetadata(key, metadata);
   }
@@ -67,7 +62,7 @@ public class TemporalEventTimer implements EventTimer {
     Duration duration = Duration.between(this.startTime, endTime);
     this.eventBuilder.addMetadata(TimingEvent.METADATA_DURATION, Long.toString(duration.toMillis()));
 
-    trackingEventActivity.submitGTE(this.eventBuilder, _eventSubmitterContext);
+    trackingEventActivity.submitGTE(this.eventBuilder, eventSubmitterContext);
   }
 
   private static Instant getCurrentTime() {
@@ -77,7 +72,7 @@ public class TemporalEventTimer implements EventTimer {
   public static class Factory {
     private static final ActivityOptions DEFAULT_OPTS = ActivityOptions.newBuilder().build();
     private final SubmitGTEActivity submitGTEActivity;
-    private final EventSubmitterContext _eventSubmitterContext;
+    private final EventSubmitterContext eventSubmitterContext;
 
     public Factory(EventSubmitterContext eventSubmitterContext) {
       this(eventSubmitterContext, DEFAULT_OPTS);
@@ -85,12 +80,12 @@ public class TemporalEventTimer implements EventTimer {
 
     public Factory(EventSubmitterContext eventSubmitterContext, ActivityOptions opts) {
       this.submitGTEActivity = Workflow.newActivityStub(SubmitGTEActivity.class, opts);
-      this._eventSubmitterContext = eventSubmitterContext;
+      this.eventSubmitterContext = eventSubmitterContext;
     }
 
     public TemporalEventTimer create(String eventName, Instant startTime) {
-      GobblinEventBuilder eventBuilder = new GobblinEventBuilder(eventName, _eventSubmitterContext.getNamespace());
-      return new TemporalEventTimer(submitGTEActivity, eventBuilder, this._eventSubmitterContext, startTime);
+      GobblinEventBuilder eventBuilder = new GobblinEventBuilder(eventName, eventSubmitterContext.getNamespace());
+      return new TemporalEventTimer(submitGTEActivity, eventBuilder, this.eventSubmitterContext, startTime);
     }
 
     public TemporalEventTimer create(String eventName) {

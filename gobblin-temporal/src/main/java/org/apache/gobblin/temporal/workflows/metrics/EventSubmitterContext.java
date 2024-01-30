@@ -19,7 +19,6 @@ package org.apache.gobblin.temporal.workflows.metrics;
 
 import java.util.List;
 
-import com.codahale.metrics.Gauge;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -35,14 +34,9 @@ import static org.apache.gobblin.instrumented.GobblinMetricsKeys.CLASS_META;
 
 
 /**
- * Package private impl for sending the core essence of an {@link EventSubmitter} over the wire
- *
- * TODO: Fix this description
- *
- * Serializer for jackson that does its best to serialize a {@link EventSubmitter} from a json representation.
- * NOTE: Due to the nested bidirectional nature of the {@link org.apache.gobblin.metrics.InnerMetricContext} and
- * usage of {@link Gauge} this is not a perfect serialization but it is sufficient for passing important monitoring
- * like original Azkaban flow name and gobblin job id
+ * Wrapper for sending the core essence of an {@link EventSubmitter} over the wire (e.g. metadata tags, namespace)
+ * This is in lieu of sending the entire {@link EventSubmitter} object over the wire, which is not serializable without
+ * losing some information, such as the gauges
  */
 @Getter
 public class EventSubmitterContext {
