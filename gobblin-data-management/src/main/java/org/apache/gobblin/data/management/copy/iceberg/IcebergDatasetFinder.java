@@ -53,7 +53,7 @@ import org.apache.gobblin.util.HadoopUtils;
 public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDataset> {
   public static final String ICEBERG_DATASET_PREFIX = DatasetConstants.PLATFORM_ICEBERG + ".dataset";
 
-  public static final String ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = ICEBERG_DATASET_PREFIX + ".copy.metadata.path";
+  public static final String ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = ICEBERG_DATASET_PREFIX + ".should.copy.metadata.path";
   public static final String DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = "false";
 
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";

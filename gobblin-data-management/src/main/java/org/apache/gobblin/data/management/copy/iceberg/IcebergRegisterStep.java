@@ -64,6 +64,7 @@ public class IcebergRegisterStep implements CommitStep {
     TableMetadata unusedNowCurrentDestMetadata = null;
     try {
       unusedNowCurrentDestMetadata = destIcebergTable.accessTableMetadata(); // probe... (first access could throw)
+      unusedNowCurrentDestMetadata.uuid(); // access to prevent findbugs "dead store to..." (Dodgy code Warning)
     } catch (IcebergTable.TableNotFoundException tnfe) {
       log.warn("Destination TableMetadata doesn't exist because: " , tnfe);
     }
