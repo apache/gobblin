@@ -277,7 +277,7 @@ public class DagManager extends AbstractIdleService {
    * @param setStatus
    * @throws IOException
    */
-  public synchronized void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
+  public synchronized void addDagAndRemoveAdhocFlowSpec(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
       throws IOException {
     addDag(dag, persist, setStatus);
     // Only the active dagManager should delete the flowSpec

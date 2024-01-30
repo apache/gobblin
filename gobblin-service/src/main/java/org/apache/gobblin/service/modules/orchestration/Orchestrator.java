@@ -297,7 +297,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Note that the responsibility of the multi-active scheduler mode ends after this method is completed AND the
       consumption of a launch type event is committed to the consumer.
        */
-      this.dagManager.addDag(jobExecutionPlanDag, true, true);
+      this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);
