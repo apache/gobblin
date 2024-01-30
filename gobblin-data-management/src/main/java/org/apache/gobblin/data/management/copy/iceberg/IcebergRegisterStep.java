@@ -29,7 +29,14 @@ import org.apache.gobblin.commit.CommitStep;
 
 
 /**
- * {@link CommitStep} to perform Iceberg registration.
+ * {@link CommitStep} to perform Iceberg registration.  It is critically important to use the same source-side {@link TableMetadata} observed while
+ * listing the source table and the dest-side {@link TableMetadata} observed just prior to that listing of the source table.  Either table may have
+ * changed between first calculating the source-to-dest difference and now performing the commit on the destination (herein).  Accordingly, use of
+ * now-current metadata could thwart consistency.  Only metadata preserved from the time of the difference calc guarantees correctness.
+ *
+ *   - if the source table has since changed, we nonetheless use the metadata originally observed, since now-current metadata wouldn't match the
+ *     files just copied to dest
+ *   - if the dest table has since changed, we reject the commit altogether to force the diff calc to re-start again (in a subsequent execution)
  */
 @Slf4j
 public class IcebergRegisterStep implements CommitStep {
@@ -64,10 +71,10 @@ public class IcebergRegisterStep implements CommitStep {
     TableMetadata unusedNowCurrentDestMetadata = null;
     try {
       unusedNowCurrentDestMetadata = destIcebergTable.accessTableMetadata(); // probe... (first access could throw)
-      log.info("~{}~ (destination) (using) TableMetadata: {} - {} {} (current) TableMetadata: {} - {}",
+      log.info("~{}~ (destination) (using) TableMetadata: {} - {} {}= (current) TableMetadata: {} - {}",
           destTableIdStr,
           justPriorDestTableMetadata.uuid(), justPriorDestTableMetadata.metadataFileLocation(),
-          unusedNowCurrentDestMetadata.uuid().equals(justPriorDestTableMetadata.uuid()) ? "==" : "!=",
+          unusedNowCurrentDestMetadata.uuid().equals(justPriorDestTableMetadata.uuid()) ? "=" : "!",
           unusedNowCurrentDestMetadata.uuid(), unusedNowCurrentDestMetadata.metadataFileLocation());
     } catch (IcebergTable.TableNotFoundException tnfe) {
       log.warn("Destination TableMetadata doesn't exist because: " , tnfe);

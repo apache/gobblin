@@ -105,6 +105,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration) {
     return createFileSets(targetFs, configuration);
   }
+
   /**
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link #createFileSets}.
@@ -173,7 +174,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
-    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
+
     copyEntities.add(createPostPublishStep(atomicGetPathsResult.getTableMetadata(), destTableMetadataBeforeSrcRead));
     log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
     return copyEntities;
@@ -193,7 +194,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   /**
-   * Finds all files of the Iceberg's current snapshot
+   * Finds all files of the Iceberg's current snapshot and also returns the {@link TableMetadata} atomically accessed while reading those paths
    * @param shouldIncludeMetadataPath whether to consider "metadata.json" (`getMetadataPath()`) as eligible for inclusion
    * @return combined result: both a map of path to file status for each file to copy plus the {@link TableMetadata}, atomically observed with those paths
    */
@@ -379,6 +380,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   }
 
   private PostPublishStep createPostPublishStep(TableMetadata readTimeSrcTableMetadata, TableMetadata justPriorDestTableMetadata) {
+    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
     IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(
         this.srcIcebergTable.getTableId(), this.destIcebergTable.getTableId(), readTimeSrcTableMetadata, justPriorDestTableMetadata, this.properties);
     return new PostPublishStep(getFileSetId(), Maps.newHashMap(), icebergRegisterStep, 0);
