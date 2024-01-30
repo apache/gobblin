@@ -598,6 +598,7 @@ public class IcebergDatasetTest {
       private final Optional<String> metadataPath;
       private final String manifestListPath;
       private final List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles;
+
       private static final TableMetadata unusedStubMetadata = Mockito.mock(TableMetadata.class);
 
       public IcebergSnapshotInfo asSnapshotInfo() {
@@ -610,7 +611,9 @@ public class IcebergDatasetTest {
       }
 
       public IcebergSnapshotInfo asSnapshotInfo(Long snapshotId, Instant timestamp) {
-        return new IcebergSnapshotInfo(snapshotId, timestamp, this.metadataPath, Optional.of(unusedStubMetadata), this.manifestListPath, this.manifestFiles);
+        return new IcebergSnapshotInfo(snapshotId, timestamp, this.metadataPath,
+            this.metadataPath.map(ignore -> unusedStubMetadata), // only set when `metadataPath.isPresent()`
+            this.manifestListPath, this.manifestFiles);
       }
     }
 

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -312,8 +313,16 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       wrapper.rethrowWrapped();
     }
 
-    if (readTimeTableMetadataHolder.size() == 0) {
-      throw new RuntimeException(String.format("~%s~ no table metadata ever encountered!", this.getFileSetId()));
+    if (readTimeTableMetadataHolder.size() != 1) {
+      final int firstNumToShow = 5;
+      String errMsg = readTimeTableMetadataHolder.size() == 0
+          ? String.format("~%s~ no table metadata ever encountered!", this.getFileSetId())
+          : String.format("~%s~ multiple metadata (%d) encountered (exactly 1 expected) - first %d: [%s]",
+              this.getFileSetId(), readTimeTableMetadataHolder.size(), firstNumToShow,
+              readTimeTableMetadataHolder.stream().limit(firstNumToShow).map(md ->
+                  md.uuid() + " - " + md.location()
+              ).collect(Collectors.joining("\n", "\n", "\n")));
+      throw new RuntimeException(errMsg);
     }
     return new GetFilePathsToFileStatusResult(results, readTimeTableMetadataHolder.get(0));
   }
