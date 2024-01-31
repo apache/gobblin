@@ -50,6 +50,7 @@ import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -143,7 +144,7 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobsMapping = jobsMapping;
     this.locks = locks;
     this.metricContext = metricContext;
-    eventSubmitter = new EventSubmitter.Builder(this.metricContext, "gobblin.runtime").build();
+    eventSubmitter = new EventSubmitter.Builder(this.metricContext, JobMetrics.NAMESPACE).build();
   }
 
   private boolean isRetriggeringEnabled() {

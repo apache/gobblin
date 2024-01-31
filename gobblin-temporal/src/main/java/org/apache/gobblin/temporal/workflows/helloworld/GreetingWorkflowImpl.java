@@ -19,10 +19,18 @@ package org.apache.gobblin.temporal.workflows.helloworld;
 
 import java.time.Duration;
 
+import org.slf4j.Logger;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Workflow;
 
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+
+
 public class GreetingWorkflowImpl implements GreetingWorkflow {
+
+    private final Logger LOG = Workflow.getLogger(GreetingWorkflowImpl.class);
 
     /*
      * At least one of the following options needs to be defined:
@@ -41,16 +49,19 @@ public class GreetingWorkflowImpl implements GreetingWorkflow {
      *
      * The activity options that were defined above are passed in as a parameter.
      */
-    private final FormatActivity activity = Workflow.newActivityStub(FormatActivity.class, options);
+    private final FormatActivity formatActivity = Workflow.newActivityStub(FormatActivity.class, options);
 
     // This is the entry point to the Workflow.
     @Override
-    public String getGreeting(String name) {
-
+    public String getGreeting(String name, EventSubmitterContext eventSubmitterContext) {
         /**
-         * If there were other Activity methods they would be orchestrated here or from within other Activities.
-         * This is a blocking call that returns only after the activity has completed.
+         * Example of the {@link TemporalEventTimer.Factory} invoking child activity for instrumentation.
          */
-        return activity.composeGreeting(name);
+        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+        try (TemporalEventTimer timer = timerFactory.create("getGreetingTime")) {
+            LOG.info("Executing getGreeting");
+            timer.addMetadata("name", name);
+            return formatActivity.composeGreeting(name);
+        }
     }
 }

@@ -15,24 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.workflows.helloworld;
+package org.apache.gobblin.temporal.workflows.metrics;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import org.slf4j.Logger;
 
-import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import io.temporal.workflow.Workflow;
+
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
-@WorkflowInterface
-public interface GreetingWorkflow {
+public class SubmitGTEActivityImpl implements SubmitGTEActivity {
+    private static Logger log = Workflow.getLogger(SubmitGTEActivityImpl.class);
 
-    /**
-     * This is the method that is executed when the Workflow Execution is started. The Workflow
-     * Execution completes when this method finishes execution.
-     *
-     * This method also shows an example of metrics emission using the {@link EventSubmitter} seen in
-     * non-Temporal Gobblin code.
-     */
-    @WorkflowMethod
-    String getGreeting(String name, EventSubmitterContext eventSubmitterContext);
+    @Override
+    public void submitGTE(GobblinEventBuilder eventBuilder, EventSubmitterContext eventSubmitterContext) {
+        eventSubmitterContext.create().submit(eventBuilder);
+    }
 }

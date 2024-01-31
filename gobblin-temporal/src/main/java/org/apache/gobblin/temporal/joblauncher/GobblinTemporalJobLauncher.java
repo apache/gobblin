@@ -23,10 +23,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import lombok.extern.slf4j.Slf4j;
+import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
@@ -55,8 +56,9 @@ import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClien
  * </p>
  */
 @Alpha
-@Slf4j
 public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
+  private static final Logger log = Workflow.getLogger(GobblinTemporalJobLauncher.class);
+
   protected WorkflowServiceStubs workflowServiceStubs;
   protected WorkflowClient client;
   protected String queueName;

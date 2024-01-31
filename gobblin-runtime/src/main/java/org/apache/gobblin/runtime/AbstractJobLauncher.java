@@ -1027,7 +1027,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Build the {@link EventSubmitter} for this class.
    */
   private EventSubmitter buildEventSubmitter(List<? extends Tag<?>> tags) {
-    return new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime")
+    return new EventSubmitter.Builder(this.runtimeMetricContext, JobMetrics.NAMESPACE)
         .addMetadata(Tag.toMap(Tag.tagValuesToString(tags))).build();
   }
 

@@ -104,11 +104,14 @@ import org.apache.gobblin.cluster.GobblinHelixConstants;
 import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.AzkabanTags;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.EmailUtils;
@@ -121,6 +124,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
 
+import static org.apache.gobblin.metrics.GobblinMetrics.METRICS_STATE_CUSTOM_TAGS;
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
 
 
@@ -1051,8 +1055,15 @@ public class GobblinYarnAppLauncher {
       Schema schema = KafkaReporterUtils.getMetricReportSchema();
       String schemaId = registry.register(schema, KafkaReporterUtils.getMetricsTopic(properties).get());
       LOGGER.info("Adding schemaId {} for MetricReport to the config", schemaId);
-      config = config.withValue(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID,
-          ConfigValueFactory.fromAnyRef(schemaId));
+      List<Tag<?>> tags = Lists.newArrayList();
+      tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
+      GobblinMetrics.addCustomTagsToProperties(properties, tags);
+
+      config = config
+          .withValue(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID,
+              ConfigValueFactory.fromAnyRef(schemaId))
+          .withValue(METRICS_STATE_CUSTOM_TAGS,
+              ConfigValueFactory.fromAnyRef(properties.getProperty(METRICS_STATE_CUSTOM_TAGS)));
     }
     return config;
   }

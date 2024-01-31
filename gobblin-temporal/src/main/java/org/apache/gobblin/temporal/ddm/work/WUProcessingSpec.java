@@ -18,15 +18,23 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+
+import org.apache.hadoop.fs.Path;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.hadoop.fs.Path;
+
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
@@ -44,6 +52,8 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
   @NonNull private URI fileSystemUri;
   @NonNull private String workUnitsDir;
   @NonNull private Tuning tuning = Tuning.DEFAULT;
+  @NonNull private List<Tag<?>> tags = new ArrayList<>();
+  @NonNull private String metricsSuffix = GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX;
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override
