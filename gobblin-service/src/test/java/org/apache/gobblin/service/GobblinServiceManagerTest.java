@@ -273,7 +273,8 @@ public class GobblinServiceManagerTest {
         .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
     FlowSpec uncompilableSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(uncompilableFlowConfig);
-    FlowConfig runOnceFlowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+    FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
+    FlowConfig runOnceFlowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
     FlowSpec runOnceSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(runOnceFlowConfig);
 
@@ -295,17 +296,19 @@ public class GobblinServiceManagerTest {
     // restart the service
     serviceReboot();
 
-    // runOnce job should get deleted from the spec store after running but uncompilable flow should stay
+    // runOnce job is not deleted from spec store after running because DagManager is inactive for tests
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(20000L).backoffFactor(1)
-        .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1,
-            "Waiting for the runOnce job to finish");
+        .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 2,
+            "Both flow specs should be present");
 
     specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
-    Assert.assertEquals(specs.get(0).getUri(), uncompilableSpec.getUri());
+    Assert.assertTrue(specs.get(0).getUri().equals(uncompilableSpec.getUri()) || specs.get(1).getUri().equals(uncompilableSpec.getUri()));
+    Assert.assertTrue(specs.get(0).getUri().equals(runOnceSpec.getUri()) || specs.get(1).getUri().equals(runOnceSpec.getUri()));
     Assert.assertTrue(uncompilableSpec.getConfig().getBoolean(ConfigurationKeys.FLOW_RUN_IMMEDIATELY));
 
     // clean it
     this.gobblinServiceManager.getFlowCatalog().remove(uncompilableSpec.getUri());
+    this.gobblinServiceManager.getFlowCatalog().remove(runOnceSpec.getUri());
     specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
     Assert.assertEquals(specs.size(), 0);
   }
@@ -338,10 +341,11 @@ public class GobblinServiceManagerTest {
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
-    // runOnce job is deleted soon after it is orchestrated
+    // FlowSpec still remains it is only deleted by inactiveDagManager
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(4000L).backoffFactor(1)
-        .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
-          "Waiting for job to get orchestrated...");
+        .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1,
+            "Waiting for job to get orchestrated...");
+    // runOnce job is deleted soon after it is orchestrated
     AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(2000L).backoffFactor(1)
           .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()),
               "Timed out waiting for run once job to get deleted from scheduledFlowSpecs");
