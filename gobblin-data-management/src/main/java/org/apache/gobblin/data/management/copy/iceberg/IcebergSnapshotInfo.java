@@ -27,6 +27,8 @@ import lombok.Data;
 
 import com.google.common.collect.Lists;
 
+import org.apache.iceberg.TableMetadata;
+
 
 /**
  * Information about the metadata file and data file paths of a single Iceberg Snapshot.
@@ -43,8 +45,10 @@ public class IcebergSnapshotInfo {
 
   private final Long snapshotId;
   private final Instant timestamp;
-  /** only for the current snapshot, being whom the metadata file 'belongs to'; `isEmpty()` for all other snapshots */
+  /** only for the snapshot designated 'current', being whom the metadata file 'belongs to'; `isEmpty()` for all other snapshots */
   private final Optional<String> metadataPath;
+  /** only for the snapshot designated 'current', being whom the metadata 'belong to'; `isEmpty()` for all other snapshots */
+  private final Optional<TableMetadata> tableMetadata;
   private final String manifestListPath;
   private final List<ManifestFileInfo> manifestFiles;
 

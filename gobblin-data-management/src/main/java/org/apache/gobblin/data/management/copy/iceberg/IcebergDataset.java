@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -40,8 +41,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import javax.annotation.concurrent.NotThreadSafe;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.iceberg.TableMetadata;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -101,6 +105,7 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   public Iterator<FileSet<CopyEntity>> getFileSetIterator(FileSystem targetFs, CopyConfiguration configuration) {
     return createFileSets(targetFs, configuration);
   }
+
   /**
    * Finds all files read by the table and generates CopyableFiles.
    * For the specific semantics see {@link #createFileSets}.
@@ -126,6 +131,14 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return Iterators.singletonIterator(fileSet);
   }
 
+  /** Conveys {@link Path}-to-{@link FileStatus} mapping in combination with {@link TableMetadata} originating from the same atomic read of those paths */
+  @Data
+  @VisibleForTesting
+  protected static final class GetFilePathsToFileStatusResult {
+    private final Map<Path, FileStatus> pathsToFileStatus;
+    private final TableMetadata tableMetadata;
+  }
+
   /**
    * Finds all files, data and metadata, as {@link CopyEntity}s that comprise the table and fully specify remaining
    * table replication.
@@ -134,7 +147,9 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
   Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
-    Map<Path, FileStatus> pathToFileStatus = getFilePathsToFileStatus(targetFs, copyConfig, this.shouldIncludeMetadataPath);
+    TableMetadata destTableMetadataBeforeSrcRead = getCurrentDestTableMetadata();
+    GetFilePathsToFileStatusResult atomicGetPathsResult = getFilePathsToFileStatus(targetFs, copyConfig, this.shouldIncludeMetadataPath);
+    Map<Path, FileStatus> pathToFileStatus = atomicGetPathsResult.getPathsToFileStatus();
     log.info("~{}~ found {} candidate source paths", fileSet, pathToFileStatus.size());
 
     Configuration defaultHadoopConfiguration = new Configuration();
@@ -159,18 +174,32 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
     }
-    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
-    copyEntities.add(createPostPublishStep());
+
+    copyEntities.add(createPostPublishStep(atomicGetPathsResult.getTableMetadata(), destTableMetadataBeforeSrcRead));
     log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
     return copyEntities;
   }
 
   /**
-   * Finds all files of the Iceberg's current snapshot
-   * @param shouldIncludeMetadataPath whether to consider "metadata.json" (`getMetadataPath()`) as eligible for inclusion
-   * @return a map of path, file status for each file that needs to be copied
+   * @return {@link TableMetadata} current at destination
+   * @throws {@link IOException} if `this.destIcebergTable` does not exist
    */
-  protected Map<Path, FileStatus> getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig, boolean shouldIncludeMetadataPath) throws IOException {
+  protected TableMetadata getCurrentDestTableMetadata() throws IOException {
+    try {
+      return destIcebergTable.accessTableMetadata();
+    } catch (IcebergTable.TableNotFoundException tnfe) {
+      log.error("No destination TableMetadata because table not found: '" + destIcebergTable.getTableId() + "'" , tnfe);
+      throw new IOException(tnfe);
+    }
+  }
+
+  /**
+   * Finds all files of the Iceberg's current snapshot and also returns the {@link TableMetadata} atomically accessed while reading those paths
+   * @param shouldIncludeMetadataPath whether to consider "metadata.json" (`getMetadataPath()`) as eligible for inclusion
+   * @return combined result: both a map of path to file status for each file to copy plus the {@link TableMetadata}, atomically observed with those paths
+   */
+  protected GetFilePathsToFileStatusResult getFilePathsToFileStatus(FileSystem targetFs, CopyConfiguration copyConfig, boolean shouldIncludeMetadataPath)
+      throws IOException {
     IcebergTable icebergTable = this.getSrcIcebergTable();
     /** @return whether `pathStr` is present on `targetFs`, caching results while tunneling checked exceptions outward */
     Function<String, Boolean> isPresentOnTarget = CheckedExceptionFunction.wrapToTunneled(pathStr ->
@@ -188,11 +217,19 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
           this.getFileSetId(), currentSnapshotOverview.getSnapshotId(),
           currentSnapshotOverview.getManifestListPath(),
           currentSnapshotOverview.getMetadataPath().orElse("<<ERROR: MISSING!>>"));
-      return Maps.newHashMap();
+      TableMetadata readTimeTableMetadata = currentSnapshotOverview.getTableMetadata().orElseThrow(() -> new RuntimeException(
+          String.format("~%s~ no table metadata for current snapshot '%s' at '%s' with metadata path '%s'",
+              this.getFileSetId(), currentSnapshotOverview.getSnapshotId(),
+              currentSnapshotOverview.getManifestListPath(),
+              currentSnapshotOverview.getMetadataPath().orElse("<<ERROR: MISSING!>>"))));
+      return new GetFilePathsToFileStatusResult(Maps.newHashMap(), readTimeTableMetadata);
     }
+
+    List<TableMetadata> readTimeTableMetadataHolder = Lists.newArrayList(); // expecting exactly one elem
     Iterator<IcebergSnapshotInfo> icebergIncrementalSnapshotInfos = icebergTable.getIncrementalSnapshotInfosIterator();
     Iterator<String> filePathsIterator = Iterators.concat(
         Iterators.transform(icebergIncrementalSnapshotInfos, snapshotInfo -> {
+          snapshotInfo.getTableMetadata().ifPresent(readTimeTableMetadataHolder::add);
           // log each snapshot, for context, in case of `FileNotFoundException` during `FileSystem.getFileStatus()`
           String manListPath = snapshotInfo.getManifestListPath();
           log.info("~{}~ loaded snapshot '{}' at '{}' from metadata path: '{}'", this.getFileSetId(),
@@ -276,7 +313,20 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     } catch (CheckedExceptionFunction.WrappedIOException wrapper) {
       wrapper.rethrowWrapped();
     }
-    return results;
+
+    if (readTimeTableMetadataHolder.size() != 1) {
+      final int firstNumToShow = 5;
+      String newline = System.lineSeparator();
+      String errMsg = readTimeTableMetadataHolder.size() == 0
+          ? String.format("~%s~ no table metadata ever encountered!", this.getFileSetId())
+          : String.format("~%s~ multiple metadata (%d) encountered (exactly 1 expected) - first %d: [%s]",
+              this.getFileSetId(), readTimeTableMetadataHolder.size(), firstNumToShow,
+              readTimeTableMetadataHolder.stream().limit(firstNumToShow).map(md ->
+                  md.uuid() + " - " + md.metadataFileLocation()
+              ).collect(Collectors.joining(newline, newline, newline)));
+      throw new RuntimeException(errMsg);
+    }
+    return new GetFilePathsToFileStatusResult(results, readTimeTableMetadataHolder.get(0));
   }
 
   /**
@@ -329,8 +379,10 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     return this.destIcebergTable.getDatasetDescriptor(targetFs);
   }
 
-  private PostPublishStep createPostPublishStep() {
-    IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(this.srcIcebergTable.getTableId(), this.destIcebergTable.getTableId(), this.properties);
+  private PostPublishStep createPostPublishStep(TableMetadata readTimeSrcTableMetadata, TableMetadata justPriorDestTableMetadata) {
+    // TODO: Filter properties specific to iceberg registration and avoid serializing every global property
+    IcebergRegisterStep icebergRegisterStep = new IcebergRegisterStep(
+        this.srcIcebergTable.getTableId(), this.destIcebergTable.getTableId(), readTimeSrcTableMetadata, justPriorDestTableMetadata, this.properties);
     return new PostPublishStep(getFileSetId(), Maps.newHashMap(), icebergRegisterStep, 0);
   }
 }

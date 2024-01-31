@@ -41,8 +41,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.catalog.TableIdentifier;
+
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -398,7 +400,8 @@ public class IcebergDatasetTest {
     FileSystem destFs = destFsBuilder.build();
     CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
 
-    Map<Path, FileStatus> filePathsToFileStatus = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration, shouldIncludeMetadataPath);
+    IcebergDataset.GetFilePathsToFileStatusResult pathsResult = icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration, shouldIncludeMetadataPath);
+    Map<Path, FileStatus> filePathsToFileStatus = pathsResult.getPathsToFileStatus();
     Assert.assertEquals(filePathsToFileStatus.keySet(), expectedResultPaths);
     // verify solely the path portion of the `FileStatus`, since that's all mock sets up
     Assert.assertEquals(
@@ -596,6 +599,8 @@ public class IcebergDatasetTest {
       private final String manifestListPath;
       private final List<IcebergSnapshotInfo.ManifestFileInfo> manifestFiles;
 
+      private static final TableMetadata unusedStubMetadata = Mockito.mock(TableMetadata.class);
+
       public IcebergSnapshotInfo asSnapshotInfo() {
         return asSnapshotInfo(0L);
       }
@@ -606,7 +611,9 @@ public class IcebergDatasetTest {
       }
 
       public IcebergSnapshotInfo asSnapshotInfo(Long snapshotId, Instant timestamp) {
-        return new IcebergSnapshotInfo(snapshotId, timestamp, this.metadataPath, this.manifestListPath, this.manifestFiles);
+        return new IcebergSnapshotInfo(snapshotId, timestamp, this.metadataPath,
+            this.metadataPath.map(ignore -> unusedStubMetadata), // only set when `metadataPath.isPresent()`
+            this.manifestListPath, this.manifestFiles);
       }
     }
 
