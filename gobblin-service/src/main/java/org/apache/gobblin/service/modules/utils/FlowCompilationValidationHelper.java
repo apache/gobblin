@@ -76,9 +76,9 @@ public final class FlowCompilationValidationHelper {
     specCompiler.awaitHealthy();
 
     TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
-    Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
-        validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName);
     Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+    Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
+        validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName, flowMetadata);
 
     if (!jobExecutionPlanDagOptional.isPresent()) {
       return Optional.absent();
@@ -89,7 +89,6 @@ public final class FlowCompilationValidationHelper {
       return Optional.absent();
     }
 
-    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDagOptional.get());
     flowCompilationTimer.stop(flowMetadata);
     return jobExecutionPlanDagOptional;
   }
@@ -101,13 +100,18 @@ public final class FlowCompilationValidationHelper {
    * @throws IOException
    */
   public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
-      String flowGroup, String flowName) throws IOException {
+      String flowGroup, String flowName, Map<String,String> flowMetadata) throws IOException {
     boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig,
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, isFlowConcurrencyEnabled);
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
+    if (jobExecutionPlanDag.isEmpty()) {
+      return Optional.absent();
+    }
+    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
 
-    if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution)) {
+    if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution,
+        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
       return Optional.fromNullable(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
@@ -121,9 +125,7 @@ public final class FlowCompilationValidationHelper {
           quotaManager.releaseQuota(dagNode);
         }
       }
-
       // Send FLOW_FAILED event
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
           + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
       new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
@@ -140,8 +142,8 @@ public final class FlowCompilationValidationHelper {
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
   private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
-      boolean allowConcurrentExecution) {
-    return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup);
+      boolean allowConcurrentExecution, long flowExecutionId) {
+    return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId);
   }
 
   /**

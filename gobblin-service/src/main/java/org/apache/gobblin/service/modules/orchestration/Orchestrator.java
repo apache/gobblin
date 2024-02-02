@@ -247,7 +247,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =
             this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
-                flowName);
+                flowName, flowMetadata);
 
         if (!compiledDagOptional.isPresent()) {
           Instrumented.markMeter(this.flowOrchestrationFailedMeter);

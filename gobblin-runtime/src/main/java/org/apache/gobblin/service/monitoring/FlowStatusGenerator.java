@@ -152,13 +152,17 @@ public class FlowStatusGenerator {
    * @param flowGroup
    * @return true, if any jobs of the flow are RUNNING.
    */
-  public boolean isFlowRunning(String flowName, String flowGroup) {
+  public boolean isFlowRunning(String flowName, String flowGroup, long flowExecutionId) {
     List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1, null);
     if (flowStatusList == null || flowStatusList.isEmpty()) {
       return false;
     } else {
       FlowStatus flowStatus = flowStatusList.get(0);
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+      // If the latest flow status is the current job about to get kicked off, we should ignore this check
+      if (flowStatus.getFlowExecutionId() == flowExecutionId) {
+        return false;
+      }
       return !FINISHED_STATUSES.contains(flowExecutionStatus.name());
     }
   }

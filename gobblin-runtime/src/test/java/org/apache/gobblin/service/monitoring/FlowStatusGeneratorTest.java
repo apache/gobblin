@@ -38,25 +38,61 @@ import static org.mockito.Mockito.when;
 public class FlowStatusGeneratorTest {
 
   @Test
-  public void testIsFlowRunning() {
+  public void testIsFlowRunningFirstExecution() {
     JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     String flowName = "testName";
     String flowGroup = "testGroup";
+    long currFlowExecutionId = 1234L;
     when(jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1)).thenReturn(null);
 
     FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
-    Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
+    Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup, currFlowExecutionId));
+  }
 
-    //If a flow is COMPILED, isFlowRunning() should return true.
+  @Test
+  public void testIsFlowRunningCompiledPastExecution() {
+    JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
+    String flowName = "testName";
+    String flowGroup = "testGroup";
     long flowExecutionId = 1234L;
     when(jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1)).thenReturn(
         Lists.newArrayList(flowExecutionId));
     JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName("COMPILED").build();
     Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(jobStatusIterator);
-    Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
+    when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(
+        jobStatusIterator);
+    FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
+    // Block the next execution if the prior one is in compiled as it's considered still running
+    Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId + 1));
+  }
 
+  @Test
+  public void skipFlowConcurrentCheckSameFlowExecutionId() {
+    JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
+    String flowName = "testName";
+    String flowGroup = "testGroup";
+    long flowExecutionId = 1234L;
+    when(jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1)).thenReturn(
+        Lists.newArrayList(flowExecutionId));
+    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
+        .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName("COMPILED").build();
+    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
+    when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(
+        jobStatusIterator);
+    FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
+    // If the flow is compiled but the flow execution status is the same as the one about to be kicked off, do not consider it as running.
+    Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId));
+  }
+
+    @Test
+    public void testIsFlowRunningJobExecutionIgnored() {
+    String flowName = "testName";
+    String flowGroup = "testGroup";
+    long flowExecutionId = 1234L;
+    JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
+    when(jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1)).thenReturn(
+        Lists.newArrayList(flowExecutionId));
     //JobStatuses should be ignored, only the flow level status matters.
     String job1 = "job1";
     String job2 = "job2";
@@ -69,15 +105,17 @@ public class FlowStatusGeneratorTest {
         .jobName(job3).eventName("CANCELLED").build();
     JobStatus flowStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName("CANCELLED").build();
-    jobStatusIterator = Lists.newArrayList(jobStatus1, jobStatus2, jobStatus3, flowStatus).iterator();
+    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus1, jobStatus2, jobStatus3, flowStatus).iterator();
+    FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
+
     when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(jobStatusIterator);
-    Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
+    Assert.assertFalse(flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId));
 
     flowStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName("RUNNING").build();
     jobStatusIterator = Lists.newArrayList(jobStatus1, jobStatus2, jobStatus3, flowStatus).iterator();
     when(jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId)).thenReturn(jobStatusIterator);
-    Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup));
+    Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId+1));
   }
 
   @Test
