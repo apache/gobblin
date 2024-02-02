@@ -68,7 +68,7 @@ public class FlowStatusGeneratorTest {
   }
 
   @Test
-  public void skipFlowConccurentCheckSameFlowExecutionId() {
+  public void skipFlowConcurrentCheckSameFlowExecutionId() {
     JobStatusRetriever jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     String flowName = "testName";
     String flowGroup = "testGroup";

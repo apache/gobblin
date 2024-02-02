@@ -111,7 +111,7 @@ public final class FlowCompilationValidationHelper {
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
 
     if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution,
-        Long.valueOf(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
+        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
       return Optional.fromNullable(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
