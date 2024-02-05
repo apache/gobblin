@@ -98,6 +98,7 @@ dependencies {
   compile project(':gobblin-modules:gobblin-troubleshooter')
   compile project(':gobblin-tunnel')
   compile project(':gobblin-utility')
+  compile project(':gobblin-temporal')
   compile project(':gobblin-yarn')
   compile project(':gobblin-modules:gobblin-zuora')
   compile project(':gobblin-modules:google-ingestion')
