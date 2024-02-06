@@ -18,23 +18,31 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 
+/**
+ * An implementation of {@link InfiniteSource} that does not generate any workunits. This is helpful when the {@link io.temporal.workflow.Workflow}
+ * is driven by the job launcher and not the source. I.e. we want the discovery to be triggered on a {@link io.temporal.worker.Worker} and not the
+ * {@link org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager}
+ *
+ * This class also implements the {@link InfiniteSource} to provide hooks for communicating with the
+ * {@link org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher} via the {@link EventBus}.
+ */
 @Slf4j
-public class ProcessWorkunitsSource implements InfiniteSource {
+public class NoWorkunitsInfiniteSource implements InfiniteSource {
 
   private final EventBus eventBus = new EventBus(this.getClass().getSimpleName());
 
-  public ProcessWorkunitsSource() {
+  public NoWorkunitsInfiniteSource() {
   }
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    // PLACEHOLDER for now - This can be used to actually generate workunits for the workflow
     return Arrays.asList(WorkUnit.createEmpty());
   }
 
   @Override
   public Extractor getExtractor(WorkUnitState state)
       throws IOException {
+    // no-op stub extractor
     return new InstrumentedExtractor(state) {
       @Override
       public Object getSchema()

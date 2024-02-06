@@ -29,7 +29,6 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -41,7 +40,6 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.HelixUtils;
-import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
@@ -206,12 +204,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         cancelJob(jobListener);
       }
     } finally {
-      // NOTE: This code only makes sense when there is 1 source / workflow being launched per application. This is a stop-gap
-      // for recreating batch job behavior in GaaS. Given the current constraints of yarn applications requiring a static proxy user
-      // during application creation, it is not possible to have multiple workflows running in the same application.
-      // and so it makes sense ti just kill the job after this is complete
-      log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
-      eventBus.post(new ClusterManagerShutdownRequest());
+      handleLaunchFinalization();
 
       if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
@@ -223,6 +216,9 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         }
       }
     }
+  }
+
+  protected void handleLaunchFinalization() {
   }
 
   /**

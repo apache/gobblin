@@ -33,6 +33,7 @@ import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -80,6 +81,16 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     this.queueName = jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE, DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
     startCancellationExecutor();
+  }
+
+  @Override
+  protected void handleLaunchFinalization() {
+    // NOTE: This code only makes sense when there is 1 source / workflow being launched per application for Temporal. This is a stop-gap
+    // for achieving batch job behavior. Given the current constraints of yarn applications requiring a static proxy user
+    // during application creation, it is not possible to have multiple workflows running in the same application.
+    // and so it makes sense to just kill the job after this is completed
+    log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
+    eventBus.post(new ClusterManagerShutdownRequest());
   }
 
   /**

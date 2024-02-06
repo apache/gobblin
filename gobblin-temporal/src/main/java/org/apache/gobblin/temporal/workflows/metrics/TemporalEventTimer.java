@@ -70,7 +70,9 @@ public class TemporalEventTimer implements EventTimer {
   }
 
   public static class Factory {
-    private static final ActivityOptions DEFAULT_OPTS = ActivityOptions.newBuilder().build();
+    private static final ActivityOptions DEFAULT_OPTS = ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(Duration.ofHours(24))
+        .build();
     private final SubmitGTEActivity submitGTEActivity;
     private final EventSubmitterContext eventSubmitterContext;
 

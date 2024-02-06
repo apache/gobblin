@@ -92,7 +92,6 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
@@ -208,7 +207,7 @@ class YarnService extends AbstractIdleService {
     this.eventBus = eventBus;
 
     // Gobblin metrics have been disabled in the PoC temporarily to make testing kafka integration without having to worry
-    // how the metrics topics are used. Kafka will only be used for GobblinTrackingEvents in the initial POC
+    // how the metrics topics are used. Kafka will only be used for GobblinTrackingEvents for external monitoring
     this.gobblinMetrics = Optional.<GobblinMetrics>absent();
     this.eventSubmitter = Optional.<EventSubmitter>absent();
 
