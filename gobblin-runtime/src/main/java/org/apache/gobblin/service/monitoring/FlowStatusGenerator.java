@@ -31,14 +31,14 @@ import com.google.common.collect.Lists;
 
 import javax.inject.Inject;
 
-import org.apache.gobblin.annotation.Alpha;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**
  * Generator for {@link FlowStatus}, which relies on a {@link JobStatusRetriever}.
  */
-@Alpha
+@Slf4j
 public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
   public static final int MAX_LOOKBACK = 100;
@@ -159,11 +159,9 @@ public class FlowStatusGenerator {
     } else {
       FlowStatus flowStatus = flowStatusList.get(0);
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+      log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId() + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
       // If the latest flow status is the current job about to get kicked off, we should ignore this check
-      if (flowStatus.getFlowExecutionId() == flowExecutionId) {
-        return false;
-      }
-      return !FINISHED_STATUSES.contains(flowExecutionStatus.name());
+      return flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name());
     }
   }
 
