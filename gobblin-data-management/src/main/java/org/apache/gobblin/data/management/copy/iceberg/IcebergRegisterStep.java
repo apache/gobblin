@@ -73,7 +73,7 @@ public class IcebergRegisterStep implements CommitStep {
       // CRITICAL: verify current dest-side metadata remains the same as observed just prior to first loading source catalog table metadata
       boolean isJustPriorDestMetadataStillCurrent = currentDestMetadata.uuid().equals(justPriorDestTableMetadata.uuid())
           && currentDestMetadata.metadataFileLocation().equals(justPriorDestTableMetadata.metadataFileLocation());
-      String determinationMsg = String.format("(just prior) TableMetadata: {} - {} {}= (current) TableMetadata: {} - {}",
+      String determinationMsg = String.format("(just prior) TableMetadata: %s - %s %s= (current) TableMetadata: %s - %s",
           justPriorDestTableMetadata.uuid(), justPriorDestTableMetadata.metadataFileLocation(),
           isJustPriorDestMetadataStillCurrent ? "=" : "!",
           currentDestMetadata.uuid(), currentDestMetadata.metadataFileLocation());
