@@ -20,6 +20,8 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.util.Properties;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
 
@@ -65,26 +67,40 @@ public class IcebergRegisterStep implements CommitStep {
 
   @Override
   public void execute() throws IOException {
-    IcebergTable destIcebergTable = IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION)
-        .openTable(TableIdentifier.parse(destTableIdStr));
-    // NOTE: solely by-product of probing table's existence: metadata recorded just prior to reading from source catalog is what's actually used
-    TableMetadata unusedNowCurrentDestMetadata = null;
+    IcebergTable destIcebergTable = createDestinationCatalog().openTable(TableIdentifier.parse(destTableIdStr));
     try {
-      unusedNowCurrentDestMetadata = destIcebergTable.accessTableMetadata(); // probe... (first access could throw)
-      log.info("~{}~ (destination) (using) TableMetadata: {} - {} {}= (current) TableMetadata: {} - {}",
-          destTableIdStr,
+      TableMetadata currentDestMetadata = destIcebergTable.accessTableMetadata(); // probe... (first access could throw)
+      // CRITICAL: verify current dest-side metadata remains the same as observed just prior to first loading source catalog table metadata
+      boolean isJustPriorDestMetadataStillCurrent = currentDestMetadata.uuid().equals(justPriorDestTableMetadata.uuid())
+          && currentDestMetadata.metadataFileLocation().equals(justPriorDestTableMetadata.metadataFileLocation());
+      String determinationMsg = String.format("(just prior) TableMetadata: %s - %s %s= (current) TableMetadata: %s - %s",
           justPriorDestTableMetadata.uuid(), justPriorDestTableMetadata.metadataFileLocation(),
-          unusedNowCurrentDestMetadata.uuid().equals(justPriorDestTableMetadata.uuid()) ? "=" : "!",
-          unusedNowCurrentDestMetadata.uuid(), unusedNowCurrentDestMetadata.metadataFileLocation());
+          isJustPriorDestMetadataStillCurrent ? "=" : "!",
+          currentDestMetadata.uuid(), currentDestMetadata.metadataFileLocation());
+      log.info("~{}~ [destination] {}", destTableIdStr, determinationMsg);
+
+      // NOTE: we originally expected the dest-side catalog to enforce this match, but the client-side `BaseMetastoreTableOperations.commit`
+      // uses `==`, rather than `.equals` (value-cmp), and that invariably leads to:
+      //   org.apache.iceberg.exceptions.CommitFailedException: Cannot commit: stale table metadata
+      if (!isJustPriorDestMetadataStillCurrent) {
+        throw new IOException("error: likely concurrent writing to destination: " + determinationMsg);
+      }
+      destIcebergTable.registerIcebergTable(readTimeSrcTableMetadata, currentDestMetadata);
     } catch (IcebergTable.TableNotFoundException tnfe) {
-      log.warn("Destination TableMetadata doesn't exist because: " , tnfe);
+      String msg = "Destination table (with TableMetadata) does not exist: " + tnfe.getMessage();
+      log.error(msg);
+      throw new IOException(msg, tnfe);
     }
-    // TODO: decide whether helpful to construct a more detailed error message about `justPriorDestTableMetadata` being no-longer current
-    destIcebergTable.registerIcebergTable(readTimeSrcTableMetadata, justPriorDestTableMetadata);
   }
 
   @Override
   public String toString() {
     return String.format("Registering Iceberg Table: {%s} (dest); (src: {%s})", this.destTableIdStr, this.srcTableIdStr);
+  }
+
+  /** Purely because the static `IcebergDatasetFinder.createIcebergCatalog` proved challenging to mock, even w/ `Mockito::mockStatic` */
+  @VisibleForTesting
+  protected IcebergCatalog createDestinationCatalog() throws IOException {
+    return IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION);
   }
 }
