@@ -59,7 +59,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import joptsimple.internal.Strings;
 import lombok.Data;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
@@ -684,8 +683,8 @@ public class IcebergDatasetTest {
     private static FileOwnerAndPermissions getFileOwnerAndPermissions(JsonObject jsonObject) {
       FileOwnerAndPermissions fileOwnerAndPermissions = new FileOwnerAndPermissions();
       JsonObject objData = jsonObject.getAsJsonObject("object-data");
-      fileOwnerAndPermissions.owner = objData.has("owner") ? objData.getAsJsonPrimitive("owner").getAsString() : Strings.EMPTY;
-      fileOwnerAndPermissions.group = objData.has("group") ? objData.getAsJsonPrimitive("group").getAsString() : Strings.EMPTY;
+      fileOwnerAndPermissions.owner = objData.has("owner") ? objData.getAsJsonPrimitive("owner").getAsString() : "";
+      fileOwnerAndPermissions.group = objData.has("group") ? objData.getAsJsonPrimitive("group").getAsString() : "";
 
       JsonObject fsPermission = objData.has("fsPermission") ? objData.getAsJsonObject("fsPermission") : null;
       if (fsPermission != null) {
