@@ -38,7 +38,7 @@ public class TaskConfigurationKeys {
   public static final String TASK_SKIP_ERROR_RECORDS = "task.skip.error.records";
   public static final long DEFAULT_TASK_SKIP_ERROR_RECORDS = 0;
 
-  public static final String TASK_DISABLE_FAILED_EVENTS = "gobblin.task.disable.failed.events";
+  public static final String TASK_DISABLE_FAILED_EVENTS = "gobblin.task.failure.disable.event.emission";
 
   public static final boolean DEFAULT_TASK_DISABLE_FAILED_EVENTS = false;
 
