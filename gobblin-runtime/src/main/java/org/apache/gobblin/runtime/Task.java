@@ -574,11 +574,14 @@ public class Task implements TaskIFace {
         .setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(cleanedException));
 
     // Send task failure event
-    FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
-    failureEvent.setRootCause(cleanedException);
-    failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
-    failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
-    failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
+    if (!this.taskState.getPropAsBoolean(TaskConfigurationKeys.TASK_DISABLE_FAILED_EVENTS,
+        TaskConfigurationKeys.DEFAULT_TASK_DISABLE_FAILED_EVENTS)) {
+      FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
+      failureEvent.setRootCause(cleanedException);
+      failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+      failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
+      failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
+    }
   }
 
   /**
