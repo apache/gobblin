@@ -71,7 +71,7 @@ public class TemporalEventTimer implements EventTimer {
 
   public static class Factory {
     private static final ActivityOptions DEFAULT_OPTS = ActivityOptions.newBuilder()
-        .setStartToCloseTimeout(Duration.ofHours(24))
+        .setStartToCloseTimeout(Duration.ofHours(12)) // maximum timeout for the actual event submission to kafka, waiting out a kafka outage
         .build();
     private final SubmitGTEActivity submitGTEActivity;
     private final EventSubmitterContext eventSubmitterContext;
