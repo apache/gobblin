@@ -206,8 +206,10 @@ class YarnService extends AbstractIdleService {
 
     this.eventBus = eventBus;
 
-    // Gobblin metrics have been disabled in the PoC temporarily to make testing kafka integration without having to worry
-    // how the metrics topics are used. Kafka will only be used for GobblinTrackingEvents for external monitoring
+    // Gobblin metrics have been disabled to allow testing kafka integration without having to setup
+    // the metrics reporting topic. For this Temporal based impl of the Cluster Manager,
+    // Kafka will only be used for GobblinTrackingEvents for external monitoring. This choice was made because metrics
+    // emitted MetricReport are non-critical and not needed for the cluster / job execution correctness
     this.gobblinMetrics = Optional.<GobblinMetrics>absent();
     this.eventSubmitter = Optional.<EventSubmitter>absent();
 
@@ -683,9 +685,11 @@ class YarnService extends AbstractIdleService {
       LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
       this.unusedHelixInstanceNames.add(completedInstanceName);
 
-      // NOTE: logic for handling container failure is removed because original implementation relies on the auto scaling manager
-      // to control the number of containers by polling helix for the current number of tasks
-      // Without that integration, that code requests too many containers when there are exceptions and overloads yarn
+      /**
+       * NOTE: logic for handling container failure is removed because {@link #YarnService} relies on the auto scaling manager
+       * to control the number of containers by polling helix for the current number of tasks
+       * Without that integration, that code requests too many containers when there are exceptions and overloads yarn
+       */
     }
   }
 

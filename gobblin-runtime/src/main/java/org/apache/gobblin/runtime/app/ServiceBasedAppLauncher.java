@@ -78,7 +78,12 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
    * The name of the application. Not applicable for YARN jobs, which uses a separate key for the application name.
    */
   public static final String APP_NAME = "app.name";
-  public static final String STARTUP_TIMEOUT = "app.start.waitForServices.seconds";
+
+  /**
+   * The number of seconds before timing out when waiting for all the services that were added to launcher to the start. The default value is {@link #DEFAULT_STARTUP_TIMEOUT}
+   * NOTE: A timeout does not cause the cluster manager to kill the application, it only logs a warning and proceeds.
+   */
+  public static final String STARTUP_TIMEOUT_SECONDS = "app.start.waitForServicesTimeout.seconds";
   public static final Duration DEFAULT_STARTUP_TIMEOUT = ChronoUnit.FOREVER.getDuration();
 
   /**
@@ -107,7 +112,9 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
   public ServiceBasedAppLauncher(Properties properties, String appName) throws Exception {
     this.stopTime = Integer.parseInt(properties.getProperty(APP_STOP_TIME_SECONDS, DEFAULT_APP_STOP_TIME_SECONDS));
-    this.startupTimeout = properties.containsKey(STARTUP_TIMEOUT) ? Duration.ofSeconds(PropertiesUtils.getPropAsInt(properties, STARTUP_TIMEOUT, 0)) : DEFAULT_STARTUP_TIMEOUT;
+    this.startupTimeout = properties.containsKey(STARTUP_TIMEOUT_SECONDS)
+        ? Duration.ofSeconds(PropertiesUtils.getPropAsInt(properties, STARTUP_TIMEOUT_SECONDS, 0))
+        : DEFAULT_STARTUP_TIMEOUT;
     this.appId = ApplicationLauncherUtils.newAppId(appName);
     this.services = new ArrayList<>();
 
@@ -178,7 +185,8 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     try {
       this.serviceManager.startAsync().awaitHealthy(startupTimeout.getSeconds(), TimeUnit.SECONDS);
     } catch (TimeoutException te) {
-      LOG.error("Timeout in starting all services in service manager. Proceeding anyway to unblock shutdown hook", te);
+      LOG.error("Timeout of {} seconds exceeded for starting services in service manager. Proceeding anyway to unblock shutdown hook",
+          startupTimeout.getSeconds(), te);
     }
     LOG.info("Finished starting all services");
   }
