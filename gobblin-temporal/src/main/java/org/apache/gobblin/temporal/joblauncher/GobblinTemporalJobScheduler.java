@@ -184,7 +184,8 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
     return GobblinConstructorUtils.invokeLongestConstructor(jobLauncherClass, combinedProps,
             this.appWorkDir,
             this.metadataTags,
-            this.jobRunningMap);
+            this.jobRunningMap,
+            this.eventBus);
   }
 
   @Subscribe

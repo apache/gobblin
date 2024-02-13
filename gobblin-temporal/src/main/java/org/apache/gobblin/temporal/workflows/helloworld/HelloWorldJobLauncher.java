@@ -23,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.eventbus.EventBus;
+
 import io.temporal.client.WorkflowOptions;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,9 +50,9 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 @Slf4j
 public class HelloWorldJobLauncher extends GobblinTemporalJobLauncher {
   public HelloWorldJobLauncher(Properties jobProps, Path appWorkDir, List<? extends Tag<?>> metadataTags,
-      ConcurrentHashMap<String, Boolean> runningMap)
+      ConcurrentHashMap<String, Boolean> runningMap, EventBus eventBus)
       throws Exception {
-    super(jobProps, appWorkDir, metadataTags, runningMap);
+    super(jobProps, appWorkDir, metadataTags, runningMap, eventBus);
   }
 
   @Override

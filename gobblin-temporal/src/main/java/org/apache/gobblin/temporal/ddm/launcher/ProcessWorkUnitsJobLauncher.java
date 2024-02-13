@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.client.WorkflowOptions;
@@ -69,9 +70,10 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       Properties jobProps,
       Path appWorkDir,
       List<? extends Tag<?>> metadataTags,
-      ConcurrentHashMap<String, Boolean> runningMap
+      ConcurrentHashMap<String, Boolean> runningMap,
+      EventBus eventBus
   ) throws Exception {
-    super(jobProps, appWorkDir, metadataTags, runningMap);
+    super(jobProps, appWorkDir, metadataTags, runningMap, eventBus);
   }
 
   @Override

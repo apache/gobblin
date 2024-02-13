@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -44,6 +46,7 @@ import org.apache.gobblin.runtime.services.JMXReportingService;
 import org.apache.gobblin.runtime.services.MetricsReportingService;
 import org.apache.gobblin.util.ApplicationLauncherUtils;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -77,6 +80,13 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
   public static final String APP_NAME = "app.name";
 
   /**
+   * The number of seconds before timing out when waiting for all the services that were added to launcher to the start. The default value is {@link #DEFAULT_STARTUP_TIMEOUT}
+   * NOTE: A timeout does not cause the cluster manager to kill the application, it only logs a warning and proceeds.
+   */
+  public static final String STARTUP_TIMEOUT_SECONDS = "app.start.waitForServicesTimeout.seconds";
+  public static final Duration DEFAULT_STARTUP_TIMEOUT = ChronoUnit.FOREVER.getDuration();
+
+  /**
    * The number of seconds to wait for the application to stop, the default value is {@link #DEFAULT_APP_STOP_TIME_SECONDS}
    */
   public static final String APP_STOP_TIME_SECONDS = "app.stop.time.seconds";
@@ -91,6 +101,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceBasedAppLauncher.class);
 
   private final int stopTime;
+  private final Duration startupTimeout;
   private final String appId;
   private final List<Service> services;
 
@@ -101,6 +112,9 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
 
   public ServiceBasedAppLauncher(Properties properties, String appName) throws Exception {
     this.stopTime = Integer.parseInt(properties.getProperty(APP_STOP_TIME_SECONDS, DEFAULT_APP_STOP_TIME_SECONDS));
+    this.startupTimeout = properties.containsKey(STARTUP_TIMEOUT_SECONDS)
+        ? Duration.ofSeconds(PropertiesUtils.getPropAsInt(properties, STARTUP_TIMEOUT_SECONDS, 0))
+        : DEFAULT_STARTUP_TIMEOUT;
     this.appId = ApplicationLauncherUtils.newAppId(appName);
     this.services = new ArrayList<>();
 
@@ -163,9 +177,18 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     });
 
     LOG.info("Starting the Gobblin application and all its associated Services");
+    for (Service service : this.services) {
+      LOG.info("Starting service " + service.getClass().getSimpleName());
+    }
 
     // Start the application
-    this.serviceManager.startAsync().awaitHealthy();
+    try {
+      this.serviceManager.startAsync().awaitHealthy(startupTimeout.getSeconds(), TimeUnit.SECONDS);
+    } catch (TimeoutException te) {
+      LOG.error("Timeout of {} seconds exceeded for starting services in service manager. Proceeding anyway to unblock shutdown hook",
+          startupTimeout.getSeconds(), te);
+    }
+    LOG.info("Finished starting all services");
   }
 
   /**
@@ -250,7 +273,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
     }
   }
 
-  private void addMetricsService(Properties properties) {
+  protected void addMetricsService(Properties properties) {
     if (GobblinMetrics.isEnabled(properties)) {
       addService(new MetricsReportingService(properties, this.appId));
     }

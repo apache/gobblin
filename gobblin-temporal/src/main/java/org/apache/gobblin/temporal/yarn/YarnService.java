@@ -92,7 +92,6 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
@@ -207,11 +206,12 @@ class YarnService extends AbstractIdleService {
 
     this.eventBus = eventBus;
 
-    this.gobblinMetrics = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
-        Optional.of(buildGobblinMetrics()) : Optional.<GobblinMetrics>absent();
-
-    this.eventSubmitter = config.getBoolean(ConfigurationKeys.METRICS_ENABLED_KEY) ?
-        Optional.of(buildEventSubmitter()) : Optional.<EventSubmitter>absent();
+    // Gobblin metrics have been disabled to allow testing kafka integration without having to setup
+    // the metrics reporting topic. For this Temporal based impl of the Cluster Manager,
+    // Kafka will only be used for GobblinTrackingEvents for external monitoring. This choice was made because metrics
+    // emitted MetricReport are non-critical and not needed for the cluster / job execution correctness
+    this.gobblinMetrics = Optional.<GobblinMetrics>absent();
+    this.eventSubmitter = Optional.<EventSubmitter>absent();
 
     this.yarnConfiguration = yarnConfiguration;
     this.fs = fs;
@@ -685,9 +685,11 @@ class YarnService extends AbstractIdleService {
       LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
       this.unusedHelixInstanceNames.add(completedInstanceName);
 
-      // NOTE: logic for handling container failure is removed because original implementation relies on the auto scaling manager
-      // to control the number of containers by polling helix for the current number of tasks
-      // Without that integration, that code requests too many containers when there are exceptions and overloads yarn
+      /**
+       * NOTE: logic for handling container failure is removed because {@link #YarnService} relies on the auto scaling manager
+       * to control the number of containers by polling helix for the current number of tasks
+       * Without that integration, that code requests too many containers when there are exceptions and overloads yarn
+       */
     }
   }
 
