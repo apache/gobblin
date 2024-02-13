@@ -33,8 +33,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -81,8 +79,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public class GobblinTemporalClusterManager implements ApplicationLauncher, StandardMetricsBridge, LeadershipChangeAwareComponent {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTemporalClusterManager.class);
-
   private StopStatus stopStatus = new StopStatus(false);
 
   protected ServiceBasedAppLauncher applicationLauncher;
@@ -126,7 +122,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
     this.fs = GobblinClusterUtils.buildFileSystem(this.config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, clusterName, applicationId);
-    LOGGER.info("Configured GobblinTemporalClusterManager work dir to: {}", this.appWorkDir);
+    log.info("Configured GobblinTemporalClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
   }
@@ -193,7 +189,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
       log.info("Stopping the Gobblin cluster application launcher");
       this.applicationLauncher.stop();
     } catch (ApplicationException ae) {
-      LOGGER.error("Error while stopping Gobblin Cluster application launcher", ae);
+      log.error("Error while stopping Gobblin Cluster application launcher", ae);
     }
 
     log.info("Stopping the Gobblin cluster job catalog");
@@ -210,7 +206,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
   @Override
   public void start() {
     // temporal workflow
-    LOGGER.info("Starting the Gobblin Temporal Cluster Manager");
+    log.info("Starting the Gobblin Temporal Cluster Manager");
 
     this.eventBus.register(this);
     startAppLauncherAndServices();
@@ -228,7 +224,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
     this.stopStatus.setStopInprogress(true);
 
-    LOGGER.info("Stopping the Gobblin Cluster Manager");
+    log.info("Stopping the Gobblin Cluster Manager");
 
     stopAppLauncherAndServices();
   }
@@ -321,7 +317,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
         isStandaloneClusterManager = Boolean.parseBoolean(cmd.getOptionValue(GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE, "false"));
       }
 
-      LOGGER.info(JvmUtils.getJvmInputArguments());
+      log.info(JvmUtils.getJvmInputArguments());
       Config config = ConfigFactory.load();
 
       if (cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
