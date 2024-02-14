@@ -1,0 +1,140 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.gobblin.service.modules.orchestration;
+
+import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+import com.zaxxer.hikari.HikariDataSource;
+
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
+
+/**
+ * Mainly testing functionalities related to DagStateStore but not Mysql-related components.
+ */
+public class MostlyInMemoryDagManagementStateStoreTest {
+
+  private DagManagementStateStore dagManagementStateStore;
+  private static final String TEST_USER = "testUser";
+  private static final String TEST_PASSWORD = "testPassword";
+  private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
+  private static final String TEST_TABLE = "quotas";
+  static ITestMetastoreDatabase testMetastoreDatabase;
+
+
+  @BeforeClass
+  public void setUp() throws Exception {
+    // Setting up mock DB
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+
+    Config config;
+    ConfigBuilder configBuilder = ConfigBuilder.create();
+    configBuilder.addPrimitive(MostlyInMemoryDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER)
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD)
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE);
+    config = configBuilder.build();
+
+    // Constructing TopologySpecMap.
+    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
+    String specExecInstance = "mySpecExecutor";
+    TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
+    URI specExecURI = new URI(specExecInstance);
+    topologySpecMap.put(specExecURI, topologySpec);
+    this.dagManagementStateStore = new MostlyInMemoryDagManagementStateStore(config, topologySpecMap);
+  }
+
+  @Test
+  public void testAddDag() throws Exception {
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("test", 12345L, "FINISH_RUNNING", true);
+    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("test2", 123456L, "FINISH_RUNNING", true);
+    Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
+    Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
+    Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
+    String dagId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
+    String dagId2 = DagManagerUtils.calcJobId(dagNode3.getValue().getJobSpec().getConfig());
+
+    this.dagManagementStateStore.addDag(dagId, dag);
+    this.dagManagementStateStore.addDag(dagId, dag);
+    this.dagManagementStateStore.addDagNodeState(dagId, dagNode);
+    this.dagManagementStateStore.addDagNodeState(dagId, dagNode2);
+    this.dagManagementStateStore.addDagNodeState(dagId2, dagNode3);
+    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
+
+    Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
+    Assert.assertEquals(dag, this.dagManagementStateStore.getDag(dagId));
+    Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagId));
+    Assert.assertEquals(dag, this.dagManagementStateStore.getParentDag(dagNode));
+    Assert.assertEquals(2, dagNodes.size());
+    Assert.assertEquals(dagNode, dagNodes.get(0));
+    Assert.assertEquals(dagNode2, dagNodes.get(1));
+
+    dagNodes = this.dagManagementStateStore.getAllDagNodes();
+    Assert.assertEquals(3, dagNodes.size());
+    Assert.assertEquals(dagNode, dagNodes.get(0));
+    Assert.assertEquals(dagNode2, dagNodes.get(1));
+    Assert.assertEquals(dagNode3, dagNodes.get(2));
+  }
+
+  /**
+   * Only overwrite {@link #createStateStore(Config)} method to directly return a mysqlStateStore
+   * backed by mocked db.
+   */
+  public static class TestMysqlDagStateStore extends MysqlDagStateStore {
+    public TestMysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
+      super(config, topologySpecMap);
+    }
+
+    @Override
+    protected StateStore<State> createStateStore(Config config) {
+      try {
+
+        String jdbcUrl = MostlyInMemoryDagManagementStateStoreTest.testMetastoreDatabase.getJdbcUrl();
+        HikariDataSource dataSource = new HikariDataSource();
+
+        dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
+        dataSource.setAutoCommit(false);
+        dataSource.setJdbcUrl(jdbcUrl);
+        dataSource.setUsername(TEST_USER);
+        dataSource.setPassword(TEST_PASSWORD);
+
+        return new MysqlStateStore<>(dataSource, TEST_DAG_STATE_STORE, false, State.class);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+}

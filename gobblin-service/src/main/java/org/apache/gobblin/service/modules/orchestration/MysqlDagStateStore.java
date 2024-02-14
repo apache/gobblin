@@ -25,6 +25,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonSerializer;
+import com.google.gson.reflect.TypeToken;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.MysqlDagStateStoreFactory;
@@ -44,13 +51,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 import org.apache.gobblin.util.ConfigUtils;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicates;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonSerializer;
-import com.google.gson.reflect.TypeToken;
-import com.typesafe.config.Config;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
@@ -160,21 +160,21 @@ public class MysqlDagStateStore implements DagStateStore {
    * Convert a state store entry into a dag ID
    * e.g. storeName = group1_name1, tableName = 1234 gives dagId group1_name1_1234
    */
-  private String entryToDagId(String storeName, String tableName) {
+  public static String entryToDagId(String storeName, String tableName) {
     return Joiner.on(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER).join(storeName, tableName);
   }
 
   /**
    * Return a storeName given a dagId. Store name is defined as flowGroup_flowName.
    */
-  private String getStoreNameFromDagId(String dagId) {
+  public static String getStoreNameFromDagId(String dagId) {
     return dagId.substring(0, dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER));
   }
 
   /**
    * Return a tableName given a dagId. Table name is defined as the flowExecutionId.
    */
-  private String getTableNameFromDagId(String dagId) {
+  public static String getTableNameFromDagId(String dagId) {
     return dagId.substring(dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER) + 1);
   }
 
