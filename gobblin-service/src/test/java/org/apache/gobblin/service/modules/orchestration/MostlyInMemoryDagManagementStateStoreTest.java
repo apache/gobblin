@@ -62,10 +62,10 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
     configBuilder.addPrimitive(MostlyInMemoryDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
-        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER)
-        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, TEST_PASSWORD)
-        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE);
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
     config = configBuilder.build();
 
     // Constructing TopologySpecMap.
@@ -84,29 +84,32 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
     Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
     Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
-    String dagId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
-    String dagId2 = DagManagerUtils.calcJobId(dagNode3.getValue().getJobSpec().getConfig());
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
+    String dagId2 = DagManagerUtils.generateDagId(dag2).toString();
+    String dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
-    this.dagManagementStateStore.addDag(dagId, dag);
-    this.dagManagementStateStore.addDag(dagId, dag);
+    this.dagManagementStateStore.addDag(dag);
     this.dagManagementStateStore.addDagNodeState(dagId, dagNode);
     this.dagManagementStateStore.addDagNodeState(dagId, dagNode2);
     this.dagManagementStateStore.addDagNodeState(dagId2, dagNode3);
-    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
 
     Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
-    Assert.assertEquals(dag, this.dagManagementStateStore.getDag(dagId));
-    Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagId));
+    Assert.assertEquals(dag, this.dagManagementStateStore.getDag(DagManagerUtils.generateDagId(dag)));
+    Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagNodeId));
     Assert.assertEquals(dag, this.dagManagementStateStore.getParentDag(dagNode));
+
+    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());
     Assert.assertEquals(dagNode, dagNodes.get(0));
     Assert.assertEquals(dagNode2, dagNodes.get(1));
 
-    dagNodes = this.dagManagementStateStore.getAllDagNodes();
-    Assert.assertEquals(3, dagNodes.size());
-    Assert.assertEquals(dagNode, dagNodes.get(0));
-    Assert.assertEquals(dagNode2, dagNodes.get(1));
-    Assert.assertEquals(dagNode3, dagNodes.get(2));
+    dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
+    Assert.assertEquals(2, dagNodes.size());
+    Assert.assertTrue(dagNodes.contains(dagNode));
+    Assert.assertTrue(dagNodes.contains(dagNode2));
+
+    this.dagManagementStateStore.deleteDagNodeState(dagId, dagNode);
+    Assert.assertFalse(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode));
   }
 
   /**

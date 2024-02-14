@@ -32,18 +32,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * and allows add/delete and other functions.
  */
 public interface DagManagementStateStore {
-  Dag<JobExecutionPlan> getDag(String dagId) throws IOException;
-  Dag<JobExecutionPlan> getFailedDag(String dagId) throws IOException;
-  void addDag(String dagId, Dag<JobExecutionPlan> dag);
-  boolean containsDag(String dagId);
-  Dag.DagNode<JobExecutionPlan> getDagNode(String dagNodeId);
-  Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
-  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(String dagId) throws IOException;
-  List<Dag.DagNode<JobExecutionPlan>> getAllDagNodes() throws IOException;
-  boolean addCleanUpDag(String dagId);
-  void addDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
-  void deleteDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
-
+  void addDag(Dag<JobExecutionPlan> dag);
   /**
    * Persist the {@link Dag} to the backing store.
    * This is not an actual checkpoint but more like a Write-ahead log, where uncommitted job will be persisted
@@ -51,21 +40,36 @@ public interface DagManagementStateStore {
    * @param dag The dag submitted to {@link DagManager}
    */
   void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
-  void writeFailedDagCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
-
+  boolean containsDag(String dagId);
+  Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException;
+  /**
+   * Return a list of all dag IDs contained in the dag state store.
+   */
+  Set<String> getDagIds() throws IOException;
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
-   * @param dag The dag completed/cancelled from execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
+   * @param dag The dag completed/cancelled execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    */
-  void cleanUp(Dag<JobExecutionPlan> dag) throws IOException;
-  void cleanUpFailedDag(Dag<JobExecutionPlan> dag) throws IOException;
-
+  default void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
+    cleanUp(DagManagerUtils.generateDagId(dag).toString());
+  }
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dagId The ID of the dag to clean up.
    */
   void cleanUp(String dagId) throws IOException;
+  void writeFailedDagCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
+  Set<String> getFailedDagIds() throws IOException;
+  Dag<JobExecutionPlan> getFailedDag(String dagId) throws IOException;
+  default void cleanUpFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
+    cleanUpFailedDag(DagManagerUtils.generateDagId(dag).toString());
+  }
   void cleanUpFailedDag(String dagId) throws IOException;
+  void addDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
+  Dag.DagNode<JobExecutionPlan> getDagNode(String dagNodeId);
+  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(String dagId) throws IOException;
+  Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
+  void deleteDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
 
   /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
@@ -75,15 +79,9 @@ public interface DagManagementStateStore {
   List<Dag<JobExecutionPlan>> getDags() throws IOException;
 
   /**
-   * Return a list of all dag IDs contained in the dag state store.
-   */
-  Set<String> getDagIds() throws IOException;
-  Set<String> getFailedDagIds() throws IOException;
-
-  /**
    * Initialize with the provided set of dags.
    */
-  void initQuotaManageer(Collection<Dag<JobExecutionPlan>> dags) throws IOException;
+  void initQuota(Collection<Dag<JobExecutionPlan>> dags) throws IOException;
 
   /**
    * Checks if the dagNode exceeds the statically configured user quota for the proxy user, requester user and flowGroup.
@@ -94,6 +92,7 @@ public interface DagManagementStateStore {
 
   /**
    * Decrement the quota by one for the proxy user and requesters corresponding to the provided {@link Dag.DagNode}.
+   * It is usually used with `deleteDagNodeState`, but can also be used independently sometimes.
    * Returns true if successfully reduces the quota usage
    */
   boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;

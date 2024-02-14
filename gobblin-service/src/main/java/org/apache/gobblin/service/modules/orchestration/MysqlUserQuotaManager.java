@@ -17,17 +17,16 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Timer;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
-
 import java.util.List;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
@@ -281,6 +280,10 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
         SharedResourcesBrokerFactory.getImplicitBroker());;
 
     return new RunningDagIdsStore(dataSource, quotaStoreTableName);
+  }
+
+  public static String qualify(String configKey) {
+    return MysqlUserQuotaManager.CONFIG_PREFIX + "." + configKey;
   }
 
   static class MysqlQuotaStore {

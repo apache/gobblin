@@ -18,7 +18,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,7 +29,6 @@ import java.util.Set;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -50,7 +48,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class MostlyInMemoryDagManagementStateStore implements DagManagementStateStore {
-  @Getter private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
+  private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
   private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
   private final Map<String, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
@@ -154,13 +152,13 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag<JobExecutionPlan> getDag(String dagId) {
-    return this.dags.get(dagId);
+  public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) {
+    return this.dags.get(dagId.toString());
   }
 
   @Override
-  public void addDag(String dagId, Dag<JobExecutionPlan> dag) {
-    this.dags.put(dagId, dag);
+  public void addDag(Dag<JobExecutionPlan> dag) {
+    this.dags.put(DagManagerUtils.generateDagId(dag).toString(), dag);
   }
 
   @Override
@@ -188,21 +186,9 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
     }
   }
 
-  public List<Dag.DagNode<JobExecutionPlan>> getAllDagNodes() {
-    List<Dag.DagNode<JobExecutionPlan>> allJobs = new ArrayList<>();
-    for (Collection<Dag.DagNode<JobExecutionPlan>> collection : this.dagToJobs.values()) {
-      allJobs.addAll(collection);
-    }
-    return allJobs;
-  }
-
-  @Override
-  public boolean addCleanUpDag(String dagId) {
-    return this.dagIdstoClean.add(dagId);
-  }
-
-  public void initQuotaManageer(Collection<Dag<JobExecutionPlan>> dags) {
+  public void initQuota(Collection<Dag<JobExecutionPlan>> dags) {
     // This implementation does not need to update quota usage when the service restarts or when its leadership status changes
+    // because quota usage are persisted in mysql table
   }
 
   @Override
