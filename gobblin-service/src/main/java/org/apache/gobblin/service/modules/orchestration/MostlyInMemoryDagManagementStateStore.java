@@ -49,7 +49,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public class MostlyInMemoryDagManagementStateStore implements DagManagementStateStore {
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
-  private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
   private final Map<String, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
   final Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
@@ -100,13 +99,13 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public void cleanUp(String dagId) throws IOException {
-    this.dagStateStore.cleanUp(dagId);
+  public void cleanUp(DagManager.DagId dagId) throws IOException {
+    this.dagStateStore.cleanUp(dagId.toString());
   }
 
   @Override
-  public void cleanUpFailedDag(String dagId) throws IOException {
-    this.failedDagStateStore.cleanUp(dagId);
+  public void cleanUpFailedDag(DagManager.DagId dagId) throws IOException {
+    this.failedDagStateStore.cleanUp(dagId.toString());
   }
 
   @Override
@@ -115,8 +114,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag<JobExecutionPlan> getFailedDag(String dagId) throws IOException {
-    return this.failedDagStateStore.getDag(dagId);
+  public Dag<JobExecutionPlan> getFailedDag(DagManager.DagId dagId) throws IOException {
+    return this.failedDagStateStore.getDag(dagId.toString());
   }
 
   @Override
@@ -130,40 +129,38 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public synchronized void deleteDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+  public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+    String dagIdStr = dagId.toString();
     this.jobToDag.remove(dagNode);
     this.dagNodes.remove(dagNode.getValue().getId());
-    this.dagToDeadline.remove(dagId);
-    this.dagToJobs.get(dagId).remove(dagNode);
-    if (this.dagToJobs.get(dagId).isEmpty()) {
-      this.dagToJobs.remove(dagId);
+    this.dagToDeadline.remove(dagIdStr);
+    this.dagToJobs.get(dagIdStr).remove(dagNode);
+    if (this.dagToJobs.get(dagIdStr).isEmpty()) {
+      this.dagToJobs.remove(dagIdStr);
     }
   }
 
   @Override
-  public synchronized void addDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
-    Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+  public synchronized void addDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
+      throws IOException {
+    String dagIdStr = dagId.toString();
+    Dag<JobExecutionPlan> dag = getDag(dagId);
     this.jobToDag.put(dagNode, dag);
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
-    if (!this.dagToJobs.containsKey(dagId)) {
-      this.dagToJobs.put(dagId, Lists.newLinkedList());
+    if (!this.dagToJobs.containsKey(dagIdStr)) {
+      this.dagToJobs.put(dagIdStr, Lists.newLinkedList());
     }
-    this.dagToJobs.get(dagId).add(dagNode);
+    this.dagToJobs.get(dagIdStr).add(dagNode);
   }
 
   @Override
-  public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) {
-    return this.dags.get(dagId.toString());
+  public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
+    return this.dagStateStore.getDag(dagId.toString());
   }
 
   @Override
-  public void addDag(Dag<JobExecutionPlan> dag) {
-    this.dags.put(DagManagerUtils.generateDagId(dag).toString(), dag);
-  }
-
-  @Override
-  public boolean containsDag(String dagId) {
-    return this.dags.containsKey(dagId);
+  public boolean containsDag(DagManager.DagId dagId) throws IOException {
+    return this.dagStateStore.existsDag(dagId.toString());
   }
 
   @Override
@@ -178,9 +175,9 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public LinkedList<Dag.DagNode<JobExecutionPlan>> getDagNodes(String dagId) {
-    if (this.dagToJobs.containsKey(dagId)) {
-      return this.dagToJobs.get(dagId);
+  public LinkedList<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
+    if (this.dagToJobs.containsKey(dagId.toString())) {
+      return this.dagToJobs.get(dagId.toString());
     } else {
       return Lists.newLinkedList();
     }

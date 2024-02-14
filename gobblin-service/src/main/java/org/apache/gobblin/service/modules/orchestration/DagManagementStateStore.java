@@ -32,15 +32,14 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * and allows add/delete and other functions.
  */
 public interface DagManagementStateStore {
-  void addDag(Dag<JobExecutionPlan> dag);
   /**
    * Persist the {@link Dag} to the backing store.
-   * This is not an actual checkpoint but more like a Write-ahead log, where uncommitted job will be persisted
-   * and be picked up again when leader transition happens.
+   * This is usually called when {@link Dag} or any of its {@link Dag.DagNode}s change.
    * @param dag The dag submitted to {@link DagManager}
    */
   void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
-  boolean containsDag(String dagId);
+  boolean containsDag(DagManager.DagId dagId)
+      throws IOException;
   Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException;
   /**
    * Return a list of all dag IDs contained in the dag state store.
@@ -51,25 +50,26 @@ public interface DagManagementStateStore {
    * @param dag The dag completed/cancelled execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    */
   default void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
-    cleanUp(DagManagerUtils.generateDagId(dag).toString());
+    cleanUp(DagManagerUtils.generateDagId(dag));
   }
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dagId The ID of the dag to clean up.
    */
-  void cleanUp(String dagId) throws IOException;
+  void cleanUp(DagManager.DagId dagId) throws IOException;
   void writeFailedDagCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
   Set<String> getFailedDagIds() throws IOException;
-  Dag<JobExecutionPlan> getFailedDag(String dagId) throws IOException;
+  Dag<JobExecutionPlan> getFailedDag(DagManager.DagId dagId) throws IOException;
   default void cleanUpFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
-    cleanUpFailedDag(DagManagerUtils.generateDagId(dag).toString());
+    cleanUpFailedDag(DagManagerUtils.generateDagId(dag));
   }
-  void cleanUpFailedDag(String dagId) throws IOException;
-  void addDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
+  void cleanUpFailedDag(DagManager.DagId dagId) throws IOException;
+  void addDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
+      throws IOException;
   Dag.DagNode<JobExecutionPlan> getDagNode(String dagNodeId);
-  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(String dagId) throws IOException;
+  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
   Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
-  void deleteDagNodeState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode);
+  void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode);
 
   /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}

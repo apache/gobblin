@@ -135,6 +135,11 @@ public class MysqlDagStateStore implements DagStateStore {
   }
 
   @Override
+  public boolean existsDag(String dagId) throws IOException {
+    return mysqlStateStore.exists(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
+  }
+
+  @Override
   public List<Dag<JobExecutionPlan>> getDags()
       throws IOException {
     return mysqlStateStore.getAll().stream().map(this::convertStateObjIntoDag).collect(Collectors.toList());

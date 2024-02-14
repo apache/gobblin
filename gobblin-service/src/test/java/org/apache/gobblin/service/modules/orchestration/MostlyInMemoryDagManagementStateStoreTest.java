@@ -84,8 +84,8 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
     Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
     Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
-    String dagId = DagManagerUtils.generateDagId(dag).toString();
-    String dagId2 = DagManagerUtils.generateDagId(dag2).toString();
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    DagManager.DagId dagId2 = DagManagerUtils.generateDagId(dag2);
     String dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
     this.dagManagementStateStore.addDag(dag);
