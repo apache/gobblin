@@ -24,6 +24,7 @@ import java.util.Set;
 
 import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
@@ -34,17 +35,14 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public interface DagManagementStateStore {
   /**
    * Persist the {@link Dag} to the backing store.
-   * This is usually called when {@link Dag} or any of its {@link Dag.DagNode}s change.
+   * It is named this because it is usually called to checkpoint any changes in {@link Dag} or in its {@link Dag.DagNode}s.
    * @param dag The dag submitted to {@link DagManager}
    */
   void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
   boolean containsDag(DagManager.DagId dagId)
       throws IOException;
   Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException;
-  /**
-   * Return a list of all dag IDs contained in the dag state store.
-   */
-  Set<String> getDagIds() throws IOException;
+
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dag The dag completed/cancelled execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
@@ -52,21 +50,29 @@ public interface DagManagementStateStore {
   default void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
     cleanUp(DagManagerUtils.generateDagId(dag));
   }
+
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dagId The ID of the dag to clean up.
    */
   void cleanUp(DagManager.DagId dagId) throws IOException;
   void writeFailedDagCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
+
+  /**
+   * Return a list of all dag IDs contained in the dag state store.
+   */
   Set<String> getFailedDagIds() throws IOException;
+
   Dag<JobExecutionPlan> getFailedDag(DagManager.DagId dagId) throws IOException;
+
   default void cleanUpFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
     cleanUpFailedDag(DagManagerUtils.generateDagId(dag));
   }
+
   void cleanUpFailedDag(DagManager.DagId dagId) throws IOException;
   void addDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException;
-  Dag.DagNode<JobExecutionPlan> getDagNode(String dagNodeId);
+  Dag.DagNode<JobExecutionPlan> getDagNode(DagNodeId dagNodeId);
   List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
   Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
   void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode);
@@ -88,7 +94,7 @@ public interface DagManagementStateStore {
    * It also increases the quota usage for proxy user, requester and the flowGroup of the given DagNode by one.
    * @throws QuotaExceededException if the quota is exceeded
    */
-  void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNode) throws IOException;
+  void tryAcquireQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNode) throws IOException;
 
   /**
    * Decrement the quota by one for the proxy user and requesters corresponding to the provided {@link Dag.DagNode}.

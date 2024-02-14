@@ -38,6 +38,7 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
@@ -79,24 +80,24 @@ public class MostlyInMemoryDagManagementStateStoreTest {
 
   @Test
   public void testAddDag() throws Exception {
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("test", 12345L, "FINISH_RUNNING", true);
-    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("test2", 123456L, "FINISH_RUNNING", true);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("test", 12345L);
+    Dag<JobExecutionPlan> dag2 = DagTestUtils.buildDag("test2", 123456L);
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
     Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
     Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     DagManager.DagId dagId2 = DagManagerUtils.generateDagId(dag2);
-    String dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
+    DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
-    this.dagManagementStateStore.addDag(dag);
+    this.dagManagementStateStore.writeCheckpoint(dag);
     this.dagManagementStateStore.addDagNodeState(dagId, dagNode);
     this.dagManagementStateStore.addDagNodeState(dagId, dagNode2);
     this.dagManagementStateStore.addDagNodeState(dagId2, dagNode3);
 
     Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
-    Assert.assertEquals(dag, this.dagManagementStateStore.getDag(DagManagerUtils.generateDagId(dag)));
+    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).toString());
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagNodeId));
-    Assert.assertEquals(dag, this.dagManagementStateStore.getParentDag(dagNode));
+    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getParentDag(dagNode).toString());
 
     List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());

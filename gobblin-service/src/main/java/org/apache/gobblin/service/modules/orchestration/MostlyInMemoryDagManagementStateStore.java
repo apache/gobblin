@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -49,12 +49,10 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public class MostlyInMemoryDagManagementStateStore implements DagManagementStateStore {
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
-  private final Map<String, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
+  private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
   final Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
   final Map<String, Long> dagToDeadline = new HashMap<>();
-  private final Set<String> dagIdstoClean = new HashSet<>();
-
   private final DagStateStore dagStateStore;
   private final DagStateStore failedDagStateStore;
   private final UserQuotaManager quotaManager;
@@ -119,11 +117,6 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Set<String> getDagIds() throws IOException {
-    return this.dagStateStore.getDagIds();
-  }
-
-  @Override
   public Set<String> getFailedDagIds() throws IOException {
     return this.failedDagStateStore.getDagIds();
   }
@@ -164,7 +157,7 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag.DagNode<JobExecutionPlan> getDagNode(String dagNodeId) {
+  public Dag.DagNode<JobExecutionPlan> getDagNode(DagNodeId dagNodeId) {
     return this.dagNodes.get(dagNodeId);
   }
 
@@ -189,7 +182,7 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public void checkQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
+  public void tryAcquireQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {
     this.quotaManager.checkQuota(dagNodes);
   }
 
