@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Set;
 
@@ -73,6 +72,6 @@ public interface DagStateStore {
   Set<String> getDagIds() throws IOException;
 
   default boolean existsDag(String dagId) throws IOException {
-    throw new UnsupportedEncodingException("containsDag not implemented");
+    throw new UnsupportedOperationException("containsDag not implemented");
   }
 }
