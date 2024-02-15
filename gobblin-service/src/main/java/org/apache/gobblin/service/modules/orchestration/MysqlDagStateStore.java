@@ -135,8 +135,8 @@ public class MysqlDagStateStore implements DagStateStore {
   }
 
   @Override
-  public boolean existsDag(String dagId) throws IOException {
-    return mysqlStateStore.exists(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
+  public boolean existsDag(DagManager.DagId dagId) throws IOException {
+    return mysqlStateStore.exists(getStoreNameFromDagId(dagId.toString()), getTableNameFromDagId(dagId.toString()));
   }
 
   @Override
