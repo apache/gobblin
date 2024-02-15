@@ -74,4 +74,8 @@ public interface DagStateStore {
   default boolean existsDag(String dagId) throws IOException {
     throw new UnsupportedOperationException("containsDag not implemented");
   }
+
+  default boolean existsDag(DagManager.DagId dagId) throws IOException {
+    return existsDag(dagId.toString());
+  }
 }

@@ -153,7 +153,7 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
 
   @Override
   public boolean containsDag(DagManager.DagId dagId) throws IOException {
-    return this.dagStateStore.existsDag(dagId.toString());
+    return this.dagStateStore.existsDag(dagId);
   }
 
   @Override
