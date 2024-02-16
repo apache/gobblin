@@ -51,8 +51,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
   private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
-  final Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
-  final Map<String, Long> dagToDeadline = new HashMap<>();
+  private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
+  private final Map<DagManager.DagId, Long> dagToDeadline = new HashMap<>();
   private final DagStateStore dagStateStore;
   private final DagStateStore failedDagStateStore;
   private final UserQuotaManager quotaManager;
@@ -123,27 +123,25 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
 
   @Override
   public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
-    String dagIdStr = dagId.toString();
     this.jobToDag.remove(dagNode);
     this.dagNodes.remove(dagNode.getValue().getId());
-    this.dagToDeadline.remove(dagIdStr);
-    this.dagToJobs.get(dagIdStr).remove(dagNode);
-    if (this.dagToJobs.get(dagIdStr).isEmpty()) {
-      this.dagToJobs.remove(dagIdStr);
+    this.dagToDeadline.remove(dagId);
+    this.dagToJobs.get(dagId).remove(dagNode);
+    if (this.dagToJobs.get(dagId).isEmpty()) {
+      this.dagToJobs.remove(dagId);
     }
   }
 
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    String dagIdStr = dagId.toString();
     Dag<JobExecutionPlan> dag = getDag(dagId);
     this.jobToDag.put(dagNode, dag);
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
-    if (!this.dagToJobs.containsKey(dagIdStr)) {
-      this.dagToJobs.put(dagIdStr, Lists.newLinkedList());
+    if (!this.dagToJobs.containsKey(dagId)) {
+      this.dagToJobs.put(dagId, Lists.newLinkedList());
     }
-    this.dagToJobs.get(dagIdStr).add(dagNode);
+    this.dagToJobs.get(dagId).add(dagNode);
   }
 
   @Override
@@ -169,8 +167,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
 
   @Override
   public LinkedList<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
-    if (this.dagToJobs.containsKey(dagId.toString())) {
-      return this.dagToJobs.get(dagId.toString());
+    if (this.dagToJobs.containsKey(dagId)) {
+      return this.dagToJobs.get(dagId);
     } else {
       return Lists.newLinkedList();
     }
