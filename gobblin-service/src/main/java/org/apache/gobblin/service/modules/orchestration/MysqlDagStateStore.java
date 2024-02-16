@@ -165,21 +165,21 @@ public class MysqlDagStateStore implements DagStateStore {
    * Convert a state store entry into a dag ID
    * e.g. storeName = group1_name1, tableName = 1234 gives dagId group1_name1_1234
    */
-  public static String entryToDagId(String storeName, String tableName) {
+  private static String entryToDagId(String storeName, String tableName) {
     return Joiner.on(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER).join(storeName, tableName);
   }
 
   /**
    * Return a storeName given a dagId. Store name is defined as flowGroup_flowName.
    */
-  public static String getStoreNameFromDagId(String dagId) {
+  private static String getStoreNameFromDagId(String dagId) {
     return dagId.substring(0, dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER));
   }
 
   /**
    * Return a tableName given a dagId. Table name is defined as the flowExecutionId.
    */
-  private String getTableNameFromDagId(String dagId) {
+  private static String getTableNameFromDagId(String dagId) {
     return dagId.substring(dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER) + 1);
   }
 
@@ -187,7 +187,6 @@ public class MysqlDagStateStore implements DagStateStore {
    * For {@link Dag} to work with {@link MysqlStateStore}, it needs to be packaged into a {@link State} object.
    * The way that it does is simply serialize the {@link Dag} first and use the key {@link #DAG_KEY_IN_STATE}
    * to be pair with it.
-   *
    * The serialization step is required for readability and portability of serde lib.
    * @param dag The dag to be converted.
    * @return An {@link State} object that contains a single k-v pair for {@link Dag}.
