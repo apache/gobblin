@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -28,8 +26,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import lombok.Getter;
 import lombok.Setter;
+
 import org.apache.gobblin.annotation.Alpha;
 
 

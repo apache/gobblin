@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -51,6 +50,7 @@ import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
@@ -456,17 +456,13 @@ public class DagManagerUtils {
     return dagNodes != null && !dagNodes.isEmpty();
   }
 
-  public static String calcJobId(Config jobConfig) {
+  public static DagNodeId calcJobId(Config jobConfig) {
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName =jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
     String jobGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_GROUP_KEY, "");
     String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
 
-    return calcJobId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
-  }
-
-  public static String calcJobId(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName) {
-    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
+    return new DagNodeId(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
   }
 }

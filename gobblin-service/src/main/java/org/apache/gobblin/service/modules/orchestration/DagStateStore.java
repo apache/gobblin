@@ -70,4 +70,8 @@ public interface DagStateStore {
    * Return a list of all dag IDs contained in the dag state store.
    */
   Set<String> getDagIds() throws IOException;
+
+  default boolean existsDag(DagManager.DagId dagId) throws IOException {
+    throw new UnsupportedOperationException("containsDag not implemented");
+  }
 }

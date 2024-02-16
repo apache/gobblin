@@ -42,12 +42,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import javax.sql.DataSource;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.io.Text;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -55,6 +53,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -528,6 +528,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     }
   }
 
+  // todo - delete should return the deleted row counts
   @Override
   public void delete(String storeName, String tableName) throws IOException {
     try (Connection connection = dataSource.getConnection();
