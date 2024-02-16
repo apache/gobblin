@@ -19,11 +19,12 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -47,19 +48,19 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * They are used here to provide complete access to dag related information at one place.
  */
 @Slf4j
-public class MostlyInMemoryDagManagementStateStore implements DagManagementStateStore {
-  private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
-  private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new HashMap<>();
+public class MostlyMySqlDagManagementStateStore implements DagManagementStateStore {
+  private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new ConcurrentHashMap<>();
+  private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new ConcurrentHashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
-  private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
-  private final Map<DagManager.DagId, Long> dagToDeadline = new HashMap<>();
+  private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
+  private final Map<DagManager.DagId, Long> dagToDeadline = new ConcurrentHashMap<>();
   private final DagStateStore dagStateStore;
   private final DagStateStore failedDagStateStore;
   private final UserQuotaManager quotaManager;
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
 
-  public MostlyInMemoryDagManagementStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
+  public MostlyMySqlDagManagementStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.dagStateStore = createDagStateStore(config, topologySpecMap);
     this.failedDagStateStore = createDagStateStore(
         ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config), topologySpecMap);
@@ -83,6 +84,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
 
   @Override
   public void markDagFailed(Dag<JobExecutionPlan> dag) throws IOException {
+    this.dagStateStore.cleanUp(dag);
+    // todo - updated failedDagStateStore iff cleanup returned 1
     this.failedDagStateStore.writeCheckpoint(dag);
   }
 
@@ -112,8 +115,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag<JobExecutionPlan> getFailedDag(DagManager.DagId dagId) throws IOException {
-    return this.failedDagStateStore.getDag(dagId.toString());
+  public Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException {
+    return Optional.of(this.failedDagStateStore.getDag(dagId.toString()));
   }
 
   @Override
@@ -122,6 +125,7 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
+  // todo - updating different mapps here and in addDagNodeState can result in inconsistency between the maps
   public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
     this.jobToDag.remove(dagNode);
     this.dagNodes.remove(dagNode.getValue().getId());
@@ -132,11 +136,15 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
     }
   }
 
+  // todo - updating different mapps here and in deleteDagNodeState can result in inconsistency between the maps
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    Dag<JobExecutionPlan> dag = getDag(dagId);
-    this.jobToDag.put(dagNode, dag);
+    Optional<Dag<JobExecutionPlan>> dag = getDag(dagId);
+    if (!dag.isPresent()) {
+      throw new RuntimeException("Dag " + dagId + " not found");
+    }
+    this.jobToDag.put(dagNode, dag.get());
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
     if (!this.dagToJobs.containsKey(dagId)) {
       this.dagToJobs.put(dagId, Lists.newLinkedList());
@@ -145,8 +153,8 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
-    return this.dagStateStore.getDag(dagId.toString());
+  public Optional<Dag<JobExecutionPlan>> getDag(DagManager.DagId dagId) throws IOException {
+    return Optional.of(this.dagStateStore.getDag(dagId.toString()));
   }
 
   @Override
@@ -155,20 +163,21 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public Dag.DagNode<JobExecutionPlan> getDagNode(DagNodeId dagNodeId) {
-    return this.dagNodes.get(dagNodeId);
+  public Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId) {
+    return Optional.of(this.dagNodes.get(dagNodeId));
   }
 
 
   @Override
-  public Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode) {
-    return this.jobToDag.get(dagNode);
+  public Optional<Dag<JobExecutionPlan>> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode) {
+    return Optional.of(this.jobToDag.get(dagNode));
   }
 
   @Override
-  public LinkedList<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
-    if (this.dagToJobs.containsKey(dagId)) {
-      return this.dagToJobs.get(dagId);
+  public List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
+    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
+    if (dagNodes != null) {
+      return dagNodes;
     } else {
       return Lists.newLinkedList();
     }

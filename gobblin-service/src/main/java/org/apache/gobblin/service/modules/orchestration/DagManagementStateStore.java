@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -39,22 +40,22 @@ public interface DagManagementStateStore {
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.
    * e.g. on adding a failed dag in store to retry later, on submitting a dag node to spec producer because that changes
    * dag node's state, on resuming a dag, on receiving a new dag from orchestrator.
+   * Calling on a previously checkpointed Dag updates it.
    * Opposite of this is {@link DagManagementStateStore#deleteDag} that removes the Dag from the store.
    * @param dag The dag to checkpoint
    */
   void checkpointDag(Dag<JobExecutionPlan> dag) throws IOException;
 
   /**
-   * Returns true if the dag is present in the store.
-   * @param dagId DagId of the dag
+   @return whether `dagId` is currently known due to {@link DagManagementStateStore#checkpointDag} but not yet
+   {@link DagManagementStateStore#deleteDag}
    */
   boolean containsDag(DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns a dag if present, null otherwise.
-   * @param dagId DagId of the dag
+   @return the {@link Dag}, if present
    */
-  Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException;
+  Optional<Dag<JobExecutionPlan>> getDag(DagManager.DagId dagId) throws IOException;
 
   /**
    * Delete the {@link Dag} from the backing store, typically called upon completion of execution.
@@ -72,9 +73,8 @@ public interface DagManagementStateStore {
 
   /**
    * This marks the dag as a failed one.
-   * Failed dags are queried using {@link DagManagementStateStore#getFailedDagIds()} later to be retried.
+   * Failed dags are queried using {@link DagManagementStateStore#getFailedDag(DagManager.DagId)} ()} later to be retried.
    * @param dag failing dag
-   * @throws IOException
    */
   void markDagFailed(Dag<JobExecutionPlan> dag) throws IOException;
 
@@ -85,10 +85,11 @@ public interface DagManagementStateStore {
 
   /**
    * Returns the failed dag.
-   * If the dag is not found or is not marked as failed through {@link DagManagementStateStore#markDagFailed(Dag)}, it returns null.
+   * If the dag is not found because it was never marked as failed through {@link DagManagementStateStore#markDagFailed(Dag)},
+   * it returns Optional.absent.
    * @param dagId dag id of the failed dag
    */
-  Dag<JobExecutionPlan> getFailedDag(DagManager.DagId dagId) throws IOException;
+  Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException;
 
   /**
    * Deletes the failed dag. No-op if dag is not found or is not marked as failed.
@@ -103,33 +104,33 @@ public interface DagManagementStateStore {
 
   /**
    * Adds state of a {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} to the store.
-   * Note that a DagNode is a part of a Dag and may already be present in the store thorugh
+   * Note that a DagNode is a part of a Dag and must already be present in the store through
    * {@link DagManagementStateStore#checkpointDag}. This call is just an additional identifier which may be used
    * for DagNode level operations. In the future, it may be merged with checkpointDag.
    * @param dagNode dag node to be added
    * @param dagId dag id of the dag this dag node belongs to
-   * @throws IOException
    */
-  void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
-      throws IOException;
+  void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}
-   * @param dagNodeId of the dag ndoe
+   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}, or Optional.absent if it
+   * is not found.
+   * @param dagNodeId of the dag node
    */
-  Dag.DagNode<JobExecutionPlan> getDagNode(DagNodeId dagNodeId);
+  Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId);
 
   /**
-   * Returns a list of {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for a {@link Dag}
+   * Returns a list of {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for a {@link Dag}.
+   * Returned list will be empty if the dag is not found in the store.
    * @param dagId DagId of the dag for which all DagNodes are requested
    */
   List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns the {@link Dag} the provided {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} belongs to,
-   * or null if the dag node is not found.
+   * Returns the {@link Dag} the provided {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} belongs to
+   * or Optional.absent if it is not found.
    */
-  Dag<JobExecutionPlan> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
+  Optional<Dag<JobExecutionPlan>> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
 
   /**
    * Deletes the dag node state that was added through {@link DagManagementStateStore#addDagNodeState(Dag.DagNode, DagManager.DagId)}

@@ -45,7 +45,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 /**
  * Mainly testing functionalities related to DagStateStore but not Mysql-related components.
  */
-public class MostlyInMemoryDagManagementStateStoreTest {
+public class MostlyMySqlDagManagementStateStoreTest {
 
   private DagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
@@ -62,7 +62,7 @@ public class MostlyInMemoryDagManagementStateStoreTest {
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MostlyInMemoryDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
+    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
@@ -75,7 +75,7 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyInMemoryDagManagementStateStore(config, topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, topologySpecMap);
   }
 
   @Test
@@ -90,14 +90,15 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
     this.dagManagementStateStore.checkpointDag(dag);
+    this.dagManagementStateStore.checkpointDag(dag2);
     this.dagManagementStateStore.addDagNodeState(dagNode, dagId);
     this.dagManagementStateStore.addDagNodeState(dagNode2, dagId);
     this.dagManagementStateStore.addDagNodeState(dagNode3, dagId2);
 
     Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
-    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).toString());
-    Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagNodeId));
-    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getParentDag(dagNode).toString());
+    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).get().toString());
+    Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNode(dagNodeId).get());
+    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getParentDag(dagNode).get().toString());
 
     List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());
@@ -111,6 +112,8 @@ public class MostlyInMemoryDagManagementStateStoreTest {
 
     this.dagManagementStateStore.deleteDagNodeState(dagId, dagNode);
     Assert.assertFalse(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode));
+    Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode2));
+    Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId2).contains(dagNode3));
   }
 
   /**
@@ -126,7 +129,7 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     protected StateStore<State> createStateStore(Config config) {
       try {
 
-        String jdbcUrl = MostlyInMemoryDagManagementStateStoreTest.testMetastoreDatabase.getJdbcUrl();
+        String jdbcUrl = MostlyMySqlDagManagementStateStoreTest.testMetastoreDatabase.getJdbcUrl();
         HikariDataSource dataSource = new HikariDataSource();
 
         dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);

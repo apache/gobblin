@@ -131,6 +131,7 @@ public class MysqlDagStateStore implements DagStateStore {
   public void cleanUp(String dagId)
       throws IOException {
     mysqlStateStore.delete(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
+    // todo - decrease the count only if delete returned 1
     this.totalDagCount.dec();
   }
 
