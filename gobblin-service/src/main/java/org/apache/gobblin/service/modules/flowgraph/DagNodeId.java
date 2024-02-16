@@ -22,6 +22,10 @@ import com.google.common.base.Joiner;
 import lombok.Data;
 
 
+/**
+ * This class provides a unique identifier for a {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}.
+ * It can be used for various DagNode/Job related operations, e.g. launch job, retry job, kill job
+ */
 @Data
 public class DagNodeId {
   private final String flowGroup;

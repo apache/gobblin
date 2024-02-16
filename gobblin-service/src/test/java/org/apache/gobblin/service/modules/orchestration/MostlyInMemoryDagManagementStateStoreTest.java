@@ -89,10 +89,10 @@ public class MostlyInMemoryDagManagementStateStoreTest {
     DagManager.DagId dagId2 = DagManagerUtils.generateDagId(dag2);
     DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
-    this.dagManagementStateStore.writeCheckpoint(dag);
-    this.dagManagementStateStore.addDagNodeState(dagId, dagNode);
-    this.dagManagementStateStore.addDagNodeState(dagId, dagNode2);
-    this.dagManagementStateStore.addDagNodeState(dagId2, dagNode3);
+    this.dagManagementStateStore.checkpointDag(dag);
+    this.dagManagementStateStore.addDagNodeState(dagNode, dagId);
+    this.dagManagementStateStore.addDagNodeState(dagNode2, dagId);
+    this.dagManagementStateStore.addDagNodeState(dagNode3, dagId2);
 
     Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
     Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).toString());

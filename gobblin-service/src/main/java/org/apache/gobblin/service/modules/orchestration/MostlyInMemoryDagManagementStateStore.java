@@ -77,32 +77,32 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
+  public void checkpointDag(Dag<JobExecutionPlan> dag) throws IOException {
     this.dagStateStore.writeCheckpoint(dag);
   }
 
   @Override
-  public void writeFailedDagCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
+  public void markDagFailed(Dag<JobExecutionPlan> dag) throws IOException {
     this.failedDagStateStore.writeCheckpoint(dag);
   }
 
   @Override
-  public void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
+  public void deleteDag(Dag<JobExecutionPlan> dag) throws IOException {
     this.dagStateStore.cleanUp(dag);
   }
 
   @Override
-  public void cleanUpFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
+  public void deleteFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
     this.failedDagStateStore.cleanUp(dag);
   }
 
   @Override
-  public void cleanUp(DagManager.DagId dagId) throws IOException {
+  public void deleteDag(DagManager.DagId dagId) throws IOException {
     this.dagStateStore.cleanUp(dagId.toString());
   }
 
   @Override
-  public void cleanUpFailedDag(DagManager.DagId dagId) throws IOException {
+  public void deleteFailedDag(DagManager.DagId dagId) throws IOException {
     this.failedDagStateStore.cleanUp(dagId.toString());
   }
 
@@ -134,7 +134,7 @@ public class MostlyInMemoryDagManagementStateStore implements DagManagementState
   }
 
   @Override
-  public synchronized void addDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
+  public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
     String dagIdStr = dagId.toString();
     Dag<JobExecutionPlan> dag = getDag(dagId);

@@ -179,7 +179,7 @@ public class MysqlDagStateStore implements DagStateStore {
   /**
    * Return a tableName given a dagId. Table name is defined as the flowExecutionId.
    */
-  public static String getTableNameFromDagId(String dagId) {
+  private String getTableNameFromDagId(String dagId) {
     return dagId.substring(dagId.lastIndexOf(ServiceConfigKeys.DAG_STORE_KEY_SEPARATION_CHARACTER) + 1);
   }
 
