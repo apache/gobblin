@@ -30,18 +30,17 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
-import com.github.rholder.retry.Retryer;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -65,10 +64,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
-import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
-import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
-import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
+import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
 
 /**
@@ -98,7 +94,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @Getter
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
-  @Getter protected static final EventBus eventBus = new EventBus(KafkaJobStatusMonitor.class.getSimpleName());
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
       RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute

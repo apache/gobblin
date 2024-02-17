@@ -23,13 +23,9 @@ import com.google.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.orchestration.proc.AdvanceDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
-import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
-import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 
@@ -45,18 +41,7 @@ public class DagProcFactory implements DagTaskVisitor {
 
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
-    return new LaunchDagProc(launchDagTask, this.newDagManager);
+    return new LaunchDagProc(launchDagTask);
   }
-
-  @Override
-  public KillDagProc meet(KillDagTask killDagTask) {
-    return new KillDagProc(killDagTask);
-  }
-
-  @Override
-  public AdvanceDagProc meet(AdvanceDagTask advanceDagTask) {
-    return new AdvanceDagProc(advanceDagTask);
-  }
-
 }
 

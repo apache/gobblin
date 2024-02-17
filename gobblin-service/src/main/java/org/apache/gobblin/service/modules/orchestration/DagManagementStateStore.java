@@ -36,6 +36,14 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 @Alpha
 public interface DagManagementStateStore {
+
+  /**
+   * Does any initial setup work. It should usually be called after the initialization.
+   */
+  default void start() throws IOException {
+    initQuota(getDags());
+  }
+
   /**
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.
    * e.g. on adding a failed dag in store to retry later, on submitting a dag node to spec producer because that changes
