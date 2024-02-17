@@ -30,7 +30,6 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 
@@ -74,14 +73,10 @@ public class DagTaskStream implements Iterator<DagTask>{
     DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
 
     switch (flowActionType) {
-      case KILL:
-        return new KillDagTask(dagAction, leaseObtainedStatus);
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus);
-      case RESUME:
-      case ADVANCE:
       default:
-       throw new UnsupportedOperationException("Yet to provide implementation.");
+        throw new UnsupportedOperationException("Not yet implemented");
     }
   }
 
