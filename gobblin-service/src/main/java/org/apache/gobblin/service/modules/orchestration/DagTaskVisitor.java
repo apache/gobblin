@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import org.apache.gobblin.service.modules.orchestration.task.AdvanceDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 
 public interface DagTaskVisitor<T> {
   T meet(LaunchDagTask launchDagTask);
-  T meet(KillDagTask killDagTask);
-  T meet(AdvanceDagTask advanceDagTask);
 }
