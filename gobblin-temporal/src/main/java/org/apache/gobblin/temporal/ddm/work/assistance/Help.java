@@ -20,6 +20,7 @@ package org.apache.gobblin.temporal.ddm.work.assistance;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutionException;
@@ -30,6 +31,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 import com.typesafe.config.Config;
+
+import org.slf4j.MDC;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,9 +47,9 @@ import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.JobStateful;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.SerializationUtils;
-import org.slf4j.MDC;
 
 
 /** Various capabilities useful in implementing Distributed Data Movement (DDM) */
@@ -63,22 +66,35 @@ public class Help {
 
   private Help() {}
 
-  public static String qualifyNamePerExec(String name, FileSystemJobStateful f, Config workerConfig) {
-    return name + "_" + calcPerExecQualifier(f, workerConfig);
+  /** @return execution-specific name, incorporating any {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} from {@link JobState} */
+  public static String qualifyNamePerExecWithFlowExecId(String name, FileSystemJobStateful f, Config workerConfig) {
+    return name + "_" + calcPerExecQualifierWithOptFlowExecId(f, workerConfig);
   }
 
-  public static String qualifyNamePerExec(String name, Config workerConfig) {
+  /** @return execution-specific name, NOT incorporating {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} */
+  public static String qualifyNamePerExecWithoutFlowExecId(String name, Config workerConfig) {
     return name + "_" + calcPerExecQualifier(workerConfig);
   }
 
-  public static String calcPerExecQualifier(FileSystemJobStateful f, Config workerConfig) {
+  /** @return execution-specific name, incorporating any {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} from `workerConfig` */
+  public static String qualifyNamePerExecWithFlowExecId(String name, Config workerConfig) {
+    Optional<String> optFlowExecId = Optional.ofNullable(ConfigUtils.getString(workerConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
+    return name + "_" + calcPerExecQualifierWithOptFlowExecId(optFlowExecId, workerConfig);
+  }
+
+  public static String calcPerExecQualifierWithOptFlowExecId(Optional<String> optFlowExecId, Config workerConfig) {
+    return optFlowExecId.map(x -> x + "_").orElse("") + calcPerExecQualifier(workerConfig);
+  }
+
+  public static String calcPerExecQualifierWithOptFlowExecId(FileSystemJobStateful f, Config workerConfig) {
     Optional<String> optFlowExecId = Optional.empty();
     try {
+      // TODO: determine whether the same could be obtained from `workerConfig` (likely much more efficiently)
       optFlowExecId = Optional.of(loadJobState(f).getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
     } catch (IOException e) {
       log.warn("unable to loadJobState", e);
     }
-    return optFlowExecId.map(x -> x + "_").orElse("") + calcPerExecQualifier(workerConfig);
+    return calcPerExecQualifierWithOptFlowExecId(optFlowExecId, workerConfig);
   }
 
   public static String calcPerExecQualifier(Config workerConfig) {
@@ -210,9 +226,25 @@ public class Help {
   }
 
   public static void propagateGaaSFlowExecutionContext(JobState jobState) {
+    doGaaSFlowExecutionContextPropagation(
+        jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY, "<<NOT SET>>"),
+        jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY, "<<NOT SET>>"),
+        jobState.getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "<<NOT SET>>")
+    );
+  }
+
+  public static void propagateGaaSFlowExecutionContext(Properties jobProps) {
+    doGaaSFlowExecutionContextPropagation(
+        jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "<<NOT SET>>"),
+        jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY, "<<NOT SET>>"),
+        jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "<<NOT SET>>")
+    );
+  }
+
+  protected static void doGaaSFlowExecutionContextPropagation(String flowGroup, String flowName, String flowExecId) {
     // TODO: log4j2 has better syntax around conditional logging such that the key does not need to be included in the value
-    MDC.put(ConfigurationKeys.FLOW_NAME_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_NAME_KEY, jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY, "<<NOT SET>>")));
-    MDC.put(ConfigurationKeys.FLOW_GROUP_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_GROUP_KEY, jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY, "<<NOT SET>>")));
-    MDC.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobState.getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "<<NOT SET>>")));
+    MDC.put(ConfigurationKeys.FLOW_GROUP_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_GROUP_KEY, flowGroup));
+    MDC.put(ConfigurationKeys.FLOW_NAME_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_NAME_KEY, flowName));
+    MDC.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecId));
   }
 }

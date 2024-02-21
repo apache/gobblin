@@ -17,13 +17,17 @@
 
 package org.apache.gobblin.temporal.ddm.util;
 
-import java.util.Properties;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -36,23 +40,52 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.SourceDecorator;
 import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.ParallelRunner;
 
 
 /**
  * Utilities for applying {@link JobState} info to various ends:
+ * - opening the {@link FileSystem}
+ * - creating the {@link Source}
  * - creating a {@link SharedResourcesBroker}
- * - obtaining a {@link StateStore<TaskState>}
+ * - opening the {@link StateStore<TaskState>}
+ * - writing serialized {@link WorkUnit}s to the {@link FileSystem}
+ * - writing serialized {@link JobState} to the {@link FileSystem}
  */
 @Slf4j
 public class JobStateUtils {
-  private static final String OUTPUT_DIR_NAME = "output"; // following MRJobLauncher.OUTPUT_DIR_NAME
+  public static final String INPUT_DIR_NAME = "input"; // following MRJobLauncher.INPUT_DIR_NAME
+  public static final String OUTPUT_DIR_NAME = "output"; // following MRJobLauncher.OUTPUT_DIR_NAME
+  public static final boolean DEFAULT_WRITE_PREVIOUS_WORKUNIT_STATES = true;
 
   // reuse same handle among activities executed by the same worker
   private static final transient Cache<Path, StateStore<TaskState>> taskStateStoreByPath = CacheBuilder.newBuilder().build();
 
   private JobStateUtils() {}
+
+  /** @return the {@link FileSystem} indicated by {@link ConfigurationKeys#FS_URI_KEY} */
+  public static FileSystem openFileSystem(JobState jobState) throws IOException {
+    URI fsUri = URI.create(jobState.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    return Help.loadFileSystemForUriForce(fsUri, jobState);
+  }
+
+  /** @return a new instance of {@link Source} identified by {@link ConfigurationKeys#SOURCE_CLASS_KEY} */
+  public static Source<?, ?> createSource(JobState jobState) throws ReflectiveOperationException {
+    Class<?> sourceClass = Class.forName(jobState.getProp(ConfigurationKeys.SOURCE_CLASS_KEY));
+    log.info("Creating source: '{}'", sourceClass.getName());
+    Source<?, ?> source = new SourceDecorator<>(
+        Source.class.cast(sourceClass.newInstance()),
+        jobState.getJobId(), log);
+    return source;
+  }
 
   public static StateStore<TaskState> openTaskStateStore(JobState jobState, FileSystem fs) {
     try {
@@ -74,18 +107,64 @@ public class JobStateUtils {
   /**
    * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
    * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
+   * @return "base" dir root path for work dir (parent of inputs, output task states, etc.)
+   */
+  public static Path getWorkDirRoot(JobState jobState) {
+    return new Path(
+        new Path(jobState.getProp(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobState.getJobName()),
+        jobState.getJobId());
+  }
+
+  /**
+   * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
+   * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
    * @return path to {@link FsStateStore<TaskState>} backing dir
    */
   public static Path getTaskStateStorePath(JobState jobState, FileSystem fs) {
-    Properties jobProps = jobState.getProperties();
-    Path jobOutputPath = new Path(
-        new Path(
-            new Path(
-                jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY),
-                JobState.getJobNameFromProps(jobProps)),
-            JobState.getJobIdFromProps(jobProps)),
-        OUTPUT_DIR_NAME);
+    Path jobOutputPath = new Path(getWorkDirRoot(jobState), OUTPUT_DIR_NAME);
     return fs.makeQualified(jobOutputPath);
+  }
+
+  /** write serialized {@link WorkUnit}s in parallel into files named after the jobID and task IDs */
+  public static void writeWorkUnits(List<WorkUnit> workUnits, Path workDirRootPath, JobState jobState, FileSystem fs)
+      throws IOException {
+    String jobId = jobState.getJobId();
+    Path targetDirPath = new Path(workDirRootPath, INPUT_DIR_NAME);
+
+    int numThreads = ParallelRunner.getNumThreadsConfig(jobState.getProperties());
+    Closer closer = Closer.create(); // (NOTE: try-with-resources syntax wouldn't allow `catch { closer.rethrow(t) }`)
+    try {
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(numThreads, fs));
+
+      JobLauncherUtils.WorkUnitPathCalculator pathCalculator = new JobLauncherUtils.WorkUnitPathCalculator();
+      int i = 0;
+      for (WorkUnit workUnit : workUnits) {
+        Path workUnitFile = pathCalculator.calcNextPath(workUnit, jobId, targetDirPath);
+        if (i++ == 0) {
+          log.info("Writing work unit file [{}]: '{}'", i - 1, i == 1 ? workUnitFile : ("./" + workUnitFile.getName()));
+        }
+        parallelRunner.serializeToFile(workUnit, workUnitFile);
+      }
+    } catch (Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+  }
+
+  /** write serialized `jobState` beneath `workDirRootPath` of `fs`, per {@link JobStateUtils#DEFAULT_WRITE_PREVIOUS_WORKUNIT_STATES} */
+  public static void writeJobState(JobState jobState, Path workDirRootPath, FileSystem fs) throws IOException {
+    writeJobState(jobState, workDirRootPath, fs, DEFAULT_WRITE_PREVIOUS_WORKUNIT_STATES);
+  }
+
+  /** write serialized `jobState` beneath `workDirRootPath` of `fs`, per whether to `writePreviousWorkUnitStates` */
+  public static void writeJobState(JobState jobState, Path workDirRootPath, FileSystem fs, boolean writePreviousWorkUnitStates) throws IOException {
+    Path targetPath = new Path(workDirRootPath, AbstractJobLauncher.JOB_STATE_FILE_NAME);
+    try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(targetPath))) {
+      log.info("Writing serialized jobState to '{}'", targetPath);
+      jobState.write(dataOutputStream, false, writePreviousWorkUnitStates);
+      log.info("Finished writing jobState to '{}'", targetPath);
+    }
   }
 
   public static SharedResourcesBroker<GobblinScopeTypes> getSharedResourcesBroker(JobState jobState) {

@@ -21,15 +21,17 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-
 import com.google.common.eventbus.EventBus;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
@@ -38,6 +40,8 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.*;
 import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory.createClientInstance;
@@ -70,7 +74,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
                                     List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventBus)
           throws Exception {
     super(jobProps, appWorkDir, metadataTags, runningMap, eventBus);
-    log.debug("GobblinTemporalJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
+    log.info("GobblinTemporalJobLauncher: appWorkDir {}; jobProps {}", appWorkDir, jobProps);
 
     String connectionUri = jobProps.getProperty(TEMPORAL_CONNECTION_STRING);
     this.workflowServiceStubs = createServiceInstance(connectionUri);
@@ -81,6 +85,14 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     this.queueName = jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE, DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
     startCancellationExecutor();
+  }
+
+  /** @return {@link Config} now featuring all overrides rooted at {@link GobblinTemporalConfigurationKeys#GOBBLIN_TEMPORAL_JOB_LAUNCHER_CONFIG_OVERRIDES} */
+  protected Config applyJobLauncherOverrides(Config config) {
+    Config configOverrides = ConfigUtils.getConfig(config,
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER_CONFIG_OVERRIDES, ConfigFactory.empty());
+    log.info("appying config overrides: {}", configOverrides);
+    return configOverrides.withFallback(config);
   }
 
   @Override
@@ -104,12 +116,15 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     log.info("Cancel temporal workflow");
   }
 
+  /** No-op: merely logs a warning, since not expected to be invoked */
   @Override
   protected void removeTasksFromCurrentJob(List<String> workUnitIdsToRemove) {
-    log.info("Temporal removeTasksFromCurrentJob");
+    log.warn("NOT IMPLEMENTED: Temporal removeTasksFromCurrentJob");
   }
 
+  /** No-op: merely logs a warning, since not expected to be invoked */
+  @Override
   protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) {
-    log.info("Temporal addTasksToCurrentJob");
+    log.warn("NOT IMPLEMENTED: Temporal addTasksToCurrentJob");
   }
 }
