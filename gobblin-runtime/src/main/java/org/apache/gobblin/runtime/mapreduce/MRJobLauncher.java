@@ -255,7 +255,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // adding dependent jars/files to the DistributedCache that also updates the conf)
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
 
-    this.parallelRunnerThreads = ParallelRunner.readConfigNumParallelRunnerThreads(jobProps);
+    this.parallelRunnerThreads = ParallelRunner.getNumThreadsConfig(jobProps);
 
     // StateStore interface uses the following key (rootDir, storeName, tableName)
     // The state store base is the root directory and the last two elements of the path are used as the storeName and
