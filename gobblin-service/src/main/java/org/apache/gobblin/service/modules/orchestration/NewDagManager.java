@@ -24,7 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -44,9 +46,13 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -60,7 +66,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Singleton
 @Data
-public class NewDagManager {
+public class NewDagManager implements DagManagement {
   public static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
   private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
 
@@ -78,14 +84,12 @@ public class NewDagManager {
   @Inject
   @Getter DagManagementStateStore dagManagementStateStore;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
-  private DagTaskStream dagTaskStream;
+  private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
   @Inject
-  public NewDagManager(Config config, Optional<DagActionStore> dagActionStore,
-      DagTaskStream dagTaskStream, DagManagementStateStore dagManagementStateStore) {
+  public NewDagManager(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
     this.config = config;
     this.dagActionStore = dagActionStore;
-    this.dagTaskStream = dagTaskStream;
     this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.dagManagementStateStore = dagManagementStateStore;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -133,7 +137,8 @@ public class NewDagManager {
     }
   }
 
-  public synchronized void addDagAndRemoveAdhocFlowSpec(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
+  @Override
+  public synchronized void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
       throws IOException {
     addDag(dag, persist, setStatus);
     // Only the active newDagManager should delete the flowSpec
@@ -142,7 +147,7 @@ public class NewDagManager {
     }
   }
 
-  private synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
+  private void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
     // TODO: Used to track missing dag issue, remove later as needed
     log.info("Add dag (persist: {}, setStatus: {}): {}", persist, setStatus, dag);
     if (!isActive) {
@@ -171,7 +176,9 @@ public class NewDagManager {
     }
 
     this.dagManagementStateStore.checkpointDag(dag);
-    this.dagTaskStream.addDagAction(dagAction);
+    if (!this.dagActionQueue.offer(dagAction)) {
+      throw new RuntimeException("Could not add dag action " + dagAction + " to the queue");
+    }
 
     if (setStatus) {
       DagManagerUtils.submitPendingExecStatus(dag, this.eventSubmitter);
@@ -181,6 +188,42 @@ public class NewDagManager {
   private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
       this.flowCatalog.remove(flowSpec.getUri(), new Properties(), false);
+    }
+  }
+
+  @Override
+  public boolean hasNext() {
+    return !this.dagActionQueue.isEmpty();
+  }
+
+  @Override
+  public DagTask<DagProc> next() {
+    try {
+      DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
+      // todo reconsider the use of MultiActiveLeaseArbiter
+      //MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction);
+      // todo - uncomment after flow trigger handler provides such an api
+      //Properties jobProps = getJobProperties(dagAction);
+      //flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis());
+      //if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+      // can it return null? is this iterator allowed to return null?
+      return createDagTask(dagAction, new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction, System.currentTimeMillis()));
+      //}
+    } catch (Throwable t) {
+      //TODO: need to handle exceptions gracefully
+      log.error("Error getting DagAction from the queue / creating DagTask", t);
+    }
+    return null;
+  }
+
+  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+    DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
+
+    switch (flowActionType) {
+      case LAUNCH:
+        return new LaunchDagTask(dagAction, leaseObtainedStatus);
+      default:
+        throw new UnsupportedOperationException("Not yet implemented");
     }
   }
 }
