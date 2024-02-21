@@ -685,7 +685,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
         Path workUnitFile = pathCalculator.calcNextPath(workUnit, this.jobContext.getJobId(), this.jobInputPath);
-        LOG.debug("Writing work unit file " + workUnitFile.getName());
+        LOG.debug("Writing work unit file {}", workUnitFile.getName());
         parallelRunner.serializeToFile(workUnit, workUnitFile);
       }
     } catch (Throwable t) {

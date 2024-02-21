@@ -199,7 +199,7 @@ public class JobState extends SourceState implements JobProgress {
   }
 
   public static State getStateFromProps(Properties props) {
-    return getStateFromProps(props, getJobIdFromProps(props));
+    return JobState.getStateFromProps(props, JobState.getJobIdFromProps(props));
   }
 
   public static State getStateFromProps(Properties props, String jobIdPropValue) {

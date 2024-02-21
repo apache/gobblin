@@ -147,9 +147,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // This contains all job context information
   protected final JobContext jobContext;
 
-  // Helper to prepare WorkUnit with necessary information. This final object can make sure the uniqueness of task IDs
-  protected final WorkUnitPreparator workUnitPreparator;
-
   // This (optional) JobLock is used to prevent the next scheduled run
   // of the job from starting if the current run has not finished yet
   protected Optional<JobLock> jobLockOptional = Optional.absent();
@@ -230,7 +227,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker, troubleshooter.getIssueRepository());
       this.eventBus.register(this.jobContext);
-      this.workUnitPreparator = new WorkUnitPreparator(this.jobContext.getJobId());
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
           ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
@@ -912,7 +908,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /** @return `workUnitStream` transformed to add "tracking" (sic.: actually *trace* logging), if indicated by `jobState` config */
   public static WorkUnitStream addWorkUnitTrackingPerConfig(WorkUnitStream workUnitStream, JobState jobState, Logger log) {
     return !jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)
-        ? workUnitStream // no-op, unless enabled
+        ? workUnitStream // no-op, when not enabled
         : workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
           @Nullable
           @Override
@@ -924,7 +920,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   /**
-   * Prepare the flattened {@link WorkUnit}s for execution by populating the job and task IDs.
+   * Prepare the flattened {@link WorkUnit}s for execution by populating the job and unique task IDs.
    */
   private static WorkUnitStream assignIdsToWorkUnits(WorkUnitStream workUnits, JobState jobState) {
     return workUnits.transform(new WorkUnitPreparator(jobState.getJobId()));
