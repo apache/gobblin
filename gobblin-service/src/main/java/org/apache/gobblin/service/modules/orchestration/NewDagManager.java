@@ -185,6 +185,10 @@ public class NewDagManager implements DagManagement {
     }
   }
 
+  public void addDagAction(DagActionStore.DagAction dagAction) {
+    this.dagActionQueue.add(dagAction);
+  }
+
   private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
       this.flowCatalog.remove(flowSpec.getUri(), new Properties(), false);

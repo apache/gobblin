@@ -84,6 +84,7 @@ import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -214,11 +215,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
       DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton)
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<DagManagement> newDagManager)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog,
         new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerHandler,
-            sharedFlowMetricsSingleton, flowCatalog),
+            sharedFlowMetricsSingleton, flowCatalog, newDagManager),
         schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
   }
 

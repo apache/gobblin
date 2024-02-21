@@ -111,8 +111,8 @@ public class OrchestratorTest {
 
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
-        Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(
-             ConfigUtils.propertiesToConfig(orchestratorProperties)), Optional.of(mock(FlowCatalog.class)));
+        Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(
+            orchestratorProperties)), Optional.of(mock(FlowCatalog.class)), Optional.absent());
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application
