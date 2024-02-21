@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import lombok.extern.slf4j.Slf4j;
@@ -37,8 +36,6 @@ import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 @Slf4j
 @Singleton
 public class DagProcFactory implements DagTaskVisitor {
-  @Inject private NewDagManager newDagManager;
-
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
     return new LaunchDagProc(launchDagTask);

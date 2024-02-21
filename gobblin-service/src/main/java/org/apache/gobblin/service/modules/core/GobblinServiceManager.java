@@ -92,7 +92,9 @@ import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.NewDagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
@@ -192,6 +194,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Getter
   @VisibleForTesting
   public DagManager dagManager;
+  @Inject
+  DagManagement newDagManager;
 
   @Inject(optional = true)
   protected KafkaJobStatusMonitor jobStatusMonitor;
@@ -279,7 +283,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return !helixManager.isPresent() || helixManager.get().isLeader();
   }
 
-
   private FileSystem buildFileSystem(Config config)
       throws IOException {
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
@@ -290,8 +293,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   private Path getServiceWorkDirPath(FileSystem fs, String serviceName, String serviceId) {
     return new Path(fs.getHomeDirectory(), serviceName + Path.SEPARATOR + serviceId);
   }
-
-
 
   /**
    * Handle leadership change.
@@ -321,6 +322,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
         if (this.topologyCatalog.getInitComplete().getCount() == 0) {
           this.dagManager.setActive(true);
+          ((NewDagManager) this.newDagManager).setActive(true);
           this.eventBus.register(this.dagManager);
         }
 
@@ -346,6 +348,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         }
 
         this.dagManager.setActive(false);
+        ((NewDagManager) this.newDagManager).setActive(false);
         this.eventBus.unregister(this.dagManager);
 
         if (configuration.isOnlyAnnounceLeader()) {
@@ -520,6 +523,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     //Activate the DagManager service, after the topologyCatalog has been initialized.
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
       this.dagManager.setActive(true);
+      ((NewDagManager) this.newDagManager).setActive(true);
       this.eventBus.register(this.dagManager);
     }
   }

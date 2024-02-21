@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -69,13 +68,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
     config = configBuilder.build();
 
-    // Constructing TopologySpecMap.
-    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
-    String specExecInstance = "mySpecExecutor";
-    TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
-    URI specExecURI = new URI(specExecInstance);
-    topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config);
   }
 
   @Test

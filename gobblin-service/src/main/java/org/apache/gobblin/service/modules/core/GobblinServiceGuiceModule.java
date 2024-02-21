@@ -67,6 +67,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
@@ -178,8 +179,8 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowTriggerHandler.class);
     }
 
-    OptionalBinder.newOptionalBinder(binder, NewDagManager.class);
-    binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class);
+    binder.bind(DagManagement.class).to(NewDagManager.class);
+    binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
     binder.bind(DagProcFactory.class);
     binder.bind(DagProcessingEngine.class);
 

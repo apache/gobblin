@@ -27,8 +27,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.Lists;
+import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -54,18 +56,30 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   // dagToJobs holds a map of dagId to running jobs of that dag
   private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
   private final Map<DagManager.DagId, Long> dagToDeadline = new ConcurrentHashMap<>();
-  private final DagStateStore dagStateStore;
-  private final DagStateStore failedDagStateStore;
+  private DagStateStore dagStateStore;
+  private DagStateStore failedDagStateStore;
+  private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
+  @Setter Map<URI, TopologySpec> topologySpecMap;
+  private final Config config;
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
 
-  public MostlyMySqlDagManagementStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
-    this.dagStateStore = createDagStateStore(config, topologySpecMap);
-    this.failedDagStateStore = createDagStateStore(
-        ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config), topologySpecMap);
+  @Inject
+  public MostlyMySqlDagManagementStateStore(Config config) throws IOException {
     this.quotaManager = new MysqlUserQuotaManager(config);
-    this.quotaManager.init(getDags());
+    this.config = config;
+   }
+
+  @Override
+  public void start() throws IOException {
+    if (!dagStoresInitialized) {
+      this.dagStateStore = createDagStateStore(config, topologySpecMap);
+      this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
+          topologySpecMap);
+      initQuota(getDags());
+      dagStoresInitialized = true;
+    }
   }
 
   DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {

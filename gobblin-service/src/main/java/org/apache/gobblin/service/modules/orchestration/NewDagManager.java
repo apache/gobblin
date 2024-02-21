@@ -96,7 +96,7 @@ public class NewDagManager implements DagManagement {
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
   }
 
-  public void setActive(boolean active) throws IOException {
+  public void setActive(boolean active) {
     if (this.isActive == active) {
       log.info("DagManager already {}, skipping further actions.", (!active) ? "inactive" : "active");
     }
