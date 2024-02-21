@@ -147,9 +147,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // This contains all job context information
   protected final JobContext jobContext;
 
-  // Helper to prepare WorkUnit with necessary information. This final object can make sure the uniqueness of task IDs
-  protected final WorkUnitPreparator workUnitPreparator;
-
   // This (optional) JobLock is used to prevent the next scheduled run
   // of the job from starting if the current run has not finished yet
   protected Optional<JobLock> jobLockOptional = Optional.absent();
@@ -230,7 +227,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       this.jobContext = new JobContext(this.jobProps, LOG, instanceBroker, troubleshooter.getIssueRepository());
       this.eventBus.register(this.jobContext);
-      this.workUnitPreparator = new WorkUnitPreparator(this.jobContext.getJobId());
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
           ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
@@ -553,21 +549,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           TimingEvent workUnitsPreparationTimer =
               this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.WORK_UNITS_PREPARATION);
           workUnitStream = processWorkUnitStream(workUnitStream, jobState);
+
           // If it is a streaming source, workunits cannot be counted
           this.jobContext.getJobState().setProp(NUM_WORKUNITS,
               workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
           this.gobblinJobMetricsReporter.reportWorkUnitCountMetrics(this.jobContext.getJobState().getPropAsInt(NUM_WORKUNITS), jobState);
-          // dump the work unit if tracking logs are enabled
-          if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
-            workUnitStream = workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
-              @Nullable
-              @Override
-              public WorkUnit apply(@Nullable WorkUnit input) {
-                LOG.info("Work unit tracking log: {}", input);
-                return input;
-              }
-            });
-          }
+          // dump the work unit if tracking logs are enabled (*AFTER* any materialization done for counting)
+          workUnitStream = addWorkUnitTrackingPerConfig(workUnitStream, jobState, LOG);
 
           workUnitsPreparationTimer.stop(this.multiEventMetadataGenerator.getMetadata(this.jobContext,
               EventName.WORK_UNITS_PREPARATION));
@@ -710,13 +698,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
-  protected WorkUnitStream executeHandlers (WorkUnitStream workUnitStream, DestinationDatasetHandlerService datasetHandlerService){
+  protected WorkUnitStream executeHandlers(WorkUnitStream workUnitStream, DestinationDatasetHandlerService datasetHandlerService) {
     return datasetHandlerService.executeHandlers(workUnitStream);
   }
 
   protected WorkUnitStream processWorkUnitStream(WorkUnitStream workUnitStream, JobState jobState) {
     // Add task ids
-    workUnitStream = prepareWorkUnits(workUnitStream);
+    workUnitStream = prepareWorkUnits(workUnitStream, jobState);
     // Remove skipped workUnits from the list of work units to execute.
     workUnitStream = workUnitStream.filter(new SkippedWorkUnitsFilter(jobState));
     // Add surviving tasks to jobState
@@ -836,7 +824,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Materialize a {@link WorkUnitStream} into an in-memory list. Note that infinite work unit streams cannot be materialized.
    */
-  protected List<WorkUnit> materializeWorkUnitList(WorkUnitStream workUnitStream) {
+  public static List<WorkUnit> materializeWorkUnitList(WorkUnitStream workUnitStream) {
     if (!workUnitStream.isFiniteStream()) {
       throw new UnsupportedOperationException("Cannot materialize an infinite work unit stream.");
     }
@@ -904,11 +892,38 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     });
   }
 
+  /** @return transformed `workUnits` after assigning task IDs, removing skipped ones, and registering those remaining with `jobState` */
+  public static WorkUnitStream prepareWorkUnits(WorkUnitStream workUnits, JobState jobState) {
+    return assignIdsToWorkUnits(workUnits, jobState) // assign task ids
+        .filter(new SkippedWorkUnitsFilter(jobState)) // remove skipped workUnits
+        .transform(new MultiWorkUnitForEach() { // add remaining to jobState
+          @Override
+          public void forWorkUnit(WorkUnit workUnit) {
+            jobState.incrementTaskCount();
+            jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
+          }
+        });
+  }
+
+  /** @return `workUnitStream` transformed to add "tracking" (sic.: actually *trace* logging), if indicated by `jobState` config */
+  public static WorkUnitStream addWorkUnitTrackingPerConfig(WorkUnitStream workUnitStream, JobState jobState, Logger log) {
+    return !jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)
+        ? workUnitStream // no-op, when not enabled
+        : workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
+          @Nullable
+          @Override
+          public WorkUnit apply(@Nullable WorkUnit input) {
+            log.info("Work unit tracking log: {}", input);
+            return input;
+          }
+        });
+  }
+
   /**
-   * Prepare the flattened {@link WorkUnit}s for execution by populating the job and task IDs.
+   * Prepare the flattened {@link WorkUnit}s for execution by populating the job and unique task IDs.
    */
-  private WorkUnitStream prepareWorkUnits(WorkUnitStream workUnits) {
-    return workUnits.transform(workUnitPreparator);
+  private static WorkUnitStream assignIdsToWorkUnits(WorkUnitStream workUnits, JobState jobState) {
+    return workUnits.transform(new WorkUnitPreparator(jobState.getJobId()));
   }
 
   private static abstract class MultiWorkUnitForEach implements Function<WorkUnit, WorkUnit> {

@@ -255,8 +255,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // adding dependent jars/files to the DistributedCache that also updates the conf)
     this.job = Job.getInstance(this.conf, JOB_NAME_PREFIX + this.jobContext.getJobName());
 
-    this.parallelRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
-        Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
+    this.parallelRunnerThreads = ParallelRunner.getNumThreadsConfig(jobProps);
 
     // StateStore interface uses the following key (rootDir, storeName, tableName)
     // The state store base is the root directory and the last two elements of the path are used as the storeName and
@@ -682,23 +681,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
     try {
       ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
 
-      int multiTaskIdSequence = 0;
+      JobLauncherUtils.WorkUnitPathCalculator pathCalculator = new JobLauncherUtils.WorkUnitPathCalculator();
       // Serialize each work unit into a file named after the task ID
       for (WorkUnit workUnit : workUnits) {
-
-        String workUnitFileName;
-        if (workUnit.isMultiWorkUnit()) {
-          workUnitFileName = JobLauncherUtils.newMultiTaskId(this.jobContext.getJobId(), multiTaskIdSequence++)
-              + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
-        } else {
-          workUnitFileName = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
-        }
-        Path workUnitFile = new Path(this.jobInputPath, workUnitFileName);
-        LOG.debug("Writing work unit file " + workUnitFileName);
-
+        Path workUnitFile = pathCalculator.calcNextPath(workUnit, this.jobContext.getJobId(), this.jobInputPath);
+        LOG.debug("Writing work unit file {}", workUnitFile.getName());
         parallelRunner.serializeToFile(workUnit, workUnitFile);
-
-        // Append the work unit file path to the job input file
       }
     } catch (Throwable t) {
       throw closer.rethrow(t);

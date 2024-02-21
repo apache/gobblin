@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import java.util.Properties;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -85,6 +86,10 @@ public class ParallelRunner implements Closeable {
 
   public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
+
+  public static int getNumThreadsConfig(Properties props) {
+    return Integer.parseInt(props.getProperty(PARALLEL_RUNNER_THREADS_KEY, Integer.toString(DEFAULT_PARALLEL_RUNNER_THREADS)));
+  }
 
   private final ExecutorService executor;
 
