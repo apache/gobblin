@@ -17,28 +17,22 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.inject.Singleton;
+import java.io.IOException;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
-import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 /**
- * {@link DagTaskVisitor} for transforming a specific {@link DagTask} derived class to its companion {@link DagProc} derived class.
+ * An interface to provide abstractions for managing operations on Dag.
  */
+public interface DagManagement {
 
-@Alpha
-@Slf4j
-@Singleton
-public class DagProcFactory implements DagTaskVisitor {
-  @Override
-  public LaunchDagProc meet(LaunchDagTask launchDagTask) {
-    return new LaunchDagProc(launchDagTask);
-  }
+  void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException;
+  boolean hasNext();
+
+  DagTask<DagProc> next();
 }
-

@@ -39,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Responsible for polling {@link DagTask}s from {@link DagTaskStream} and processing the
+ * Responsible for polling {@link DagTask}s from {@link DagManagement} and processing the
  * {@link org.apache.gobblin.service.modules.flowgraph.Dag} based on the type of {@link DagTask}.
  * Each {@link DagTask} acquires a lease for the {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}.
  * The {@link DagProcFactory} then provides the appropriate {@link DagProc} associated with the {@link DagTask}.
@@ -53,20 +53,20 @@ public class DagProcessingEngine {
   public static final String NUM_THREADS_KEY = ConfigurationKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   private static final Integer DEFAULT_NUM_THREADS = 3;
 
-  @Getter private final DagTaskStream dagTaskStream;
+  @Getter private final DagManagement dagManager;
   @Getter DagManagementStateStore dagManagementStateStore;
 
   @Inject
-  public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
+  public DagProcessingEngine(Config config, DagManagement dagManager, DagProcFactory dagProcFactory,
       DagManagementStateStore dagManagementStateStore, Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter) {
     Integer numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     ScheduledExecutorService scheduledExecutorPool =
         Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("DagProcessingEngineThread"));
-    this.dagTaskStream = dagTaskStream;
+    this.dagManager = dagManager;
     this.dagManagementStateStore = dagManagementStateStore;
 
     for (int i=0; i < numThreads; i++) {
-      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream, dagProcFactory, dagManagementStateStore);
+      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagManager, dagProcFactory, dagManagementStateStore);
       scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }
@@ -74,14 +74,14 @@ public class DagProcessingEngine {
   @AllArgsConstructor
   private static class DagProcEngineThread implements Runnable {
 
-    private DagTaskStream dagTaskStream;
+    private DagManagement dagManager;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;
 
     @Override
     public void run() {
       while (true) {
-        DagTask<DagProc> dagTask = dagTaskStream.next(); // blocking call
+        DagTask<DagProc> dagTask = dagManager.next(); // blocking call
         if (dagTask == null) {
           continue;
         }
