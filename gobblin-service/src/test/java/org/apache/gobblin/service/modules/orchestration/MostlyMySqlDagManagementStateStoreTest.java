@@ -47,7 +47,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 public class MostlyMySqlDagManagementStateStoreTest {
 
-  private DagManagementStateStore dagManagementStateStore;
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
@@ -75,7 +75,9 @@ public class MostlyMySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config);
+    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    this.dagManagementStateStore.start();
   }
 
   @Test
