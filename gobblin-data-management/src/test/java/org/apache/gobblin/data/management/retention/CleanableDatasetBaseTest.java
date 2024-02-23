@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -46,7 +47,6 @@ public class CleanableDatasetBaseTest {
 
   @Test
   public void test() throws IOException {
-
     FileSystem fs = mock(FileSystem.class);
 
     Path datasetRoot = new Path("/test/dataset");
@@ -59,8 +59,7 @@ public class CleanableDatasetBaseTest {
 
     DatasetImpl dataset = new DatasetImpl(fs, false, false, false, false, datasetRoot);
 
-    when(dataset.versionFinder.findDatasetVersions(dataset)).
-        thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
+    mockDatasetVersion(dataset, dataset1Version1, dataset1Version2);
 
     dataset.clean();
 
@@ -86,8 +85,7 @@ public class CleanableDatasetBaseTest {
     when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, false, true, false, false, datasetRoot);
 
-    when(dataset.versionFinder.findDatasetVersions(dataset)).
-        thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
+    mockDatasetVersion(dataset, dataset1Version1, dataset1Version2);
 
     dataset.clean();
 
@@ -104,7 +102,6 @@ public class CleanableDatasetBaseTest {
 
     FileSystem fs = mock(FileSystem.class);
     Trash trash = mock(Trash.class);
-
     Path datasetRoot = new Path("/test/dataset");
 
     DatasetVersion dataset1Version1 = new StringDatasetVersion("version1", new Path(datasetRoot, "version1"));
@@ -115,8 +112,7 @@ public class CleanableDatasetBaseTest {
     when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, true, false, false, false, datasetRoot);
 
-    when(dataset.versionFinder.findDatasetVersions(dataset)).
-        thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
+    mockDatasetVersion(dataset, dataset1Version1, dataset1Version2);
 
     dataset.clean();
 
@@ -133,6 +129,7 @@ public class CleanableDatasetBaseTest {
     FileSystem fs = mock(FileSystem.class);
     Trash trash = mock(Trash.class);
 
+
     Path datasetRoot = new Path("/test/dataset");
 
     DatasetVersion dataset1Version1 = new StringDatasetVersion("version1", new Path(datasetRoot, "parent/version1"));
@@ -142,12 +139,8 @@ public class CleanableDatasetBaseTest {
     when(trash.moveToTrash(any(Path.class))).thenReturn(true);
     when(fs.exists(any(Path.class))).thenReturn(true);
     DatasetImpl dataset = new DatasetImpl(fs, false, false, true, false, datasetRoot);
-
-    when(dataset.versionFinder.findDatasetVersions(dataset)).
-        thenReturn(Lists.newArrayList(dataset1Version1, dataset1Version2));
-
     when(fs.listStatus(any(Path.class))).thenReturn(new FileStatus[]{});
-
+    mockDatasetVersion(dataset, dataset1Version1, dataset1Version2);
     dataset.clean();
 
     Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
@@ -159,6 +152,14 @@ public class CleanableDatasetBaseTest {
     verify(fs, times(1)).delete(any(Path.class), eq(false));
     verify(fs, never()).delete(any(Path.class), eq(true));
 
+  }
+
+  private void mockDatasetVersion(DatasetImpl dataset, DatasetVersion dataset1Version1,
+      DatasetVersion dataset1Version2) throws IOException {
+    RemoteIterator<DatasetVersion> versionRemoteIterator = mock(RemoteIterator.class);
+    when(dataset.versionFinder.findDatasetVersion(dataset)).thenReturn(versionRemoteIterator);
+    when(versionRemoteIterator.hasNext()).thenReturn(true, true, false);
+    when(versionRemoteIterator.next()).thenReturn(dataset1Version1).thenReturn(dataset1Version2);
   }
 
   private class DeleteFirstRetentionPolicy implements RetentionPolicy<StringDatasetVersion> {

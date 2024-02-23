@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +30,7 @@ import lombok.Getter;
 import lombok.Singular;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -113,6 +115,8 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
    */
   @Deprecated
   public static final String CONFIGURATION_KEY_PREFIX = FsCleanableHelper.CONFIGURATION_KEY_PREFIX;
+
+  public static final Integer CLEANABLE_DATASET_BATCH_SIZE = 10;
 
   /**
    * @deprecated in favor of {@link FsCleanableHelper}
@@ -265,7 +269,6 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     boolean atLeastOneFailureSeen = false;
 
     for (VersionFinderAndPolicy<T> versionFinderAndPolicy : getVersionFindersAndPolicies()) {
-
       VersionSelectionPolicy<T> selectionPolicy = versionFinderAndPolicy.getVersionSelectionPolicy();
       VersionFinder<? extends T> versionFinder = versionFinderAndPolicy.getVersionFinder();
 
@@ -275,39 +278,48 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
 
       this.log.info(String.format("Cleaning dataset %s. Using version finder %s and policy %s", this,
           versionFinder.getClass().getName(), selectionPolicy));
-
-      List<T> versions = Lists.newArrayList(versionFinder.findDatasetVersions(this));
-
-      if (versions.isEmpty()) {
-        this.log.warn("No dataset version can be found. Ignoring.");
-        continue;
-      }
-
-      Collections.sort(versions, Collections.reverseOrder());
-
-      Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-
-      cleanImpl(deletableVersions);
-
-      List<DatasetVersion> allVersions = Lists.newArrayList();
-      for (T ver : versions) {
-        allVersions.add(ver);
-      }
-      for (RetentionAction retentionAction : versionFinderAndPolicy.getRetentionActions()) {
-        try {
-          retentionAction.execute(allVersions);
-        } catch (Throwable t) {
-          atLeastOneFailureSeen = true;
-          log.error(String.format("RetentionAction %s failed for dataset %s", retentionAction.getClass().getName(),
-                  this.datasetRoot()), t);
+      // Avoiding OOM by iterating instead of loading all the datasetVersions in memory
+      RemoteIterator<? extends T> versionRemoteIterator = versionFinder.findDatasetVersion(this);
+      // Cleaning Dataset versions in batch of CLEANABLE_DATASET_BATCH_SIZE to avoid OOM
+      List<T> cleanableVersionsBatch = new ArrayList<>();
+      while (versionRemoteIterator.hasNext()) {
+        T version = versionRemoteIterator.next();
+        cleanableVersionsBatch.add(version);
+        if (cleanableVersionsBatch.size() >= CLEANABLE_DATASET_BATCH_SIZE) {
+          boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy, versionFinderAndPolicy);
+          atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
         }
+      }
+      if (!cleanableVersionsBatch.isEmpty()) {
+        boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy, versionFinderAndPolicy);
+        atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
       }
     }
 
     if (atLeastOneFailureSeen) {
-      throw new RuntimeException(String.format(
-          "At least one failure happened while processing %s. Look for previous logs for failures", datasetRoot()));
+      throw new RuntimeException(
+          String.format("At least one failure happened while processing %s. Look for previous logs for failures",
+              datasetRoot()));
     }
+  }
+
+  private boolean cleanDatasetVersions(List<T> versions, VersionSelectionPolicy<T> selectionPolicy,
+      VersionFinderAndPolicy<T> versionFinderAndPolicy) throws IOException {
+    Collections.sort(versions, Collections.reverseOrder());
+    Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
+    cleanImpl(deletableVersions);
+    List<DatasetVersion> allVersions = Lists.newArrayList(versions);
+    for (RetentionAction retentionAction : versionFinderAndPolicy.getRetentionActions()) {
+      try {
+        retentionAction.execute(allVersions);
+      } catch (Throwable t) {
+        log.error(String.format("RetentionAction %s failed for dataset %s", retentionAction.getClass().getName(),
+            this.datasetRoot()), t);
+        return false;
+      }
+    }
+    versions.clear();
+    return true;
   }
 
   protected void cleanImpl(Collection<T> deletableVersions) throws IOException {
