@@ -141,7 +141,7 @@ public class JobStateUtils {
       for (WorkUnit workUnit : workUnits) {
         Path workUnitFile = pathCalculator.calcNextPath(workUnit, jobId, targetDirPath);
         if (i++ == 0) {
-          log.info("Writing work unit file [{}]: '{}'", i - 1, i == 1 ? workUnitFile : ("./" + workUnitFile.getName()));
+          log.info("Writing work unit file [first of {}]: '{}'", workUnits.size(), workUnitFile);
         }
         parallelRunner.serializeToFile(workUnit, workUnitFile);
       }
