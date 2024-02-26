@@ -78,7 +78,7 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
     protected abstract Object[] getActivityImplInstances();
 
     private final void stashWorkerConfig(Config cfg) {
-        // stash in association with...
+        // stash to associate with...
         WorkerConfig.forWorker(this.getClass(), cfg); // the worker itself
         Arrays.stream(getWorkflowImplClasses()).forEach(clazz -> WorkerConfig.withImpl(clazz, cfg)); // its workflow impls
         Arrays.stream(getActivityImplInstances()).forEach(obj -> WorkerConfig.withImpl(obj.getClass(), cfg)); // its activity impls

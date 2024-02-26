@@ -516,7 +516,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.canCleanUpStagingData = this.canCleanStagingData(this.jobContext.getJobState());
         this.destDatasetHandlerService = new DestinationDatasetHandlerService(jobState, canCleanUpStagingData, this.eventSubmitter);
         closer.register(this.destDatasetHandlerService);
-        workUnitStream = this.executeHandlers(workUnitStream, this.destDatasetHandlerService);
+        workUnitStream = this.destDatasetHandlerService.executeHandlers(workUnitStream);
 
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
@@ -696,10 +696,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
       commitSequenceStore.delete(jobName, datasetUrn);
     }
-  }
-
-  protected WorkUnitStream executeHandlers(WorkUnitStream workUnitStream, DestinationDatasetHandlerService datasetHandlerService) {
-    return datasetHandlerService.executeHandlers(workUnitStream);
   }
 
   protected WorkUnitStream processWorkUnitStream(WorkUnitStream workUnitStream, JobState jobState) {

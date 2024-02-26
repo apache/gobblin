@@ -301,7 +301,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits).build();
     // For streaming use case, this might be a necessary step to find dataset specific namespace so that each workUnit
     // can create staging and temp directories with the correct determination of shard-path
-    workUnitStream = this.executeHandlers(workUnitStream, this.destDatasetHandlerService);
+    workUnitStream = this.destDatasetHandlerService.executeHandlers(workUnitStream);
     workUnitStream = this.processWorkUnitStream(workUnitStream, jobState);
     workUnits = materializeWorkUnitList(workUnitStream);
     try {

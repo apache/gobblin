@@ -93,7 +93,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventbus)
       throws Exception {
     super(jobProps, HelixUtils.initBaseEventTags(jobProps, metadataTags));
-    log.debug("GobblinJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
+    log.debug("GobblinJobLauncher: appWorkDir {}; jobProps {}", appWorkDir, jobProps);
     this.runningMap = runningMap;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);

@@ -246,10 +246,12 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
     String workerClassName = ConfigUtils.getString(clusterConfig,
         GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
+    logger.info("Creating worker - class: '{}'", workerClassName);
+    Config workerConfig = clusterConfig;
     TemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(
-        (Class<TemporalWorker>)Class.forName(workerClassName), clusterConfig, client);
+        (Class<TemporalWorker>)Class.forName(workerClassName), workerConfig, client);
     worker.start();
-    logger.info("A new worker is started.");
+    logger.info("Finished starting worker - class: '{}'", workerClassName);
     return worker;
   }
 
