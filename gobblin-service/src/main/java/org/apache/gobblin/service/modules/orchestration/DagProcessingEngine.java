@@ -31,8 +31,8 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.util.ConfigUtils;
@@ -50,7 +50,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Singleton
 public class DagProcessingEngine {
-  public static final String NUM_THREADS_KEY = ConfigurationKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
+  public static final String NUM_THREADS_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   private static final Integer DEFAULT_NUM_THREADS = 3;
 
   @Getter private final DagManagement dagManager;
