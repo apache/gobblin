@@ -19,8 +19,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.google.inject.Singleton;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
@@ -30,15 +28,17 @@ import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 /**
  * {@link DagTaskVisitor} for transforming a specific {@link DagTask} derived class to its companion {@link DagProc} derived class.
+ * Each {@link DagTask} needs it own {@link DagProcFactory#meet} method overload to create {@link DagProc} that is
+ * supposed to process that {@link DagTask}.
  */
 
 @Alpha
-@Slf4j
 @Singleton
 public class DagProcFactory implements DagTaskVisitor {
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
     return new LaunchDagProc(launchDagTask);
   }
+  //todo - overload meet method for other dag tasks
 }
 

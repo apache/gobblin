@@ -22,8 +22,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Charsets;
 
-import org.apache.gobblin.service.ServiceConfigKeys;
-
 
 /**
  * A central place for all Gobblin configuration property keys.
@@ -125,9 +123,6 @@ public class ConfigurationKeys {
   public static final int DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS = 90000;
   public static final String SCHEDULER_MAX_BACKOFF_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".maxBackoffMillis";
   public static final int DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS = 10000;
-
-  public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.";
-  public static final String DAG_PROCESSING_ENGINE_ENABLED = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "enabled";
 
   // Job executor thread pool size
   public static final String JOB_EXECUTOR_THREAD_POOL_SIZE_KEY = "jobexecutor.threadpool.size";

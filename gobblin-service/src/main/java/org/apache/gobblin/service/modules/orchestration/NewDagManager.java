@@ -40,7 +40,6 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -49,6 +48,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -90,7 +90,7 @@ public class NewDagManager implements DagManagement {
   public NewDagManager(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
     this.config = config;
     this.dagActionStore = dagActionStore;
-    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
+    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.dagManagementStateStore = dagManagementStateStore;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
