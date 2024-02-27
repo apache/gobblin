@@ -72,7 +72,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
    }
 
   @Override
-  public void start() throws IOException {
+  public synchronized void start() throws IOException {
     if (!dagStoresInitialized) {
       this.dagStateStore = createDagStateStore(config, topologySpecMap);
       this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
