@@ -25,14 +25,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.linkedin.r2.util.NamedThreadFactory;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -66,7 +62,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Singleton
 @Data
-public class NewDagManager implements DagManagement {
+public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream {
   public static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
   private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
 
@@ -76,7 +72,6 @@ public class NewDagManager implements DagManagement {
   private Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
   @Getter private final EventSubmitter eventSubmitter;
   @Getter private static final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
-  private ScheduledExecutorService houseKeepingThreadPool;
   private volatile boolean isActive = false;
 
   @Inject(optional=true)
@@ -87,7 +82,7 @@ public class NewDagManager implements DagManagement {
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
   @Inject
-  public NewDagManager(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
+  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
     this.config = config;
     this.dagActionStore = dagActionStore;
     this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
@@ -108,20 +103,9 @@ public class NewDagManager implements DagManagement {
         this.dagManagementStateStore.start();
         dagManagerMetrics.activate();
         loadDagFromDagStateStore();
-        this.houseKeepingThreadPool = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("LoadDagsThread"));
-        for (int delay = INITIAL_HOUSEKEEPING_THREAD_DELAY; delay < MAX_HOUSEKEEPING_THREAD_DELAY; delay *= 2) {
-          this.houseKeepingThreadPool.schedule(() -> {
-            try {
-              loadDagFromDagStateStore();
-            } catch (Exception e) {
-              log.error("failed to sync dag state store due to ", e);
-            }
-          }, delay, TimeUnit.MINUTES);
-        }
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         dagManagerMetrics.cleanup();
-        this.houseKeepingThreadPool.shutdown();
       }
     } catch (IOException e) {
         log.error("Exception encountered when activating the new DagManager", e);

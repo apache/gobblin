@@ -21,8 +21,6 @@ import java.io.IOException;
 
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
-import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
@@ -32,7 +30,4 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public interface DagManagement {
 
   void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException;
-  boolean hasNext();
-
-  DagTask<DagProc> next();
 }

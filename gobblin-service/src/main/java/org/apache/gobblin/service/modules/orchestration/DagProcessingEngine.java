@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.linkedin.r2.util.NamedThreadFactory;
@@ -31,7 +30,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -39,34 +37,34 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Responsible for polling {@link DagTask}s from {@link DagManagement} and processing the
+ * Responsible for polling {@link DagTask}s from {@link DagTaskStream} and processing the
  * {@link org.apache.gobblin.service.modules.flowgraph.Dag} based on the type of {@link DagTask}.
- * Each {@link DagTask} acquires a lease for the {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}.
- * The {@link DagProcFactory} then provides the appropriate {@link DagProc} associated with the {@link DagTask}.
- * The actual work or processing is done by the {@link DagProc#process(DagManagementStateStore)}
+ * Each {@link DagTask} returned from the {@link DagTaskStream} comes with a time-limited lease conferring the exclusive
+ * right to perform the work of the task.
+ * The {@link DagProcFactory} transforms each {@link DagTask} into a specific, concrete {@link DagProc}, which
+ * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore)}
  */
 
 @Alpha
 @Slf4j
 @Singleton
 public class DagProcessingEngine {
-  public static final String NUM_THREADS_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
-  private static final Integer DEFAULT_NUM_THREADS = 3;
 
-  @Getter private final DagManagement dagManager;
+  @Getter private final DagTaskStream dagTaskStream;
   @Getter DagManagementStateStore dagManagementStateStore;
 
   @Inject
-  public DagProcessingEngine(Config config, DagManagement dagManager, DagProcFactory dagProcFactory,
-      DagManagementStateStore dagManagementStateStore, Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter) {
-    Integer numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
+  public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
+      DagManagementStateStore dagManagementStateStore) {
+    Integer numThreads = ConfigUtils.getInt
+        (config, ServiceConfigKeys.NUM_DAG_PROC_THREADS_KEY, ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS);
     ScheduledExecutorService scheduledExecutorPool =
         Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("DagProcessingEngineThread"));
-    this.dagManager = dagManager;
+    this.dagTaskStream = dagTaskStream;
     this.dagManagementStateStore = dagManagementStateStore;
 
     for (int i=0; i < numThreads; i++) {
-      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagManager, dagProcFactory, dagManagementStateStore);
+      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream, dagProcFactory, dagManagementStateStore);
       scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }
@@ -74,21 +72,23 @@ public class DagProcessingEngine {
   @AllArgsConstructor
   private static class DagProcEngineThread implements Runnable {
 
-    private DagManagement dagManager;
+    private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;
 
     @Override
     public void run() {
       while (true) {
-        DagTask<DagProc> dagTask = dagManager.next(); // blocking call
+        DagTask<DagProc> dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {
+          log.warn("Received a null dag task, ignoring.");
           continue;
         }
         DagProc dagProc = dagTask.host(dagProcFactory);
         try {
           // todo - add retries
           dagProc.process(dagManagementStateStore);
+          dagTask.conclude();
         } catch (Throwable t) {
           log.error("DagProcEngineThread encountered error ", t);
         }

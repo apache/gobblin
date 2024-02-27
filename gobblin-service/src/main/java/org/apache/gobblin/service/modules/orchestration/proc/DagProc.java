@@ -33,15 +33,13 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Responsible to performing the actual work for a given {@link DagTask}.
- * It processes the {@link DagTask} by first initializing its state, performing actions
- * based on the type of {@link DagTask} and finally submitting an event to the executor.
+ * Responsible for performing the actual work for a given {@link DagTask} by first initializing its state, performing
+ * actions based on the type of {@link DagTask} and finally submitting an event to the executor.
  */
 @Alpha
 @Slf4j
 public abstract class DagProc<S, T> {
   protected final EventSubmitter eventSubmitter;
-
   protected final MetricContext metricContext;
 
   public DagProc() {
@@ -49,7 +47,7 @@ public abstract class DagProc<S, T> {
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
   }
 
-  public void process(DagManagementStateStore dagManagementStateStore) throws IOException {
+  public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
     S state = initialize(dagManagementStateStore);   // todo - retry
     T result = act(dagManagementStateStore, state);   // todo - retry
     commit(dagManagementStateStore, result);   // todo - retry
@@ -59,7 +57,6 @@ public abstract class DagProc<S, T> {
 
   protected abstract T act(DagManagementStateStore dagManagementStateStore, S state) throws IOException;
 
-  protected void commit(DagManagementStateStore dagManagementStateStore, T result) {
-    // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
-  }
+  // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
+  protected abstract void commit(DagManagementStateStore dagManagementStateStore, T result);
 }
