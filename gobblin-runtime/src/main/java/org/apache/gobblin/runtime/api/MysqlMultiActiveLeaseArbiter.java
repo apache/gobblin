@@ -108,10 +108,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    */
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
-      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + " flow_action varchar(100) NOT NULL, "
+      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "job_name varchar("  // TODO: figure out if job name works for job identifier value, update in rest of arbiter
+      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_action varchar(100) NOT NULL, "
       + "event_timestamp TIMESTAMP(3) NOT NULL, "
       + "lease_acquisition_timestamp TIMESTAMP(3) NULL, "
-      + "PRIMARY KEY (flow_group,flow_name,flow_action))";
+      + "PRIMARY KEY (flow_group,flow_name,job_name,flow_action))";
   // Deletes rows older than retention time period regardless of lease status as they should all be invalid or completed
   // since retention >> linger
   private static final String LEASE_ARBITER_TABLE_RETENTION_STATEMENT = "DELETE FROM %s WHERE event_timestamp < "
