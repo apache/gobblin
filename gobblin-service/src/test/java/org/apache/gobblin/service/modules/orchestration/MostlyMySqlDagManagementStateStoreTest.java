@@ -130,8 +130,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     @Override
     protected StateStore<State> createStateStore(Config config) {
       try {
-
-        String jdbcUrl = MostlyMySqlDagManagementStateStoreTest.testMetastoreDatabase.getJdbcUrl();
+        String jdbcUrl = config.getString(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
         HikariDataSource dataSource = new HikariDataSource();
 
         dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);

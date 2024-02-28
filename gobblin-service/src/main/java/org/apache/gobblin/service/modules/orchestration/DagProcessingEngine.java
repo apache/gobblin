@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.linkedin.r2.util.NamedThreadFactory;
@@ -70,8 +71,8 @@ public class DagProcessingEngine {
   }
 
   @AllArgsConstructor
-  private static class DagProcEngineThread implements Runnable {
-
+  @VisibleForTesting
+  static class DagProcEngineThread implements Runnable {
     private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;
