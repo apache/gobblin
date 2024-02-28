@@ -20,10 +20,8 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -40,7 +38,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -49,15 +46,14 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * NewDagManager has these functionalities :
  * a) manages {@link Dag}s through {@link DagManagementStateStore}.
- * b) load {@link Dag}s on service-start / set-active.
- * c) accept adhoc new dag launch requests from Orchestrator.
+ * b) accept adhoc new dag launch requests from Orchestrator.
+ * c) provides dag actions to {@link DagProcessingEngine#DagProcEngineThread}
  */
 @Slf4j
 @Singleton
@@ -102,7 +98,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         //Initializing state store for persisting Dags.
         this.dagManagementStateStore.start();
         dagManagerMetrics.activate();
-        loadDagFromDagStateStore();
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
         dagManagerMetrics.cleanup();
@@ -113,69 +108,31 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     }
   }
 
-  private void loadDagFromDagStateStore() throws IOException {
-    List<Dag<JobExecutionPlan>> dags = this.dagManagementStateStore.getDags();
-    log.info("Loading " + dags.size() + " dags from dag state store");
-    for (Dag<JobExecutionPlan> dag : dags) {
-      addDag(dag, false, false);
-    }
-  }
-
   @Override
-  public synchronized void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus)
-      throws IOException {
-    addDag(dag, persist, setStatus);
-    // Only the active newDagManager should delete the flowSpec
-    if (isActive) {
-      deleteSpecFromCatalogIfAdhoc(flowSpec);
-    }
-  }
-
-  private void addDag(Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException {
+  public synchronized void addDagAction(DagActionStore.DagAction dagAction) throws IOException {
     // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add dag (persist: {}, setStatus: {}): {}", persist, setStatus, dag);
+    log.info("Add dagAction{}", dagAction);
     if (!isActive) {
-      log.warn("Skipping add dag because this instance of DagManager is not active for dag: {}", dag);
+      log.warn("Skipping add dagAction because this instance of DagManagementTaskStreamImpl is not active for dag: {}",
+          dagAction);
       return;
     }
 
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
     String dagIdString = dagId.toString();
-    if (persist) {
-      // Persist the dag
-      this.dagManagementStateStore.checkpointDag(dag);
-      // After persisting the dag, its status will be tracked by active dagManagers so the action should be deleted
-      // to avoid duplicate executions upon leadership change
-      if (this.dagActionStore.isPresent()) {
-        this.dagActionStore.get().deleteDagAction(dagId.toDagAction(DagActionStore.FlowActionType.LAUNCH));
-      }
-    }
-
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(
-        dagId.getFlowGroup(), dagId.getFlowName(), dagId.getFlowExecutionId(), DagActionStore.FlowActionType.LAUNCH);
-
     if (this.dagManagementStateStore.containsDag(dagId)) {
       log.warn("Already tracking a dag with dagId {}, skipping.", dagIdString);
       return;
     }
 
-    this.dagManagementStateStore.checkpointDag(dag);
+    // After persisting the dag, its status will be tracked by active dagManagers so the action should be deleted
+    // to avoid duplicate executions upon leadership change
+    if (this.dagActionStore.isPresent()) {
+      this.dagActionStore.get().deleteDagAction(dagAction);
+    }
+
     if (!this.dagActionQueue.offer(dagAction)) {
       throw new RuntimeException("Could not add dag action " + dagAction + " to the queue");
-    }
-
-    if (setStatus) {
-      DagManagerUtils.submitPendingExecStatus(dag, this.eventSubmitter);
-    }
-  }
-
-  public void addDagAction(DagActionStore.DagAction dagAction) {
-    this.dagActionQueue.add(dagAction);
-  }
-
-  private void deleteSpecFromCatalogIfAdhoc(FlowSpec flowSpec) {
-    if (!flowSpec.isScheduled()) {
-      this.flowCatalog.remove(flowSpec.getUri(), new Properties(), false);
     }
   }
 

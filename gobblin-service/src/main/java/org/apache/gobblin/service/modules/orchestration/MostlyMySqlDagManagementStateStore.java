@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -60,7 +59,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private DagStateStore failedDagStateStore;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
-  @Setter Map<URI, TopologySpec> topologySpecMap;
+  Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
@@ -72,6 +71,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
    }
 
   @Override
+  // It should be called after topology spec map is set
   public synchronized void start() throws IOException {
     if (!dagStoresInitialized) {
       this.dagStateStore = createDagStateStore(config, topologySpecMap);
@@ -82,7 +82,11 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     }
   }
 
-  DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
+    this.topologySpecMap = topologySpecMap;
+  }
+
+  private DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     try {
       Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStore.class.getName()));
       return (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);

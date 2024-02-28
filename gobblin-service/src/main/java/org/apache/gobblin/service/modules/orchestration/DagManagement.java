@@ -19,15 +19,14 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.runtime.api.DagActionStore;
 
 
 /**
  * An interface to provide abstractions for managing operations on Dag.
+ * It accepts FlowSpec not a DagAction, so if a flow config is updated between retries
  */
 public interface DagManagement {
 
-  void addDag(FlowSpec flowSpec, Dag<JobExecutionPlan> dag, boolean persist, boolean setStatus) throws IOException;
+  void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
 }
