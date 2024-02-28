@@ -18,13 +18,17 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.exception.QuotaExceededException;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -43,6 +47,18 @@ public interface DagManagementStateStore {
   default void start() throws IOException {
     initQuota(getDags());
   }
+
+  /**
+   * Returns a {@link FlowSpec} for the given URI.
+   * @throws SpecNotFoundException if the spec is not found
+   */
+  FlowSpec getSpecs(URI uri) throws SpecNotFoundException;
+
+  /**
+   * Removes a {@link FlowSpec} with the given URI and pass the deletion to listeners if `triggerListener` is true
+   * No-op if the flow spec was not present in the store.
+   */
+  void remove(URI uri, Properties headers, boolean triggerListener);
 
   /**
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.
