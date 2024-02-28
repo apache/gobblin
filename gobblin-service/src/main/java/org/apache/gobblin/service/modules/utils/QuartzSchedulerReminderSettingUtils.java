@@ -7,6 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.Random;
 
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
@@ -18,10 +19,13 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
 // TODO pass in other params to get this to compile
 public class QuartzSchedulerReminderSettingUtils {
+  private static Random random = new Random();
+
   /**
    * Create suffix to add to end of flow name to differentiate reminder triggers from the original job schedule trigger
    * and ensure they are added to the scheduler.
@@ -33,6 +37,7 @@ public class QuartzSchedulerReminderSettingUtils {
     return "reminder_for_" + leasedToAnotherStatus.getEventTimeMillis();
   }
 
+  // TODO: only used by MA scheduler which contains original job triggers as well
   /**
    * Helper function used to extract JobDetail for job identified by the originalKey and update it be associated with
    * the event to revisit. It will update the jobKey to the reminderKey provides and the Properties map to
@@ -43,10 +48,10 @@ public class QuartzSchedulerReminderSettingUtils {
    * @return
    * @throws SchedulerException
    */
-  protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status)
+  protected JobDetailImpl createJobDetailForReminderEvent(SchedulerService schedulerService, JobKey originalKey,
+      JobKey reminderKey, MultiActiveLeaseArbiter.LeasedToAnotherStatus status, int schedulerMaxBackoffMillis)
       throws SchedulerException {
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
+    JobDetailImpl jobDetail = (JobDetailImpl) schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
     JobDataMap jobDataMap = jobDetail.getJobDataMap();
     jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);

@@ -44,14 +44,15 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowGroup = "testFlowGroup";
   private static final String flowGroup2 = "testFlowGroup2";
   private static final String flowName = "testFlowName";
+  private static final String jobName = "testJobName";
   private static final String flowExecutionId = "12345677";
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH);
   private static DagActionStore.DagAction resumeDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.RESUME);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.RESUME);
   private static DagActionStore.DagAction launchDagAction2 =
-      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH);
   private static final long eventTimeMillis = System.currentTimeMillis();
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -96,11 +97,11 @@ public class MysqlMultiActiveLeaseArbiterTest {
         firstObtainedStatus.getLeaseAcquisitionTimestamp());
     Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
         new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(firstObtainedStatus.getEventTimeMillis()),
-            DagActionStore.FlowActionType.LAUNCH)));
+            jobName, DagActionStore.FlowActionType.LAUNCH)));
 
     // Verify that different DagAction types for the same flow can have leases at the same time
     DagActionStore.DagAction killDagAction = new
-        DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
+        DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.KILL);
     MultiActiveLeaseArbiter.LeaseAttemptStatus killStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(killDagAction, eventTimeMillis, false, true);
     Assert.assertTrue(killStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus);
@@ -224,7 +225,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
         selectInfoResult.getEventTimeMillis());
     boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
-        updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
+        updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), null));
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
     mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction,
@@ -306,7 +307,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
      DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
          selectInfoResult.getEventTimeMillis());
      boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseObtainedStatus(
-         updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get()));
+         updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), null));
      Assert.assertTrue(markedSuccess);
 
      // Sleep enough time for the event to have been considered distinct
@@ -332,7 +333,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (MultiActiveLeaseArbiter.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
     Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH)));
+        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH)));
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
     // the original flowExecutionId
@@ -343,6 +344,6 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (MultiActiveLeaseArbiter.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
     Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH)));
+        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH)));
   }
 }

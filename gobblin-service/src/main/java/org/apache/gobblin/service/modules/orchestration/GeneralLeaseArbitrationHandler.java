@@ -22,7 +22,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public abstract class GeneralLeaseArbitrationHandler {
   protected Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
-    protected SchedulerService schedulerService;
     protected Optional<DagActionStore> dagActionStore;
     protected MetricContext metricContext;
 
@@ -81,8 +80,7 @@ public abstract class GeneralLeaseArbitrationHandler {
           return leaseAttemptStatus;
         } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
           this.leasedToAnotherStatusCount.inc();
-//       TODO:   scheduleReminderForEvent(jobProps,
-//              (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
+          scheduleReminderForEvent((MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
           return leaseAttemptStatus;
         } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
           this.noLongerLeasingStatusCount.inc();
@@ -102,8 +100,12 @@ public abstract class GeneralLeaseArbitrationHandler {
      * To be called by a lease owner of a dagAction to mark the action as done.
      * @param leaseStatus
      */
-    public void recordSuccessfulCompletion(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus) {
-      // call MA.recordLeaseSuccess();
+    public boolean recordSuccessfulCompletion(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus) {
+      try {
+        return multiActiveLeaseArbiter.get().recordLeaseSuccess(leaseStatus);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     /**

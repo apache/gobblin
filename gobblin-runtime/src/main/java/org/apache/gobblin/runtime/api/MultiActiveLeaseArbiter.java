@@ -82,15 +82,24 @@ public interface MultiActiveLeaseArbiter {
 
   class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
+
+  /** `j.u.Function` variant for an operation that may @throw IOException */
+  @FunctionalInterface
+  interface FunctionMayThrowIO<T, R> {
+    R apply(T t) throws IOException;
+  }
+
   /*
   The participant calling this method acquired the lease for the event in question. `Flow action`'s flow execution id
   is the timestamp associated with the lease and the time the caller obtained the lease is stored within the
-  `leaseAcquisitionTimestamp` field.
+  `leaseAcquisitionTimestamp` field. `completeLeaseRunnable` is a reference to a method that will recordLeaseSuccess
+  for the current LeaseObtainedStatus from a caller without access to the {@link MultiActiveLeaseArbiter}
   */
   @Data
   class LeaseObtainedStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction flowAction;
     private final long leaseAcquisitionTimestamp;
+    protected final FunctionMayThrowIO<LeaseObtainedStatus, Boolean> completeLeaseRunnable;
 
     /**
      * @return event time in millis since epoch for the event of this lease acquisition
