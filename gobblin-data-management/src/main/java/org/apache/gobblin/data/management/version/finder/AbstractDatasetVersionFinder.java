@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.version.finder;
 
 import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -25,10 +26,14 @@ import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.Stack;
 import java.util.regex.Pattern;
+
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.PathUtils;
+
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -69,7 +74,8 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @throws IOException
    */
   @Override
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<T> findDatasetVersions(Dataset dataset)
+      throws IOException {
     FileSystemDataset fsDataset = (FileSystemDataset) dataset;
     Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
     FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
@@ -96,7 +102,8 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @throws IOException
    */
   @Override
-  public RemoteIterator<T> findDatasetVersion(Dataset dataset) throws IOException {
+  public RemoteIterator<T> findDatasetVersion(Dataset dataset)
+      throws IOException {
     FileSystemDataset fsDataset = (FileSystemDataset) dataset;
     Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
     return getDatasetVersionIterator(fsDataset.datasetRoot(), getRegexPattern(versionGlobStatus.toString()));
@@ -111,37 +118,39 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @return - an iterator of matched data versions
    * @throws IOException
    */
-  public RemoteIterator<T> getDatasetVersionIterator(Path root, String pathPattern) throws IOException {
+  public RemoteIterator<T> getDatasetVersionIterator(Path root, String pathPattern)
+      throws IOException {
     Stack<RemoteIterator<FileStatus>> iteratorStack = new Stack<>();
     RemoteIterator<FileStatus> fsIterator = fs.listStatusIterator(root);
     iteratorStack.push(fsIterator);
     return new RemoteIterator<T>() {
-      FileStatus nextFileStatus = null;
-      boolean isNextFileStatusProcessed = false;
+      Pair<FileStatus, Boolean> nextFileStatus = new MutablePair<>();
 
       @Override
-      public boolean hasNext() throws IOException {
+      public boolean hasNext()
+          throws IOException {
         if (iteratorStack.isEmpty()) {
           return false;
         }
         // No need to process if the next() has not been called
-        if (nextFileStatus != null && !isNextFileStatusProcessed) {
+        if (nextFileStatus.getKey() != null && !nextFileStatus.getValue()) {
           return true;
         }
-        nextFileStatus = fetchNextFileStatus(iteratorStack, pathPattern);
-        isNextFileStatusProcessed = false;
-        return nextFileStatus != null;
+        nextFileStatus = new MutablePair<>(fetchNextFileStatus(iteratorStack, pathPattern), false);
+        return nextFileStatus.getKey() != null;
       }
 
       @Override
-      public T next() throws IOException {
-        if (nextFileStatus == null || isNextFileStatusProcessed) {
+      public T next()
+          throws IOException {
+        if (nextFileStatus.getKey() == null || nextFileStatus.getValue()) {
           if (!hasNext()) {
             throw new NoSuchElementException();
           }
         }
-        T datasetVersion = getDatasetVersion(PathUtils.relativizePath(nextFileStatus.getPath(), root), nextFileStatus);
-        isNextFileStatusProcessed = true;
+        T datasetVersion = getDatasetVersion(PathUtils.relativizePath(nextFileStatus.getKey().getPath(), root),
+            nextFileStatus.getKey());
+        nextFileStatus.setValue(true);
         return datasetVersion;
       }
     };
@@ -156,21 +165,21 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @return
    * @throws IOException
    */
-  private FileStatus fetchNextFileStatus(Stack<RemoteIterator<FileStatus>> iteratorStack,
-      String globPattern) throws IOException {
+  private FileStatus fetchNextFileStatus(Stack<RemoteIterator<FileStatus>> iteratorStack, String globPattern)
+      throws IOException {
     while (!iteratorStack.isEmpty()) {
       RemoteIterator<FileStatus> latestfsIterator = iteratorStack.pop();
       while (latestfsIterator.hasNext()) {
         FileStatus fileStatus = latestfsIterator.next();
         if (fileStatus.isDirectory()) {
           iteratorStack.push(fs.listStatusIterator(fileStatus.getPath()));
-          if (Pattern.matches(globPattern, fileStatus.getPath().toUri().getPath())) {
-            if (latestfsIterator.hasNext()) {
-              // Pushing back the current file status iterator before returning as there are more files to be processed
-              iteratorStack.push(latestfsIterator);
-            }
-            return fileStatus;
+        }
+        if (Pattern.matches(globPattern, fileStatus.getPath().toUri().getPath())) {
+          if (latestfsIterator.hasNext()) {
+            // Pushing back the current file status iterator before returning as there are more files to be processed
+            iteratorStack.push(latestfsIterator);
           }
+          return fileStatus;
         }
       }
     }
@@ -212,5 +221,4 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @return {@link org.apache.gobblin.data.management.version.DatasetVersion} for that {@link FileStatus}.
    */
   public abstract T getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus);
-
 }

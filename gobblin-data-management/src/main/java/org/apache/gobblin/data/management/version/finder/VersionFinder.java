@@ -22,6 +22,7 @@ import java.util.Collection;
 
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.data.management.version.DatasetVersion;
+
 import org.apache.hadoop.fs.RemoteIterator;
 
 
@@ -44,7 +45,8 @@ public interface VersionFinder<T extends DatasetVersion> {
    * @return Collection of {@link DatasetVersion} for each dataset version found.
    * @throws IOException
    */
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException;
+  public Collection<T> findDatasetVersions(Dataset dataset)
+      throws IOException;
 
   /**
    * Find dataset versions for {@link Dataset}. Each dataset versions represents a single manageable unit in the dataset.
@@ -53,7 +55,8 @@ public interface VersionFinder<T extends DatasetVersion> {
    * @return - an iterator
    * @throws IOException
    */
-  public default RemoteIterator<T> findDatasetVersion(Dataset dataset) throws IOException {
+  public default RemoteIterator<T> findDatasetVersion(Dataset dataset)
+      throws IOException {
     return (RemoteIterator<T>) findDatasetVersions(dataset).stream().iterator();
   }
 }

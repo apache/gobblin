@@ -46,7 +46,8 @@ import org.apache.gobblin.data.management.trash.Trash;
 public class CleanableDatasetBaseTest {
 
   @Test
-  public void test() throws IOException {
+  public void test()
+      throws IOException {
     FileSystem fs = mock(FileSystem.class);
 
     Path datasetRoot = new Path("/test/dataset");
@@ -66,11 +67,11 @@ public class CleanableDatasetBaseTest {
     Assert.assertEquals(dataset.getTrash().getDeleteOperations().size(), 1);
     Assert.assertTrue(dataset.getTrash().getDeleteOperations().get(0).getPath()
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
-
   }
 
   @Test
-  public void testSkipTrash() throws IOException {
+  public void testSkipTrash()
+      throws IOException {
 
     FileSystem fs = mock(FileSystem.class);
     Trash trash = mock(Trash.class);
@@ -94,11 +95,11 @@ public class CleanableDatasetBaseTest {
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
 
     Assert.assertTrue(dataset.getTrash().isSkipTrash());
-
   }
 
   @Test
-  public void testSimulate() throws IOException {
+  public void testSimulate()
+      throws IOException {
 
     FileSystem fs = mock(FileSystem.class);
     Trash trash = mock(Trash.class);
@@ -121,14 +122,13 @@ public class CleanableDatasetBaseTest {
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
 
     Assert.assertTrue(dataset.getTrash().isSimulate());
-
   }
 
   @Test
-  public void testDeleteEmptyDirectories() throws IOException {
+  public void testDeleteEmptyDirectories()
+      throws IOException {
     FileSystem fs = mock(FileSystem.class);
     Trash trash = mock(Trash.class);
-
 
     Path datasetRoot = new Path("/test/dataset");
 
@@ -151,11 +151,10 @@ public class CleanableDatasetBaseTest {
     verify(fs).delete(dataset1Version2.getPathsToDelete().iterator().next().getParent(), false);
     verify(fs, times(1)).delete(any(Path.class), eq(false));
     verify(fs, never()).delete(any(Path.class), eq(true));
-
   }
 
-  private void mockDatasetVersion(DatasetImpl dataset, DatasetVersion dataset1Version1,
-      DatasetVersion dataset1Version2) throws IOException {
+  private void mockDatasetVersion(DatasetImpl dataset, DatasetVersion dataset1Version1, DatasetVersion dataset1Version2)
+      throws IOException {
     RemoteIterator<DatasetVersion> versionRemoteIterator = mock(RemoteIterator.class);
     when(dataset.versionFinder.findDatasetVersion(dataset)).thenReturn(versionRemoteIterator);
     when(versionRemoteIterator.hasNext()).thenReturn(true, true, false);
@@ -180,8 +179,9 @@ public class CleanableDatasetBaseTest {
     public RetentionPolicy retentionPolicy = new DeleteFirstRetentionPolicy();
     public Path path;
 
-    public DatasetImpl(FileSystem fs, boolean simulate, boolean skipTrash,
-        boolean deleteEmptyDirectories, boolean deleteAsOwner, Path path) throws IOException {
+    public DatasetImpl(FileSystem fs, boolean simulate, boolean skipTrash, boolean deleteEmptyDirectories,
+        boolean deleteAsOwner, Path path)
+        throws IOException {
       super(fs, TestTrash.propertiesForTestTrash(), simulate, skipTrash, deleteEmptyDirectories, deleteAsOwner,
           LoggerFactory.getLogger(DatasetImpl.class));
       when(versionFinder.versionClass()).thenReturn(StringDatasetVersion.class);
@@ -207,5 +207,4 @@ public class CleanableDatasetBaseTest {
       return (TestTrash) this.trash;
     }
   }
-
 }
