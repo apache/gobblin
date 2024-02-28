@@ -78,15 +78,19 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   protected Optional<DagActionStore> dagActionStore;
   @Inject
   @Getter DagManagementStateStore dagManagementStateStore;
+  @Getter DagProcArbitrationHandler dagProcArbitrationHandler;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
+  // TODO: when dagTaskStream class is made separate create another queue for reminderDagActions and process them 2X more often as new dagActions, for now put onto same queue
 
   @Inject
-  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
+  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore,
+      DagProcArbitrationHandler dagProcArbitrationHandler) {
     this.config = config;
     this.dagActionStore = dagActionStore;
     this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.dagManagementStateStore = dagManagementStateStore;
+    this.dagProcArbitrationHandler = dagProcArbitrationHandler;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
   }
@@ -186,25 +190,31 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask<DagProc> next() {
-    try {
-      DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-      // todo reconsider the use of MultiActiveLeaseArbiter
-      //MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction);
-      // todo - uncomment after flow trigger handler provides such an api
-      //Properties jobProps = getJobProperties(dagAction);
-      //flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis());
-      //if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-      // can it return null? is this iterator allowed to return null?
-      return createDagTask(dagAction, new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction, System.currentTimeMillis()));
-      //}
-    } catch (Throwable t) {
-      //TODO: need to handle exceptions gracefully
-      log.error("Error getting DagAction from the queue / creating DagTask", t);
+    while (true) {
+      try {
+        DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
+        // TODO: determine right value for lease arbitration event time, dealing with reminderEvent & flow id replacement
+        MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
+            this.dagProcArbitrationHandler.tryAcquireLease(dagAction, System.currentTimeMillis(), false, true);
+        //Properties jobProps = getJobProperties(dagAction);
+        if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
+          // TODO: see if can re-add to queue automatically in DagProcArbitrationHandler, update event time when deciding what the value is
+          log.info("Multi-active execution - Setting reminder to revisit dagAction: {}", dagAction);
+          this.dagProcArbitrationHandler.scheduleReminderForEvent((MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, ((MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus).getEventTimeMillis());
+        } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+          log.info("Multi-active execution - Obtained lease for dagAction: {}", dagAction);
+          return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
+        } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
+          log.info("Multi-active execution - Skipping already completed dagAction: {}", dagAction);
+        }
+      } catch (Throwable t) {
+        //TODO: need to handle exceptions gracefully
+        log.error("Error getting DagAction from the queue / creating DagTask", t);
+      }
     }
-    return null;
   }
 
-  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
 
     switch (flowActionType) {

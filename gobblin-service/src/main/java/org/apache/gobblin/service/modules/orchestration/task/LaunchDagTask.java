@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
+import java.io.IOException;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.DagActionStore;
@@ -31,7 +33,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 
 @Slf4j
 public class LaunchDagTask extends DagTask<LaunchDagProc> {
-  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
 
@@ -43,7 +45,10 @@ public class LaunchDagTask extends DagTask<LaunchDagProc> {
 
   @Override
   public boolean conclude() {
-    // todo - release lease
-    return true;
+    try {
+      return this.getLeaseObtainedStatus().getCompleteLeaseRunnable().apply((this.getLeaseObtainedStatus()));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

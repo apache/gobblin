@@ -68,7 +68,7 @@ public class FlowTriggerHandler extends GeneralLeaseArbitrationHandler {
   private final int schedulerMaxBackoffMillis;
   private static Random random = new Random();
 //  protected Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
-//  protected SchedulerService schedulerService;
+  protected SchedulerService schedulerService;
 //  protected Optional<DagActionStore> dagActionStore;
 //  private MetricContext metricContext;
   private ContextAwareMeter numFlowsSubmitted;
