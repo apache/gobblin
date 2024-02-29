@@ -73,8 +73,7 @@ public class JobStateUtils {
 
   /** @return the {@link FileSystem} indicated by {@link ConfigurationKeys#FS_URI_KEY} */
   public static FileSystem openFileSystem(JobState jobState) throws IOException {
-    URI fsUri = URI.create(jobState.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-    return Help.loadFileSystemForUriForce(fsUri, jobState);
+    return Help.loadFileSystemForUriForce(getFileSystemUri(jobState), jobState);
   }
 
   /** @return a new instance of {@link Source} identified by {@link ConfigurationKeys#SOURCE_CLASS_KEY} */
@@ -104,10 +103,15 @@ public class JobStateUtils {
     return new FsStateStore<>(fs, taskStateStorePath.toUri().getPath(), TaskState.class);
   }
 
+  /** @return the {@link URI} indicated by {@link ConfigurationKeys#FS_URI_KEY} */
+  public static URI getFileSystemUri(JobState jobState) {
+    return URI.create(jobState.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+  }
+
   /**
    * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
    * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
-   * @return "base" dir root path for work dir (parent of inputs, output task states, etc.)
+   * @return "base" dir root {@link Path} for work dir (parent of inputs, output task states, etc.)
    */
   public static Path getWorkDirRoot(JobState jobState) {
     return new Path(
@@ -118,7 +122,23 @@ public class JobStateUtils {
   /**
    * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
    * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
-   * @return path to {@link FsStateStore<TaskState>} backing dir
+   * @return {@link Path} where "input" {@link WorkUnit}s should reside
+   */
+  public static Path getWorkUnitsPath(JobState jobState) {
+    return getWorkUnitsPath(getWorkDirRoot(jobState));
+  }
+
+  /**
+   * @return {@link Path} where "input" {@link WorkUnit}s should reside
+   */
+  public static Path getWorkUnitsPath(Path workDirRoot) {
+    return new Path(workDirRoot, INPUT_DIR_NAME);
+  }
+
+  /**
+   * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
+   * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
+   * @return {@link Path} to {@link FsStateStore<TaskState>} backing dir
    */
   public static Path getTaskStateStorePath(JobState jobState, FileSystem fs) {
     Path jobOutputPath = new Path(getWorkDirRoot(jobState), OUTPUT_DIR_NAME);
@@ -129,7 +149,7 @@ public class JobStateUtils {
   public static void writeWorkUnits(List<WorkUnit> workUnits, Path workDirRootPath, JobState jobState, FileSystem fs)
       throws IOException {
     String jobId = jobState.getJobId();
-    Path targetDirPath = new Path(workDirRootPath, INPUT_DIR_NAME);
+    Path targetDirPath = getWorkUnitsPath(workDirRootPath);
 
     int numThreads = ParallelRunner.getNumThreadsConfig(jobState.getProperties());
     Closer closer = Closer.create(); // (NOTE: try-with-resources syntax wouldn't allow `catch { closer.rethrow(t) }`)

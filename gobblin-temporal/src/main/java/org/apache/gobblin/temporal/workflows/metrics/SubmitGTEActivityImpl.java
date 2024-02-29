@@ -17,11 +17,15 @@
 
 package org.apache.gobblin.temporal.workflows.metrics;
 
-import org.slf4j.Logger;
+import java.util.Map;
 
 import io.temporal.workflow.Workflow;
 
+import org.slf4j.Logger;
+
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.metrics.event.TimingEvent;
 
 
 public class SubmitGTEActivityImpl implements SubmitGTEActivity {
@@ -29,6 +33,17 @@ public class SubmitGTEActivityImpl implements SubmitGTEActivity {
 
     @Override
     public void submitGTE(GobblinEventBuilder eventBuilder, EventSubmitterContext eventSubmitterContext) {
+        log.info("submitting GTE - {}", summarizeEventMetadataForLogging(eventBuilder));
         eventSubmitterContext.create().submit(eventBuilder);
+    }
+
+    private static String summarizeEventMetadataForLogging(GobblinEventBuilder eventBuilder) {
+        Map<String, String> metadata = eventBuilder.getMetadata();
+        return String.format("name: '%s'; namespace: '%s'; type: %s; start: %s; end: %s",
+            eventBuilder.getName(),
+            eventBuilder.getNamespace(),
+            metadata.getOrDefault(EventSubmitter.EVENT_TYPE, "<<event type not indicated>>"),
+            metadata.getOrDefault(TimingEvent.METADATA_START_TIME, "<<no start time>>"),
+            metadata.getOrDefault(TimingEvent.METADATA_END_TIME, "<<no end time>>"));
     }
 }

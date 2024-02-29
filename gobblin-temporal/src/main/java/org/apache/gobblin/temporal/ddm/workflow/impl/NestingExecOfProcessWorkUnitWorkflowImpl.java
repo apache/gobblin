@@ -41,7 +41,7 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
       .build();
 
   private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(999))
+      .setStartToCloseTimeout(Duration.ofMinutes(20))
       .setRetryOptions(ACTIVITY_RETRY_OPTS)
       .build();
 

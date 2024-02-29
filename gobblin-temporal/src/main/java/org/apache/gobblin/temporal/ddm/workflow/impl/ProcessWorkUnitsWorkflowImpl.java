@@ -16,32 +16,16 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.jetbrains.annotations.NotNull;
 
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
+
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.instrumented.GobblinMetricsKeys;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -65,29 +49,10 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
   @Override
   public int process(WUProcessingSpec workSpec) {
-    try {
-      EventSubmitterContext eventSubmitterContext = getEventSubmitterContext(workSpec);
-      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
-      try (EventTimer timer = timerFactory.createJobTimer()) {
-        return performWork(workSpec);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @NotNull
-  private EventSubmitterContext getEventSubmitterContext(WUProcessingSpec workSpec)
-      throws IOException {
-    // NOTE: We are using the metrics tags from Job Props to create the metric context for the timer and NOT
-    // the deserialized jobState from HDFS that is created by the real distcp job. This is because the AZ runtime
-    // settings we want are for the job launcher that launched this Yarn job.
-    FileSystem fs = Help.loadFileSystemForce(workSpec);
-    JobState jobState = Help.loadJobStateUncached(workSpec, fs);
-    List<Tag<?>> tagsFromCurrentJob = workSpec.getTags();
-    String metricsSuffix = workSpec.getMetricsSuffix();
-    List<Tag<?>> tags = getTags(tagsFromCurrentJob, metricsSuffix, jobState);
-    return new EventSubmitterContext(tags, JobMetrics.NAMESPACE);
+    Optional<EventTimer> timer = this.createOptJobEventTimer(workSpec);
+    int result = performWork(workSpec);
+    timer.ifPresent(EventTimer::stop);
+    return result;
   }
 
   private int performWork(WUProcessingSpec workSpec) {
@@ -101,12 +66,22 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
       int result = commitWorkflow.commit(workSpec);
       if (result == 0) {
-        log.warn("No work units committed at the job level. They could be committed at a task level.");
+        log.warn("No work units committed at the job level. They could have been committed at the task level.");
       }
       return result;
     } else {
       log.error("No work units processed, so no commit attempted.");
       return 0;
+    }
+  }
+
+  private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
+    if (workSpec.isToDoJobLevelTiming()) {
+      EventSubmitterContext eventSubmitterContext = workSpec.getEventSubmitterContext();
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+      return Optional.of(timerFactory.createJobTimer());
+    } else {
+      return Optional.empty();
     }
   }
 
@@ -116,7 +91,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
   protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
-        .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+        .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
     // TODO: to incorporate multiple different concrete `NestingExecWorkflow` sub-workflows in the same super-workflow... shall we use queues?!?!?
@@ -130,35 +105,5 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
         .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
-  }
-
-  private List<Tag<?>> getTags(List<Tag<?>> tagsFromCurJob, String metricsSuffix, JobState jobStateFromHdfs) {
-    // Construct new tags list by combining subset of tags on HDFS job state and the rest of the fields from the current job
-    Map<String, Tag<?>> tagsMap = new HashMap<>();
-    Set<String> tagKeysFromJobState = new HashSet<>(Arrays.asList(
-        TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
-        TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
-        TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-        TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
-        TimingEvent.FlowEventConstants.JOB_GROUP_FIELD));
-
-    // Step 1, Add tags from the AZ props using the original job (the one that launched this yarn app)
-    tagsFromCurJob.forEach(tag -> tagsMap.put(tag.getKey(), tag));
-
-    // Step 2. Add tags from the jobState (the original MR job on HDFS)
-    List<String> targetKeysToAddSuffix = Arrays.asList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    GobblinMetrics.getCustomTagsFromState(jobStateFromHdfs).stream()
-        .filter(tag -> tagKeysFromJobState.contains(tag.getKey()))
-        .forEach(tag -> {
-          // Step 2a (optional): Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions when testing
-          String value = targetKeysToAddSuffix.contains(tag.getKey())
-              ? tag.getValue() + metricsSuffix
-              : String.valueOf(tag.getValue());
-          tagsMap.put(tag.getKey(), new Tag<>(tag.getKey(), value));
-        });
-
-    // Step 3: Overwrite any pre-existing metadata with name of the current caller
-    tagsMap.put(GobblinMetricsKeys.CLASS_META, new Tag<>(GobblinMetricsKeys.CLASS_META, getClass().getCanonicalName()));
-    return new ArrayList<>(tagsMap.values());
   }
 }
