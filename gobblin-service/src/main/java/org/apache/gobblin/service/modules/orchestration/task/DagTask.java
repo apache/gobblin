@@ -40,10 +40,10 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Alpha
 public abstract class DagTask<T> {
   @Getter public DagActionStore.DagAction dagAction;
-  private MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus;
+  private MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
   @Getter DagManager.DagId dagId;
 
-  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());

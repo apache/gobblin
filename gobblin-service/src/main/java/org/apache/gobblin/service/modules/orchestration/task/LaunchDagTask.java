@@ -31,7 +31,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 
 @Slf4j
 public class LaunchDagTask extends DagTask<LaunchDagProc> {
-  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
 

@@ -49,6 +49,10 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitor extends DagActionSt
     this.dagManagement = dagManagement;
   }
 
+  /**
+   * This implementation passes on the {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the
+   * {@link DagManagement} instead of finding a {@link org.apache.gobblin.runtime.api.FlowSpec} passing the spec to {@link Orchestrator}.
+   */
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",

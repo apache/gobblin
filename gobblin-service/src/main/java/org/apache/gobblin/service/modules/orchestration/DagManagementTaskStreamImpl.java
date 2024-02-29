@@ -18,9 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -39,10 +36,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -51,21 +44,14 @@ import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * NewDagManager has these functionalities :
- * a) manages {@link Dag}s through {@link DagManagementStateStore}.
- * b) accept adhoc new dag launch requests from Orchestrator.
- * c) provides dag actions to {@link DagProcessingEngine#DagProcEngineThread}
+ * a) interact with {@link DagManagementStateStore} to update/retrieve dags, checkpoint
+ * b) add {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the {@link DagTaskStream}
  */
 @Slf4j
 @Singleton
 @Data
 public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream {
-  public static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
-  private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
-
   private final Config config;
-  @Inject private FlowCatalog flowCatalog;
-  private final boolean dagProcessingEngineEnabled;
-  private Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
   @Getter private final EventSubmitter eventSubmitter;
   @Getter private static final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
   private volatile boolean isActive = false;
@@ -81,7 +67,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
     this.config = config;
     this.dagActionStore = dagActionStore;
-    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.dagManagementStateStore = dagManagementStateStore;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
@@ -89,21 +74,21 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   public void setActive(boolean active) {
     if (this.isActive == active) {
-      log.info("DagManager already {}, skipping further actions.", (!active) ? "inactive" : "active");
+      log.info("DagManagementTaskStreamImpl already {}, skipping further actions.", (!active) ? "inactive" : "active");
     }
     this.isActive = active;
     try {
       if (this.isActive) {
-        log.info("Activating NewDagManager.");
+        log.info("Activating DagManagementTaskStreamImpl.");
         //Initializing state store for persisting Dags.
         this.dagManagementStateStore.start();
         dagManagerMetrics.activate();
       } else { //Mark the DagManager inactive.
-        log.info("Inactivating the DagManager. Shutting down all DagManager threads");
+        log.info("Inactivating the DagManagementTaskStreamImpl. Shutting down all DagManager threads");
         dagManagerMetrics.cleanup();
       }
     } catch (IOException e) {
-        log.error("Exception encountered when activating the new DagManager", e);
+        log.error("Exception encountered when activating the DagManagementTaskStreamImpl", e);
         throw new RuntimeException(e);
     }
   }
@@ -161,7 +146,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     return null;
   }
 
-  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
 
     switch (flowActionType) {

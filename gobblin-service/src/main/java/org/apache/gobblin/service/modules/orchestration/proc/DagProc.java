@@ -19,17 +19,15 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
-import com.typesafe.config.ConfigFactory;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -39,13 +37,9 @@ import org.apache.gobblin.util.ConfigUtils;
 @Alpha
 @Slf4j
 public abstract class DagProc<S, T> {
-  protected final EventSubmitter eventSubmitter;
-  protected final MetricContext metricContext;
-
-  public DagProc() {
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
-    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
-  }
+  protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
+  protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
+      metricContext, "org.apache.gobblin.service").build();
 
   public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
     S state = initialize(dagManagementStateStore);   // todo - retry

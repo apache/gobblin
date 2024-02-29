@@ -24,7 +24,8 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 
 /**
  * An interface to provide abstractions for managing operations on Dag.
- * It accepts FlowSpec not a DagAction, so if a flow config is updated between retries
+ * It accepts a {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} which can be processed later.
+ * Consumption of the Dags happen through {@link DagTaskStream}.
  */
 public interface DagManagement {
 
