@@ -358,13 +358,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Path path = file.getPath();
     OwnerAndPermission targetOwnerAndPermission = setOwnerExecuteBitIfDirectory(file, ownerAndPermission);
     try {
-      if (targetOwnerAndPermission.getFsPermission() != null) {
-        fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
-      }
       if (!targetOwnerAndPermission.getAclEntries().isEmpty()) {
         // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
         // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
         fs.modifyAclEntries(path, targetOwnerAndPermission.getAclEntries());
+      }
+      if (targetOwnerAndPermission.getFsPermission() != null) {
+        fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
     } catch (IOException ioe) {
       log.warn("Failed to set permission for directory " + path, ioe);
@@ -504,6 +504,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         return;
       }
 
+      List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
+      if (!aclEntries.isEmpty()) {
+        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
+        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
+        fs.modifyAclEntries(path, aclEntries);
+      }
+
       if (ownerAndPermission.getFsPermission() != null) {
         log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
         fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
@@ -511,7 +518,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
-      List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
       try {
         if (group != null || owner != null) {
           log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
@@ -519,11 +525,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         }
       } catch (IOException ioe) {
         log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
-      }
-      if (!aclEntries.isEmpty()) {
-        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
-        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
-        fs.modifyAclEntries(path, aclEntries);
       }
     } else {
       fs.mkdirs(path);
