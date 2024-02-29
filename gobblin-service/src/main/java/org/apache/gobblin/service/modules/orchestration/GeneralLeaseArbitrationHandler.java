@@ -24,8 +24,6 @@ public abstract class GeneralLeaseArbitrationHandler {
   protected Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
     protected Optional<DagActionStore> dagActionStore;
     protected MetricContext metricContext;
-
-
   private ContextAwareCounter leaseObtainedCount;
 
   private ContextAwareCounter leasedToAnotherStatusCount;
@@ -40,7 +38,6 @@ public abstract class GeneralLeaseArbitrationHandler {
   public GeneralLeaseArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
     this.multiActiveLeaseArbiter = leaseDeterminationStore;
-    this.schedulerService = schedulerService;
     this.dagActionStore = dagActionStore;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());

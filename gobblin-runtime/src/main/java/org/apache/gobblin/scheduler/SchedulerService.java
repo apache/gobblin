@@ -40,7 +40,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * A {@link com.google.common.util.concurrent.Service} wrapping a Quartz {@link Scheduler} allowing correct shutdown
  * of the scheduler when {@link JobScheduler} fails to initialize.
  */
-@Singleton
+//@Singleton TODO: verify should not be singleton
 public class SchedulerService extends AbstractIdleService {
 
   @Getter

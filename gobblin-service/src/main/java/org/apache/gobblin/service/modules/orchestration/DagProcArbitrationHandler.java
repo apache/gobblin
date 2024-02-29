@@ -1,10 +1,14 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 
-import org.quartz.DateBuilder;
+import java.util.Date;
+
 import org.quartz.Job;
 import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
 import org.quartz.Scheduler;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
@@ -13,7 +17,9 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -56,42 +62,63 @@ public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
   public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis) {
     throw new UnsupportedOperationException("Not supported");
     // TODO: how to add reminder for the dagAction to schedulerService
-    // Define a job with a job name and group
-    JobDetail job = JobBuilder.newJob(ReminderJob.class)
-        .withIdentity("reminderJob", "reminderGroup")
-        .build();
-
-    // Define a trigger with a trigger name and group
-    Trigger trigger = TriggerBuilder.newTrigger()
-        .withIdentity("reminderTrigger", "reminderGroup")
-        .startAt(DateBuilder.futureDate(5, DateBuilder.IntervalUnit.MINUTE)) // Set the trigger to fire in 5 minutes
-        .build();
-
-    // Add properties to the trigger
-    trigger.getJobDataMap().put("flowName", "myFlow");
-    trigger.getJobDataMap().put("flowGroup", "myFlowGroup");
-    trigger.getJobDataMap().put("flowId", "12345");
-    trigger.getJobDataMap().put("jobName", "myJob");
 
     // Schedule the job with the trigger
     scheduler.scheduleJob(job, trigger);
   }
 
+  @Slf4j
   public class ReminderJob implements Job {
+    public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String DAG_TASK_STREAM = "dag.taskStream";
 
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
+      // Get properties from the trigger to create a dagAction
+      String flowName = context.getTrigger().getJobDataMap().getString(ConfigurationKeys.FLOW_NAME_KEY);
+      String flowGroup = context.getTrigger().getJobDataMap().getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String jobName = context.getTrigger().getJobDataMap().getString(ConfigurationKeys.JOB_NAME_KEY);
+      String flowId = context.getTrigger().getJobDataMap().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      DagActionStore.FlowActionType flowActionType = DagActionStore.FlowActionType.valueOf(
+          context.getTrigger().getJobDataMap().getString(FLOW_ACTION_TYPE_KEY));
+      DagManagementTaskStreamImpl dagManagementTaskStream =
+          (DagManagementTaskStreamImpl) context.getTrigger().getJobDataMap().get(DAG_TASK_STREAM);
 
-      // Get the properties from the trigger
-      String flowName = context.getTrigger().getJobDataMap().getString("flowName");
-      String flowGroup = context.getTrigger().getJobDataMap().getString("flowGroup");
-      String flowId = context.getTrigger().getJobDataMap().getString("flowId");
-      String jobName = context.getTrigger().getJobDataMap().getString("jobName");
+      // TODO: add meaningful log statement
+      log.info("Reminder for job " + jobName + " in flow " + flowName + " (" + flowGroup + ") with ID " + flowId);
 
-      // Do something with the properties
-      System.out.println("Reminder for job " + jobName + " in flow " + flowName + " (" + flowGroup + ") with ID " + flowId);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName, flowActionType);
 
+      dagManagementTaskStream.addDagAction(dagAction);
     }
+  }
 
+  public static String createDagActionReminderKey(String flowName, String flowGroup, String jobName, String flowId, String flowActionType) {
+    return String.format("%s.%s.%s.%s.%s", flowName, flowGroup, jobName, flowId, flowActionType);
+  }
+
+  public static JobDetail createReminderJobDetail(DagManagementTaskStreamImpl taskStream, String flowName, String flowGroup,
+      String jobName, String flowExecutionId, String flowActionType) {
+    JobDataMap dataMap = new JobDataMap();
+    dataMap.put(ReminderJob.DAG_TASK_STREAM, taskStream);
+    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
+    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
+    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, jobName);
+    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, flowActionType);
+
+    return JobBuilder.newJob(ReminderJob.class)
+        .withIdentity(createDagActionReminderKey(flowName, flowGroup, jobName, flowExecutionId, flowActionType), flowName)
+        .usingJobData(dataMap)
+        .build();
+  }
+
+  public static Trigger createReminderJobTrigger(String flowName, String flowGroup, String jobName,
+      String flowExecutionId, String flowActionType, long reminderDurationMillis) {
+    Trigger trigger = TriggerBuilder.newTrigger()
+        .withIdentity(createDagActionReminderKey(flowName, flowGroup, jobName, flowExecutionId, flowActionType), flowName)
+        .startAt(new Date(System.currentTimeMillis() + reminderDurationMillis))
+        .build();
+    return trigger;
   }
 }
