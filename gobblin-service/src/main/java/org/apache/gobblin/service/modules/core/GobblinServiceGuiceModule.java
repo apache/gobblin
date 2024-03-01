@@ -74,6 +74,8 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.modules.orchestration.DagProcArbitrationHandler;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -166,6 +168,10 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
         .to(serviceConfig.isDagProcessingEngineEnabled());
+    // TODO: see if this useful
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED))
+        .to(serviceConfig.isMultiActiveExecutionEnabled());
 
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
@@ -191,6 +197,14 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
     binder.bind(DagProcFactory.class);
     binder.bind(DagProcessingEngine.class);
+
+    OptionalBinder.newOptionalBinder(binder, DagProcArbitrationHandler.class);
+    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
+    if (serviceConfig.isMultiActiveExecutionEnabled()) {
+      // TODO: instantiate dagManagementTaskStreamImpl
+      binder.bind(DagActionReminderScheduler.class);
+      binder.bind(DagProcArbitrationHandler.class);
+    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);

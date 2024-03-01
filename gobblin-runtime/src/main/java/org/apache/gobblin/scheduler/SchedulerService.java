@@ -69,6 +69,7 @@ public class SchedulerService extends AbstractIdleService {
   }
 
   @Override protected void startUp() throws SchedulerException  {
+    // TODO: use a common StdSchedulerFactory
     StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
     if (this.quartzProps.isPresent() && this.quartzProps.get().size() > 0) {
       schedulerFactory.initialize(this.quartzProps.get());

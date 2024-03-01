@@ -33,4 +33,5 @@ public final class InjectionNames {
   public static final String WARM_STANDBY_ENABLED = "statelessRestAPIEnabled";
   public static final String MULTI_ACTIVE_SCHEDULER_ENABLED = "multiActiveSchedulerEnabled";
   public static final String DAG_PROC_ENGINE_ENABLED = ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED;
+  public static final String MULTI_ACTIVE_EXECUTION_ENABLED = "multiActiveExecutionEnabled";
 }

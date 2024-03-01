@@ -2,6 +2,8 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 
+import org.quartz.SchedulerException;
+
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -62,7 +64,7 @@ public abstract class GeneralLeaseArbitrationHandler {
      */
     public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
         boolean isReminderEvent, boolean skipFlowExecutionIdReplacement)
-        throws IOException {
+        throws IOException, SchedulerException {
       if (multiActiveLeaseArbiter.isPresent()) {
         MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = multiActiveLeaseArbiter.get().tryAcquireLease(
             flowAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
@@ -112,7 +114,8 @@ public abstract class GeneralLeaseArbitrationHandler {
      * @param leaseStatus
      * @param triggerEventTimeMillis
      */
-    public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis) {
+    public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
+        throws SchedulerException {
       throw new UnsupportedOperationException("Not supported");
     }
 }

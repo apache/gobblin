@@ -9,7 +9,7 @@ import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
-import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 
@@ -27,14 +27,15 @@ import org.apache.gobblin.scheduler.SchedulerService;
 
 // TODO: what additional methods are needed here?
 public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
-  private final Scheduler scheduler;
+  private final DagActionReminderScheduler dagActionReminderScheduler;
 
   @Inject
   public DagProcArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
-      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore, Scheduler scheduler) {
+      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore,
+      DagActionReminderScheduler dagActionReminderScheduler) {
     super(config, leaseDeterminationStore, schedulerService, dagActionStore);
     // TODO: init scheduler in guice
-    this.scheduler = scheduler;
+    this.dagActionReminderScheduler = dagActionReminderScheduler;
   }
 
   /**
@@ -59,12 +60,11 @@ public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
    * @param leaseStatus
    * @param triggerEventTimeMillis
    */
-  public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis) {
-    throw new UnsupportedOperationException("Not supported");
-    // TODO: how to add reminder for the dagAction to schedulerService
+  public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
+      throws SchedulerException {
+    // TODO: determine which ts to use
+    dagActionReminderScheduler.scheduleReminderJob(leaseStatus.getFlowAction(), leaseStatus.getEventTimeMillis());
 
-    // Schedule the job with the trigger
-    scheduler.scheduleJob(job, trigger);
   }
 
   @Slf4j
@@ -93,30 +93,34 @@ public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
     }
   }
 
-  public static String createDagActionReminderKey(String flowName, String flowGroup, String jobName, String flowId, String flowActionType) {
+  public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
+    return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getJobName(),
+        dagAction.getFlowExecutionId(), dagAction.getFlowActionType());
+  }
+
+  public static String createDagActionReminderKey(String flowName, String flowGroup, String jobName, String flowId,
+      DagActionStore.FlowActionType flowActionType) {
     return String.format("%s.%s.%s.%s.%s", flowName, flowGroup, jobName, flowId, flowActionType);
   }
 
-  public static JobDetail createReminderJobDetail(DagManagementTaskStreamImpl taskStream, String flowName, String flowGroup,
-      String jobName, String flowExecutionId, String flowActionType) {
+  public static JobDetail createReminderJobDetail(DagManagementTaskStreamImpl taskStream, DagActionStore.DagAction dagAction) {
     JobDataMap dataMap = new JobDataMap();
     dataMap.put(ReminderJob.DAG_TASK_STREAM, taskStream);
-    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
-    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
-    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, jobName);
-    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
-    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, flowActionType);
+    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagAction.getFlowName());
+    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
+    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
+    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getFlowActionType());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createDagActionReminderKey(flowName, flowGroup, jobName, flowExecutionId, flowActionType), flowName)
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
         .usingJobData(dataMap)
         .build();
   }
 
-  public static Trigger createReminderJobTrigger(String flowName, String flowGroup, String jobName,
-      String flowExecutionId, String flowActionType, long reminderDurationMillis) {
+  public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis) {
     Trigger trigger = TriggerBuilder.newTrigger()
-        .withIdentity(createDagActionReminderKey(flowName, flowGroup, jobName, flowExecutionId, flowActionType), flowName)
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
         .startAt(new Date(System.currentTimeMillis() + reminderDurationMillis))
         .build();
     return trigger;
