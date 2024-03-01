@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
@@ -51,6 +52,7 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
  * and to indicate that the processing workflow ought to perform job-level timing.
  */
 @Data
+@EqualsAndHashCode(callSuper = true) // to prevent findbugs warning - "equals method overrides equals in superclass and may not be symmetric"
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
   @NonNull
