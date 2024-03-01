@@ -29,4 +29,5 @@ public final class InjectionNames {
   // TODO: Rename `warm_standby_enabled` config to `message_forwarding_enabled` since it's a misnomer.
   public static final String WARM_STANDBY_ENABLED = "statelessRestAPIEnabled";
   public static final String MULTI_ACTIVE_SCHEDULER_ENABLED = "multiActiveSchedulerEnabled";
+  public static final String MULTI_ACTIVE_EXECUTION_ENABLED = "multiActiveExecutionEnabled";
 }

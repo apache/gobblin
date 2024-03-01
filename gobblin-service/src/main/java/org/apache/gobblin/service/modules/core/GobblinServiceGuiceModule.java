@@ -67,7 +67,9 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcArbitrationHandler;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
@@ -154,6 +156,10 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
         .to(serviceConfig.isMultiActiveSchedulerEnabled());
+    // TODO: see if this useful
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED))
+        .to(serviceConfig.isMultiActiveExecutionEnabled());
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
@@ -171,6 +177,14 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowTriggerHandler.class);
+    }
+
+    OptionalBinder.newOptionalBinder(binder, DagProcArbitrationHandler.class);
+    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
+    if (serviceConfig.isMultiActiveExecutionEnabled()) {
+      // TODO: instantiate dagManagementTaskStreamImpl
+      binder.bind(DagActionReminderScheduler.class);
+      binder.bind(DagProcArbitrationHandler.class);
     }
 
     binder.bind(FlowConfigsResource.class);
