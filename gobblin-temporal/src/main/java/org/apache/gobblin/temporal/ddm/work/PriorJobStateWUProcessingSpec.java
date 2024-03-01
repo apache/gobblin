@@ -45,18 +45,19 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 /**
- * Same as {@link WUProcessingSpec}, but for a "stand-alone" "Work Fulfillment-only" workflow that leverages the
- * {@link org.apache.gobblin.source.workunit.WorkUnit}s and {@link JobState} previously persisted by another separate
- * job execution.  Accordingly we wish to adjust our {@link EventSubmitterContext} to reflect aspects of that original job.
+ * Same as {@link WUProcessingSpec}, but for a "Work Fulfillment-only" workflow that leverages the {@link JobState} and
+ * {@link org.apache.gobblin.source.workunit.WorkUnit}s previously persisted by another separate job execution.
+ * Accordingly we wish to adjust/"spoof" our {@link EventSubmitterContext} to carry identifiers from that original job,
+ * and to indicate that the processing workflow ought to perform job-level timing.
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-public class WUProcessingSpecForBorrowingPriorState extends WUProcessingSpec {
+public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
   @NonNull
   private List<Tag<?>> tags = new ArrayList<>();
   @NonNull private String metricsSuffix = GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX;
 
-  public WUProcessingSpecForBorrowingPriorState(URI fileSystemUri, String workUnitsDir, EventSubmitterContext eventSubmitterContext) {
+  public PriorJobStateWUProcessingSpec(URI fileSystemUri, String workUnitsDir, EventSubmitterContext eventSubmitterContext) {
     super(fileSystemUri, workUnitsDir, eventSubmitterContext);
   }
 

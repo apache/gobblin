@@ -38,9 +38,9 @@ import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
+import org.apache.gobblin.temporal.ddm.work.PriorJobStateWUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpecForBorrowingPriorState;
 import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
@@ -86,8 +86,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       // NOTE: `Path` is challenging for temporal to ser/de, but nonetheless do pre-construct as `Path`, to pre-validate this prop string's contents
       Path workUnitsDir = new Path(PropertiesUtils.getRequiredProp(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_UNITS_DIR));
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(this.eventSubmitter);
-      WUProcessingSpecForBorrowingPriorState wuSpec =
-          new WUProcessingSpecForBorrowingPriorState(nameNodeUri, workUnitsDir.toString(), eventSubmitterContext);
+      PriorJobStateWUProcessingSpec wuSpec = new PriorJobStateWUProcessingSpec(nameNodeUri, workUnitsDir.toString(), eventSubmitterContext);
       if (this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE) &&
           this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
         int maxBranchesPerTree = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE);
