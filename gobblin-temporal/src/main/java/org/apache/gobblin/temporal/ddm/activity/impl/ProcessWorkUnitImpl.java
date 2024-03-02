@@ -44,7 +44,6 @@ import org.apache.gobblin.runtime.AbstractTaskStateTracker;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.Task;
-import org.apache.gobblin.runtime.TaskCreationException;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateTracker;
@@ -62,11 +61,14 @@ import org.apache.gobblin.util.JobLauncherUtils;
 public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   private static final int LOG_EXTENDED_PROPS_EVERY_WORK_UNITS_STRIDE = 100;
 
+  private static final String MAX_SOURCE_PATHS_TO_LOG_PER_MULTI_WORK_UNIT = ProcessWorkUnitImpl.class.getName() + ".maxSourcePathsToLogPerMultiWorkUnit";
+  private static final int DEFAULT_MAX_SOURCE_PATHS_TO_LOG_PER_MULTI_WORK_UNIT = 5;
+
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
     try (FileSystem fs = Help.loadFileSystemForce(wu)) {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
-      log.info("WU [{}] - loaded {} workUnits", wu.getCorrelator(), workUnits.size());
+      log.info("(M)WU [{}] - loaded; found {} workUnits", wu.getCorrelator(), workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
       return execute(workUnits, wu, jobState, fs);
     } catch (IOException | InterruptedException e) {
@@ -99,32 +101,21 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     troubleshooter.start();
 
     List<String> fileSourcePaths = workUnits.stream()
-        .map(workUnit -> describeAsCopyableFile(workUnit, wu.getWorkUnitPath()))
+        .map(workUnit -> getCopyableFileSourcePathDesc(workUnit, wu.getWorkUnitPath()))
         .collect(Collectors.toList());
-    log.info("WU [{}] - submitting {} workUnits for copying files: {}", wu.getCorrelator(),
-        workUnits.size(), fileSourcePaths);
+    List<String> pathsToLog = getSourcePathsToLog(fileSourcePaths, jobState);
+    log.info("WU [{}] - submitting {} workUnits for copying source files: {}{}",
+        wu.getCorrelator(),
+        workUnits.size(),
+        pathsToLog.size() == workUnits.size() ? "" : ("**first " + pathsToLog.size() + " only** "),
+        pathsToLog);
     log.debug("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.get(0).toJsonString());
 
-    try {
-      GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
-          jobState.getJobId(), containerId, jobState, workUnits,
-          taskStateTracker, taskExecutor, taskStateStore, multiTaskAttemptCommitPolicy,
-          resourcesBroker, troubleshooter.getIssueRepository(), createInterruptionPredicate(fs, jobState));
-      return taskAttempt.getNumTasksCreated();
-    } catch (TaskCreationException tce) { // derived type of `IOException` that ought not be caught!
-      throw tce;
-    } catch (IOException ioe) {
-      // presume execution already occurred, with `TaskState` written to reflect outcome
-      log.warn("WU [" + wu.getCorrelator() + "] - continuing on despite IOException:", ioe);
-      return 0;
-    }
-  }
-
-  /** Demonstration processing, to isolate debugging of WU loading and deserialization */
-  protected int countSumProperties(List<WorkUnit> workUnits, WorkUnitClaimCheck wu) {
-    int totalNumProps = workUnits.stream().mapToInt(workUnit -> workUnit.getPropertyNames().size()).sum();
-    log.info("opened WU [{}] to find {} properties total at '{}'", wu.getCorrelator(), totalNumProps, wu.getWorkUnitPath());
-    return totalNumProps;
+    GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
+        jobState.getJobId(), containerId, jobState, workUnits,
+        taskStateTracker, taskExecutor, taskStateStore, multiTaskAttemptCommitPolicy,
+        resourcesBroker, troubleshooter.getIssueRepository(), createInterruptionPredicate(fs, jobState));
+    return taskAttempt.getNumTasksCreated();
   }
 
   protected TaskStateTracker createEssentializedTaskStateTracker(WorkUnitClaimCheck wu) {
@@ -157,7 +148,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     };
   }
 
-  protected String describeAsCopyableFile(WorkUnit workUnit, String workUnitPath) {
+  protected String getCopyableFileSourcePathDesc(WorkUnit workUnit, String workUnitPath) {
     return getOptFirstCopyableFile(Lists.newArrayList(workUnit), workUnitPath)
         .map(copyableFile -> copyableFile.getOrigin().getPath().toString())
         .orElse(
@@ -173,12 +164,6 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     return getOptCopyableFile(taskState, "taskState '" + taskState.getTaskId() + "'");
   }
 
-  protected Optional<CopyableFile> getOptFirstCopyableFile(List<WorkUnit> workUnits, String workUnitPath) {
-    return Optional.of(workUnits).filter(wus -> wus.size() > 0).flatMap(wus ->
-      getOptCopyableFile(wus.get(0), "workUnit '" + workUnitPath + "'")
-    );
-  }
-
   protected Optional<CopyableFile> getOptCopyableFile(State state, String logDesc) {
     return getOptCopyEntityClass(state, logDesc).flatMap(copyEntityClass -> {
       log.debug("(state) {} got (copyEntity) {}", state.getClass().getName(), copyEntityClass.getName());
@@ -190,6 +175,12 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       }
       return Optional.empty();
     });
+  }
+
+  protected Optional<CopyableFile> getOptFirstCopyableFile(List<WorkUnit> workUnits, String workUnitPath) {
+    return Optional.of(workUnits).filter(wus -> wus.size() > 0).flatMap(wus ->
+      getOptCopyableFile(wus.get(0), "workUnit '" + workUnitPath + "'")
+    );
   }
 
   protected Optional<Class<?>> getOptCopyEntityClass(State state, String logDesc) {
@@ -224,5 +215,15 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       log.warn("unexpected, non-numeric correlator: '{}'", wu.getCorrelator());
       return false;
     }
+  }
+
+  private static List<String> getSourcePathsToLog(List<String> sourcePaths, JobState jobState) {
+    int maxPathsToLog = getMaxSourcePathsToLogPerMultiWorkUnit(jobState);
+    int numPathsToLog = Math.min(sourcePaths.size(), maxPathsToLog);
+    return sourcePaths.subList(0, numPathsToLog);
+  }
+
+  private static int getMaxSourcePathsToLogPerMultiWorkUnit(State jobState) {
+    return jobState.getPropAsInt(MAX_SOURCE_PATHS_TO_LOG_PER_MULTI_WORK_UNIT, DEFAULT_MAX_SOURCE_PATHS_TO_LOG_PER_MULTI_WORK_UNIT);
   }
 }

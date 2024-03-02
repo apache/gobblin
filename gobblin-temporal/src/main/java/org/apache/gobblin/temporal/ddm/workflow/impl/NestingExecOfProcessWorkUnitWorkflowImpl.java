@@ -31,6 +31,7 @@ import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWork
 
 /** {@link org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow} for {@link ProcessWorkUnit} */
 public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExecWorkflowImpl<WorkUnitClaimCheck, Integer> {
+  public static final Duration processWorkUnitStartToCloseTimeout = Duration.ofMinutes(20); // TODO: make configurable
 
   // RetryOptions specify how to automatically handle retries when Activities fail.
   private static final RetryOptions ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
@@ -41,7 +42,7 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
       .build();
 
   private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(999))
+      .setStartToCloseTimeout(processWorkUnitStartToCloseTimeout)
       .setRetryOptions(ACTIVITY_RETRY_OPTS)
       .build();
 

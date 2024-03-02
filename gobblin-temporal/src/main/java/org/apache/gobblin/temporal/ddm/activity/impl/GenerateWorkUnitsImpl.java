@@ -19,12 +19,10 @@ package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 
 import com.google.api.client.util.Lists;
 import com.google.common.io.Closer;
-import com.typesafe.config.Config;
 
 import io.temporal.failure.ApplicationFailure;
 
@@ -43,7 +41,6 @@ import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
-import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
@@ -59,8 +56,6 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     // TODO: provide for job cancellation (unless handling at the temporal-level of parent workflows)!
     JobState jobState = new JobState(jobProps);
     log.info("Created jobState: {}", jobState.toJsonString(true));
-    Optional<Config> thisClassConfig = WorkerConfig.of(this);
-    log.info("Obtained class config: {}", thisClassConfig.isPresent() ? thisClassConfig.get() : "NO WORKER CONFIG: ERROR!");
 
     Path workDirRoot = JobStateUtils.getWorkDirRoot(jobState);
     log.info("Using work dir root path for job '{}' - '{}'", jobState.getJobId(), workDirRoot);
