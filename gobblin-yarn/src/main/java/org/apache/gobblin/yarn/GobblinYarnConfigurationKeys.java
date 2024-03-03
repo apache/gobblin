@@ -91,6 +91,9 @@ public class GobblinYarnConfigurationKeys {
   public static final Integer DEFAULT_MAX_CONTAINER_LAUNCH_THREADS = 1024;
 
   // Helix configuration properties.
+  public static final String HELIX_ENABLED = GOBBLIN_YARN_PREFIX + "helix.enabled";
+  public static final boolean DEFAULT_HELIX_ENABLED = true;
+
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
 
   public static final String HELIX_PURGE_PREFIX = GOBBLIN_YARN_PREFIX + "helix.purgeOfflineHelixInstances.";

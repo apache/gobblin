@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.yarn.helix;
+
+import org.apache.gobblin.yarn.GobblinApplicationMaster;
+
 
 /**
  * An enumeration of Helix message sub types.
