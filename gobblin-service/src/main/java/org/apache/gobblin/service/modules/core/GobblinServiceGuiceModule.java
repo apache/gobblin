@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
+import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -191,12 +192,14 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowTriggerHandler.class);
     }
-
+    
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
     binder.bind(DagProcFactory.class);
     binder.bind(DagProcessingEngine.class);
+
+    binder.bind(StdSchedulerFactory.class);
 
     OptionalBinder.newOptionalBinder(binder, DagProcArbitrationHandler.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
@@ -256,6 +259,7 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isSchedulerEnabled()) {
       binder.bind(Orchestrator.class);
+      // TODO: how do the params to this get passed?
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
       OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);
