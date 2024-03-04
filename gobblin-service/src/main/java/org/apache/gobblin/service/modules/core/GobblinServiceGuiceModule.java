@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
+import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,6 +180,8 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowTriggerHandler.class);
     }
 
+    binder.bind(StdSchedulerFactory.class);
+
     OptionalBinder.newOptionalBinder(binder, DagProcArbitrationHandler.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isMultiActiveExecutionEnabled()) {
@@ -236,6 +239,7 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isSchedulerEnabled()) {
       binder.bind(Orchestrator.class);
+      // TODO: how do the params to this get passed?
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
       OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);

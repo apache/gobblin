@@ -40,13 +40,21 @@ import org.apache.gobblin.util.PropertiesUtils;
  * A {@link com.google.common.util.concurrent.Service} wrapping a Quartz {@link Scheduler} allowing correct shutdown
  * of the scheduler when {@link JobScheduler} fails to initialize.
  */
-//@Singleton TODO: verify should not be singleton
+@Singleton
 public class SchedulerService extends AbstractIdleService {
 
+  private StdSchedulerFactory stdSchedulerFactory;
   @Getter
   private Scheduler scheduler;
   private final boolean waitForJobCompletion;
   private final Optional<Properties> quartzProps;
+
+  @Inject
+  public SchedulerService(StdSchedulerFactory stdSchedulerFactory, boolean waitForJobCompletion, Optional<Properties> quartzConfig) {
+    this.stdSchedulerFactory = stdSchedulerFactory;
+    this.waitForJobCompletion = waitForJobCompletion;
+    this.quartzProps = quartzConfig;
+  }
 
   public SchedulerService(boolean waitForJobCompletion, Optional<Properties> quartzConfig) {
     this.waitForJobCompletion = waitForJobCompletion;
@@ -69,12 +77,13 @@ public class SchedulerService extends AbstractIdleService {
   }
 
   @Override protected void startUp() throws SchedulerException  {
-    // TODO: use a common StdSchedulerFactory
-    StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
-    if (this.quartzProps.isPresent() && this.quartzProps.get().size() > 0) {
-      schedulerFactory.initialize(this.quartzProps.get());
+    if (this.stdSchedulerFactory == null) {
+      this.stdSchedulerFactory = new StdSchedulerFactory();
     }
-    this.scheduler = schedulerFactory.getScheduler();
+    if (this.quartzProps.isPresent() && this.quartzProps.get().size() > 0) {
+      stdSchedulerFactory.initialize(this.quartzProps.get());
+    }
+    this.scheduler = stdSchedulerFactory.getScheduler();
     this.scheduler.start();
   }
 

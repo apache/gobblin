@@ -15,12 +15,19 @@ public class DagActionReminderScheduler {
 
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, DagManagementTaskStreamImpl taskStream)
       throws SchedulerException {
-    // TODO: reuse std schedulerFactory to create new scheduler instance
+    // Note: only one SchedulerFactory instance should exist per JVM
+    // TODO: check whether this creates new scheduler
     this.quartzScheduler = schedulerFactory.getScheduler();
     this.taskStream = taskStream;
   }
 
-  // TODO: should only schedule a reminder if one doesn't exist -> maybe add an existence check
+  /**
+   *  Uses a dagAction & reminder duration in milliseconds to create a reminder job that will fire
+   *  `reminderDurationMillis` after the current time
+   * @param dagAction
+   * @param reminderDurationMillis
+   * @throws SchedulerException
+   */
   public void scheduleReminderJob(DagActionStore.DagAction dagAction, long reminderDurationMillis)
       throws SchedulerException {
     JobDetail jobDetail = DagProcArbitrationHandler.createReminderJobDetail(taskStream, dagAction);
