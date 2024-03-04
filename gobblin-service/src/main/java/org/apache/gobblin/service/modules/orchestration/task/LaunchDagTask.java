@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.task;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
@@ -31,9 +30,8 @@ import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
  */
 
 @Slf4j
-@Alpha
 public class LaunchDagTask extends DagTask<LaunchDagProc> {
-  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
 
@@ -41,5 +39,11 @@ public class LaunchDagTask extends DagTask<LaunchDagProc> {
   @Override
   public LaunchDagProc host(DagTaskVisitor<LaunchDagProc> visitor) {
     return visitor.meet(this);
+  }
+
+  @Override
+  public boolean conclude() {
+    // todo - release lease
+    return true;
   }
 }

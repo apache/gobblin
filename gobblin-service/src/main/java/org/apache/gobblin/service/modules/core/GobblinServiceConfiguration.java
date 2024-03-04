@@ -118,6 +118,6 @@ public class GobblinServiceConfiguration {
     this.isTopologySpecFactoryEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY, true);
     this.onlyAnnounceLeader = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER, false);
-    this.isDagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
+    this.isDagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
   }
 }

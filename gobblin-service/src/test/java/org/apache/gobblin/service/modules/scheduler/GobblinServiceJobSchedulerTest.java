@@ -149,7 +149,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
               return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec1");
@@ -235,7 +235,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
               return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec2");
@@ -300,7 +300,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 3) {
               return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec1") &&
@@ -356,7 +356,7 @@ public class GobblinServiceJobSchedulerTest {
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
         Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
-        FlowTriggerHandler.class)));
+        FlowTriggerHandler.class)), null);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -375,7 +375,7 @@ public class GobblinServiceJobSchedulerTest {
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
         Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true,
-        Optional.of(Mockito.mock(FlowTriggerHandler.class)));
+        Optional.of(Mockito.mock(FlowTriggerHandler.class)), null);
 
     schedulerWithWarmStandbyEnabled.startUp();
     schedulerWithWarmStandbyEnabled.setActive(true);
@@ -398,7 +398,7 @@ public class GobblinServiceJobSchedulerTest {
         Optional<FlowCatalog> flowCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
         SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
       super(serviceName, config, Optional.absent(), flowCatalog, orchestrator, schedulerService,
-          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(FlowTriggerHandler.class)));
+          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(FlowTriggerHandler.class)), null);
       if (schedulerService != null) {
         hasScheduler = true;
       }
@@ -413,7 +413,7 @@ public class GobblinServiceJobSchedulerTest {
       if (flowName.equals(MockedSpecCompiler.UNCOMPILABLE_FLOW)) {
         throw new RuntimeException("Could not compile flow");
       }
-      super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+      super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), (FlowSpec) addedSpec);
       if (hasScheduler) {
         try {
           scheduleJob(((FlowSpec) addedSpec).getConfigAsProperties(), null);

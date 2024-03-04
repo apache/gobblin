@@ -32,18 +32,18 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 
 
 /**
- * Defines an individual task in a Dag.
- * Upon completion of the {@link DagProc#process(DagManagementStateStore)} it will mark the lease
- * acquired by {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter} as complete
+ * Defines an individual task on a Dag.
+ * Upon successful completion of the corresponding {@link DagProc#process(DagManagementStateStore)},
+ * {@link DagTask#conclude()} must be called.
  */
 
 @Alpha
 public abstract class DagTask<T> {
   @Getter public DagActionStore.DagAction dagAction;
-  private MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus;
+  private MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
   @Getter DagManager.DagId dagId;
 
-  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseAttemptStatus leaseObtainedStatus) {
+  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
@@ -52,13 +52,9 @@ public abstract class DagTask<T> {
   public abstract T host(DagTaskVisitor<T> visitor);
 
   /**
-   * Currently, conclusion of {@link DagTask} marks and records a successful release of lease.
-   * It is invoked after {@link DagProc#process(DagManagementStateStore)} is completed successfully.
-   * @param multiActiveLeaseArbiter
-   * @throws IOException
+   * Any cleanup work, e.g. releasing lease if it was acquired earlier, may be done in this method.
+   * Returns true if concluding dag task finished successfully otherwise false.
    */
   // todo call it from the right place
-  public void conclude(MultiActiveLeaseArbiter multiActiveLeaseArbiter) throws IOException {
-    //multiActiveLeaseArbiter.recordLeaseSuccess(leaseObtainedStatus);
-  }
+  public abstract boolean conclude() throws IOException;
 }

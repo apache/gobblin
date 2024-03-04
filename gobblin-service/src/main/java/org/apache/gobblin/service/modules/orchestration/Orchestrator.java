@@ -112,13 +112,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
-  private final DagManagement newDagManager;
+  private final DagManagement dagManagement;
   private final boolean dagProcessingEngineEnabled;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog, DagManagement newDagManager) {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog, DagManagement dagManagement) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -142,11 +142,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
-    this.newDagManager = newDagManager;
-    ((MostlyMySqlDagManagementStateStore) ((NewDagManager) this.newDagManager).getDagManagementStateStore())
+    this.dagManagement = dagManagement;
+    ((MostlyMySqlDagManagementStateStore) ((DagManagementTaskStreamImpl) this.dagManagement).getDagManagementStateStore())
         .setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
-    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
+    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
     this.flowOrchestrationFailedMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER);
@@ -303,11 +303,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Note that the responsibility of the multi-active scheduler mode ends after this method is completed AND the
       consumption of a launch type event is committed to the consumer.
        */
-      if (dagProcessingEngineEnabled) {
-        this.newDagManager.addDag(flowSpec, jobExecutionPlanDag, true, true);
-      } else {
-        this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
-      }
+      this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);

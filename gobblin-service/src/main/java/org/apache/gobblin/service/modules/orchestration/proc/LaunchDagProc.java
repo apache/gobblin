@@ -34,20 +34,20 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 /**
- * An implementation of {@link DagProc} for launching {@link DagTask}.
+ * An implementation for {@link LaunchDagTask}
  */
 @Slf4j
 @Alpha
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
   private final LaunchDagTask launchDagTask;
-  private final AtomicLong orchestrationDelay;
+  private final AtomicLong orchestrationDelayCounter;
 
   public LaunchDagProc(LaunchDagTask launchDagTask) {
     this.launchDagTask = launchDagTask;
-    this.orchestrationDelay = new AtomicLong(0);
-    ContextAwareGauge<Long> orchestrationDelayMetric = metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY,
-        orchestrationDelay::get);
-    metricContext.register(orchestrationDelayMetric);
+    this.orchestrationDelayCounter = new AtomicLong(0);
+    ContextAwareGauge<Long> orchestrationDelayMetric = this.metricContext.newContextAwareGauge
+        (ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get);
+    this.metricContext.register(orchestrationDelayMetric);
   }
 
   @Override

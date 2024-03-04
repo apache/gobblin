@@ -62,13 +62,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
-  private ContextAwareMeter killsInvoked;
-  private ContextAwareMeter resumesInvoked;
+  protected ContextAwareMeter killsInvoked;
+  protected ContextAwareMeter resumesInvoked;
   private ContextAwareMeter successfulLaunchSubmissions;
   private ContextAwareMeter failedLaunchSubmissions;
   private ContextAwareMeter successfulLaunchSubmissionsOnStartup;
   private ContextAwareMeter failedLaunchSubmissionsOnStartup;
-  private ContextAwareMeter unexpectedErrors;
+  protected ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
   private ContextAwareMeter duplicateMessagesMeter;
   private ContextAwareMeter heartbeatMessagesMeter;
@@ -233,7 +233,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
    * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
    */
-  private void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
+  protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
         dagAction.getFlowActionType(), dagAction);
     if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.RESUME)) {
@@ -345,7 +345,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Data
   @AllArgsConstructor
-  private static class LaunchSubmissionMetricProxy {
+  protected static class LaunchSubmissionMetricProxy {
     private ContextAwareMeter successMeter;
     private ContextAwareMeter failureMeter;
 

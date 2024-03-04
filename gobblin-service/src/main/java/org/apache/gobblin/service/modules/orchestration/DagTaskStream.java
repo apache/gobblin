@@ -17,17 +17,12 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
+import java.util.Iterator;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
-/**
- * An interface to provide abstractions for managing operations on Dag.
- * It accepts a {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} which can be processed later.
- * Consumption of the Dags happen through {@link DagTaskStream}.
- */
-public interface DagManagement {
-
-  void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
+public interface DagTaskStream extends Iterator<DagTask> {
+  boolean hasNext();
+  DagTask next();
 }
