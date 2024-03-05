@@ -54,6 +54,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
   @NonNull private Tuning tuning = Tuning.DEFAULT;
 
   /** whether to conduct job-level timing (and send results via GTE) */
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
   public boolean isToDoJobLevelTiming() {
     return false;
   }
