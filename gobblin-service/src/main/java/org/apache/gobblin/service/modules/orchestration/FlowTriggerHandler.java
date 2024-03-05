@@ -32,10 +32,8 @@ import java.util.Random;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
@@ -67,43 +65,25 @@ import org.quartz.impl.JobDetailImpl;
 public class FlowTriggerHandler extends GeneralLeaseArbitrationHandler {
   private final int schedulerMaxBackoffMillis;
   private static Random random = new Random();
-//  protected Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
   protected SchedulerService schedulerService;
-//  protected Optional<DagActionStore> dagActionStore;
-//  private MetricContext metricContext;
   private ContextAwareMeter numFlowsSubmitted;
-
-//  private ContextAwareCounter leaseObtainedCount;
-//
-//  private ContextAwareCounter leasedToAnotherStatusCount;
-//
-//  private ContextAwareCounter noLongerLeasingStatusCount;
-//  private ContextAwareCounter jobDoesNotExistInSchedulerCount;
-//  private ContextAwareCounter failedToSetEventReminderCount;
-//  private ContextAwareMeter leasesObtainedDueToReminderCount;
-//  private ContextAwareMeter failedToRecordLeaseSuccessCount;
-//  private ContextAwareMeter recordedLeaseSuccessCount;
+  private ContextAwareCounter jobDoesNotExistInSchedulerCount;
+  private ContextAwareCounter failedToSetEventReminderCount;
+  private ContextAwareMeter failedToRecordLeaseSuccessCount;
+  private ContextAwareMeter recordedLeaseSuccessCount;
 
   @Inject
   public FlowTriggerHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
-    super(config, leaseDeterminationStore, schedulerService, dagActionStore);
+    super(config, leaseDeterminationStore, dagActionStore, String.valueOf(FlowTriggerHandler.class));
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
-//    this.multiActiveLeaseArbiter = leaseDeterminationStore;
-//    this.schedulerService = schedulerService;
-//    this.dagActionStore = dagActionStore;
-//    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
-//        this.getClass());
+    this.schedulerService = schedulerService;
     this.numFlowsSubmitted = metricContext.contextAwareMeter(ServiceMetricNames.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
-//    this.leaseObtainedCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
-//    this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);
-//    this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
-//    this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
-//    this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
-//    this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
-//    this.failedToRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
-//    this.recordedLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
+    this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
+    this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
+    this.failedToRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
+    this.recordedLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
   }
 
   /**
@@ -117,7 +97,8 @@ public class FlowTriggerHandler extends GeneralLeaseArbitrationHandler {
    * @throws IOException
    */
   public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction flowAction, long eventTimeMillis,
-      boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
+      boolean isReminderEvent, boolean skipFlowExecutionIdReplacement)
+      throws IOException, SchedulerException {
 
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
@@ -177,6 +158,8 @@ public class FlowTriggerHandler extends GeneralLeaseArbitrationHandler {
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
    * @param triggerEventTimeMillis the event timestamp we were originally handling
    */
+  /* TODO: potentially refactor this method to call the GeneralLeaseArbitrationHandler.scheduleReminderForEvent() method
+   once jobProp related stuff is done */
   private void scheduleReminderForEvent(Properties jobProps, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
       long triggerEventTimeMillis) {
     DagActionStore.DagAction flowAction = status.getFlowAction();

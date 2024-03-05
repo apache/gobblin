@@ -31,9 +31,8 @@ public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
 
   @Inject
   public DagProcArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
-      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore,
-      DagActionReminderScheduler dagActionReminderScheduler) {
-    super(config, leaseDeterminationStore, schedulerService, dagActionStore);
+      Optional<DagActionStore> dagActionStore, DagActionReminderScheduler dagActionReminderScheduler) {
+    super(config, leaseDeterminationStore, dagActionStore, String.valueOf(DagProcArbitrationHandler.class));
     // TODO: init scheduler in guice
     this.dagActionReminderScheduler = dagActionReminderScheduler;
   }
@@ -53,14 +52,8 @@ public class DagProcArbitrationHandler extends GeneralLeaseArbitrationHandler {
     throw new UnsupportedOperationException("Not supported");
   }
 
-  /**
-   * This method is used by the callers of the lease arbitration attempts over a dag action event to schedule a
-   * self-reminder to check on the other participant's progress to finish acting on a dag action after the time the
-   * lease should expire.
-   * @param leaseStatus
-   * @param triggerEventTimeMillis
-   */
-  public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
+  @Override
+  private void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
       throws SchedulerException {
     // TODO: determine which ts to use
     dagActionReminderScheduler.scheduleReminderJob(leaseStatus.getFlowAction(), leaseStatus.getEventTimeMillis());

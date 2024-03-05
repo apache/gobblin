@@ -16,7 +16,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -31,26 +30,30 @@ public abstract class GeneralLeaseArbitrationHandler {
   private ContextAwareCounter leasedToAnotherStatusCount;
 
   private ContextAwareCounter noLongerLeasingStatusCount;
-  private ContextAwareCounter jobDoesNotExistInSchedulerCount;
-  private ContextAwareCounter failedToSetEventReminderCount;
   private ContextAwareMeter leasesObtainedDueToReminderCount;
-  protected ContextAwareMeter failedToRecordLeaseSuccessCount;
-  protected ContextAwareMeter recordedLeaseSuccessCount;
 
   public GeneralLeaseArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
-      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
+      Optional<DagActionStore> dagActionStore, String metricsPrefix) {
     this.multiActiveLeaseArbiter = leaseDeterminationStore;
     this.dagActionStore = dagActionStore;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
-    this.leaseObtainedCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
-    this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);
-    this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
-    this.jobDoesNotExistInSchedulerCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
-    this.failedToSetEventReminderCount = this.metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
-    this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
-    this.failedToRecordLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
-    this.recordedLeaseSuccessCount = this.metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
+    initializeMetrics(metricsPrefix);
+  }
+  public GeneralLeaseArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
+      Optional<DagActionStore> dagActionStore) {
+    this(config, leaseDeterminationStore, dagActionStore, "");
+  }
+
+  private void initializeMetrics(String metricsPrefix) {
+    // If a valid metrics prefix is provided then add a delimiter after it
+    if (metricsPrefix != "") {
+      metricsPrefix += ".";
+    }
+    this.leaseObtainedCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
+    this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);
+    this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
+    this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
   }
 
     /**
@@ -114,7 +117,7 @@ public abstract class GeneralLeaseArbitrationHandler {
      * @param leaseStatus
      * @param triggerEventTimeMillis
      */
-    public void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
+    private void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus, long triggerEventTimeMillis)
         throws SchedulerException {
       throw new UnsupportedOperationException("Not supported");
     }
