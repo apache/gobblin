@@ -19,7 +19,6 @@ import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-// TODO: decide btwn making this an abstract class with common functionality or an interface (probably abstract tbh)
 @Slf4j
 public abstract class GeneralLeaseArbitrationHandler {
   protected Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
@@ -39,10 +38,6 @@ public abstract class GeneralLeaseArbitrationHandler {
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
     initializeMetrics(metricsPrefix);
-  }
-  public GeneralLeaseArbitrationHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseDeterminationStore,
-      Optional<DagActionStore> dagActionStore) {
-    this(config, leaseDeterminationStore, dagActionStore, "");
   }
 
   private void initializeMetrics(String metricsPrefix) {
@@ -110,6 +105,7 @@ public abstract class GeneralLeaseArbitrationHandler {
       }
     }
 
+    // TODO: decide if scheduleReminderForEvent is a useful method that will be used by FlowTriggerHandler or only DagProc...
     /**
      * This method is used by the callers of the lease arbitration attempts over a dag action event to schedule a
      * self-reminder to check on the other participant's progress to finish acting on a dag action after the time the
