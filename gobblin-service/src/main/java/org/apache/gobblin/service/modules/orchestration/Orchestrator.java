@@ -231,8 +231,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
 
+      // Note we use flowName as jobName for lease arbitration since orchestration is at a flow level
       DagActionStore.DagAction flowAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, flowName, DagActionStore.FlowActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later

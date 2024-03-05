@@ -193,10 +193,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     while (true) {
       try {
         DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-        // TODO: determine right value for lease arbitration event time, dealing with reminderEvent & flow id replacement
+        // TODO: determine handle reminder events later
+        /* Use current time for event timestamp as this assumes that most hosts' clocks will be synchronized enough for
+        the resulting actions to be considered the same event when arbitration is done. Also note that we should always
+        skip flowExecutionId replacement because the flowExecutionIds have been determined at prior stage and should
+        no longer be altered.
+         */
         MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
             this.dagProcArbitrationHandler.tryAcquireLease(dagAction, System.currentTimeMillis(), false, true);
-        //Properties jobProps = getJobProperties(dagAction);
         if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
           // TODO: see if can re-add to queue automatically in DagProcArbitrationHandler, update event time when deciding what the value is
           log.info("Multi-active execution - Setting reminder to revisit dagAction: {}", dagAction);

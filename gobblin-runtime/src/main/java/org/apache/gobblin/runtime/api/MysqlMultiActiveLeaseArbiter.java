@@ -106,9 +106,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           default auto-update/initialization values
     - We desire millisecond level precision and denote that with `(3)` for the TIMESTAMP types
    */
+  // TODO: Update arbiter to store and retrieve jobName from dagAction received
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
-      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "job_name varchar("  // TODO: figure out if job name works for job identifier value, update in rest of arbiter
+      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "job_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_action varchar(100) NOT NULL, "
       + "event_timestamp TIMESTAMP(3) NOT NULL, "
       + "lease_acquisition_timestamp TIMESTAMP(3) NULL, "
@@ -181,6 +182,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           + "before all properties", ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX));
     }
 
+    // TODO: create two tables or take in table name as parameter to have scheduler and executor table
     this.leaseArbiterTableName = ConfigUtils.getString(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE);
     this.constantsTableName = ConfigUtils.getString(config, ConfigurationKeys.MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE_KEY,
