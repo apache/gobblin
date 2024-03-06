@@ -32,6 +32,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
@@ -63,6 +64,7 @@ public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
     super(fileSystemUri, workUnitsDir, eventSubmitterContext);
   }
 
+  @JsonIgnore
   @Override
   public boolean isToDoJobLevelTiming() {
     return true;
