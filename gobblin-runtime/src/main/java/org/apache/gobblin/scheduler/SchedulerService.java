@@ -49,13 +49,6 @@ public class SchedulerService extends AbstractIdleService {
   private final boolean waitForJobCompletion;
   private final Optional<Properties> quartzProps;
 
-  @Inject
-  public SchedulerService(StdSchedulerFactory stdSchedulerFactory, boolean waitForJobCompletion, Optional<Properties> quartzConfig) {
-    this.stdSchedulerFactory = stdSchedulerFactory;
-    this.waitForJobCompletion = waitForJobCompletion;
-    this.quartzProps = quartzConfig;
-  }
-
   public SchedulerService(boolean waitForJobCompletion, Optional<Properties> quartzConfig) {
     this.waitForJobCompletion = waitForJobCompletion;
     this.quartzProps = quartzConfig;
@@ -68,12 +61,17 @@ public class SchedulerService extends AbstractIdleService {
         Optional.of(PropertiesUtils.extractPropertiesWithPrefix(props, Optional.of("org.quartz."))));
   }
 
-  @Inject
   public SchedulerService(Config cfg) {
     this(cfg.hasPath(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) ?
          cfg.getBoolean(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) :
          Boolean.parseBoolean(ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION),
          Optional.of(ConfigUtils.configToProperties(cfg, "org.quartz.")));
+  }
+
+  @Inject
+  public SchedulerService(Config cfg, StdSchedulerFactory stdSchedulerFactory) {
+    this(cfg);
+    this.stdSchedulerFactory = stdSchedulerFactory;
   }
 
   @Override protected void startUp() throws SchedulerException  {

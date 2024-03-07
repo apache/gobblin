@@ -86,7 +86,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerDecorator;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -120,7 +120,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Orchestrator orchestrator;
   protected final Boolean isWarmStandbyEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
-  protected final Optional<FlowTriggerHandler> flowTriggerHandler;
+  protected final Optional<FlowTriggerDecorator> flowTriggerHandler;
   @Getter
   protected final Map<String, FlowSpec> scheduledFlowSpecs;
   @Getter
@@ -177,7 +177,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
       @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
+      Optional<FlowTriggerDecorator> flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -215,14 +215,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
       DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
-      Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
+      Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerDecorator> flowTriggerDecorator,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, DagManagementStateStore dagManagementStateStore,
       FlowCompilationValidationHelper flowCompilationValidationHelper)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog,
-        new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerHandler,
+        new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerDecorator,
             sharedFlowMetricsSingleton, flowCatalog, dagManagementStateStore, flowCompilationValidationHelper),
-        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
+        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerDecorator);
   }
 
   public synchronized void setActive(boolean isActive) {

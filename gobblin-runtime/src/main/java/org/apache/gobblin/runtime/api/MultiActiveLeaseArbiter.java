@@ -118,8 +118,8 @@ public interface MultiActiveLeaseArbiter {
    */
   @Data
   class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction flowAction;
-    private final long minimumLingerDurationMillis;
+    public final DagActionStore.DagAction flowAction;
+    public final long minimumLingerDurationMillis;
 
     /**
      * Returns event time in millis since epoch for the event whose lease was obtained by another participant.

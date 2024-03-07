@@ -106,14 +106,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private Optional<FlowTriggerHandler> flowTriggerHandler;
+  private Optional<FlowTriggerDecorator> flowTriggerDecorator;
   private Optional<FlowCatalog> flowCatalog;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerDecorator> flowTriggerDecorator,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
       DagManagementStateStore dagManagementStateStore, FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -121,7 +121,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-    this.flowTriggerHandler = flowTriggerHandler;
+    this.flowTriggerDecorator = flowTriggerDecorator;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
     try {
@@ -236,10 +236,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
-      if (flowTriggerHandler.isPresent()) {
+      if (flowTriggerDecorator.isPresent()) {
 
         // Adopt consensus flowExecutionId for scheduled flows
-        flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent,
+        flowTriggerDecorator.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent,
             flowSpec.isScheduled());
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);

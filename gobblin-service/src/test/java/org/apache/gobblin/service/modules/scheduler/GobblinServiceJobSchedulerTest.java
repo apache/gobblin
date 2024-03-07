@@ -57,7 +57,7 @@ import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
+import org.apache.gobblin.service.modules.orchestration.FlowTriggerDecorator;
 import org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
@@ -356,7 +356,7 @@ public class GobblinServiceJobSchedulerTest {
     GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
         Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(Mockito.mock(
-        FlowTriggerHandler.class)));
+        FlowTriggerDecorator.class)));
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -375,7 +375,7 @@ public class GobblinServiceJobSchedulerTest {
     GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
         ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
         Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true,
-        Optional.of(Mockito.mock(FlowTriggerHandler.class)));
+        Optional.of(Mockito.mock(FlowTriggerDecorator.class)));
 
     schedulerWithWarmStandbyEnabled.startUp();
     schedulerWithWarmStandbyEnabled.setActive(true);
@@ -398,7 +398,7 @@ public class GobblinServiceJobSchedulerTest {
         Optional<FlowCatalog> flowCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
         SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
       super(serviceName, config, Optional.absent(), flowCatalog, orchestrator, schedulerService,
-          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(FlowTriggerHandler.class)));
+          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(Mockito.mock(FlowTriggerDecorator.class)));
       if (schedulerService != null) {
         hasScheduler = true;
       }

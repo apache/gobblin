@@ -110,7 +110,7 @@ public class OrchestratorTest {
 
     this.serviceLauncher.addService(flowCatalog);
     FlowStatusGenerator mockStatusGenerator = mock(FlowStatusGenerator.class);
-    FlowTriggerHandler mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
+    FlowTriggerDecorator mockFlowTriggerHandler = mock(FlowTriggerDecorator.class);
     DagManager mockDagManager = mock(DagManager.class);
     doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
     Config config = ConfigBuilder.create()
