@@ -51,6 +51,8 @@ public abstract class DagProc<S, T> {
 
   protected abstract T act(DagManagementStateStore dagManagementStateStore, S state) throws IOException;
 
+  protected abstract void sendNotification(T result, EventSubmitter eventSubmitter) throws IOException;
+
   // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
   protected abstract void commit(DagManagementStateStore dagManagementStateStore, T result);
 }

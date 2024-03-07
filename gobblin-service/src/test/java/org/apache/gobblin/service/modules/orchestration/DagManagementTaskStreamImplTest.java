@@ -22,41 +22,29 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeoutException;
 
-import org.mockito.Mockito;
+import org.junit.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
-import static org.mockito.Mockito.spy;
-
-@Slf4j
-public class DagProcessingEngineTest {
+public class DagManagementTaskStreamImplTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
   static ITestMetastoreDatabase testMetastoreDatabase;
   DagProcessingEngine.DagProcEngineThread dagProcEngineThread;
   DagManagementTaskStreamImpl dagManagementTaskStream;
-  DagProcessingEngine dagProcessingEngine;
-  DagTaskStream dagTaskStream;
   DagProcFactory dagProcFactory;
 
   @BeforeClass
@@ -87,75 +75,17 @@ public class DagProcessingEngineTest {
     this.dagProcFactory = new DagProcFactory();
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
-    this.dagTaskStream = spy(new MockedDagTaskStream());
-    this.dagProcessingEngine =
-        new DagProcessingEngine(config, dagTaskStream, this.dagProcFactory, dagManagementStateStore);
   }
 
-  static class MockedDagTaskStream implements DagTaskStream {
-    public static final int MAX_NUM_OF_TASKS = 10;
-    volatile int i=0;
-
-    @Override
-    public boolean hasNext() {
-      return true;
-    }
-
-    @Override
-    public synchronized DagTask next() {
-      i++;
-      if (i <= MAX_NUM_OF_TASKS) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), null);
-      } else {
-        throw new RuntimeException("Max num of tasks reached");
-      }
-    }
-  }
-
-  static class MockedDagTask extends DagTask<MockedDagProc> {
-
-    public MockedDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-      super(dagAction, leaseObtainedStatus);
-    }
-
-    @Override
-    public MockedDagProc host(DagTaskVisitor<MockedDagProc> visitor) {
-      return new MockedDagProc();
-    }
-
-    @Override
-    public boolean conclude() throws IOException {
-      return false;
-    }
-  }
-
-  static class MockedDagProc extends DagProc<Void, Void> {
-
-    @Override
-    protected Void initialize(DagManagementStateStore dagManagementStateStore) {
-      return null;
-    }
-
-    @Override
-    protected Void act(DagManagementStateStore dagManagementStateStore, Void state) {
-      return null;
-    }
-
-    @Override
-    protected void sendNotification(Void result, EventSubmitter eventSubmitter) {
-    }
-
-    @Override
-    protected void commit(DagManagementStateStore dagManagementStateStore, Void result) {
-    }
-  }
-
-  // This tests verifies that
+  // This tests adding and removal of dag actions from dag task stream
+  // when we have different dag procs in future, we can test dag processing and exception handling
   @Test
-  public void dagProcessingTest() throws InterruptedException, TimeoutException {
-    int expectedNumOfInvocations = MockedDagTaskStream.MAX_NUM_OF_TASKS + ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS;
-    AssertWithBackoff.assertTrue(input -> Mockito.mockingDetails(this.dagTaskStream).getInvocations().size() == expectedNumOfInvocations,
-        5000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
-        log, 1, 1000L);
+  public void addRemoveDagActions() throws IOException {
+    dagManagementTaskStream.addDagAction(
+        new DagActionStore.DagAction("fg", "fn", "12345", DagActionStore.FlowActionType.LAUNCH));
+    DagTask dagTask = dagManagementTaskStream.next();
+    Assert.assertTrue(dagTask instanceof LaunchDagTask);
+    Object dagProc = dagTask.host(this.dagProcFactory);
+    Assert.assertTrue(dagProc != null);
   }
 }

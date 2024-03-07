@@ -36,14 +36,13 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * A factory implementation that returns a {@link DagProcEngineEnabledDagActionStoreChangeMonitor} instance.
+ * A factory implementation that returns a {@link DagManagementDagActionStoreChangeMonitor} instance.
  */
 @Slf4j
 public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
-  private final DagManager dagManager;
   private final FlowCatalog flowCatalog;
   private final Orchestrator orchestrator;
   private final DagActionStore dagActionStore;
@@ -55,7 +54,6 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements P
       Orchestrator orchestrator, DagActionStore dagActionStore, DagManagement dagManagement,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);
-    this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
     this.dagActionStore = dagActionStore;
@@ -68,10 +66,9 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements P
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
     log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
 
-    String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagProcEngineEnabledDagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagManager,
+    return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig,
         numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled, this.dagManagement);
   }
 

@@ -43,7 +43,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * NewDagManager has these functionalities :
+ * DagManagementTaskStreamImpl has these functionalities :
  * a) interact with {@link DagManagementStateStore} to update/retrieve dags, checkpoint
  * b) add {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the {@link DagTaskStream}
  */
@@ -77,19 +77,12 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       log.info("DagManagementTaskStreamImpl already {}, skipping further actions.", (!active) ? "inactive" : "active");
     }
     this.isActive = active;
-    try {
-      if (this.isActive) {
-        log.info("Activating DagManagementTaskStreamImpl.");
-        //Initializing state store for persisting Dags.
-        this.dagManagementStateStore.start();
-        dagManagerMetrics.activate();
-      } else { //Mark the DagManager inactive.
-        log.info("Inactivating the DagManagementTaskStreamImpl. Shutting down all DagManager threads");
-        dagManagerMetrics.cleanup();
-      }
-    } catch (IOException e) {
-        log.error("Exception encountered when activating the DagManagementTaskStreamImpl", e);
-        throw new RuntimeException(e);
+    if (this.isActive) {
+      log.info("Activating DagManagementTaskStreamImpl.");
+      dagManagerMetrics.activate();
+    } else { //Mark the DagManager inactive.
+      log.info("Inactivating the DagManagementTaskStreamImpl. Shutting down all DagManager threads");
+      dagManagerMetrics.cleanup();
     }
   }
 
@@ -103,19 +96,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       return;
     }
 
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
-    String dagIdString = dagId.toString();
-    if (this.dagManagementStateStore.containsDag(dagId)) {
-      log.warn("Already tracking a dag with dagId {}, skipping.", dagIdString);
-      return;
-    }
-
-    // After persisting the dag, its status will be tracked by active dagManagers so the action should be deleted
-    // to avoid duplicate executions upon leadership change
-    if (this.dagActionStore.isPresent()) {
-      this.dagActionStore.get().deleteDagAction(dagAction);
-    }
-
     if (!this.dagActionQueue.offer(dagAction)) {
       throw new RuntimeException("Could not add dag action " + dagAction + " to the queue");
     }
@@ -123,7 +103,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public boolean hasNext() {
-    return !this.dagActionQueue.isEmpty();
+    return true;
   }
 
   @Override

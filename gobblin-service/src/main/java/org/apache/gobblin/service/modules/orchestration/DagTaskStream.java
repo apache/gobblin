@@ -22,7 +22,9 @@ import java.util.Iterator;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
+/**
+ * An interface to provide abstraction for getting next available {@link DagTask} to process.
+ */
+
 public interface DagTaskStream extends Iterator<DagTask> {
-  boolean hasNext();
-  DagTask next();
 }

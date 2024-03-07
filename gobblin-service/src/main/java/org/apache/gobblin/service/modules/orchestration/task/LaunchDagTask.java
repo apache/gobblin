@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
@@ -29,7 +27,6 @@ import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
  * A {@link DagTask} responsible to handle launch tasks.
  */
 
-@Slf4j
 public class LaunchDagTask extends DagTask<LaunchDagProc> {
   public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);

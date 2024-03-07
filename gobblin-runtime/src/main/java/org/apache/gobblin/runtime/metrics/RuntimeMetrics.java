@@ -59,6 +59,7 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_DAG_ACTION_STORE_SUCCESSFUL_LAUNCH_SUBMISSIONS_ON_STARTUP = DAG_ACTION_STORE_MONITOR_PREFIX + "successfulLaunchSubmissionsOnStartup";
   public static final String GOBBLIN_DAG_ACTION_STORE_FAILED_LAUNCH_SUBMISSIONS_ON_STARTUP = DAG_ACTION_STORE_MONITOR_PREFIX + "failedLaunchSubmissionsOnStartup";
   public static final String GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS = DAG_ACTION_STORE_MONITOR_PREFIX + "unexpected.errors";
+  public static final String GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_LAUNCH_EVENT_ERRORS = DAG_ACTION_STORE_MONITOR_PREFIX + "unexpected.launch.event.errors";
   public static final String
       GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS = DAG_ACTION_STORE_MONITOR_PREFIX + "produce.to.consume.delay";
   public static final String GOBBLIN_MYSQL_QUOTA_MANAGER_UNEXPECTED_ERRORS = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "gobblin.mysql.quota.manager.unexpected.errors";

@@ -40,19 +40,11 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 @Alpha
 public interface DagManagementStateStore {
-
-  /**
-   * Does any initial setup work. It should usually be called after the initialization.
-   */
-  default void start() throws IOException {
-    initQuota(getDags());
-  }
-
   /**
    * Returns a {@link FlowSpec} for the given URI.
    * @throws SpecNotFoundException if the spec is not found
    */
-  FlowSpec getSpecs(URI uri) throws SpecNotFoundException;
+  FlowSpec getFlowSpec(URI uri) throws SpecNotFoundException;
 
   /**
    * Removes a {@link FlowSpec} with the given URI and pass the deletion to listeners if `triggerListener` is true

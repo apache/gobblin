@@ -76,7 +76,6 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.flowCatalog = flowCatalog;
    }
 
-  @Override
   // It should be called after topology spec map is set
   public synchronized void start() throws IOException {
     if (!dagStoresInitialized) {
@@ -89,7 +88,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public FlowSpec getSpecs(URI uri) throws SpecNotFoundException {
+  public FlowSpec getFlowSpec(URI uri) throws SpecNotFoundException {
     return this.flowCatalog.getSpecs(uri);
   }
 
@@ -98,8 +97,9 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.flowCatalog.remove(uri, headers, triggerListener);
   }
 
-  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.topologySpecMap = topologySpecMap;
+    start();
   }
 
   private DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {

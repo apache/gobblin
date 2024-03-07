@@ -23,10 +23,11 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
 
@@ -34,18 +35,21 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
  * A DagActionStore change monitor that uses {@link DagActionStoreChangeEvent} schema to process Kafka messages received
  * from its corresponding consumer client. This monitor responds to requests to resume or delete a flow and acts as a
  * connector between the API and execution layers of GaaS.
+ * {@link org.apache.gobblin.service.modules.orchestration.DagManager} which was only needed in the `handleDagAction` method
+ * of its parent class is not needed by this class, so it passes a null value for DagManager to its parent in super().
  */
 @Slf4j
-public class DagProcEngineEnabledDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
+public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
   private final DagManagement dagManagement;
+  protected ContextAwareMeter unexpectedLaunchEventErrors;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagProcEngineEnabledDagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
+  public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
       boolean isMultiActiveSchedulerEnabled, DagManagement dagManagement) {
     // Differentiate group id for each host
-    super(topic, config, dagManager, numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled);
+    super("", config, null, numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled);
     this.dagManagement = dagManagement;
   }
 
@@ -63,7 +67,7 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitor extends DagActionSt
       if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.LAUNCH)) {
         // If multi-active scheduler is NOT turned on we should not receive these type of events
         if (!this.isMultiActiveSchedulerEnabled) {
-          this.unexpectedErrors.mark();
+          this.unexpectedLaunchEventErrors.mark();
           throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
               + "mode for flowAction: %s", dagAction));
         }
@@ -76,5 +80,12 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitor extends DagActionSt
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
       launchSubmissionMetricProxy.markFailure();
     }
+  }
+
+  @Override
+  protected void createMetrics() {
+    super.createMetrics();
+    // Dag Action specific metrics
+    this.unexpectedLaunchEventErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
   }
 }

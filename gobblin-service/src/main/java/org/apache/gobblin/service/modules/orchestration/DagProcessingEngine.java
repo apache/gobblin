@@ -21,9 +21,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.linkedin.r2.util.NamedThreadFactory;
 import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
@@ -35,6 +35,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -60,11 +61,13 @@ public class DagProcessingEngine {
     Integer numThreads = ConfigUtils.getInt
         (config, ServiceConfigKeys.NUM_DAG_PROC_THREADS_KEY, ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS);
     ScheduledExecutorService scheduledExecutorPool =
-        Executors.newScheduledThreadPool(numThreads, new NamedThreadFactory("DagProcessingEngineThread"));
+        Executors.newScheduledThreadPool(numThreads,
+            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("DagProcessingEngineThread")));
     this.dagTaskStream = dagTaskStream;
     this.dagManagementStateStore = dagManagementStateStore;
 
     for (int i=0; i < numThreads; i++) {
+      // todo - set metrics for count of active DagProcEngineThread
       DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream, dagProcFactory, dagManagementStateStore);
       scheduledExecutorPool.submit(dagProcEngineThread);
     }
@@ -90,8 +93,8 @@ public class DagProcessingEngine {
           // todo - add retries
           dagProc.process(dagManagementStateStore);
           dagTask.conclude();
-        } catch (Throwable t) {
-          log.error("DagProcEngineThread encountered error ", t);
+        } catch (Exception e) {
+          log.error("DagProcEngineThread encountered exception while processing dag " + dagTask.getDagId(), e);
         }
         // todo mark lease success and releases it
         //dagTaskStream.complete(dagTask);
