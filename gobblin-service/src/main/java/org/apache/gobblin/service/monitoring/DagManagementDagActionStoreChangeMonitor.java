@@ -32,11 +32,8 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
 
 /**
- * A DagActionStore change monitor that uses {@link DagActionStoreChangeEvent} schema to process Kafka messages received
- * from its corresponding consumer client. This monitor responds to requests to resume or delete a flow and acts as a
- * connector between the API and execution layers of GaaS.
- * {@link org.apache.gobblin.service.modules.orchestration.DagManager} which was only needed in the `handleDagAction` method
- * of its parent class is not needed by this class, so it passes a null value for DagManager to its parent in super().
+ * A {@link DagActionStoreChangeMonitor} that should be used {@link org.apache.gobblin.service.ServiceConfigKeys#DAG_PROCESSING_ENGINE_ENABLED}
+ * is set.
  */
 @Slf4j
 public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
@@ -48,14 +45,15 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
       boolean isMultiActiveSchedulerEnabled, DagManagement dagManagement) {
-    // Differentiate group id for each host
+    // DagManager is only needed in the `handleDagAction` method of its parent class and not needed in this class,
+    // so we are passing a null value for DagManager to its parent class.
     super("", config, null, numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled);
     this.dagManagement = dagManagement;
   }
 
   /**
    * This implementation passes on the {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the
-   * {@link DagManagement} instead of finding a {@link org.apache.gobblin.runtime.api.FlowSpec} passing the spec to {@link Orchestrator}.
+   * {@link DagManagement} instead of finding a {@link org.apache.gobblin.runtime.api.FlowSpec} and passing the spec to {@link Orchestrator}.
    */
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
@@ -77,7 +75,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         this.unexpectedErrors.mark();
       }
     } catch (IOException e) {
-      log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
+      log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
       launchSubmissionMetricProxy.markFailure();
     }
   }

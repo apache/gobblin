@@ -61,7 +61,7 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements P
     this.dagManagement = dagManagement;
   }
 
-  private DagActionStoreChangeMonitor createDagActionStoreMonitor()
+  private DagManagementDagActionStoreChangeMonitor createDagActionStoreMonitor()
     throws ReflectiveOperationException {
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
     log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);

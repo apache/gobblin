@@ -83,8 +83,9 @@ public class DagProcessingEngine {
     @Override
     public void run() {
       while (true) {
-        DagTask<DagProc> dagTask = dagTaskStream.next(); // blocking call
+        DagTask dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {
+          //todo - add a metrics to count the times dagTask was null
           log.warn("Received a null dag task, ignoring.");
           continue;
         }
@@ -95,6 +96,7 @@ public class DagProcessingEngine {
           dagTask.conclude();
         } catch (Exception e) {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagTask.getDagId(), e);
+          DagManagementTaskStreamImpl.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
         // todo mark lease success and releases it
         //dagTaskStream.complete(dagTask);

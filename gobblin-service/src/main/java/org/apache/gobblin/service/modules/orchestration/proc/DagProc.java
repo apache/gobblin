@@ -45,6 +45,7 @@ public abstract class DagProc<S, T> {
     S state = initialize(dagManagementStateStore);   // todo - retry
     T result = act(dagManagementStateStore, state);   // todo - retry
     commit(dagManagementStateStore, result);   // todo - retry
+    sendNotification(result, eventSubmitter);   // todo - retry
   }
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
@@ -54,5 +55,7 @@ public abstract class DagProc<S, T> {
   protected abstract void sendNotification(T result, EventSubmitter eventSubmitter) throws IOException;
 
   // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
-  protected abstract void commit(DagManagementStateStore dagManagementStateStore, T result);
+  protected void commit(DagManagementStateStore dagManagementStateStore, T result) {
+
+  }
 }

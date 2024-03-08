@@ -17,14 +17,15 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -38,7 +39,6 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -82,8 +82,7 @@ public class DagProcessingEngineTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), dagManagementStateStore);
-    this.dagManagementTaskStream.setActive(true);
+        new DagManagementTaskStreamImpl(config, Optional.empty());
     this.dagProcFactory = new DagProcFactory();
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
@@ -93,7 +92,8 @@ public class DagProcessingEngineTest {
   }
 
   static class MockedDagTaskStream implements DagTaskStream {
-    public static final int MAX_NUM_OF_TASKS = 10;
+    public static final int MAX_NUM_OF_TASKS = 1000;
+    public static final int FAILING_DAGS_FREQUENCY = 10;
     volatile int i=0;
 
     @Override
@@ -102,34 +102,43 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    public synchronized DagTask next() {
+    public synchronized DagTask next() throws NoSuchElementException {
       i++;
-      if (i <= MAX_NUM_OF_TASKS) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), null);
+      if (i > MAX_NUM_OF_TASKS) {
+        throw new RuntimeException("Simulating an exception to stop the thread!");
+      }
+      if (i % FAILING_DAGS_FREQUENCY == 0 ) {
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), true);
       } else {
-        throw new RuntimeException("Max num of tasks reached");
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), false);
       }
     }
   }
 
-  static class MockedDagTask extends DagTask<MockedDagProc> {
+  static class MockedDagTask extends DagTask {
+    private final boolean isBad;
 
-    public MockedDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-      super(dagAction, leaseObtainedStatus);
+    public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
+      super(dagAction, null);
+      this.isBad = isBad;
     }
 
     @Override
-    public MockedDagProc host(DagTaskVisitor<MockedDagProc> visitor) {
-      return new MockedDagProc();
+    public <T> T host(DagTaskVisitor<T> visitor) {
+      return (T) new MockedDagProc(this.isBad);
     }
 
     @Override
-    public boolean conclude() throws IOException {
+    public boolean conclude() {
       return false;
     }
   }
 
   static class MockedDagProc extends DagProc<Void, Void> {
+    private final boolean isBad;
+    public MockedDagProc(boolean isBad) {
+      this.isBad = isBad;
+    }
 
     @Override
     protected Void initialize(DagManagementStateStore dagManagementStateStore) {
@@ -138,6 +147,9 @@ public class DagProcessingEngineTest {
 
     @Override
     protected Void act(DagManagementStateStore dagManagementStateStore, Void state) {
+      if (this.isBad) {
+        throw new RuntimeException("Simulating an exception!");
+      }
       return null;
     }
 
@@ -150,12 +162,19 @@ public class DagProcessingEngineTest {
     }
   }
 
-  // This tests verifies that
+  // This tests verifies that all the dag tasks entered to the dag task stream are retrieved by dag proc engine threads
   @Test
   public void dagProcessingTest() throws InterruptedException, TimeoutException {
+    // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
+    // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
+    // (MAX_NUM_OF_TASKS + 1) th call
     int expectedNumOfInvocations = MockedDagTaskStream.MAX_NUM_OF_TASKS + ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS;
+    int expectedExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_FREQUENCY;
+
     AssertWithBackoff.assertTrue(input -> Mockito.mockingDetails(this.dagTaskStream).getInvocations().size() == expectedNumOfInvocations,
-        5000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
+        10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
         log, 1, 1000L);
+
+    Assert.assertEquals(DagManagementTaskStreamImpl.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
   }
 }

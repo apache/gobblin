@@ -77,4 +77,6 @@ public class ServiceMetricNames {
   public static final String DAG_COUNT_MYSQL_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "MysqlDagStateStore" + ".totalDagCount";
 
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
+
+  public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
 }

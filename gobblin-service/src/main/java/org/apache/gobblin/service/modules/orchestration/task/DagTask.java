@@ -38,7 +38,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
  */
 
 @Alpha
-public abstract class DagTask<T> {
+public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
   @Getter protected final DagManager.DagId dagId;
@@ -49,7 +49,7 @@ public abstract class DagTask<T> {
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
   }
 
-  public abstract T host(DagTaskVisitor<T> visitor);
+  public abstract <T> T host(DagTaskVisitor<T> visitor);
 
   /**
    * Any cleanup work, e.g. releasing lease if it was acquired earlier, may be done in this method.

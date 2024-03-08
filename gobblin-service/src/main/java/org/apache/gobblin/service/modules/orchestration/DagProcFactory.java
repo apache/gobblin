@@ -34,7 +34,7 @@ import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 @Alpha
 @Singleton
-public class DagProcFactory implements DagTaskVisitor {
+public class DagProcFactory implements DagTaskVisitor<DagProc> {
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
     return new LaunchDagProc(launchDagTask);

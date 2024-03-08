@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -36,16 +35,14 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * DagManagementTaskStreamImpl has these functionalities :
- * a) interact with {@link DagManagementStateStore} to update/retrieve dags, checkpoint
- * b) add {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the {@link DagTaskStream}
+ * DagManagementTaskStreamImpl implements {@link DagManagement} and {@link DagTaskStream}. It accepts
+ * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}s and iteratively provides {@link DagTask}.
  */
 @Slf4j
 @Singleton
@@ -54,47 +51,26 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private final Config config;
   @Getter private final EventSubmitter eventSubmitter;
   @Getter private static final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
-  private volatile boolean isActive = false;
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
   @Inject
-  @Getter DagManagementStateStore dagManagementStateStore;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
   @Inject
-  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore, DagManagementStateStore dagManagementStateStore) {
+  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore) {
     this.config = config;
     this.dagActionStore = dagActionStore;
-    this.dagManagementStateStore = dagManagementStateStore;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
-  }
-
-  public void setActive(boolean active) {
-    if (this.isActive == active) {
-      log.info("DagManagementTaskStreamImpl already {}, skipping further actions.", (!active) ? "inactive" : "active");
-    }
-    this.isActive = active;
-    if (this.isActive) {
-      log.info("Activating DagManagementTaskStreamImpl.");
-      dagManagerMetrics.activate();
-    } else { //Mark the DagManager inactive.
-      log.info("Inactivating the DagManagementTaskStreamImpl. Shutting down all DagManager threads");
-      dagManagerMetrics.cleanup();
-    }
+    dagManagerMetrics.activate();
   }
 
   @Override
-  public synchronized void addDagAction(DagActionStore.DagAction dagAction) throws IOException {
+  public synchronized void addDagAction(DagActionStore.DagAction dagAction) {
     // TODO: Used to track missing dag issue, remove later as needed
     log.info("Add dagAction{}", dagAction);
-    if (!isActive) {
-      log.warn("Skipping add dagAction because this instance of DagManagementTaskStreamImpl is not active for dag: {}",
-          dagAction);
-      return;
-    }
 
     if (!this.dagActionQueue.offer(dagAction)) {
       throw new RuntimeException("Could not add dag action " + dagAction + " to the queue");
@@ -107,7 +83,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   @Override
-  public DagTask<DagProc> next() {
+  public DagTask next() {
     try {
       DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
       // todo reconsider the use of MultiActiveLeaseArbiter

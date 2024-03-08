@@ -62,6 +62,7 @@ public class DagManagerMetrics {
   private ContextAwareMeter allRunningMeter;
   private ContextAwareMeter allSlaExceededMeter;
   private ContextAwareMeter allStartSlaExceededMeter;
+  public ContextAwareMeter dagProcessingExceptionMeter;
   // Meters representing the flows in a given state per flowgroup
   private final Map<String, ContextAwareMeter> groupSuccessfulMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> groupFailureMeters = Maps.newConcurrentMap();
@@ -100,6 +101,8 @@ public class DagManagerMetrics {
           ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER));
       allRunningMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ServiceMetricNames.JOBS_SENT_TO_SPEC_EXECUTOR));
+      dagProcessingExceptionMeter = metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+          ServiceMetricNames.DAG_PROCESSING_EXCEPTION_METER));
     }
   }
 

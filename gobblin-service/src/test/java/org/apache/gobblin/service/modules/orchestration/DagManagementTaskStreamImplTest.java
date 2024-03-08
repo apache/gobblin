@@ -35,6 +35,7 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
@@ -70,8 +71,7 @@ public class DagManagementTaskStreamImplTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), dagManagementStateStore);
-    this.dagManagementTaskStream.setActive(true);
+        new DagManagementTaskStreamImpl(config, Optional.empty());
     this.dagProcFactory = new DagProcFactory();
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
@@ -85,7 +85,7 @@ public class DagManagementTaskStreamImplTest {
         new DagActionStore.DagAction("fg", "fn", "12345", DagActionStore.FlowActionType.LAUNCH));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
-    Object dagProc = dagTask.host(this.dagProcFactory);
-    Assert.assertTrue(dagProc != null);
+    DagProc dagProc = dagTask.host(this.dagProcFactory);
+    Assert.assertNotNull(dagProc);
   }
 }

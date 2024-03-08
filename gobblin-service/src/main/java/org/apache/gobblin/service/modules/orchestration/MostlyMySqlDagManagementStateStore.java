@@ -93,7 +93,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public void remove(URI uri, Properties headers, boolean triggerListener) {
+  public void removeFlowSpec(URI uri, Properties headers, boolean triggerListener) {
     this.flowCatalog.remove(uri, headers, triggerListener);
   }
 

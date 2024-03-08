@@ -20,21 +20,18 @@ package org.apache.gobblin.service.modules.orchestration.task;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
-import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 
 
 /**
  * A {@link DagTask} responsible to handle launch tasks.
  */
 
-public class LaunchDagTask extends DagTask<LaunchDagProc> {
+public class LaunchDagTask<T> extends DagTask {
   public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
 
-
-  @Override
-  public LaunchDagProc host(DagTaskVisitor<LaunchDagProc> visitor) {
+  public <T> T host(DagTaskVisitor<T> visitor) {
     return visitor.meet(this);
   }
 

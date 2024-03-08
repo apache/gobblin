@@ -50,7 +50,7 @@ public interface DagManagementStateStore {
    * Removes a {@link FlowSpec} with the given URI and pass the deletion to listeners if `triggerListener` is true
    * No-op if the flow spec was not present in the store.
    */
-  void remove(URI uri, Properties headers, boolean triggerListener);
+  void removeFlowSpec(URI uri, Properties headers, boolean triggerListener);
 
   /**
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.
