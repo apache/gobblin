@@ -23,15 +23,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.collect.Lists;
+import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -54,21 +59,50 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   // dagToJobs holds a map of dagId to running jobs of that dag
   private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
   private final Map<DagManager.DagId, Long> dagToDeadline = new ConcurrentHashMap<>();
-  private final DagStateStore dagStateStore;
-  private final DagStateStore failedDagStateStore;
+  private DagStateStore dagStateStore;
+  private DagStateStore failedDagStateStore;
+  private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
+  Map<URI, TopologySpec> topologySpecMap;
+  private final Config config;
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
+  FlowCatalog flowCatalog;
 
-  public MostlyMySqlDagManagementStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
-    this.dagStateStore = createDagStateStore(config, topologySpecMap);
-    this.failedDagStateStore = createDagStateStore(
-        ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config), topologySpecMap);
+  @Inject
+  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog) throws IOException {
     this.quotaManager = new MysqlUserQuotaManager(config);
-    this.quotaManager.init(getDags());
+    this.config = config;
+    this.flowCatalog = flowCatalog;
+   }
+
+  // It should be called after topology spec map is set
+  public synchronized void start() throws IOException {
+    if (!dagStoresInitialized) {
+      this.dagStateStore = createDagStateStore(config, topologySpecMap);
+      this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
+          topologySpecMap);
+      initQuota(getDags());
+      dagStoresInitialized = true;
+    }
   }
 
-  DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
+  @Override
+  public FlowSpec getFlowSpec(URI uri) throws SpecNotFoundException {
+    return this.flowCatalog.getSpecs(uri);
+  }
+
+  @Override
+  public void removeFlowSpec(URI uri, Properties headers, boolean triggerListener) {
+    this.flowCatalog.remove(uri, headers, triggerListener);
+  }
+
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
+    this.topologySpecMap = topologySpecMap;
+    start();
+  }
+
+  private DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     try {
       Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStore.class.getName()));
       return (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);

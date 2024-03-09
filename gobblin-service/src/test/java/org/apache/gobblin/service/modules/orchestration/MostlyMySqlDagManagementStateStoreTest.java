@@ -47,7 +47,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 public class MostlyMySqlDagManagementStateStoreTest {
 
-  private DagManagementStateStore dagManagementStateStore;
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
@@ -75,7 +75,9 @@ public class MostlyMySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null);
+    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    this.dagManagementStateStore.start();
   }
 
   @Test
@@ -128,8 +130,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     @Override
     protected StateStore<State> createStateStore(Config config) {
       try {
-
-        String jdbcUrl = MostlyMySqlDagManagementStateStoreTest.testMetastoreDatabase.getJdbcUrl();
+        String jdbcUrl = config.getString(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
         HikariDataSource dataSource = new HikariDataSource();
 
         dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);

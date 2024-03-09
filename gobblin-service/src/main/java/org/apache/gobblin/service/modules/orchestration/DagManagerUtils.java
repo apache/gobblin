@@ -353,7 +353,7 @@ public class DagManagerUtils {
     return dagNode.getValue().getSpecExecutor().getUri().toString();
   }
 
-  static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+  public static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
       Config config = getDagJobConfig(dag);

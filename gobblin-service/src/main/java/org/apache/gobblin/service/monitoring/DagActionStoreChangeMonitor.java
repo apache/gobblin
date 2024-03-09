@@ -17,6 +17,13 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Collection;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -24,16 +31,12 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Collection;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -59,13 +62,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
-  private ContextAwareMeter killsInvoked;
-  private ContextAwareMeter resumesInvoked;
+  protected ContextAwareMeter killsInvoked;
+  protected ContextAwareMeter resumesInvoked;
   private ContextAwareMeter successfulLaunchSubmissions;
   private ContextAwareMeter failedLaunchSubmissions;
   private ContextAwareMeter successfulLaunchSubmissionsOnStartup;
   private ContextAwareMeter failedLaunchSubmissionsOnStartup;
-  private ContextAwareMeter unexpectedErrors;
+  protected ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter messageProcessedMeter;
   private ContextAwareMeter duplicateMessagesMeter;
   private ContextAwareMeter heartbeatMessagesMeter;
@@ -230,7 +233,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
    * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
    */
-  private void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
+  protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
         dagAction.getFlowActionType(), dagAction);
     if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.RESUME)) {
@@ -342,7 +345,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
 
   @Data
   @AllArgsConstructor
-  private static class LaunchSubmissionMetricProxy {
+  protected static class LaunchSubmissionMetricProxy {
     private ContextAwareMeter successMeter;
     private ContextAwareMeter failureMeter;
 
