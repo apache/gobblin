@@ -26,7 +26,7 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
  * A {@link DagTask} responsible to handle launch tasks.
  */
 
-public class LaunchDagTask<T> extends DagTask {
+public class LaunchDagTask extends DagTask {
   public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
