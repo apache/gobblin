@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.launcher;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +31,8 @@ import io.temporal.client.WorkflowOptions;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.metrics.Tag;
@@ -84,13 +87,46 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       Config jobConfigWithOverrides = applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps));
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
-
-      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(this.eventSubmitter);
-
+      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(
+          addAdditionalMetadataTags(this.jobProps, this.eventSubmitter.getTags()),
+          eventSubmitter.getNamespace()
+      );
       int numWorkUnits = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
       log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", numWorkUnits);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static List<Tag<?>> addAdditionalMetadataTags(Properties jobProps, List<Tag<?>> additionalTags) {
+    // TODO: Add temporal specific metadata tags
+    List<Tag<?>> metadataTags = new ArrayList<>(additionalTags);
+    if (jobProps.containsKey(ConfigurationKeys.FLOW_GROUP_KEY)) {
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY)));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
+    }
+
+    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
+          "false"));
+    }
+
+    //Use azkaban.flow.execid as the jobExecutionId
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
+        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
+    metadataTags.add(new Tag<>(TimingEvent.METADATA_MESSAGE, ""));
+
+    metadataTags.add(new Tag<>(Help.USER_TO_PROXY_KEY, jobProps.getProperty(Help.USER_TO_PROXY_KEY, "")));
+
+    return metadataTags;
   }
 }
