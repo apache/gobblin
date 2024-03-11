@@ -162,6 +162,10 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
         .to(serviceConfig.isMultiActiveSchedulerEnabled());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
+        .to(serviceConfig.isDagProcessingEngineEnabled());
+
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);

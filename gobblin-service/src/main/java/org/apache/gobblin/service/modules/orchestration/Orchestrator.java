@@ -113,7 +113,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
   private final DagManagement dagManagement;
-  private final boolean dagProcessingEngineEnabled;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
@@ -146,7 +145,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.dagManagement = dagManagement;
     ((MostlyMySqlDagManagementStateStore) dagManagementStateStore).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
-    this.dagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
     this.flowOrchestrationFailedMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER);
