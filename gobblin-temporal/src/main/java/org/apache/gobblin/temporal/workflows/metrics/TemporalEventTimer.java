@@ -104,7 +104,7 @@ public class TemporalEventTimer implements EventTimer {
     public TemporalEventTimer createJobTimer() {
       TemporalEventTimer startTimer = create(TimingEvent.LauncherTimings.JOB_START);
       startTimer.stop(Instant.EPOCH); // Emit start job event containing a stub end time
-      return create(TimingEvent.LauncherTimings.JOB_COMPLETE, startTimer.startTime);
+      return create(TimingEvent.LauncherTimings.JOB_SUCCEEDED, startTimer.startTime);
     }
   }
 }
