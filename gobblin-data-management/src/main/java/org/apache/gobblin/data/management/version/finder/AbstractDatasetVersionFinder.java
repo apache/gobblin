@@ -36,6 +36,7 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 
@@ -106,6 +107,7 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
       throws IOException {
     FileSystemDataset fsDataset = (FileSystemDataset) dataset;
     Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
+
     return getDatasetVersionIterator(fsDataset.datasetRoot(), getRegexPattern(versionGlobStatus.toString()));
   }
 
@@ -189,15 +191,10 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
   /**
    * Converting a globPatter to a regex pattern to match the file status path
    *
-   * @param globPattern
    * @return
    */
   private static String getRegexPattern(String globPattern) {
-    // Convert the glob pattern to a regex pattern
-    String regexPattern = globPattern.replaceAll("\\.", "\\\\.");
-    regexPattern = regexPattern.replaceAll("\\*", ".*");
-    regexPattern = regexPattern.replaceAll("\\?", ".");
-    return regexPattern;
+    return GlobPattern.compile(globPattern).pattern().replaceAll("\\.\\*", "[^/]*");
   }
 
   /**

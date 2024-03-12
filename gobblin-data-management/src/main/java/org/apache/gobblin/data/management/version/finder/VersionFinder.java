@@ -59,4 +59,14 @@ public interface VersionFinder<T extends DatasetVersion> {
       throws IOException {
     return (RemoteIterator<T>) findDatasetVersions(dataset).stream().iterator();
   }
+
+  /**
+   * Returns a boolean to identify whether to use iteratorVersion or Collections
+   * for finding dataset versions
+   *
+   * @return
+   */
+  public default boolean useIteratorForFindingVersions() {
+    return false;
+  }
 }

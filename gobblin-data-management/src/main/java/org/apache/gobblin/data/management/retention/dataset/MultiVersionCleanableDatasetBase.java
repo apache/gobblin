@@ -24,11 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Singular;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.Logger;
@@ -38,6 +33,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Singular;
 
 import org.apache.gobblin.data.management.policy.EmbeddedRetentionSelectionPolicy;
 import org.apache.gobblin.data.management.policy.SelectNothingPolicy;
@@ -115,7 +115,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   @Deprecated
   public static final String CONFIGURATION_KEY_PREFIX = FsCleanableHelper.CONFIGURATION_KEY_PREFIX;
 
-  public static final Integer CLEANABLE_DATASET_BATCH_SIZE = 10;
+  public static final Integer CLEANABLE_DATASET_BATCH_SIZE = 100;
 
   /**
    * @deprecated in favor of {@link FsCleanableHelper}
@@ -282,22 +282,35 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
 
       this.log.info(String.format("Cleaning dataset %s. Using version finder %s and policy %s", this,
           versionFinder.getClass().getName(), selectionPolicy));
-      // Avoiding OOM by iterating instead of loading all the datasetVersions in memory
-      RemoteIterator<? extends T> versionRemoteIterator = versionFinder.findDatasetVersion(this);
-      // Cleaning Dataset versions in batch of CLEANABLE_DATASET_BATCH_SIZE to avoid OOM
-      List<T> cleanableVersionsBatch = new ArrayList<>();
-      while (versionRemoteIterator.hasNext()) {
-        T version = versionRemoteIterator.next();
-        cleanableVersionsBatch.add(version);
-        if (cleanableVersionsBatch.size() >= CLEANABLE_DATASET_BATCH_SIZE) {
-          boolean isCleanSuccess =
-              cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy, versionFinderAndPolicy);
+      if (versionFinder.useIteratorForFindingVersions()) {
+        // Avoiding OOM by iterating instead of loading all the datasetVersions in memory
+        RemoteIterator<? extends T> versionRemoteIterator = versionFinder.findDatasetVersion(this);
+        // Cleaning Dataset versions in batch of CLEANABLE_DATASET_BATCH_SIZE to avoid OOM
+        List<T> cleanableVersionsBatch = new ArrayList<>();
+        while (versionRemoteIterator.hasNext()) {
+          T version = versionRemoteIterator.next();
+          cleanableVersionsBatch.add(version);
+          if (cleanableVersionsBatch.size() >= CLEANABLE_DATASET_BATCH_SIZE) {
+            boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy,
+                versionFinderAndPolicy.getRetentionActions());
+            atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
+          }
+        }
+        if (!cleanableVersionsBatch.isEmpty()) {
+          boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy,
+              versionFinderAndPolicy.getRetentionActions());
           atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
         }
-      }
-      if (!cleanableVersionsBatch.isEmpty()) {
-        boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy, versionFinderAndPolicy);
-        atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
+      } else {
+        List<T> versions = Lists.newArrayList(versionFinder.findDatasetVersions(this));
+
+        if (versions.isEmpty()) {
+          this.log.warn("No dataset version can be found. Ignoring.");
+          continue;
+        }
+        boolean isCleanSuccess =
+            cleanDatasetVersions(versions, selectionPolicy, versionFinderAndPolicy.getRetentionActions());
+        atLeastOneFailureSeen = !isCleanSuccess || atLeastOneFailureSeen;
       }
     }
 
@@ -309,14 +322,14 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   private boolean cleanDatasetVersions(List<T> versions, VersionSelectionPolicy<T> selectionPolicy,
-      VersionFinderAndPolicy<T> versionFinderAndPolicy)
+      List<RetentionAction> retentionActions)
       throws IOException {
     boolean isCleanSuccess = true;
     Collections.sort(versions, Collections.reverseOrder());
     Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
     cleanImpl(deletableVersions);
     List<DatasetVersion> allVersions = Lists.newArrayList(versions);
-    for (RetentionAction retentionAction : versionFinderAndPolicy.getRetentionActions()) {
+    for (RetentionAction retentionAction : retentionActions) {
       try {
         retentionAction.execute(allVersions);
       } catch (Throwable t) {

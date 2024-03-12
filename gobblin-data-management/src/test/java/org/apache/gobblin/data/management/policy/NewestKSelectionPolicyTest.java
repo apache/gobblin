@@ -31,57 +31,40 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.data.management.version.DatasetVersion;
 
+
 /** Unit tests for {@link NewestKSelectionPolicy} */
 public class NewestKSelectionPolicyTest {
 
   private static final Map<String, Map<String, Integer>> TEST_CONFIGS =
-      ImmutableMap.<String, Map<String, Integer>>builder()
-      .put("empty", ImmutableMap.<String, Integer>builder().build())
-      .put("selectedPos", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
-                          .build())
-      .put("notSelectedPos", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 10)
-                          .build())
-      .build();
+      ImmutableMap.<String, Map<String, Integer>>builder().put("empty", ImmutableMap.<String, Integer>builder().build())
+          .put("selectedPos",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
+                  .build()).put("notSelectedPos",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 10)
+                  .build()).build();
 
   private static final Map<String, Map<String, Integer>> NEG_TEST_CONFIGS =
-      ImmutableMap.<String, Map<String, Integer>>builder()
-      .put("bothProps", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 5)
-                          .build())
-      .put("selectedNeg", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, -5)
-                          .build())
-      .put("notSelectedNeg", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, -1)
-                          .build())
-      .put("selectedBig", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY,
-                               NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1)
-                          .build())
-      .put("notSelectedBig", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY,
-                              NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1)
-                          .build())
-      .put("selected0", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 0)
-                          .build())
-      .put("notSelected0", ImmutableMap.<String, Integer>builder()
-                          .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 0)
-                          .build())
-      .build();
+      ImmutableMap.<String, Map<String, Integer>>builder().put("bothProps",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 5)
+                  .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 5).build()).put("selectedNeg",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, -5)
+                  .build()).put("notSelectedNeg",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, -1)
+                  .build()).put("selectedBig", ImmutableMap.<String, Integer>builder()
+              .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1)
+              .build()).put("notSelectedBig", ImmutableMap.<String, Integer>builder()
+              .put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY,
+                  NewestKSelectionPolicy.MAX_VERSIONS_ALLOWED + 1).build()).put("selected0",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, 0).build())
+          .put("notSelected0",
+              ImmutableMap.<String, Integer>builder().put(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, 0)
+                  .build()).build();
 
   private static final Map<String, Integer> TEST_RESULTS =
-      ImmutableMap.<String, Integer>builder()
-      .put("empty", NewestKSelectionPolicy.VERSIONS_SELECTED_DEFAULT)
-      .put("selectedPos", 5)
-      .put("notSelectedPos", -10)
-      .build();
+      ImmutableMap.<String, Integer>builder().put("empty", NewestKSelectionPolicy.VERSIONS_SELECTED_DEFAULT)
+          .put("selectedPos", 5).put("notSelectedPos", -10).build();
 
-  public static class TestStringDatasetVersion implements DatasetVersion,
-                                                      Comparable<DatasetVersion> {
+  public static class TestStringDatasetVersion implements DatasetVersion, Comparable<DatasetVersion> {
     private String _version;
 
     public TestStringDatasetVersion(String version) {
@@ -93,69 +76,77 @@ public class NewestKSelectionPolicyTest {
       if (!(o instanceof TestStringDatasetVersion)) {
         throw new RuntimeException("Incompatible version: " + o);
       }
-      return _version.compareTo(((TestStringDatasetVersion)o)._version);
+      return _version.compareTo(((TestStringDatasetVersion) o)._version);
     }
 
     @Override
     public Object getVersion() {
       return _version;
     }
-
   }
 
   @Test
   public void testCreationProps() {
-    for(Map.Entry<String, Map<String, Integer>> test: TEST_CONFIGS.entrySet()) {
+    for (Map.Entry<String, Map<String, Integer>> test : TEST_CONFIGS.entrySet()) {
       String testName = test.getKey();
       Properties testProps = new Properties();
-      for (Map.Entry<String, Integer> prop: test.getValue().entrySet()) {
+      for (Map.Entry<String, Integer> prop : test.getValue().entrySet()) {
         testProps.setProperty(prop.getKey(), prop.getValue().toString());
       }
       NewestKSelectionPolicy policy = new NewestKSelectionPolicy(testProps);
-      Assert.assertEquals(policy.getVersionsSelected(),
-                          Math.abs(TEST_RESULTS.get(testName).intValue()),
-                          "Failure for test " + testName);
+      Assert.assertEquals(policy.getVersionsSelected(), Math.abs(TEST_RESULTS.get(testName).intValue()),
+          "Failure for test " + testName);
       Assert.assertEquals(policy.isExcludeMode(), TEST_RESULTS.get(testName).intValue() < 0,
-                          "Failure for test " + testName);
+          "Failure for test " + testName);
     }
 
-    for(Map.Entry<String, Map<String, Integer>> test: NEG_TEST_CONFIGS.entrySet()) {
+    for (Map.Entry<String, Map<String, Integer>> test : NEG_TEST_CONFIGS.entrySet()) {
       String testName = test.getKey();
       Properties testProps = new Properties();
-      for (Map.Entry<String, Integer> prop: test.getValue().entrySet()) {
+      for (Map.Entry<String, Integer> prop : test.getValue().entrySet()) {
         testProps.setProperty(prop.getKey(), prop.getValue().toString());
       }
       try {
         new NewestKSelectionPolicy(testProps);
         Assert.fail("Exception expected for test " + testName);
-      }
-      catch (RuntimeException e) {
+      } catch (RuntimeException e) {
         //OK
       }
     }
   }
 
+  @Test(expectedExceptions = RuntimeException.class)
+  public void testCreationProps_useIteratorException() {
+    for (Map.Entry<String, Map<String, Integer>> test : TEST_CONFIGS.entrySet()) {
+      String testName = test.getKey();
+      Properties testProps = new Properties();
+      for (Map.Entry<String, Integer> prop : test.getValue().entrySet()) {
+        testProps.setProperty(prop.getKey(), prop.getValue().toString());
+      }
+      testProps.setProperty(NewestKSelectionPolicy.VERSION_FINDER_ITERATOR, "true");
+      NewestKSelectionPolicy policy = new NewestKSelectionPolicy(testProps);
+    }
+  }
+
   @Test
   public void testCreationConfig() {
-    for(Map.Entry<String, Map<String, Integer>> test: TEST_CONFIGS.entrySet()) {
+    for (Map.Entry<String, Map<String, Integer>> test : TEST_CONFIGS.entrySet()) {
       String testName = test.getKey();
       Config conf = ConfigFactory.parseMap(test.getValue());
       NewestKSelectionPolicy policy = new NewestKSelectionPolicy(conf);
-      Assert.assertEquals(policy.getVersionsSelected(),
-                          Math.abs(TEST_RESULTS.get(testName).intValue()),
-                          "Failure for test " + testName);
+      Assert.assertEquals(policy.getVersionsSelected(), Math.abs(TEST_RESULTS.get(testName).intValue()),
+          "Failure for test " + testName);
       Assert.assertEquals(policy.isExcludeMode(), TEST_RESULTS.get(testName).intValue() < 0,
-                          "Failure for test " + testName);
+          "Failure for test " + testName);
     }
 
-    for(Map.Entry<String, Map<String, Integer>> test: NEG_TEST_CONFIGS.entrySet()) {
+    for (Map.Entry<String, Map<String, Integer>> test : NEG_TEST_CONFIGS.entrySet()) {
       String testName = test.getKey();
       Config conf = ConfigFactory.parseMap(test.getValue());
       try {
         new NewestKSelectionPolicy(conf);
         Assert.fail("Exception expected for test " + testName);
-      }
-      catch (RuntimeException e) {
+      } catch (RuntimeException e) {
         // OK
       }
     }
@@ -170,47 +161,42 @@ public class NewestKSelectionPolicyTest {
 
     //selectedVersions 5 < 10
     Config conf = ConfigFactory.empty()
-          .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY,
-                     ConfigValueFactory.fromAnyRef(5));
+        .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, ConfigValueFactory.fromAnyRef(5));
     NewestKSelectionPolicy policy = new NewestKSelectionPolicy(conf);
     Collection<DatasetVersion> res = policy.listSelectedVersions(versions);
     int idx = 0;
     Assert.assertEquals(res.size(), policy.getVersionsSelected());
-    for (DatasetVersion v: res) {
+    for (DatasetVersion v : res) {
       Assert.assertEquals(v, versions.get(idx++), "Mismatch for index " + idx);
     }
 
     //selectedVersions 15 > 10
     conf = ConfigFactory.empty()
-          .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY,
-                     ConfigValueFactory.fromAnyRef(15));
+        .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_SELECTED_KEY, ConfigValueFactory.fromAnyRef(15));
     policy = new NewestKSelectionPolicy(conf);
     res = policy.listSelectedVersions(versions);
     idx = 0;
     Assert.assertEquals(res.size(), versions.size());
-    for (DatasetVersion v: res) {
+    for (DatasetVersion v : res) {
       Assert.assertEquals(v, versions.get(idx++), "Mismatch for index " + idx);
     }
 
     //notSelectedVersions 4 < 10
     conf = ConfigFactory.empty()
-          .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY,
-                     ConfigValueFactory.fromAnyRef(4));
+        .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, ConfigValueFactory.fromAnyRef(4));
     policy = new NewestKSelectionPolicy(conf);
     res = policy.listSelectedVersions(versions);
     idx = policy.getVersionsSelected();
     Assert.assertEquals(res.size(), versions.size() - policy.getVersionsSelected());
-    for (DatasetVersion v: res) {
+    for (DatasetVersion v : res) {
       Assert.assertEquals(v, versions.get(idx++), "Mismatch for index " + idx);
     }
 
     //notSelectedVersions 14 > 10
     conf = ConfigFactory.empty()
-          .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY,
-                     ConfigValueFactory.fromAnyRef(14));
+        .withValue(NewestKSelectionPolicy.NEWEST_K_VERSIONS_NOTSELECTED_KEY, ConfigValueFactory.fromAnyRef(14));
     policy = new NewestKSelectionPolicy(conf);
     res = policy.listSelectedVersions(versions);
     Assert.assertEquals(res.size(), 0);
   }
-
 }

@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 import org.apache.gobblin.data.management.retention.version.TimestampedDatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -34,15 +35,19 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   private final org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
   private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "gobblin.retention.version.finder.pattern";
+  private static final String VERSION_FINDER_ITERATOR = "version.finder.iterator";
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
-    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+    this(fs,
+        config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY))
+            : new Path("*"), ConfigUtils.getBoolean(config, VERSION_FINDER_ITERATOR, false));
   }
 
-  public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
+  public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern, boolean useIterator) {
     super(fs);
     this.realVersionFinder =
-        new org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder(fs, globPattern);
+        new org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder(fs, globPattern,
+            useIterator);
   }
 
   @Override

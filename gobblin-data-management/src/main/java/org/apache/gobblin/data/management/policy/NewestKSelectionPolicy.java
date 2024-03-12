@@ -33,10 +33,12 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * Select the newest k versions of the dataset.
+ * Newest k version policy can't be used while fetching version via Iterator
  */
 @ToString
 public class NewestKSelectionPolicy<T extends DatasetVersion> implements VersionSelectionPolicy<T> {
@@ -61,6 +63,12 @@ public class NewestKSelectionPolicy<T extends DatasetVersion> implements Version
    */
   public static final String NEWEST_K_VERSIONS_NOTSELECTED_KEY = "selection.newestK.versionsNotSelected";
 
+  /**
+   * This denotes to use iterator for fetching all the versions of dataset.
+   * If true, this can't be used along with NewestKSelectionPolicy
+   */
+  public static final String VERSION_FINDER_ITERATOR = "version.finder.iterator";
+
   public static final Integer VERSIONS_SELECTED_DEFAULT = 2;
 
   public static final Integer MAX_VERSIONS_ALLOWED = 1000000;
@@ -79,10 +87,14 @@ public class NewestKSelectionPolicy<T extends DatasetVersion> implements Version
     }
 
     static Params createFromConfig(Config config) {
+      if (ConfigUtils.getBoolean(config, VERSION_FINDER_ITERATOR, false)) {
+        throw new RuntimeException("NewestKSelection policy can't be used with an iterator for finding versions");
+      }
       if (config.hasPath(NEWEST_K_VERSIONS_SELECTED_KEY)) {
         if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
-          throw new RuntimeException("Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY + " and "
-              + NEWEST_K_VERSIONS_NOTSELECTED_KEY + " can be specified.");
+          throw new RuntimeException(
+              "Only one of " + NEWEST_K_VERSIONS_SELECTED_KEY + " and " + NEWEST_K_VERSIONS_NOTSELECTED_KEY
+                  + " can be specified.");
         }
         return new Params(config.getInt(NEWEST_K_VERSIONS_SELECTED_KEY), false);
       } else if (config.hasPath(NEWEST_K_VERSIONS_NOTSELECTED_KEY)) {
