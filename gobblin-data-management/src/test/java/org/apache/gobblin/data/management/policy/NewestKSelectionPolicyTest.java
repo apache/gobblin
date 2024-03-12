@@ -123,7 +123,7 @@ public class NewestKSelectionPolicyTest {
       for (Map.Entry<String, Integer> prop : test.getValue().entrySet()) {
         testProps.setProperty(prop.getKey(), prop.getValue().toString());
       }
-      testProps.setProperty(NewestKSelectionPolicy.VERSION_FINDER_ITERATOR, "true");
+      testProps.setProperty(NewestKSelectionPolicy.SHOULD_ITERATE_VERSIONS, "true");
       NewestKSelectionPolicy policy = new NewestKSelectionPolicy(testProps);
     }
   }

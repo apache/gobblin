@@ -35,12 +35,18 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
 
   private final org.apache.gobblin.data.management.version.finder.GlobModTimeDatasetVersionFinder realVersionFinder;
   private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "gobblin.retention.version.finder.pattern";
-  private static final String VERSION_FINDER_ITERATOR = "version.finder.iterator";
+
+  /**
+   * This denotes to use iterator for fetching all the versions of dataset.
+   * This should be set true when the dataset versions has to be pulled in memory iteratively
+   * If not set, may result into OOM as all the dataset versions are pulled in-memory
+   */
+  private static final String SHOULD_ITERATE_VERSIONS = "version.should.iterate";
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
     this(fs,
         config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY))
-            : new Path("*"), ConfigUtils.getBoolean(config, VERSION_FINDER_ITERATOR, false));
+            : new Path("*"), ConfigUtils.getBoolean(config, SHOULD_ITERATE_VERSIONS, false));
   }
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern, boolean useIterator) {
