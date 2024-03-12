@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.temporal.workflows.metrics;
 
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -84,6 +84,7 @@ public class EventSubmitterContext {
       this.tags.addAll(eventSubmitter.getTags());
       this.namespace = eventSubmitter.getNamespace();
     }
+
     public Builder addTag(Tag<?> tag) {
       this.tags.add(tag);
       return this;

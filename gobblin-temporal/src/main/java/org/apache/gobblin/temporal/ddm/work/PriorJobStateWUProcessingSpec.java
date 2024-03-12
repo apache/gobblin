@@ -20,12 +20,7 @@ package org.apache.gobblin.temporal.ddm.work;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -35,10 +30,7 @@ import lombok.NonNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.hadoop.fs.FileSystem;
 
-import org.apache.gobblin.instrumented.GobblinMetricsKeys;
-import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
