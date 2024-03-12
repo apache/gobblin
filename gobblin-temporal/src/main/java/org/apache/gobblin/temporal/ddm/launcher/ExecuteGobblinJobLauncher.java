@@ -83,8 +83,7 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       Config jobConfigWithOverrides = applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps));
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
-      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder()
-          .withEventSubmitter(eventSubmitter)
+      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter)
           .withGaaSJobProps(this.jobProps)
           .build();
       int numWorkUnits = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);

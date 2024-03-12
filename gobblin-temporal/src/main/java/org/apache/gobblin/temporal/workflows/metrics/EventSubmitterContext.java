@@ -25,8 +25,10 @@ import java.util.Properties;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import lombok.NoArgsConstructor;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -73,9 +75,15 @@ public class EventSubmitterContext {
     }
   }
 
+  @AllArgsConstructor
+  @NoArgsConstructor
   public static class Builder {
     private List<Tag<?>> tags = new ArrayList<>();
     private String namespace;
+    public Builder(EventSubmitter eventSubmitter) {
+      this.tags.addAll(eventSubmitter.getTags());
+      this.namespace = eventSubmitter.getNamespace();
+    }
     public Builder addTag(Tag<?> tag) {
       this.tags.add(tag);
       return this;
