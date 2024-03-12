@@ -39,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * A factory implementation that returns a {@link DagManagementDagActionStoreChangeMonitor} instance.
  */
 @Slf4j
-public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
+public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
@@ -50,7 +50,7 @@ public class DagProcEngineEnabledDagActionStoreChangeMonitorFactory implements P
   private final DagManagement dagManagement;
 
   @Inject
-  public DagProcEngineEnabledDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
+  public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
       Orchestrator orchestrator, DagActionStore dagActionStore, DagManagement dagManagement,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);

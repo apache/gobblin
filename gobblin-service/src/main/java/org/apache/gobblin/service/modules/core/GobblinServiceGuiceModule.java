@@ -86,11 +86,12 @@ import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionReso
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
-import org.apache.gobblin.service.monitoring.DagProcEngineEnabledDagActionStoreChangeMonitorFactory;
+import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
@@ -206,6 +207,7 @@ public class GobblinServiceGuiceModule implements Module {
         .to(NoopRequesterService.class);
 
     binder.bind(SharedFlowMetricsSingleton.class);
+    binder.bind(FlowCompilationValidationHelper.class);
 
     OptionalBinder.newOptionalBinder(binder, TopologyCatalog.class);
     binder.bind(TopologyCatalog.class);
@@ -268,7 +270,7 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
       if (serviceConfig.isDagProcessingEngineEnabled()) {
         binder.bind(DagActionStoreChangeMonitor.class)
-            .toProvider(DagProcEngineEnabledDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+            .toProvider(DagManagementDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
       } else {
         binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
       }

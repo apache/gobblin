@@ -84,13 +84,13 @@ import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
@@ -170,8 +170,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * so only they would be loaded during DR handling.
    */
   public static final String DR_FILTER_TAG = "dr";
-  private final boolean dagProcessingEngineEnabled;
-  private final DagManagement dagManagement;
 
   @Inject
   public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName,
@@ -179,8 +177,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
       Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
       @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
-      Optional<FlowTriggerHandler> flowTriggerHandler, DagManagement dagManagement,
-      @Named(InjectionNames.DAG_PROC_ENGINE_ENABLED) boolean dagProcessingEngineEnabled) throws Exception {
+      Optional<FlowTriggerHandler> flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -213,21 +210,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       metricContext.register(this.totalAddSpecTimeNanos);
       metricContext.register(this.numJobsScheduledDuringStartup);
     }
-    this.dagProcessingEngineEnabled = dagProcessingEngineEnabled;
-    this.dagManagement = dagManagement;
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
       DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, DagManagement dagManagement,
-      DagManagementStateStore dagManagementStateStore, boolean dagProcessingEngineEnabled)
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, DagManagementStateStore dagManagementStateStore,
+      FlowCompilationValidationHelper flowCompilationValidationHelper)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog,
         new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerHandler,
-            sharedFlowMetricsSingleton, flowCatalog, dagManagement, dagManagementStateStore),
-        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler, dagManagement, dagProcessingEngineEnabled);
+            sharedFlowMetricsSingleton, flowCatalog, dagManagementStateStore, flowCompilationValidationHelper),
+        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerHandler);
   }
 
   public synchronized void setActive(boolean isActive) {

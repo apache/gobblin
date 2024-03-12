@@ -111,16 +111,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
-  private final ClassAliasResolver<SpecCompiler> aliasResolver;
-  private final DagManagement dagManagement;
-
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog, DagManagement dagManagement,
-      DagManagementStateStore dagManagementStateStore) throws IOException {
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
+      DagManagementStateStore dagManagementStateStore, FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
+    ClassAliasResolver<SpecCompiler> aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
@@ -134,7 +131,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       }
       _log.info("Using specCompiler class name/alias " + specCompilerClassName);
 
-      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(specCompilerClassName)), config);
+      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(specCompilerClassName)), config);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
              ClassNotFoundException e) {
       throw new RuntimeException(e);
@@ -142,7 +139,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
-    this.dagManagement = dagManagement;
     ((MostlyMySqlDagManagementStateStore) dagManagementStateStore).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
@@ -157,8 +153,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
         ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
         config);
-    this.flowCompilationValidationHelper = new FlowCompilationValidationHelper(sharedFlowMetricsSingleton, specCompiler,
-        quotaManager, eventSubmitter, flowStatusGenerator, isFlowConcurrencyEnabled);
+    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
   @VisibleForTesting
