@@ -39,7 +39,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -79,6 +81,9 @@ public class OrchestratorTest {
   private FlowCatalog flowCatalog;
   private FlowSpec flowSpec;
   private Orchestrator orchestrator;
+  private static final String TEST_USER = "testUser";
+  private static final String TEST_PASSWORD = "testPassword";
+  private static final String TEST_TABLE = "quotas";
 
   @BeforeClass
   public void setup() throws Exception {
@@ -108,11 +113,21 @@ public class OrchestratorTest {
     FlowTriggerHandler mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
     DagManager mockDagManager = mock(DagManager.class);
     doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
+    Config config = ConfigBuilder.create()
+        .addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY,
+            MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), TestMetastoreDatabaseFactory.get().getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE).build();
+
+    MostlyMySqlDagManagementStateStore dagManagementStateStore =
+        new MostlyMySqlDagManagementStateStore(config, null, null);
 
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
-        Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(
-             ConfigUtils.propertiesToConfig(orchestratorProperties)), Optional.of(mock(FlowCatalog.class)));
+        Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(
+            orchestratorProperties)), Optional.of(mock(FlowCatalog.class)), dagManagementStateStore, null);
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

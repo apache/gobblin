@@ -149,7 +149,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
               return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec1");
@@ -235,7 +235,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
               return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec2");
@@ -300,7 +300,7 @@ public class GobblinServiceJobSchedulerTest {
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
-            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
             if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 3) {
               return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
                   scheduler.scheduledFlowSpecs.containsKey("spec1") &&
@@ -413,7 +413,7 @@ public class GobblinServiceJobSchedulerTest {
       if (flowName.equals(MockedSpecCompiler.UNCOMPILABLE_FLOW)) {
         throw new RuntimeException("Could not compile flow");
       }
-      super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+      super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), (FlowSpec) addedSpec);
       if (hasScheduler) {
         try {
           scheduleJob(((FlowSpec) addedSpec).getConfigAsProperties(), null);

@@ -17,23 +17,33 @@
 
 package org.apache.gobblin.service.modules.utils;
 
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
+import com.google.common.base.Optional;
+import com.google.inject.Inject;
+import com.typesafe.config.Config;
+
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -58,6 +68,27 @@ public final class FlowCompilationValidationHelper {
   private final EventSubmitter eventSubmitter;
   private final FlowStatusGenerator flowStatusGenerator;
   private final boolean isFlowConcurrencyEnabled;
+
+  @Inject
+  public FlowCompilationValidationHelper(Config config, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
+      UserQuotaManager userQuotaManager, FlowStatusGenerator flowStatusGenerator) {
+    try {
+      String specCompilerClassName = ConfigUtils.getString(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY,
+          ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS);
+      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(
+          new ClassAliasResolver<>(SpecCompiler.class).resolve(specCompilerClassName)), config);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
+             ClassNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+    this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
+    this.quotaManager = userQuotaManager;
+    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
+    this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
+    this.flowStatusGenerator = flowStatusGenerator;
+    this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
+        ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
+  }
 
   /**
    * For a given a flowSpec, verifies that an execution is allowed (in case there is an ongoing execution) and the
