@@ -59,7 +59,9 @@ public class HelloWorldJobLauncher extends GobblinTemporalJobLauncher {
   public void submitJob(List<WorkUnit> workunits) {
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(queueName).build();
     GreetingWorkflow greetingWorkflow = this.client.newWorkflowStub(GreetingWorkflow.class, options);
-    EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(this.eventSubmitter);
+    EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder()
+        .withEventSubmitter(this.eventSubmitter)
+        .build();
 
     String greeting = greetingWorkflow.getGreeting("Gobblin", eventSubmitterContext);
     log.info(greeting);

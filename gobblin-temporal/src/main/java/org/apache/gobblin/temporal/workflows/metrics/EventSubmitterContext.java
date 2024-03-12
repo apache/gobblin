@@ -17,15 +17,14 @@
 
 package org.apache.gobblin.temporal.workflows.metrics;
 
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.Properties;
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -47,7 +46,7 @@ import static org.apache.gobblin.instrumented.GobblinMetricsKeys.CLASS_META;
  */
 @Getter
 public class EventSubmitterContext {
-  private List<Tag<?>> tags;
+  private final List<Tag<?>> tags;
   private final String namespace;
   private final Class callerClass;
 
@@ -61,53 +60,6 @@ public class EventSubmitterContext {
     this.callerClass = callerClass;
   }
 
-  public EventSubmitterContext(List<Tag<?>> tags, String namespace) {
-    // Explicitly send class over the wire to avoid any classloader issues
-    this(tags, namespace, tags.stream()
-        .filter(tag -> tag.getKey().equals(CLASS_META))
-        .findAny()
-        .map(tag -> (String) tag.getValue())
-        .map(EventSubmitterContext::resolveClass)
-        .orElse(EventSubmitterContext.class));
-  }
-
-  public EventSubmitterContext(EventSubmitter eventSubmitter) {
-    this(eventSubmitter.getTags(), eventSubmitter.getNamespace());
-  }
-
-  public EventSubmitterContext augmentWithGaaSMetadata(Properties jobProps) {
-    // TODO: Add temporal specific metadata tags
-    List<Tag<?>> metadataTags = new ArrayList<>(this.tags);
-
-    if (jobProps.containsKey(ConfigurationKeys.FLOW_GROUP_KEY)) {
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY)));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
-    }
-
-    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
-      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
-          "false"));
-    }
-
-    //Use azkaban.flow.execid as the jobExecutionId
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
-
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
-        jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
-    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
-        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
-    metadataTags.add(new Tag<>(TimingEvent.METADATA_MESSAGE, ""));
-
-    metadataTags.add(new Tag<>(Help.USER_TO_PROXY_KEY, jobProps.getProperty(Help.USER_TO_PROXY_KEY, "")));
-    this.tags = metadataTags;
-    return this;
-  }
-
   public EventSubmitter create() {
     MetricContext metricContext = Instrumented.getMetricContext(new State(), callerClass, tags);
     return new EventSubmitter.Builder(metricContext, namespace).build();
@@ -119,6 +71,70 @@ public class EventSubmitterContext {
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
+  }
 
+  public static class Builder {
+    private List<Tag<?>> tags = new ArrayList<>();
+    private String namespace;
+    public Builder addTag(Tag<?> tag) {
+      this.tags.add(tag);
+      return this;
+    }
+
+    public Builder addTags(List<Tag<?>> tags) {
+      this.tags.addAll(tags);
+      return this;
+    }
+
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
+      return this;
+    }
+
+    public Builder withGaaSJobProps(Properties jobProps) {
+      // TODO: Add temporal specific metadata tags
+
+      if (jobProps.containsKey(ConfigurationKeys.FLOW_GROUP_KEY)) {
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY)));
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
+      }
+
+      if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
+            jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
+            jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
+        this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,
+            "false"));
+      }
+
+      //Use azkaban.flow.execid as the jobExecutionId
+      this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+
+      this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
+      this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
+          jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
+      this.tags.add(new Tag<>(TimingEvent.METADATA_MESSAGE, ""));
+
+      this.tags.add(new Tag<>(Help.USER_TO_PROXY_KEY, jobProps.getProperty(Help.USER_TO_PROXY_KEY, "")));
+      return this;
+    }
+
+    public Builder withEventSubmitter(EventSubmitter eventSubmitter) {
+      this.tags.addAll(eventSubmitter.getTags());
+      this.namespace = eventSubmitter.getNamespace();
+      return this;
+    }
+
+    public EventSubmitterContext build() {
+      return new EventSubmitterContext(ImmutableList.copyOf(tags), namespace, tags.stream()
+          .filter(tag -> tag.getKey().equals(CLASS_META))
+          .findAny()
+          .map(tag -> (String) tag.getValue())
+          .map(EventSubmitterContext::resolveClass)
+          .orElse(EventSubmitterContext.class));
+    }
   }
 }

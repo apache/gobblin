@@ -79,7 +79,9 @@ public class GenerateWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       Config jobConfigWithOverrides = applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps));
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
-      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(this.eventSubmitter);
+      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder()
+          .withEventSubmitter(this.eventSubmitter)
+          .build();
 
       int numWorkUnits = workflow.generate(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
       log.info("FINISHED - GenerateWorkUnitsWorkflow.generate = {}", numWorkUnits);

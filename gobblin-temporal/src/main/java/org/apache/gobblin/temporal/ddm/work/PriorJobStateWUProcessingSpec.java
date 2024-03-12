@@ -78,42 +78,13 @@ public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
     try {
       FileSystem fs = Help.loadFileSystemForce(this);
       JobState jobState = Help.loadJobStateUncached(this, fs);
-      List<Tag<?>> tagsFromCurrentJob = this.getTags();
-      String metricsSuffix = this.getMetricsSuffix();
-      List<Tag<?>> tags = this.calcMergedTags(tagsFromCurrentJob, metricsSuffix, jobState);
-      return new EventSubmitterContext(tags, JobMetrics.NAMESPACE);
+      return new EventSubmitterContext.Builder()
+          .addTags(this.getTags())
+          .withGaaSJobProps(jobState.getProperties())
+          .setNamespace(JobMetrics.NAMESPACE)
+          .build();
     } catch (IOException ioe) {
       throw new RuntimeException(ioe);
     }
-  }
-
-  private List<Tag<?>> calcMergedTags(List<Tag<?>> tagsFromCurJob, String metricsSuffix, JobState jobStateFromHdfs) {
-    // Construct new tags list by combining subset of tags on HDFS job state and the rest of the fields from the current job
-    Map<String, Tag<?>> tagsMap = new HashMap<>();
-    Set<String> tagKeysFromJobState = new HashSet<>(Arrays.asList(
-        TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
-        TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
-        TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
-        TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
-        TimingEvent.FlowEventConstants.JOB_GROUP_FIELD));
-
-    // Step 1, Add tags from the AZ props using the original job (the one that launched this yarn app)
-    tagsFromCurJob.forEach(tag -> tagsMap.put(tag.getKey(), tag));
-
-    // Step 2. Add tags from the jobState (the original MR job on HDFS)
-    List<String> targetKeysToAddSuffix = Arrays.asList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    GobblinMetrics.getCustomTagsFromState(jobStateFromHdfs).stream()
-        .filter(tag -> tagKeysFromJobState.contains(tag.getKey()))
-        .forEach(tag -> {
-          // Step 2a (optional): Add a suffix to the FLOW_NAME_FIELD AND FLOW_GROUP_FIELDS to prevent collisions when testing
-          String value = targetKeysToAddSuffix.contains(tag.getKey())
-              ? tag.getValue() + metricsSuffix
-              : String.valueOf(tag.getValue());
-          tagsMap.put(tag.getKey(), new Tag<>(tag.getKey(), value));
-        });
-
-    // Step 3: Overwrite any pre-existing metadata with name of the current caller
-    tagsMap.put(GobblinMetricsKeys.CLASS_META, new Tag<>(GobblinMetricsKeys.CLASS_META, getClass().getCanonicalName()));
-    return new ArrayList<>(tagsMap.values());
   }
 }
