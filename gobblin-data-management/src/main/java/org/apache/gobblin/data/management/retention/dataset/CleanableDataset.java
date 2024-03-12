@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.retention.dataset;
 
 import java.io.IOException;
+
 import org.apache.gobblin.dataset.Dataset;
 
 
@@ -28,10 +29,11 @@ import org.apache.gobblin.dataset.Dataset;
 public interface CleanableDataset extends Dataset {
 
   /**
-   * Cleans the {@link CleanableDataset}. In general, this means to apply a
+   * Cleans the {@link CleanableDataset}.
+   * Returns the number of versions marked for deletion
    * {@link org.apache.gobblin.data.management.retention.policy.RetentionPolicy} and delete files and directories that need deleting.
    * @throws IOException
    */
-  public void clean() throws IOException;
+  public int clean() throws IOException;
 
 }

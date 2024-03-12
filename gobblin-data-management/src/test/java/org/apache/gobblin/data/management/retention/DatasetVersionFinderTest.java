@@ -29,14 +29,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 import org.apache.gobblin.data.management.retention.version.StringDatasetVersion;
 import org.apache.gobblin.data.management.retention.version.finder.DatasetVersionFinder;
 import org.apache.gobblin.dataset.FileSystemDataset;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class DatasetVersionFinderTest {
@@ -98,9 +98,8 @@ public class DatasetVersionFinderTest {
     }
 
     @Override
-    public void clean()
-        throws IOException {
-
+    public int clean() throws IOException {
+      return 0;
     }
 
     @Override

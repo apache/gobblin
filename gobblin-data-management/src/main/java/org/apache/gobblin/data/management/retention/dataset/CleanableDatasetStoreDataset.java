@@ -21,13 +21,15 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import com.google.common.collect.Lists;
+
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.DatasetStateStoreVersion;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.DatasetStoreDataset;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
-import com.google.common.collect.Lists;
 
 
 /**
@@ -44,7 +46,7 @@ public abstract class CleanableDatasetStoreDataset<T extends DatasetVersion> ext
   public abstract VersionSelectionPolicy<T> getVersionSelectionPolicy();
 
   @Override
-  public void clean() throws IOException {
+  public int clean() throws IOException {
 
     List<T> versions = Lists.newArrayList(this.getVersionFinder().findDatasetVersions(this));
 
@@ -55,5 +57,7 @@ public abstract class CleanableDatasetStoreDataset<T extends DatasetVersion> ext
     for (Object version : deletableVersions) {
       ((DatasetStateStoreVersion) version).getEntry().delete();
     }
+
+    return deletableVersions.size();
   }
 }
