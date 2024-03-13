@@ -97,7 +97,9 @@ public class RetentionIntegrationTest {
         { "testCombinePolicy", "retention.job" },
         { "testCombinePolicy", "selection.conf" },
         { "testTimeBasedAccessControl", "selection.conf" },
-        { "testMultiVersionAccessControl", "daily-retention-with-accessControl.conf" }
+        { "testMultiVersionAccessControl", "daily-retention-with-accessControl.conf" },
+        { "testTimeBasedRetentionWithVersionIterator", "retention.conf"},
+        { "testTimeBasedRetentionWithVersionIterator", "selection.conf" }
     };
   }
 
