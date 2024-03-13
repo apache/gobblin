@@ -65,7 +65,7 @@ public class LaunchDagProcTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(TestMetastoreDatabaseFactory.get()));
-    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).loadFlowSpec(any());
+    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
     doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
   }

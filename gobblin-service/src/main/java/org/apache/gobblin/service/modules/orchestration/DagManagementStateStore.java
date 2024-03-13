@@ -18,7 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +27,6 @@ import java.util.Set;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.exception.QuotaExceededException;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -42,17 +41,16 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 @Alpha
 public interface DagManagementStateStore {
   /**
-   * Returns a {@link FlowSpec} for the given flow identified by the provided DagAction.
+   * Returns a {@link FlowSpec} for the given URI.
    * @throws SpecNotFoundException if the spec is not found
    */
-  FlowSpec loadFlowSpec(DagActionStore.DagAction dagAction) throws SpecNotFoundException, URISyntaxException;
+  FlowSpec getFlowSpec(URI uri) throws SpecNotFoundException;
 
   /**
-   * Removes a {@link FlowSpec} for the flow identified by the provided DagAction and pass the deletion to listeners
-   * if `triggerListener` is true. No-op if the flow spec was not present in the store.
+   * Removes a {@link FlowSpec} with the given URI and pass the deletion to listeners if `triggerListener` is true
+   * No-op if the flow spec was not present in the store.
    */
-  void removeFlowSpec(DagActionStore.DagAction dagAction, Properties headers, boolean triggerListener)
-      throws URISyntaxException;
+  void removeFlowSpec(URI uri, Properties headers, boolean triggerListener);
 
   /**
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.

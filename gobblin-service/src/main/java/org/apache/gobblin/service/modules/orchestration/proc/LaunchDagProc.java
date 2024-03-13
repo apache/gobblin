@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Map;
@@ -79,12 +80,18 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       throws IOException {
     try {
       DagActionStore.DagAction dagAction = this.launchDagTask.getDagAction();
-      FlowSpec flowSpec = dagManagementStateStore.loadFlowSpec(dagAction);
+      FlowSpec flowSpec = loadFlowSpec(dagManagementStateStore, dagAction);
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
       return this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private FlowSpec loadFlowSpec(DagManagementStateStore dagManagementStateStore, DagActionStore.DagAction dagAction)
+      throws URISyntaxException, SpecNotFoundException {
+    URI flowUri = FlowSpec.Utils.createFlowSpecUri(dagAction.getFlowId());
+    return dagManagementStateStore.getFlowSpec(flowUri);
   }
 
   @Override
@@ -123,7 +130,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
    }
 
   private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
-     throw new UnsupportedOperationException("More than one start jobs are not allowed");
+     throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 
   /**
