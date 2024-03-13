@@ -47,7 +47,7 @@ public abstract class DagProc<S, T> {
     T result = act(dagManagementStateStore, state);   // todo - retry
     commit(dagManagementStateStore, result);   // todo - retry
     sendNotification(result, eventSubmitter);   // todo - retry
-    log.info("{} concluded actions for dagId : {}", getClass(), getDagId());
+    log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), getDagId());
   }
 
   protected abstract DagManager.DagId getDagId();

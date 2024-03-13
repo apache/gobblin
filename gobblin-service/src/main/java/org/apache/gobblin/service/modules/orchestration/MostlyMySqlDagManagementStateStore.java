@@ -18,6 +18,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,6 +35,7 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -69,7 +71,8 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
-  @Getter private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
+  @Getter
+  private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
 
   @Inject
   public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager) {
@@ -91,13 +94,16 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public FlowSpec getFlowSpec(URI uri) throws SpecNotFoundException {
-    return this.flowCatalog.getSpecs(uri);
+  public FlowSpec loadFlowSpec(DagActionStore.DagAction dagAction) throws SpecNotFoundException, URISyntaxException {
+    URI flowUri = FlowSpec.Utils.createFlowSpecUri(dagAction.getFlowId());
+    return this.flowCatalog.getSpecs(flowUri);
   }
 
   @Override
-  public void removeFlowSpec(URI uri, Properties headers, boolean triggerListener) {
-    this.flowCatalog.remove(uri, headers, triggerListener);
+  public void removeFlowSpec(DagActionStore.DagAction dagAction, Properties headers, boolean triggerListener)
+      throws URISyntaxException {
+    URI flowUri = FlowSpec.Utils.createFlowSpecUri(dagAction.getFlowId());
+    this.flowCatalog.remove(flowUri, headers, triggerListener);
   }
 
   public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
@@ -234,9 +240,4 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   public boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     return this.quotaManager.releaseQuota(dagNode);
   }
-
-//  @Override
-//  public DagManagerMetrics getMetrics() {
-//    return this.dagManagerMetrics;
-//  }
 }

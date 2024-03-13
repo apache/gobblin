@@ -43,6 +43,7 @@ import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -59,27 +60,28 @@ import static org.mockito.Mockito.spy;
 
 
 public class LaunchDagProcTest {
-  MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+
   @BeforeClass
   public void setUp() throws Exception {
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(TestMetastoreDatabaseFactory.get()));
-    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
+    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).loadFlowSpec(any());
     doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
   }
+
   @Test
   public void launchDag()
       throws IOException, InterruptedException, URISyntaxException {
-    // this creates a dag with 3 start nodes
-    Dag<JobExecutionPlan> dag1 = buildDagWithMultipleNodesAtDifferentLevels("1", System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
-        "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
-    doReturn(com.google.common.base.Optional.of(dag1)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+    doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "fn",
         "12345", DagActionStore.FlowActionType.LAUNCH), null), flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
-    int expectedNumOfSavingDagNodeStates = 3; // = number of start nodes
+    int expectedNumOfSavingDagNodeStates = 1; // = number of start nodes
     Assert.assertEquals(expectedNumOfSavingDagNodeStates,
         Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
@@ -91,6 +93,8 @@ public class LaunchDagProcTest {
   //     DN4
   //    / | \
   //  D5 D6  D7
+
+  // Not used now, but can be used in GOBBLIN-2017
   public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, Long flowExecutionId, String flowFailureOption,
       String proxyUser, Config additionalConfig)
       throws URISyntaxException {

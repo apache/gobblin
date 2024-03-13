@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Map;
@@ -62,6 +61,8 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
   private final LaunchDagTask launchDagTask;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
+  // todo - this is not orchestration delay and should be renamed. keeping it the same because DagManager is also using
+  // the same name
   private static final AtomicLong orchestrationDelayCounter = new AtomicLong(0);
   static {
     metricContext.register(
@@ -78,8 +79,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       throws IOException {
     try {
       DagActionStore.DagAction dagAction = this.launchDagTask.getDagAction();
-      URI flowUri = FlowSpec.Utils.createFlowSpecUri(dagAction.getFlowId());
-      FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(flowUri);
+      FlowSpec flowSpec = dagManagementStateStore.loadFlowSpec(dagAction);
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
       return this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException e) {
@@ -96,6 +96,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       return Optional.empty();
     }
     submitNextNodes(dagManagementStateStore, dag.get());
+    orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     return dag;
   }
 
@@ -105,6 +106,10 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
    private void submitNextNodes(DagManagementStateStore dagManagementStateStore,
        Dag<JobExecutionPlan> dag) throws IOException {
      Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+
+     if (nextNodes.size() > 1) {
+       handleMultipleJobs(nextNodes);
+     }
 
      //Submit jobs from the dag ready for execution.
      for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
@@ -116,6 +121,10 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
      //Checkpoint the dag state, it should have an updated value of dag nodes
      dagManagementStateStore.checkpointDag(dag);
    }
+
+  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
+     throw new UnsupportedOperationException("More than one start jobs are not allowed");
+  }
 
   /**
    * Submits a {@link JobSpec} to a {@link SpecExecutor}.
