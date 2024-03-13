@@ -61,7 +61,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 @Data
-public final class FlowCompilationValidationHelper {
+public class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;

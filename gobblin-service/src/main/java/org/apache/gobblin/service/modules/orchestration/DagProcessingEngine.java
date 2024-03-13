@@ -75,7 +75,7 @@ public class DagProcessingEngine {
 
   @AllArgsConstructor
   @VisibleForTesting
-  static class DagProcEngineThread implements Runnable {
+  public static class DagProcEngineThread implements Runnable {
     private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;

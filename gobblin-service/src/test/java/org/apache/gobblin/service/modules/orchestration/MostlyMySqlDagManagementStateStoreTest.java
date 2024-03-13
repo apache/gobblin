@@ -52,14 +52,9 @@ public class MostlyMySqlDagManagementStateStoreTest {
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "quotas";
-  static ITestMetastoreDatabase testMetastoreDatabase;
 
-
-  @BeforeClass
-  public void setUp() throws Exception {
-    // Setting up mock DB
-    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-
+  public static MostlyMySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
+    MostlyMySqlDagManagementStateStore dagManagementStateStore;
     ConfigBuilder configBuilder = ConfigBuilder.create();
     configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
@@ -74,9 +69,15 @@ public class MostlyMySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
-    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
-    this.dagManagementStateStore.start();
+    dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
+    dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    return dagManagementStateStore;
+  }
+
+  @BeforeClass
+  public void setUp() throws Exception {
+    // Setting up mock DB
+    this.dagManagementStateStore = getDummyDMSS(TestMetastoreDatabaseFactory.get());
   }
 
   @Test
