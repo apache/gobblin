@@ -181,4 +181,9 @@ public interface DagManagementStateStore {
    * Returns true if successfully reduces the quota usage
    */
   boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+
+  /**
+   * Returns a {@link DagManagerMetrics} that monitors dags execution.
+   */
+  DagManagerMetrics getDagManagerMetrics();
 }
