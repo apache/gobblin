@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -84,9 +83,9 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       Config jobConfigWithOverrides = applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps));
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
-
-      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(this.eventSubmitter);
-
+      EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter)
+          .withGaaSJobProps(this.jobProps)
+          .build();
       int numWorkUnits = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
       log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", numWorkUnits);
     } catch (Exception e) {
