@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -68,12 +69,14 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
+  @Getter private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
 
   @Inject
   public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager) {
     this.quotaManager = userQuotaManager;
     this.config = config;
     this.flowCatalog = flowCatalog;
+    this.dagManagerMetrics.activate();
    }
 
   // It should be called after topology spec map is set
@@ -231,4 +234,9 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   public boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     return this.quotaManager.releaseQuota(dagNode);
   }
+
+//  @Override
+//  public DagManagerMetrics getMetrics() {
+//    return this.dagManagerMetrics;
+//  }
 }

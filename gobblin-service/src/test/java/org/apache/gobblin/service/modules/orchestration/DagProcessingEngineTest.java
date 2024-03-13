@@ -58,6 +58,7 @@ public class DagProcessingEngineTest {
   DagProcessingEngine dagProcessingEngine;
   DagTaskStream dagTaskStream;
   DagProcFactory dagProcFactory;
+  MostlyMySqlDagManagementStateStore dagManagementStateStore;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -79,8 +80,8 @@ public class DagProcessingEngineTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
-    dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
+    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty());
     this.dagProcFactory = new DagProcFactory(null);
@@ -141,6 +142,11 @@ public class DagProcessingEngineTest {
     }
 
     @Override
+    protected DagManager.DagId getDagId() {
+      return new DagManager.DagId("fg", "fn", "12345");
+    }
+
+    @Override
     protected Void initialize(DagManagementStateStore dagManagementStateStore) {
       return null;
     }
@@ -175,6 +181,6 @@ public class DagProcessingEngineTest {
         10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
         log, 1, 1000L);
 
-    Assert.assertEquals(DagManagementTaskStreamImpl.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+    Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
   }
 }

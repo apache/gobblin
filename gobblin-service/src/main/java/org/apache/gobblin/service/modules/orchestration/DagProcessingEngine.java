@@ -75,7 +75,7 @@ public class DagProcessingEngine {
 
   @AllArgsConstructor
   @VisibleForTesting
-  public static class DagProcEngineThread implements Runnable {
+  static class DagProcEngineThread implements Runnable {
     private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;
@@ -96,7 +96,7 @@ public class DagProcessingEngine {
           dagTask.conclude();
         } catch (Exception e) {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagTask.getDagId(), e);
-          DagManagementTaskStreamImpl.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
+          dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
         // todo mark lease success and releases it
         //dagTaskStream.complete(dagTask);

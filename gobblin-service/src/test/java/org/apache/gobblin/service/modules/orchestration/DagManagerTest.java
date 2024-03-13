@@ -184,43 +184,6 @@ public class DagManagerTest {
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  // This creates a dag like this
-  //  D1  D2 D3
-  //    \ | /
-  //     DN4
-  //    / | \
-  //  D5 D6  D7
-  public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, Long flowExecutionId, String flowFailureOption,
-      String proxyUser, Config additionalConfig)
-      throws URISyntaxException {
-    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
-
-    for (int i = 0; i < 7; i++) {
-      String suffix = Integer.toString(i);
-      Config jobConfig = ConfigBuilder.create().
-          addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group" + id).
-          addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow" + id).
-          addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
-          addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
-          addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
-          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
-          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
-      jobConfig = additionalConfig.withFallback(jobConfig);
-      if (i == 3) {
-        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0,job1,job2"));
-      } else if ((i == 4) || (i == 5) || (i == 6)) {
-        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job3"));
-      }
-      JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
-          withTemplate(new URI("job" + suffix)).build();
-      SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI(
-          ConfigUtils.getString(additionalConfig, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,"job" + i)));
-      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
-      jobExecutionPlans.add(jobExecutionPlan);
-    }
-    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
-  }
-
   static Iterator<JobStatus> getMockFlowStatus(String flowName, String flowGroup, Long flowExecutionId, String eventName) {
     return getMockJobStatus(flowName, flowGroup, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, eventName);
   }

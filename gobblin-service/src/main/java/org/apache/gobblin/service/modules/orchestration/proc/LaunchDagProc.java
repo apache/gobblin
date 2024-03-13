@@ -29,9 +29,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Maps;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -46,7 +46,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManagementTaskStreamImpl;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -58,7 +58,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
  * An implementation for {@link DagProc} that launches a new job.
  */
 @Slf4j
-@Alpha
+@RequiredArgsConstructor
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
   private final LaunchDagTask launchDagTask;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
@@ -68,9 +68,9 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
         metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get));
   }
 
-  public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
-    this.launchDagTask = launchDagTask;
-    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+  @Override
+  protected DagManager.DagId getDagId() {
+    return this.launchDagTask.getDagId();
   }
 
   @Override
@@ -91,12 +91,11 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   protected Optional<Dag<JobExecutionPlan>> act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     if (!dag.isPresent()) {
-      log.warn("Dag with id " + this.launchDagTask.getDagId() + " could not be compiled.");
+      log.warn("Dag with id " + getDagId() + " could not be compiled.");
       // todo - add metrics
       return Optional.empty();
     }
     submitNextNodes(dagManagementStateStore, dag.get());
-    log.info("Launch dagProc concluded actions for dagId : {}", this.launchDagTask.getDagId());
     return dag;
   }
 
@@ -110,8 +109,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
      //Submit jobs from the dag ready for execution.
      for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
        submitJobToExecutor(dagManagementStateStore, dagNode);
-       dagManagementStateStore.addDagNodeState(dagNode, this.launchDagTask.getDagId());
-       log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), this.launchDagTask.getDagId());
+       dagManagementStateStore.addDagNodeState(dagNode, getDagId());
+       log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
      }
 
      //Checkpoint the dag state, it should have an updated value of dag nodes
@@ -141,7 +140,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       // When the ensuing kafka message spurs DagManager processing, the quota is released and the counts decremented
       // Ensure that we do not double increment for flows that are retried
       if (DagManagerUtils.getJobExecutionPlan(dagNode).getCurrentAttempts() == 1) {
-        DagManagementTaskStreamImpl.getDagManagerMetrics().incrementRunningJobMetrics(dagNode);
+        dagManagementStateStore.getDagManagerMetrics().incrementRunningJobMetrics(dagNode);
       }
       // Submit the job to the SpecProducer, which in turn performs the actual job submission to the SpecExecutor instance.
       // The SpecProducer implementations submit the job to the underlying executor and return when the submission is complete,
@@ -149,6 +148,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       // blocks (by calling Future#get()) until the submission is completed.
       dagManagementStateStore.tryAcquireQuota(Collections.singleton(dagNode));
       Future<?> addSpecFuture = producer.addSpec(jobSpec);
+      // todo - we should add future.get() instead of the complete future into the JobExecutionPlan
       dagNode.getValue().setJobFuture(com.google.common.base.Optional.of(addSpecFuture));
       addSpecFuture.get();
       jobExecutionPlan.setExecutionStatus(ExecutionStatus.ORCHESTRATED);
@@ -157,7 +157,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
       jobMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, dagNode.getValue().toString());
       jobOrchestrationTimer.stop(jobMetadata);
       log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
-      DagManagementTaskStreamImpl.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
+      dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
     } catch (Exception e) {
       TimingEvent jobFailedTimer = eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
       String message = "Cannot submit job " + DagManagerUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
