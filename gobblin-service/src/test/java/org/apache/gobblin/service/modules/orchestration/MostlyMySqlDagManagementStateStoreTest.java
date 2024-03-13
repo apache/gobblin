@@ -98,7 +98,6 @@ public class MostlyMySqlDagManagementStateStoreTest {
   }
 
   public static MostlyMySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
-    MostlyMySqlDagManagementStateStore dagManagementStateStore;
     ConfigBuilder configBuilder = ConfigBuilder.create();
     configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
@@ -113,7 +112,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
+    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;
   }
