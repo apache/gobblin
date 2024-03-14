@@ -48,11 +48,11 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowExecutionId = "12345677";
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static DagActionStore.DagAction resumeDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.RESUME);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
   private static DagActionStore.DagAction launchDagAction2 =
-      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH);
+      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final long eventTimeMillis = System.currentTimeMillis();
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -95,13 +95,13 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (MultiActiveLeaseArbiter.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <=
         firstObtainedStatus.getLeaseAcquisitionTimestamp());
-    Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
+    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
         new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(firstObtainedStatus.getEventTimeMillis()),
-            jobName, DagActionStore.FlowActionType.LAUNCH)));
+            jobName, DagActionStore.DagActionType.LAUNCH)));
 
     // Verify that different DagAction types for the same flow can have leases at the same time
     DagActionStore.DagAction killDagAction = new
-        DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.KILL);
+        DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL);
     MultiActiveLeaseArbiter.LeaseAttemptStatus killStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(killDagAction, eventTimeMillis, false, true);
     Assert.assertTrue(killStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus);
@@ -332,8 +332,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
     MultiActiveLeaseArbiter.LeaseObtainedStatus firstObtainedStatus =
         (MultiActiveLeaseArbiter.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
-    Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH)));
+    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
+        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
     // the original flowExecutionId
@@ -343,7 +343,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     MultiActiveLeaseArbiter.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (MultiActiveLeaseArbiter.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
-    Assert.assertTrue(firstObtainedStatus.getFlowAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.FlowActionType.LAUNCH)));
+    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
+        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
   }
 }

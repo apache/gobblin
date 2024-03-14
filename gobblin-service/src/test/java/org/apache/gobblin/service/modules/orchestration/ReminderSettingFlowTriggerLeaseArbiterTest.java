@@ -27,16 +27,16 @@ import org.quartz.JobDataMap;
 import org.testng.annotations.Test;
 
 
-public class FlowTriggerHandlerTest {
+public class ReminderSettingFlowTriggerLeaseArbiterTest {
   long eventToRevisit = 123000L;
   long minimumLingerDurationMillis = 2000L;
-  String cronExpression = FlowTriggerDecorator.createCronFromDelayPeriod(minimumLingerDurationMillis);
+  String cronExpression = ReminderSettingFlowTriggerLeaseArbiter.createCronFromDelayPeriod(minimumLingerDurationMillis);
   String cronExpressionSuffix = truncateFirstTwoFieldsOfCronExpression(cronExpression);
   int schedulerBackOffMillis = 10;
-  DagActionStore.DagAction flowAction = new DagActionStore.DagAction("flowName", "flowGroup",
-      String.valueOf(eventToRevisit), DagActionStore.FlowActionType.LAUNCH);
+  DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowName", "flowGroup",
+      String.valueOf(eventToRevisit), "jobName", DagActionStore.DagActionType.LAUNCH);
   MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus =
-      new MultiActiveLeaseArbiter.LeasedToAnotherStatus(flowAction, minimumLingerDurationMillis);
+      new MultiActiveLeaseArbiter.LeasedToAnotherStatus(dagAction, minimumLingerDurationMillis);
 
   /**
    * Remove first two fields from cron expression representing seconds and minutes to return truncated cron expression
@@ -64,7 +64,7 @@ public class FlowTriggerHandlerTest {
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "1");
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
-    JobDataMap newJobDataMap = FlowTriggerDecorator.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
+    JobDataMap newJobDataMap = ReminderSettingFlowTriggerLeaseArbiter.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
         schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
@@ -84,7 +84,7 @@ public class FlowTriggerHandlerTest {
     Properties originalProperties = new Properties();
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
-    JobDataMap newJobDataMap = FlowTriggerDecorator.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
+    JobDataMap newJobDataMap = ReminderSettingFlowTriggerLeaseArbiter.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
         schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
@@ -99,7 +99,7 @@ public class FlowTriggerHandlerTest {
    */
   @Test
   public void testCreateSuffixForJobTrigger() {
-    String suffix = FlowTriggerDecorator.createSuffixForJobTrigger(leasedToAnotherStatus);
+    String suffix = ReminderSettingFlowTriggerLeaseArbiter.createSuffixForJobTrigger(leasedToAnotherStatus);
     Assert.assertTrue(suffix.equals("reminder_for_" + eventToRevisit));
   }
 }

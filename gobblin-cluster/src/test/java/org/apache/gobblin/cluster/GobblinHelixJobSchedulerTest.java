@@ -247,7 +247,7 @@ public class GobblinHelixJobSchedulerTest {
     java.nio.file.Path p = Files.createTempDirectory(GobblinHelixJobScheduler.class.getSimpleName());
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
         ConfigValueFactory.fromAnyRef(p.toString()));
-    SchedulerService schedulerService = new SchedulerService(new Properties());
+    SchedulerService schedulerService = new SchedulerService(new Properties(), null);
     NonObservingFSJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
     jobCatalog.startAsync();
     Config helixJobSchedulerConfig = ConfigFactory.empty().withValue(GobblinClusterConfigurationKeys.HELIX_JOB_SCHEDULING_THROTTLE_ENABLED_KEY,

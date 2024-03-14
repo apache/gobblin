@@ -26,7 +26,7 @@ import org.apache.gobblin.service.FlowId;
 
 
 public interface DagActionStore {
-  enum FlowActionType {
+  enum DagActionType {
     KILL, // Kill invoked through API call
     RESUME, // Resume flow invoked through API call
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
@@ -41,7 +41,7 @@ public interface DagActionStore {
     final String flowName;
     final String flowExecutionId;
     final String jobName;
-    final FlowActionType flowActionType;
+    final DagActionType _dagActionType;
 
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
@@ -52,7 +52,7 @@ public interface DagActionStore {
      */
     public DagAction updateFlowExecutionId(long eventTimeMillis) {
       return new DagAction(this.getFlowGroup(), this.getFlowName(),
-          String.valueOf(eventTimeMillis), this.getJobName(), this.getFlowActionType());
+          String.valueOf(eventTimeMillis), this.getJobName(), this.get_dagActionType());
     }
   }
 
@@ -62,20 +62,20 @@ public interface DagActionStore {
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
-   * @param flowActionType the value of the dag action
+   * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
-   * @param flowActionType the value of the dag action
+   * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException;
+  void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
 
   /**
    * delete the dag action from {@link DagActionStore}

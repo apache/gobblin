@@ -58,7 +58,7 @@ public class HelixRetriggeringJobCallableTest {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
         ConfigValueFactory.fromAnyRef(TMP_DIR));
     MutableJobCatalog jobCatalog = new NonObservingFSJobCatalog(config);
-    SchedulerService schedulerService = new SchedulerService(new Properties());
+    SchedulerService schedulerService = new SchedulerService(new Properties(), null);
     Path appWorkDir = new Path(TMP_DIR);
     GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), getMockHelixManager(), Optional.empty(),
         new EventBus("Test"), appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);

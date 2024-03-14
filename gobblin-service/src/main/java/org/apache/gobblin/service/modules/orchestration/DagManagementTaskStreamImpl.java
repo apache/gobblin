@@ -103,9 +103,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-    DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
+    DagActionStore.DagActionType dagActionType = dagAction.get_dagActionType();
 
-    switch (flowActionType) {
+    switch (dagActionType) {
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus);
       default:

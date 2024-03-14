@@ -106,14 +106,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private Optional<FlowTriggerDecorator> flowTriggerDecorator;
+  private Optional<ReminderSettingFlowTriggerLeaseArbiter> flowTriggerDecorator;
   private Optional<FlowCatalog> flowCatalog;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerDecorator> flowTriggerDecorator,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<ReminderSettingFlowTriggerLeaseArbiter> flowTriggerDecorator,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
       DagManagementStateStore dagManagementStateStore, FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -230,9 +230,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
 
-      // Note we use flowName as jobName for lease arbitration since orchestration is at a flow level
+      // Note we use "" as jobName for lease arbitration since orchestration is at a flow level
       DagActionStore.DagAction flowAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, flowName, DagActionStore.FlowActionType.LAUNCH);
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", DagActionStore.DagActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later

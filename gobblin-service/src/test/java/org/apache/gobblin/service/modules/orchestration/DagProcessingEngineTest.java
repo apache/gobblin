@@ -108,9 +108,9 @@ public class DagProcessingEngineTest {
         throw new RuntimeException("Simulating an exception to stop the thread!");
       }
       if (i % FAILING_DAGS_FREQUENCY == 0 ) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), true);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.DagActionType.LAUNCH), true);
       } else {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.FlowActionType.LAUNCH), false);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.DagActionType.LAUNCH), false);
       }
     }
   }

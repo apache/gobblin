@@ -58,11 +58,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
-        dagAction.getFlowActionType(), dagAction);
+        dagAction.get_dagActionType(), dagAction);
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       // todo - add actions for other other type of dag actions
-      if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.LAUNCH)) {
+      if (dagAction.get_dagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
         // If multi-active scheduler is NOT turned on we should not receive these type of events
         if (!this.isMultiActiveSchedulerEnabled) {
           this.unexpectedLaunchEventErrors.mark();
@@ -71,7 +71,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         }
         dagManagement.addDagAction(dagAction);
       } else {
-        log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getFlowActionType());
+        log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.get_dagActionType());
         this.unexpectedErrors.mark();
       }
     } catch (IOException e) {

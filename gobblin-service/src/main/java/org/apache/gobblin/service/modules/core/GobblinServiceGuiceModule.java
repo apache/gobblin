@@ -75,9 +75,9 @@ import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagProcReminderScheduler;
-import org.apache.gobblin.service.modules.orchestration.DagProcArbiterDecorator;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerDecorator;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.modules.orchestration.ReminderSettingDagProcLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.ReminderSettingFlowTriggerLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -168,7 +168,6 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
         .to(serviceConfig.isDagProcessingEngineEnabled());
-    // TODO: see if this useful
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED))
         .to(serviceConfig.isMultiActiveExecutionEnabled());
@@ -186,10 +185,10 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
-    OptionalBinder.newOptionalBinder(binder, FlowTriggerDecorator.class);
+    OptionalBinder.newOptionalBinder(binder, ReminderSettingFlowTriggerLeaseArbiter.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
-      binder.bind(FlowTriggerDecorator.class);
+      binder.bind(ReminderSettingFlowTriggerLeaseArbiter.class);
     }
 
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
@@ -201,12 +200,12 @@ public class GobblinServiceGuiceModule implements Module {
     // Note: only one SchedulerFactory instance should exist per JVM
     binder.bind(StdSchedulerFactory.class);
 
-    OptionalBinder.newOptionalBinder(binder, DagProcArbiterDecorator.class);
-    OptionalBinder.newOptionalBinder(binder, DagProcReminderScheduler.class);
+    OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
+    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isMultiActiveExecutionEnabled()) {
       // TODO: instantiate dagManagementTaskStreamImpl
-      binder.bind(DagProcReminderScheduler.class);
-      binder.bind(DagProcArbiterDecorator.class);
+      binder.bind(DagActionReminderScheduler.class);
+      binder.bind(ReminderSettingDagProcLeaseArbiter.class);
     }
 
     binder.bind(FlowConfigsResource.class);

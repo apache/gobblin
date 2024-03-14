@@ -154,7 +154,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
       this.jobCatalog = null;
     }
 
-    SchedulerService schedulerService = new SchedulerService(properties);
+    SchedulerService schedulerService = new SchedulerService(properties, null);
     this.applicationLauncher.addService(schedulerService);
     this.gobblinTemporalJobScheduler = buildGobblinTemporalJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
         schedulerService);

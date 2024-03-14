@@ -40,7 +40,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Alpha
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
-  private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
+  @Getter private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
   @Getter protected final DagManager.DagId dagId;
 
   public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
