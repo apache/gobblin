@@ -71,7 +71,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty());
-    this.dagProcFactory = new DagProcFactory();
+    this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
   }

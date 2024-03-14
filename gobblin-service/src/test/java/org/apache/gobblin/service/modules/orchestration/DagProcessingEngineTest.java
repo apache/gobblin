@@ -52,17 +52,15 @@ public class DagProcessingEngineTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
-  static ITestMetastoreDatabase testMetastoreDatabase;
-  DagProcessingEngine.DagProcEngineThread dagProcEngineThread;
-  DagManagementTaskStreamImpl dagManagementTaskStream;
-  DagProcessingEngine dagProcessingEngine;
-  DagTaskStream dagTaskStream;
-  DagProcFactory dagProcFactory;
+  private DagManagementTaskStreamImpl dagManagementTaskStream;
+  private DagTaskStream dagTaskStream;
+  private DagProcFactory dagProcFactory;
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
@@ -79,15 +77,16 @@ public class DagProcessingEngineTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
-    dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
+    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty());
-    this.dagProcFactory = new DagProcFactory();
-    this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
-        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
+    this.dagProcFactory = new DagProcFactory(null);
+    DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
+        new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
+            dagManagementStateStore);
     this.dagTaskStream = spy(new MockedDagTaskStream());
-    this.dagProcessingEngine =
+    DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, dagTaskStream, this.dagProcFactory, dagManagementStateStore);
   }
 
@@ -141,6 +140,11 @@ public class DagProcessingEngineTest {
     }
 
     @Override
+    protected DagManager.DagId getDagId() {
+      return new DagManager.DagId("fg", "fn", "12345");
+    }
+
+    @Override
     protected Void initialize(DagManagementStateStore dagManagementStateStore) {
       return null;
     }
@@ -175,6 +179,6 @@ public class DagProcessingEngineTest {
         10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
         log, 1, 1000L);
 
-    Assert.assertEquals(DagManagementTaskStreamImpl.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+    Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
   }
 }

@@ -279,7 +279,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return !helixManager.isPresent() || helixManager.get().isLeader();
   }
 
-
   private FileSystem buildFileSystem(Config config)
       throws IOException {
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
@@ -290,8 +289,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   private Path getServiceWorkDirPath(FileSystem fs, String serviceName, String serviceId) {
     return new Path(fs.getHomeDirectory(), serviceName + Path.SEPARATOR + serviceId);
   }
-
-
 
   /**
    * Handle leadership change.

@@ -45,7 +45,7 @@ public class EventSubmitterContextTest {
     state.setProp("someState", "stub");
     MetricContext metricContext = Instrumented.getMetricContext(state, getClass(), tags);
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(metricContext, NAMESPACE).build();
-    EventSubmitterContext eventSubmitterContext = new EventSubmitterContext(eventSubmitter);
+    EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter).build();
     byte[] asBytes = OBJECT_MAPPER.writeValueAsBytes(eventSubmitterContext);
 
     EventSubmitterContext deserEventMetadata = OBJECT_MAPPER.readValue(asBytes, EventSubmitterContext.class);

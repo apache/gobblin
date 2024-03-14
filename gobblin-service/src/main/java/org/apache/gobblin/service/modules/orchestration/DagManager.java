@@ -932,8 +932,6 @@ public class DagManager extends AbstractIdleService {
       return false;
     }
 
-
-
     /**
      * Submit next set of Dag nodes in the Dag identified by the provided dagId
      * @param dagId The dagId that should be processed.

@@ -50,7 +50,6 @@ import org.apache.gobblin.util.ConfigUtils;
 public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream {
   private final Config config;
   @Getter private final EventSubmitter eventSubmitter;
-  @Getter private static final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
@@ -64,7 +63,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     this.dagActionStore = dagActionStore;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
-    dagManagerMetrics.activate();
   }
 
   @Override

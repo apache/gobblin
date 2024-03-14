@@ -27,6 +27,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
@@ -46,7 +47,10 @@ public abstract class DagProc<S, T> {
     T result = act(dagManagementStateStore, state);   // todo - retry
     commit(dagManagementStateStore, result);   // todo - retry
     sendNotification(result, eventSubmitter);   // todo - retry
+    log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), getDagId());
   }
+
+  protected abstract DagManager.DagId getDagId();
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
 

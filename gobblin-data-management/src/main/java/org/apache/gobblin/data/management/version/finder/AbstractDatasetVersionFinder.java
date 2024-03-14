@@ -17,21 +17,28 @@
 
 package org.apache.gobblin.data.management.version.finder;
 
+import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Properties;
+import java.util.Stack;
+import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.collect.Lists;
-
+import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.util.PathUtils;
+
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.GlobPattern;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 
 
 /**
@@ -68,7 +75,8 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @throws IOException
    */
   @Override
-  public Collection<T> findDatasetVersions(Dataset dataset) throws IOException {
+  public Collection<T> findDatasetVersions(Dataset dataset)
+      throws IOException {
     FileSystemDataset fsDataset = (FileSystemDataset) dataset;
     Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
     FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
@@ -84,6 +92,109 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
     }
 
     return dataSetVersions;
+  }
+
+  /**
+   * Find dataset version in the input {@link org.apache.gobblin.dataset}. Dataset versions are subdirectories of the
+   * input {@link org.apache.gobblin.dataset} representing a single manageable unit in the dataset.
+   *
+   * @param dataset {@link org.apache.gobblin.dataset} to directory containing all versions of a dataset
+   * @return - Returns an iterator for fetching each dataset version found.
+   * @throws IOException
+   */
+  @Override
+  public RemoteIterator<T> findDatasetVersion(Dataset dataset)
+      throws IOException {
+    FileSystemDataset fsDataset = (FileSystemDataset) dataset;
+    Path versionGlobStatus = new Path(fsDataset.datasetRoot(), globVersionPattern());
+
+    return getDatasetVersionIterator(fsDataset.datasetRoot(), getRegexPattern(versionGlobStatus.toString()));
+  }
+
+  /**
+   * Returns an iterator to fetch the dataset versions for the datasets whose path {@link org.apache.hadoop.fs.Path}
+   * starts with the root and matches the globPattern passed
+   *
+   * @param root - Path of the root from which the Dataset Versions have to be returned
+   * @param pathPattern - Pattern to match the dataset version path
+   * @return - an iterator of matched data versions
+   * @throws IOException
+   */
+  public RemoteIterator<T> getDatasetVersionIterator(Path root, String pathPattern)
+      throws IOException {
+    Stack<RemoteIterator<FileStatus>> iteratorStack = new Stack<>();
+    RemoteIterator<FileStatus> fsIterator = fs.listStatusIterator(root);
+    iteratorStack.push(fsIterator);
+    return new RemoteIterator<T>() {
+      Pair<FileStatus, Boolean> nextFileStatus = new MutablePair<>();
+
+      @Override
+      public boolean hasNext()
+          throws IOException {
+        if (iteratorStack.isEmpty()) {
+          return false;
+        }
+        // No need to process if the next() has not been called
+        if (nextFileStatus.getKey() != null && !nextFileStatus.getValue()) {
+          return true;
+        }
+        nextFileStatus = new MutablePair<>(fetchNextFileStatus(iteratorStack, pathPattern), false);
+        return nextFileStatus.getKey() != null;
+      }
+
+      @Override
+      public T next()
+          throws IOException {
+        if (nextFileStatus.getKey() == null || nextFileStatus.getValue()) {
+          if (!hasNext()) {
+            throw new NoSuchElementException();
+          }
+        }
+        T datasetVersion = getDatasetVersion(PathUtils.relativizePath(nextFileStatus.getKey().getPath(), root),
+            nextFileStatus.getKey());
+        nextFileStatus.setValue(true);
+        return datasetVersion;
+      }
+    };
+  }
+
+  /**
+   * Helper method to find the next filestatus matching the globPattern.
+   * This uses a stack to keep track of the fileStatusIterator returned at each subpaths
+   *
+   * @param iteratorStack
+   * @param globPattern
+   * @return
+   * @throws IOException
+   */
+  private FileStatus fetchNextFileStatus(Stack<RemoteIterator<FileStatus>> iteratorStack, String globPattern)
+      throws IOException {
+    while (!iteratorStack.isEmpty()) {
+      RemoteIterator<FileStatus> latestfsIterator = iteratorStack.pop();
+      while (latestfsIterator.hasNext()) {
+        FileStatus fileStatus = latestfsIterator.next();
+        if (fileStatus.isDirectory()) {
+          iteratorStack.push(fs.listStatusIterator(fileStatus.getPath()));
+        }
+        if (Pattern.matches(globPattern, fileStatus.getPath().toUri().getPath())) {
+          if (latestfsIterator.hasNext()) {
+            // Pushing back the current file status iterator before returning as there are more files to be processed
+            iteratorStack.push(latestfsIterator);
+          }
+          return fileStatus;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Converting a globPatter to a regex pattern to match the file status path
+   *
+   * @return
+   */
+  private static String getRegexPattern(String globPattern) {
+    return GlobPattern.compile(globPattern).pattern().replaceAll("\\.\\*", "[^/]*");
   }
 
   /**
@@ -107,5 +218,4 @@ public abstract class AbstractDatasetVersionFinder<T extends FileSystemDatasetVe
    * @return {@link org.apache.gobblin.data.management.version.DatasetVersion} for that {@link FileStatus}.
    */
   public abstract T getDatasetVersion(Path pathRelativeToDatasetRoot, FileStatus versionFileStatus);
-
 }

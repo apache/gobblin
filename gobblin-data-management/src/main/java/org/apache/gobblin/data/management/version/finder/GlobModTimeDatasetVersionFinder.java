@@ -29,6 +29,7 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -37,21 +38,31 @@ import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<TimestampedDatasetVersion> {
 
   private final Path globPattern;
+  private boolean useIterator;
 
   private static final String VERSION_FINDER_GLOB_PATTERN_KEY = "version.globPattern";
 
+  /**
+   * This denotes to use iterator for fetching all the versions of dataset.
+   * This should be set true when the dataset versions has to be pulled in memory iteratively
+   * If not set, may result into OOM as all the dataset versions are pulled in-memory
+   */
+  private static final String SHOULD_ITERATE_VERSIONS = "version.should.iterate";
+
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Config config) {
-    this(fs, config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY)
-        ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY)) : new Path("*"));
+    this(fs,
+        config.hasPath(VERSION_FINDER_GLOB_PATTERN_KEY) ? new Path(config.getString(VERSION_FINDER_GLOB_PATTERN_KEY))
+            : new Path("*"), ConfigUtils.getBoolean(config, SHOULD_ITERATE_VERSIONS, false));
   }
 
   public GlobModTimeDatasetVersionFinder(FileSystem fs, Properties props) {
     this(fs, ConfigFactory.parseProperties(props));
   }
 
-  public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern) {
+  public GlobModTimeDatasetVersionFinder(FileSystem fs, Path globPattern, boolean useIterator) {
     super(fs);
     this.globPattern = globPattern;
+    this.useIterator = useIterator;
   }
 
   @Override
@@ -62,6 +73,11 @@ public class GlobModTimeDatasetVersionFinder extends DatasetVersionFinder<Timest
   @Override
   public Path globVersionPattern() {
     return this.globPattern;
+  }
+
+  @Override
+  public boolean useIteratorForFindingVersions(){
+    return this.useIterator;
   }
 
   @Override
