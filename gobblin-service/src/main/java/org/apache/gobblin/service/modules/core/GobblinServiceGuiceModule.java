@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
+import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,7 +79,7 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.ReminderSettingDagProcLeaseArbiter;
-import org.apache.gobblin.service.modules.orchestration.ReminderSettingFlowTriggerLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.FlowLaunchHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -186,10 +187,10 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
-    OptionalBinder.newOptionalBinder(binder, ReminderSettingFlowTriggerLeaseArbiter.class);
+    OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
-      binder.bind(ReminderSettingFlowTriggerLeaseArbiter.class);
+      binder.bind(FlowLaunchHandler.class);
     }
 
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
@@ -199,7 +200,7 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(DagProcessingEngine.class);
 
     // Note: only one SchedulerFactory instance should exist per JVM
-    binder.bind(StdSchedulerFactory.class);
+    binder.bind(SchedulerFactory.class).to(StdSchedulerFactory.class);
 
     // TODO: create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
     OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);

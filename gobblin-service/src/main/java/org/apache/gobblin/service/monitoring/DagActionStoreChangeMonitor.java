@@ -236,16 +236,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    */
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
-        dagAction.get_dagActionType(), dagAction);
-    if (dagAction.get_dagActionType().equals(DagActionStore.DagActionType.RESUME)) {
+        dagAction.getDagActionType(), dagAction);
+    if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.RESUME)) {
       dagManager.handleResumeFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
           Long.parseLong(dagAction.getFlowExecutionId()));
       this.resumesInvoked.mark();
-    } else if (dagAction.get_dagActionType().equals(DagActionStore.DagActionType.KILL)) {
+    } else if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.KILL)) {
       dagManager.handleKillFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
           Long.parseLong(dagAction.getFlowExecutionId()));
       this.killsInvoked.mark();
-    } else if (dagAction.get_dagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
+    } else if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
       // If multi-active scheduler is NOT turned on we should not receive these type of events
       if (!this.isMultiActiveSchedulerEnabled) {
         this.unexpectedErrors.mark();
@@ -254,7 +254,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       }
       submitFlowToDagManagerHelper(dagAction, isStartup);
     } else {
-      log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.get_dagActionType());
+      log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getDagActionType());
       this.unexpectedErrors.mark();
     }
   }
@@ -273,7 +273,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    */
   protected void submitFlowToDagManagerHelper(DagActionStore.DagAction dagAction,
       LaunchSubmissionMetricProxy launchSubmissionMetricProxy) {
-    Preconditions.checkArgument(dagAction.get_dagActionType() == DagActionStore.DagActionType.LAUNCH);
+    Preconditions.checkArgument(dagAction.getDagActionType() == DagActionStore.DagActionType.LAUNCH);
     log.info("Forward launch flow event to DagManager for action {}", dagAction);
     // Retrieve job execution plan by recompiling the flow spec to send to the DagManager
     FlowId flowId = dagAction.getFlowId();

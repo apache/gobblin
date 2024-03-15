@@ -35,13 +35,12 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /*
-  A generic lease arbitration decorator built upon the {@link MultiActiveLeaseArbiter} which encapsulates common
-  functionality desired by lease arbiter users to track metrics on all lease attempts made by the arbiter. The metrics
-  can be used to compare relative performance among arbitration participants.
+  A {@link MultiActiveLeaseArbiter} decorator for tracking metrics about lease attempts. The metrics can be used to
+  compare relative performance, such as collisions/contention, among arbitration participants.
  */
 @Slf4j
 public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
-  protected MultiActiveLeaseArbiter decoratedMultiActiveLeaseArbiter;
+  private final MultiActiveLeaseArbiter decoratedMultiActiveLeaseArbiter;
   @Getter
   protected MetricContext metricContext;
   private ContextAwareCounter leaseObtainedCount;
@@ -50,6 +49,8 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
 
   private ContextAwareCounter noLongerLeasingStatusCount;
   private ContextAwareMeter leasesObtainedDueToReminderCount;
+  private ContextAwareMeter recordedLeaseSuccessCount;
+  private ContextAwareMeter failedToRecordLeaseSuccessCount;
 
   public InstrumentedLeaseArbiter(Config config, MultiActiveLeaseArbiter leaseDeterminationStore,
       String metricsPrefix) {
@@ -61,24 +62,26 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
 
   private void initializeMetrics(String metricsPrefix) {
     // If a valid metrics prefix is provided then add a delimiter after it
-    if (!metricsPrefix.equals("")) {
-      metricsPrefix += ".";
+    if (!metricsPrefix.isEmpty()) {
+      metricsPrefix.concat(".");
     }
     this.leaseObtainedCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
     this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);
     this.noLongerLeasingStatusCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_NO_LONGER_LEASING_COUNT);
     this.leasesObtainedDueToReminderCount = this.metricContext.contextAwareMeter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASES_OBTAINED_DUE_TO_REMINDER_COUNT);
+    this.recordedLeaseSuccessCount = metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
+    this.failedToRecordLeaseSuccessCount = metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
   }
 
   @Override
-  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
+  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
 
     MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
-        decoratedMultiActiveLeaseArbiter.tryAcquireLease(flowAction, eventTimeMillis, isReminderEvent,
+        decoratedMultiActiveLeaseArbiter.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent,
             skipFlowExecutionIdReplacement);
     log.info("Multi-active scheduler lease attempt for dagAction: {} received type of leaseAttemptStatus: [{}, "
-            + "eventTimestamp: {}] ", flowAction, leaseAttemptStatus.getClass().getName(), eventTimeMillis);
+            + "eventTimestamp: {}] ", dagAction, leaseAttemptStatus.getClass().getName(), eventTimeMillis);
     if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
       if (isReminderEvent) {
         this.leasesObtainedDueToReminderCount.mark();
@@ -99,6 +102,11 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   @Override
   public boolean recordLeaseSuccess(LeaseObtainedStatus status)
       throws IOException {
-    return this.decoratedMultiActiveLeaseArbiter.recordLeaseSuccess(status);
+    if (this.decoratedMultiActiveLeaseArbiter.recordLeaseSuccess(status)) {
+      this.recordedLeaseSuccessCount.mark();
+      return true;
+    }
+    this.failedToRecordLeaseSuccessCount.mark();
+    return false;
   }
 }

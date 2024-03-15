@@ -53,15 +53,18 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
+  protected ReminderSettingDagProcLeaseArbiter reminderSettingDagProcLeaseArbiter;
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
   // TODO: need to pass reference to DagProcLeaseArbiter without creating a circular reference in Guice
   @Inject
-  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore) {
+  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
+      ReminderSettingDagProcLeaseArbiter reminderSettingDagProcLeaseArbiter) {
     this.config = config;
     this.dagActionStore = dagActionStore;
+    this.reminderSettingDagProcLeaseArbiter = reminderSettingDagProcLeaseArbiter;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
   }
@@ -86,11 +89,11 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;
-//      while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
+      while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
         dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-//        multiActiveLeaseArbiter.tryAcquireLease(dagAction);
-//      }
-
+        // TODO: need to handle reminder events and flag them
+        this.reminderSettingDagProcLeaseArbiter.tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+      }
       return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {
       //TODO: need to handle exceptions gracefully
@@ -100,7 +103,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-    DagActionStore.DagActionType dagActionType = dagAction.get_dagActionType();
+    DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
     switch (dagActionType) {
       case LAUNCH:

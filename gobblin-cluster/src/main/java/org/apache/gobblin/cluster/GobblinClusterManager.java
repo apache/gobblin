@@ -194,7 +194,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
       this.jobCatalog = null;
     }
 
-    SchedulerService schedulerService = new SchedulerService(properties, null);
+    SchedulerService schedulerService = new SchedulerService(properties);
     this.applicationLauncher.addService(schedulerService);
     this.jobScheduler = buildGobblinHelixJobScheduler(config, this.appWorkDir, getMetadataTags(clusterName, applicationId),
         schedulerService);

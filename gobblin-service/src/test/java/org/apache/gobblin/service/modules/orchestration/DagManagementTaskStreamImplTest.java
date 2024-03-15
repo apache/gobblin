@@ -70,7 +70,7 @@ public class DagManagementTaskStreamImplTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty());
+        new DagManagementTaskStreamImpl(config, Optional.empty(), null);
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
@@ -81,7 +81,7 @@ public class DagManagementTaskStreamImplTest {
   @Test
   public void addRemoveDagActions() throws IOException {
     dagManagementTaskStream.addDagAction(
-        new DagActionStore.DagAction("fg", "fn", "12345", DagActionStore.DagActionType.LAUNCH));
+        new DagActionStore.DagAction("fg", "fn", "12345", "jn", DagActionStore.DagActionType.LAUNCH));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);

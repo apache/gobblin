@@ -192,15 +192,6 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
     }
   }
 
-  @Override
-  protected void commit(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag) {
-    try {
-      this.launchDagTask.getLeaseObtainedStatus().completeLease();
-    } catch (IOException e) {
-      // TODO: Decide appropriate exception to throw and add to the commit method's signature
-      throw new RuntimeException(e);
-    }
-
   protected void sendNotification(Optional<Dag<JobExecutionPlan>> result, EventSubmitter eventSubmitter) {
   }
 }

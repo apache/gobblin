@@ -52,18 +52,18 @@ public interface MultiActiveLeaseArbiter {
    * acquisition timestamp of the entry for that dag action event (it could have pre-existed in the table or been newly
    * added by the previous write). Based on the transaction results, it will return {@link LeaseAttemptStatus} to
    * determine the next action.
-   * @param flowAction uniquely identifies the flow and the present action upon it
+   * @param dagAction uniquely identifies the flow and the present action upon it
    * @param eventTimeMillis is the time this dag action was triggered
    * @param isReminderEvent true if the dag action event we're checking on is a reminder event
-   * @param adoptConsensusFlowExecutionId if true then replaces the flowAction flowExecutionId returned in
+   * @param adoptConsensusFlowExecutionId if true then replaces the dagAction flowExecutionId returned in
    *                                      LeaseAttemptStatuses with the consensus eventTime
    *
    * @return LeaseAttemptStatus, containing a dag action that will have an updated flow execution id if `
-   * adoptConsensusFlowExecutionId` is True. The caller should use the newer version of the dag action to easily track
+   * adoptConsensusFlowExecutionId` is true. The caller should use the newer version of the dag action to easily track
    * the action moving forward.
    * @throws IOException
    */
-  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis, boolean isReminderEvent,
+  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis, boolean isReminderEvent,
       boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
@@ -80,9 +80,18 @@ public interface MultiActiveLeaseArbiter {
 
   /*
    Class used to encapsulate status of lease acquisition attempt and derivations should contain information specific to
-   the status that results.
+   the status that results. The #getDagAction and #getMinimumLingerDurationMillis are meant to be overriden and used by
+   relevant derived classes.
    */
-  abstract class LeaseAttemptStatus {}
+  abstract class LeaseAttemptStatus {
+    public DagActionStore.DagAction getDagAction() {
+      return null;
+    }
+
+    public long getMinimumLingerDurationMillis() {
+      return 0;
+    }
+  }
 
   class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
@@ -96,7 +105,6 @@ public interface MultiActiveLeaseArbiter {
   class LeaseObtainedStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction dagAction;
     private final long leaseAcquisitionTimestamp;
-    @Getter
     private final long minimumLingerDurationMillis;
     @Getter(AccessLevel.NONE)
     private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
@@ -110,7 +118,7 @@ public interface MultiActiveLeaseArbiter {
 
     /**
      * Completes the lease referenced by this status object if it has not expired.
-     * @return True if able to complete lease, False otherwise.
+     * @return true if able to complete lease, false otherwise.
      * @throws IOException
      */
     public boolean completeLease() throws IOException {
@@ -128,7 +136,6 @@ public interface MultiActiveLeaseArbiter {
   @Data
   class LeasedToAnotherStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction dagAction;
-    @Getter
     private final long minimumLingerDurationMillis;
 
     /**

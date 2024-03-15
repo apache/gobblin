@@ -40,7 +40,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Alpha
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
-  @Getter private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
+  private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
   @Getter protected final DagManager.DagId dagId;
 
   public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
@@ -56,5 +56,12 @@ public abstract class DagTask {
    * Returns true if concluding dag task finished successfully otherwise false.
    */
   // todo call it from the right place
-  public abstract boolean conclude() throws IOException;
+  public boolean conclude() {
+    try {
+      return this.leaseObtainedStatus.completeLease();
+    } catch (IOException e) {
+      // TODO: Decide appropriate exception to throw and add to the commit method's signature
+      throw new RuntimeException(e);
+    }
+  }
 }

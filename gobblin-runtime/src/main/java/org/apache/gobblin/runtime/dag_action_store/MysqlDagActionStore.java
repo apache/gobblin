@@ -46,6 +46,7 @@ import org.apache.gobblin.util.DBStatementExecutor;
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
+  public static final String NO_JOB_NAME_DEFAULT = "";
 
   protected final DataSource dataSource;
   private final DBStatementExecutor dbStatementExecutor;
@@ -55,7 +56,7 @@ public class MysqlDagActionStore implements DagActionStore {
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name = ? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?)";
 
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, job_name, dag_action) "
-      + "VALUES (?, ?, ?, ?)";
+      + "VALUES (?, ?, ?, ?, ?)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s";
@@ -124,7 +125,7 @@ public class MysqlDagActionStore implements DagActionStore {
 
   @Override
   public boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException {
-    return exists(flowGroup, flowName, flowExecutionId, "", dagActionType);
+    return exists(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
   }
 
   @Override
@@ -148,7 +149,7 @@ public class MysqlDagActionStore implements DagActionStore {
   @Override
   public void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
       throws IOException {
-    addDagAction(flowGroup, flowName, flowExecutionId, "", dagActionType);
+    addDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
   }
 
   @Override
@@ -160,7 +161,7 @@ public class MysqlDagActionStore implements DagActionStore {
       deleteStatement.setString(++i, dagAction.getFlowName());
       deleteStatement.setString(++i, dagAction.getFlowExecutionId());
       deleteStatement.setString(++i, dagAction.getJobName());
-      deleteStatement.setString(++i, dagAction.get_dagActionType().toString());
+      deleteStatement.setString(++i, dagAction.getDagActionType().toString());
       int result = deleteStatement.executeUpdate();
       return result != 0;
     } catch (SQLException e) {

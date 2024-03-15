@@ -106,14 +106,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private Optional<ReminderSettingFlowTriggerLeaseArbiter> flowTriggerDecorator;
+  private Optional<FlowLaunchHandler> flowTriggerDecorator;
   private Optional<FlowCatalog> flowCatalog;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<ReminderSettingFlowTriggerLeaseArbiter> flowTriggerDecorator,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowLaunchHandler> flowTriggerDecorator,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
       DagManagementStateStore dagManagementStateStore, FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
@@ -230,8 +230,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
 
-      // Note we use "" as jobName for lease arbitration since orchestration is at a flow level
-      DagActionStore.DagAction flowAction =
+
+      DagActionStore.DagAction launchDagAction =
           new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", DagActionStore.DagActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
@@ -239,10 +239,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (flowTriggerDecorator.isPresent()) {
 
         // Adopt consensus flowExecutionId for scheduled flows
-        flowTriggerDecorator.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent,
+        flowTriggerDecorator.get().handleFlowLaunchTriggerEvent(jobProps, launchDagAction, triggerTimestampMillis, isReminderEvent,
             flowSpec.isScheduled());
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
-            flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
+            launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =

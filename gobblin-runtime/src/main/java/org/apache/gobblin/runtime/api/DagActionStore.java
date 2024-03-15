@@ -41,7 +41,7 @@ public interface DagActionStore {
     final String flowName;
     final String flowExecutionId;
     final String jobName;
-    final DagActionType _dagActionType;
+    final DagActionType dagActionType;
 
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
@@ -52,7 +52,7 @@ public interface DagActionStore {
      */
     public DagAction updateFlowExecutionId(long eventTimeMillis) {
       return new DagAction(this.getFlowGroup(), this.getFlowName(),
-          String.valueOf(eventTimeMillis), this.getJobName(), this.get_dagActionType());
+          String.valueOf(eventTimeMillis), this.getJobName(), this.getDagActionType());
     }
   }
 

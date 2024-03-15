@@ -157,7 +157,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   // Insert or update row to acquire lease if values have not changed since the previous read
   // Need to define three separate statements to handle cases where row does not exist or has null values to check
   protected static final String ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT = "INSERT INTO %s (flow_group, flow_name, job_name"
-      + "dag_action, event_timestamp, lease_acquisition_timestamp) VALUES(?, ?, ?, CURRENT_TIMESTAMP(3), "
+      + "dag_action, event_timestamp, lease_acquisition_timestamp) VALUES(?, ?, ?, ?, CURRENT_TIMESTAMP(3), "
       + "CURRENT_TIMESTAMP(3))";
   protected static final String CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT = "UPDATE %s "
       + "SET event_timestamp=CURRENT_TIMESTAMP(3), lease_acquisition_timestamp=CURRENT_TIMESTAMP(3) "
@@ -360,7 +360,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           getInfoStatement.setString(++i, dagAction.getFlowGroup());
           getInfoStatement.setString(++i, dagAction.getFlowName());
           getInfoStatement.setString(++i, dagAction.getJobName());
-          getInfoStatement.setString(++i, dagAction.get_dagActionType().toString());
+          getInfoStatement.setString(++i, dagAction.getDagActionType().toString());
           ResultSet resultSet = getInfoStatement.executeQuery();
           try {
             if (!resultSet.next()) {
@@ -503,8 +503,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
     DagActionStore.DagAction updatedDagAction =
         adoptConsensusFlowExecutionId ? dagAction.updateFlowExecutionId(selectInfoResult.eventTimeMillis) : dagAction;
-    long minimumLingerDurationMillis = selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()
-        - (dbCurrentTimestamp.isPresent() ? dbCurrentTimestamp.get().getTime() : System.currentTimeMillis());
+    // If no db current timestamp is present, then use the full db linger value for duration
+    long minimumLingerDurationMillis = dbCurrentTimestamp.isPresent() ?
+        selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()
+            - dbCurrentTimestamp.get().getTime() : selectInfoResult.getDbLinger();
     if (numRowsUpdated == 1) {
       log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", updatedDagAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
@@ -529,7 +531,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
     statement.setString(++i, dagAction.getJobName());
-    statement.setString(++i, dagAction.get_dagActionType().toString());
+    statement.setString(++i, dagAction.getDagActionType().toString());
   }
 
   /**
@@ -544,7 +546,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
     statement.setString(++i, dagAction.getJobName());
-    statement.setString(++i, dagAction.get_dagActionType().toString());
+    statement.setString(++i, dagAction.getDagActionType().toString());
   }
 
   /**
@@ -566,7 +568,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
     statement.setString(++i, dagAction.getJobName());
-    statement.setString(++i, dagAction.get_dagActionType().toString());
+    statement.setString(++i, dagAction.getDagActionType().toString());
     // Values that may be needed depending on the insert statement
     if (needEventTimeCheck) {
       statement.setTimestamp(++i, originalEventTimestamp, UTC_CAL.get());
@@ -586,7 +588,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           updateStatement.setString(++i, dagAction.getFlowGroup());
           updateStatement.setString(++i, dagAction.getFlowName());
           updateStatement.setString(++i, dagAction.getJobName());
-          updateStatement.setString(++i, dagAction.get_dagActionType().toString());
+          updateStatement.setString(++i, dagAction.getDagActionType().toString());
           updateStatement.setTimestamp(++i, new Timestamp(status.getEventTimeMillis()), UTC_CAL.get());
           updateStatement.setTimestamp(++i, new Timestamp(status.getLeaseAcquisitionTimestamp()), UTC_CAL.get());
           int numRowsUpdated = updateStatement.executeUpdate();

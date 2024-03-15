@@ -80,7 +80,7 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty());
+        new DagManagementTaskStreamImpl(config, Optional.empty(), null);
     this.dagProcFactory = new DagProcFactory(null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
@@ -107,9 +107,9 @@ public class DagProcessingEngineTest {
         throw new RuntimeException("Simulating an exception to stop the thread!");
       }
       if (i % FAILING_DAGS_FREQUENCY == 0 ) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.DagActionType.LAUNCH), true);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, "jn-" + i, DagActionStore.DagActionType.LAUNCH), true);
       } else {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, DagActionStore.DagActionType.LAUNCH), false);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, "jn-" + i, DagActionStore.DagActionType.LAUNCH), false);
       }
     }
   }

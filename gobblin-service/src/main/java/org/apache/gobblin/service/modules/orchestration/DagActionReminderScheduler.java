@@ -34,6 +34,7 @@ import org.apache.gobblin.runtime.api.DagActionStore;
  * will fire once the previous lease owner's lease is expected to expire.
  */
 public class DagActionReminderScheduler {
+  public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
   private final DagManagement dagManagement;
 
@@ -41,7 +42,7 @@ public class DagActionReminderScheduler {
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, DagManagement dagManagement)
       throws SchedulerException {
     // Create a new Scheduler to be used solely for the DagProc reminders
-    this.quartzScheduler = schedulerFactory.getScheduler("DagProcScheduler");
+    this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
     this.dagManagement = dagManagement;
   }
 

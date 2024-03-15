@@ -43,7 +43,7 @@ public class SchedulerDaemon extends ServiceBasedAppLauncher {
 
   public SchedulerDaemon(Properties properties) throws Exception {
     super(properties, getAppName(properties));
-    SchedulerService schedulerService = new SchedulerService(properties, null);
+    SchedulerService schedulerService = new SchedulerService(properties);
     addService(schedulerService);
     addService(new JobScheduler(properties, schedulerService));
   }

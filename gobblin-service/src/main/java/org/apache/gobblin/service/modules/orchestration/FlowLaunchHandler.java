@@ -39,7 +39,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
@@ -53,20 +52,19 @@ import org.quartz.impl.JobDetailImpl;
 
 
 /**
- * Decorator used to coordinate multiple hosts with enabled schedulers to respond to dag action events with added
- * capabilities to properly handle the result of attempted ownership over these dag action events. It uses the
- * {@link MysqlMultiActiveLeaseArbiter} to determine a single lease owner at a given time
- * for a dag action event. After acquiring the lease, it persists the dag action event to the {@link DagActionStore}
- * to be eventually acted upon by the host with the active DagManager. Once it has completed this action, it will mark
- * the lease as completed by calling the
- * {@link MysqlMultiActiveLeaseArbiter#recordLeaseSuccess(MultiActiveLeaseArbiter.LeaseObtainedStatus)} method. Hosts
+ * Handler used to coordinate multiple hosts with enabled schedulers to respond to launch dag action events and ensure
+ * no adhoc or scheduled flow launches are missed. It uses the {@link MultiActiveLeaseArbiter} to determine a single
+ * lease owner at a given time for the launch dag action event. After acquiring the lease, it persists the dag action
+ * event to the {@link DagActionStore} to be eventually acted upon by execution module of host(s) to execute the launch.
+ * Once it has completed persisting the action to the store, it will mark the lease as completed by calling the
+ * {@link MultiActiveLeaseArbiter#recordLeaseSuccess(MultiActiveLeaseArbiter.LeaseObtainedStatus)} method. Hosts
  * that do not gain the lease for the event, instead schedule a reminder using the {@link SchedulerService} to check
  * back in on the previous lease owner's completion status after the lease should expire to ensure the event is handled
  * in failure cases.
  */
 @Slf4j
-public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseArbiter {
-  private final MultiActiveLeaseArbiter decoratedLeaseArbiter;
+public class FlowLaunchHandler {
+  private final Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
   private Optional<DagActionStore> dagActionStore;
   private final MetricContext metricContext;
   private final int schedulerMaxBackoffMillis;
@@ -75,32 +73,28 @@ public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseA
   private ContextAwareMeter numFlowsSubmitted;
   private ContextAwareCounter jobDoesNotExistInSchedulerCount;
   private ContextAwareCounter failedToSetEventReminderCount;
-  private ContextAwareMeter failedToRecordLeaseSuccessCount;
-  private ContextAwareMeter recordedLeaseSuccessCount;
 
   @Inject
-  public ReminderSettingFlowTriggerLeaseArbiter(Config config, MultiActiveLeaseArbiter leaseArbiter,
-      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore)
-      throws IOException {
-    this.decoratedLeaseArbiter = leaseArbiter;
+  public FlowLaunchHandler(Config config, Optional<MultiActiveLeaseArbiter> leaseArbiter,
+      SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
+    this.multiActiveLeaseArbiter = leaseArbiter;
     this.dagActionStore = dagActionStore;
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
     this.schedulerService = schedulerService;
 
-    // Initialize FlowTriggerDecorator related metrics
+    // Initialize FlowLaunchHandler related metrics
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
     this.numFlowsSubmitted = metricContext.contextAwareMeter(ServiceMetricNames.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
     this.jobDoesNotExistInSchedulerCount = metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
     this.failedToSetEventReminderCount = metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
-    this.failedToRecordLeaseSuccessCount = metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT);
-    this.recordedLeaseSuccessCount = metricContext.contextAwareMeter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT);
   }
 
   /**
-   * This method is used in the multi-active scheduler case for one or more hosts to respond to a dag action event
-   * by attempting a lease for the flow event and processing the result depending on the status of the attempt.
+   * This method is used in the multi-active scheduler case for one or more hosts to respond to a launch dag action
+   * event triggered by the scheduler by attempting a lease for the launch event and processing the result depending on
+   * the status of the attempt.
    * @param jobProps
    * @param dagAction
    * @param eventTimeMillis
@@ -108,52 +102,56 @@ public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseA
    * @param skipFlowExecutionIdReplacement
    * @throws IOException
    */
-  public void handleTriggerEvent(Properties jobProps, DagActionStore.DagAction dagAction, long eventTimeMillis,
-      boolean isReminderEvent, boolean skipFlowExecutionIdReplacement)
-      throws IOException {
-
-    LeaseAttemptStatus leaseAttemptStatus =
-          this.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
-      if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-          MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus = (MultiActiveLeaseArbiter.LeaseObtainedStatus)
-              leaseAttemptStatus;
+  public void handleFlowLaunchTriggerEvent(Properties jobProps, DagActionStore.DagAction dagAction,
+      long eventTimeMillis, boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
+      if (this.multiActiveLeaseArbiter.isPresent()) {
+        MultiActiveLeaseArbiter.LeaseAttemptStatus
+            leaseAttemptStatus = this.multiActiveLeaseArbiter.get()
+            .tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
+        if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+          MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus =
+              (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
           if (persistDagAction(leaseObtainedStatus)) {
             log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getDagAction(),
                 leaseObtainedStatus.getEventTimeMillis());
-            this.recordedLeaseSuccessCount.mark();
             return;
           }
-          this.failedToRecordLeaseSuccessCount.mark();
           // If persisting the dag action failed, then we set another trigger for this event to occur immediately to
           // re-attempt handling the event
           scheduleReminderForEvent(jobProps,
-              new MultiActiveLeaseArbiter.LeasedToAnotherStatus(leaseObtainedStatus.getDagAction(),
-                  0L), eventTimeMillis);
+              new MultiActiveLeaseArbiter.LeasedToAnotherStatus(leaseObtainedStatus.getDagAction(), 0L), eventTimeMillis);
         } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
-          scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus, eventTimeMillis);
+          scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus,
+              eventTimeMillis);
         }
         // Otherwise leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus & no need to do anything
+      } else {
+        throw new RuntimeException(String.format("Multi-active scheduler is not enabled so trigger event should not be "
+            + "handled with this method."));
+      }
   }
 
   // Called after obtaining a lease to persist the dag action to {@link DagActionStore} and mark the lease as done
   private boolean persistDagAction(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus) {
-    if (this.dagActionStore.isPresent()) {
+    if (this.dagActionStore.isPresent() && this.multiActiveLeaseArbiter.isPresent()) {
       try {
         DagActionStore.DagAction dagAction = leaseStatus.getDagAction();
-        this.dagActionStore.get().addDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.get_dagActionType());
+        this.dagActionStore.get().addDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
         // If the dag action has been persisted to the {@link DagActionStore} we can close the lease
         this.numFlowsSubmitted.mark();
-        return this.decoratedLeaseArbiter.recordLeaseSuccess(leaseStatus);
+        return this.multiActiveLeaseArbiter.get().recordLeaseSuccess(leaseStatus);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     } else {
-      throw new RuntimeException("DagActionStore is " + (this.dagActionStore.isPresent() ? "" : "NOT") + " present.");
+      throw new RuntimeException("DagActionStore is " + (this.dagActionStore.isPresent() ? "" : "NOT") + " present. "
+          + "Multi-Active scheduler is " + (this.multiActiveLeaseArbiter.isPresent() ? "" : "NOT") + " present. Both "
+          + "should be enabled if this method is called.");
     }
   }
 
   /**
-   * This method is used by {@link ReminderSettingFlowTriggerLeaseArbiter#handleTriggerEvent} to schedule a self-reminder to check on
+   * This method is used by {@link FlowLaunchHandler#handleFlowLaunchTriggerEvent} to schedule a self-reminder to check on
    * the other participant's progress to finish acting on a dag action after the time the lease should expire.
    * @param jobProps
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
@@ -171,7 +169,7 @@ public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseA
         return;
       }
       Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, triggerEventTimeMillis);
-      log.info("Flow Trigger Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
+      log.info("Flow Launch Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
           dagAction, triggerEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {}. Exception: {}",
@@ -200,7 +198,7 @@ public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseA
     JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status);
     Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
         Optional.of(reminderSuffix));
-    log.debug("Flow Trigger Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
+    log.debug("Flow Launch Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
             + "reminderJobKey {} and reminderTriggerKey {}", status.getDagAction(), triggerEventTimeMillis,
         status.getEventTimeMillis(), reminderJobKey, reminderTrigger.getKey());
     this.schedulerService.getScheduler().scheduleJob(jobDetail, reminderTrigger);
@@ -302,18 +300,5 @@ public class ReminderSettingFlowTriggerLeaseArbiter implements MultiActiveLeaseA
     LocalDateTime localDateTime = getLocalDateTimeFromDelayPeriod(delayPeriodMillis);
     Date date = Date.from(localDateTime.atZone(ZoneId.of("UTC")).toInstant());
     return GobblinServiceJobScheduler.utcDateAsUTCEpochMillis(date);
-  }
-
-  @Override
-  public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
-      boolean isReminderEvent, boolean adoptConsensusFlowExecutionId)
-      throws IOException {
-    return this.decoratedLeaseArbiter.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, adoptConsensusFlowExecutionId);
-  }
-
-  @Override
-  public boolean recordLeaseSuccess(LeaseObtainedStatus status)
-      throws IOException {
-    return this.decoratedLeaseArbiter.recordLeaseSuccess(status);
   }
 }

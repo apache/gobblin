@@ -21,6 +21,7 @@ import java.util.Properties;
 
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
+import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 
 import com.google.common.base.Optional;
@@ -43,7 +44,8 @@ import org.apache.gobblin.util.PropertiesUtils;
 @Singleton
 public class SchedulerService extends AbstractIdleService {
 
-  private StdSchedulerFactory schedulerFactory;
+  private SchedulerFactory schedulerFactory;
+  // Refers to traditional job scheduler
   @Getter
   private Scheduler scheduler;
   private final boolean waitForJobCompletion;
@@ -68,6 +70,10 @@ public class SchedulerService extends AbstractIdleService {
         Optional.of(PropertiesUtils.extractPropertiesWithPrefix(props, Optional.of("org.quartz."))), schedulerFactory);
   }
 
+  public SchedulerService(Properties props) {
+    this(props, null);
+  }
+
   @Inject
   public SchedulerService(Config cfg, StdSchedulerFactory schedulerFactory) {
     this(cfg.hasPath(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) ?
@@ -78,7 +84,8 @@ public class SchedulerService extends AbstractIdleService {
 
   @Override protected void startUp() throws SchedulerException  {
     if (this.quartzProps.isPresent() && this.quartzProps.get().size() > 0) {
-      schedulerFactory.initialize(this.quartzProps.get());
+      // Cast to StdSchedulerFactory to reference initialization method that generic interface does not provide
+      ((StdSchedulerFactory) schedulerFactory).initialize(this.quartzProps.get());
     }
     this.scheduler = schedulerFactory.getScheduler();
     this.scheduler.start();

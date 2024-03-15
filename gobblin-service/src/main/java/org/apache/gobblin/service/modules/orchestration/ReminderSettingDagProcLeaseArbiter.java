@@ -43,46 +43,38 @@ import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
  * Decorator used to coordinate multiple hosts with execution components enabled to respond to flow action events with
  * added capabilities to properly handle the result of attempted ownership over these flow action events. It uses the
  * {@link MultiActiveLeaseArbiter} to determine a single lease owner at a given event time for a flow action event.
- * After acquiring the lease, the host can pursue executing the action. Once it has completed this action, it
- * marks the lease as completed by calling the
- * {@link MultiActiveLeaseArbiter#recordLeaseSuccess(MultiActiveLeaseArbiter.LeaseObtainedStatus)} method. Hosts
- * that fail to acquire a lease will use the {@link DagActionReminderScheduler} to set a reminder for the flow action
- * event to check back in on the previous lease owner's completion status.
+ * If the status of the lease ownership attempt is anything other than an indication the lease has been completed
+ * ({@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.NoLongerLeasingStatus}) then the
+ * {@link MultiActiveLeaseArbiter#tryAcquireLease} method will set a reminder for the flow action using
+ * {@link DagActionReminderScheduler} to reattempt the lease after the current lease holder's grant would have expired.
  */
 @Slf4j
 public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbiter {
   private final MultiActiveLeaseArbiter decoratedLeaseArbiter;
-  private final DagActionReminderScheduler _dagActionReminderScheduler;
+  private final DagActionReminderScheduler dagActionReminderScheduler;
   private final Config config;
 
   @Inject
   public ReminderSettingDagProcLeaseArbiter(Config config, MultiActiveLeaseArbiter leaseArbiter, DagActionReminderScheduler dagActionReminderScheduler) throws IOException {
     this.decoratedLeaseArbiter = leaseArbiter;
-    this._dagActionReminderScheduler = dagActionReminderScheduler;
+    this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.config = config;
   }
 
   /**
-   * This method is used by the multi-active scheduler and multi-active execution classes (DagTaskStream) to attempt a
-   * lease for a particular job event and return the status of the attempt.
-   * @param flowAction
-   * @param eventTimeMillis
-   * @param isReminderEvent
-   * @param skipFlowExecutionIdReplacement
-   * @return
+   * Attempts a lease for a particular job event and sets a reminder to revisit if the lease has not been completed.
    */
   @Override
-  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis,
+  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) {
     try {
-      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = this.tryAcquireLease(flowAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
-      /* Schedule a reminder for the event unless the lease has been completed to safeguard against case lease owner
-      fails to complete lease
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
+          this.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
+      /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
+      we, when we might become the lease owner still fail to complete processing
       */
-      if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-        scheduleReminderForEvent((LeaseObtainedStatus) leaseAttemptStatus);
-      } else if (leaseAttemptStatus instanceof  MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
-        scheduleReminderForEvent((LeasedToAnotherStatus) leaseAttemptStatus);
+      if (!(leaseAttemptStatus instanceof NoLongerLeasingStatus)) {
+        scheduleReminderForEvent(leaseAttemptStatus);
       }
       return leaseAttemptStatus;
     } catch (SchedulerException e) {
@@ -96,14 +88,9 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
     return this.decoratedLeaseArbiter.recordLeaseSuccess(status);
   }
 
-  protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeasedToAnotherStatus leaseStatus)
+  protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    _dagActionReminderScheduler.scheduleReminder(leaseStatus.getDagAction(), leaseStatus.getMinimumLingerDurationMillis());
-  }
-
-  protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus)
-      throws SchedulerException {
-    _dagActionReminderScheduler.scheduleReminder(leaseStatus.getDagAction(), leaseStatus.getMinimumLingerDurationMillis());
+    dagActionReminderScheduler.scheduleReminder(leaseStatus.getDagAction(), leaseStatus.getMinimumLingerDurationMillis());
   }
 
   @Slf4j
@@ -139,7 +126,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
 
   public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
     return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getJobName(),
-        dagAction.getFlowExecutionId(), dagAction.get_dagActionType());
+        dagAction.getFlowExecutionId(), dagAction.getDagActionType());
   }
 
   public static String createDagActionReminderKey(String flowName, String flowGroup, String jobName, String flowId,
@@ -154,7 +141,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
     dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
     dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
     dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.get_dagActionType());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
 
     return JobBuilder.newJob(ReminderJob.class)
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
