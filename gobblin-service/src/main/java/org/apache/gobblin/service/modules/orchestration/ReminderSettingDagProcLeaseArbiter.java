@@ -93,6 +93,11 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
     dagActionReminderScheduler.scheduleReminder(leaseStatus.getDagAction(), leaseStatus.getMinimumLingerDurationMillis());
   }
 
+  /**
+   * Static class used to store information regarding a pending dagAction that needs to be revisited at a later time
+   * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
+   * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
+   */
   @Slf4j
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
@@ -124,16 +129,28 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
     }
   }
 
+  /**
+   * Creates a key for the reminder job by concatenating all dagAction fields
+   */
   public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
-    return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getJobName(),
-        dagAction.getFlowExecutionId(), dagAction.getDagActionType());
+    return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getFlowExecutionId(),
+        dagAction.getJobName(), dagAction.getDagActionType());
   }
 
-  public static String createDagActionReminderKey(String flowName, String flowGroup, String jobName, String flowId,
+  /**
+   * Creates a key for the reminder job by concatenating flowName, flowGroup, flowExecutionId, jobName, dagActionType
+   * in that order
+   */
+  public static String createDagActionReminderKey(String flowName, String flowGroup, String flowId, String jobName,
       DagActionStore.DagActionType dagActionType) {
     return String.format("%s.%s.%s.%s.%s", flowGroup, flowName, flowId, jobName, dagActionType);
   }
 
+  /**
+   * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
+   *  by a key comprised of the dagAction's fields. It also serializes a reference to the {@link DagManagement} object
+   *  to be referenced when the trigger fires.
+   */
   public static JobDetail createReminderJobDetail(DagManagement dagManagement, DagActionStore.DagAction dagAction) {
     JobDataMap dataMap = new JobDataMap();
     dataMap.put(ReminderJob.DAG_MANAGEMENT_KEY, dagManagement);
@@ -149,6 +166,10 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
         .build();
   }
 
+  /**
+   * Creates a Trigger object with the same key as the ReminderJob (since only one trigger is expected to be associated
+   * with a job at any given time) that should fire after `reminderDurationMillis` millis.
+   */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis) {
     Trigger trigger = TriggerBuilder.newTrigger()
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
