@@ -92,7 +92,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
         dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
         // TODO: need to handle reminder events and flag them
-        this.reminderSettingDagProcLeaseArbiter.tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
       }
       return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {

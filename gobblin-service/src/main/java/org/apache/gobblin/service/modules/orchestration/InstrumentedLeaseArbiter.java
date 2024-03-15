@@ -63,7 +63,7 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   private void initializeMetrics(String metricsPrefix) {
     // If a valid metrics prefix is provided then add a delimiter after it
     if (!metricsPrefix.isEmpty()) {
-      metricsPrefix.concat(".");
+      metricsPrefix = metricsPrefix.concat(".");
     }
     this.leaseObtainedCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT);
     this.leasedToAnotherStatusCount = this.metricContext.contextAwareCounter(metricsPrefix + ServiceMetricNames.FLOW_TRIGGER_HANDLER_LEASED_TO_ANOTHER_COUNT);

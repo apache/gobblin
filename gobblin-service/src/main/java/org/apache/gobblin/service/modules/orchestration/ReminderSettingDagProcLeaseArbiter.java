@@ -69,7 +69,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) {
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
-          this.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
+          this.decoratedLeaseArbiter.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
       /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
       we, when we might become the lease owner still fail to complete processing
       */
@@ -77,7 +77,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
         scheduleReminderForEvent(leaseAttemptStatus);
       }
       return leaseAttemptStatus;
-    } catch (SchedulerException e) {
+    } catch (SchedulerException | IOException e) {
       throw new RuntimeException(e);
     }
   }
