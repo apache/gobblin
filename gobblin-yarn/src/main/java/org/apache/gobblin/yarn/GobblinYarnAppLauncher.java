@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -68,11 +67,6 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.helix.Criteria;
-import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
-import org.apache.helix.InstanceType;
-import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +76,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -97,12 +90,10 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.Getter;
+
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
-import org.apache.gobblin.cluster.GobblinHelixConstants;
-import org.apache.gobblin.cluster.GobblinHelixMessagingService;
-import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.Tag;
@@ -123,6 +114,7 @@ import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
+import org.apache.gobblin.yarn.helix.HelixClusterLifecycleManager;
 
 import static org.apache.gobblin.metrics.GobblinMetrics.METRICS_STATE_CUSTOM_TAGS;
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
@@ -199,7 +191,8 @@ public class GobblinYarnAppLauncher {
 
   private final Config config;
 
-  private final HelixManager helixManager;
+  @Getter
+  private final Optional<HelixClusterLifecycleManager> helixClusterLifecycleManager;
 
   protected final Configuration yarnConfiguration;
   private final FileSystem fs;
@@ -214,8 +207,6 @@ public class GobblinYarnAppLauncher {
   private final Path sinkLogRootDir;
 
   private final Closer closer = Closer.create();
-  private final String helixInstanceName;
-  private final GobblinHelixMessagingService messagingService;
 
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
@@ -235,13 +226,12 @@ public class GobblinYarnAppLauncher {
   private volatile boolean stopped = false;
 
   private final boolean emailNotificationOnShutdown;
-  private final boolean isHelixClusterManaged;
   private final boolean detachOnExitEnabled;
 
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
-  private Optional<AbstractYarnAppSecurityManager> securityManager = Optional.absent();
+  private Optional<AbstractTokenRefresher> tokenRefreshManager = Optional.absent();
 
   private final String containerTimezone;
   private final String appLauncherMode;
@@ -255,13 +245,6 @@ public class GobblinYarnAppLauncher {
     this.applicationName = config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY);
     this.appQueueName = config.getString(GobblinYarnConfigurationKeys.APP_QUEUE_KEY);
 
-    String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    LOGGER.info("Using ZooKeeper connection string: " + zkConnectionString);
-
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), GobblinClusterUtils.getHostname(),
-        InstanceType.SPECTATOR, zkConnectionString);
-
     this.yarnConfiguration = yarnConfiguration;
     YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
@@ -270,6 +253,13 @@ public class GobblinYarnAppLauncher {
 
     this.fs = GobblinClusterUtils.buildFileSystem(config, this.yarnConfiguration);
     this.closer.register(this.fs);
+
+
+    boolean isHelixEnabled = ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.HELIX_ENABLED,
+        GobblinYarnConfigurationKeys.DEFAULT_HELIX_ENABLED);
+    this.helixClusterLifecycleManager = isHelixEnabled
+        ? Optional.of(this.closer.register(new HelixClusterLifecycleManager(config)))
+        : Optional.absent();
 
     this.applicationStatusMonitor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("GobblinYarnAppStatusMonitor")));
@@ -309,17 +299,11 @@ public class GobblinYarnAppLauncher {
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
 
-    this.isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
-        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
-    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
-        GobblinClusterManager.class.getSimpleName());
-
     this.detachOnExitEnabled = ConfigUtils
         .getBoolean(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_DETACH_ON_EXIT_ENABLED,
             GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_DETACH_ON_EXIT);
     this.appLauncherMode = ConfigUtils.getString(config, GOBBLIN_YARN_APP_LAUNCHER_MODE, DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_MODE);
 
-    this.messagingService = new GobblinHelixMessagingService(this.helixManager);
 
     try {
       config = addDynamicConfig(config);
@@ -349,24 +333,10 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException, InterruptedException {
     this.eventBus.register(this);
 
-    if (this.isHelixClusterManaged) {
-      LOGGER.info("Helix cluster is managed; skipping creation of Helix cluster");
-    } else {
-      String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-      boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
-          GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
-      LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
-      HelixUtils.createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
-          clusterName, overwriteExistingCluster);
-      LOGGER.info("Created Helix cluster " + clusterName);
-    }
-
-    connectHelixManager();
-
     //Before connect with yarn client, we need to login to get the token
     if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
-      this.securityManager = Optional.of(buildSecurityManager());
-      this.securityManager.get().loginAndScheduleTokenRenewal();
+      this.tokenRefreshManager = Optional.of(buildTokenRefreshManager());
+      this.tokenRefreshManager.get().loginAndScheduleTokenRenewal();
     }
 
     startYarnClient();
@@ -379,26 +349,32 @@ public class GobblinYarnAppLauncher {
       this.applicationId = Optional.of(setupAndSubmitApplication());
     }
 
-    this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
-        } catch (YarnException | IOException e) {
-          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
-          eventBus.post(new GetApplicationReportFailureEvent(e));
-        }
+    if (helixClusterLifecycleManager.isPresent()) {
+      this.helixClusterLifecycleManager.get()
+          .getIsApplicationRunningFlag().compareAndSet(false, isApplicationRunning());
+    }
+
+    this.applicationStatusMonitor.scheduleAtFixedRate(() -> {
+      try {
+        eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
+      } catch (YarnException | IOException e) {
+        LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
+        eventBus.post(new GetApplicationReportFailureEvent(e));
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
     addServices();
   }
 
+  public boolean isApplicationRunning() {
+    return this.applicationId.isPresent() && !this.applicationCompleted && !this.detachOnExitEnabled;
+  }
+
   private void addServices() throws IOException{
     List<Service> services = Lists.newArrayList();
-    if (this.securityManager.isPresent()) {
+    if (this.tokenRefreshManager.isPresent()) {
       LOGGER.info("Adding KeyManagerService since key management is enabled");
-      services.add(this.securityManager.get());
+      services.add(this.tokenRefreshManager.get());
     }
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
@@ -441,11 +417,6 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
-      if (this.applicationId.isPresent() && !this.applicationCompleted && !this.detachOnExitEnabled) {
-        // Only send the shutdown message if the application has been successfully submitted and is still running
-        sendShutdownRequest();
-      }
-
       if (this.serviceManager.isPresent()) {
         this.serviceManager.get().stopAsync().awaitStopped(5, TimeUnit.MINUTES);
       }
@@ -458,7 +429,6 @@ public class GobblinYarnAppLauncher {
         LOGGER.info("Disabling all live Helix instances..");
       }
 
-      disconnectHelixManager();
     } finally {
       try {
         if (this.applicationId.isPresent() && !this.detachOnExitEnabled) {
@@ -485,9 +455,15 @@ public class GobblinYarnAppLauncher {
     if (appState == YarnApplicationState.FINISHED ||
         appState == YarnApplicationState.FAILED ||
         appState == YarnApplicationState.KILLED) {
-
       applicationCompleted = true;
+    }
 
+    if (helixClusterLifecycleManager.isPresent()) {
+      this.helixClusterLifecycleManager.get()
+          .getIsApplicationRunningFlag().set(this.isApplicationRunning());
+    }
+
+    if (applicationCompleted) {
       LOGGER.info("Gobblin Yarn application finished with final status: " +
           applicationReport.getFinalApplicationStatus().toString());
       if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
@@ -528,23 +504,6 @@ public class GobblinYarnAppLauncher {
           sendEmailOnShutdown(Optional.<ApplicationReport>absent());
         }
       }
-    }
-  }
-
-  @VisibleForTesting
-  void connectHelixManager() {
-    try {
-      this.helixManager.connect();
-    } catch (Exception e) {
-      LOGGER.error("HelixManager failed to connect", e);
-      throw Throwables.propagate(e);
-    }
-  }
-
-  @VisibleForTesting
-  void disconnectHelixManager() {
-    if (this.helixManager.isConnected()) {
-      this.helixManager.disconnect();
     }
   }
 
@@ -898,46 +857,29 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private AbstractYarnAppSecurityManager buildSecurityManager() throws IOException {
+  /**
+   *
+   * @return
+   * @throws IOException
+   */
+  private AbstractTokenRefresher buildTokenRefreshManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    String securityManagerClassName = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS);
 
-    ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(
-        AbstractYarnAppSecurityManager.class);
     try {
-     return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(
-          ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS))), this.config, this.helixManager, this.fs,
-          tokenFilePath);
+      // The constructor utils will catastrophically fail if you pass null as a param because it's not possible to infer the type of null.
+      // So, there are 2 separate code paths for helix and non-helix security manager
+      if (helixClusterLifecycleManager.isPresent()) {
+        ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(AbstractYarnAppSecurityManager.class);
+        return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, this.fs,
+            tokenFilePath, this.helixClusterLifecycleManager.get());
+      }
+
+      ClassAliasResolver aliasResolver = new ClassAliasResolver<>(AbstractTokenRefresher.class);
+      return (AbstractTokenRefresher) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, this.fs, tokenFilePath);
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);
-    }
-  }
-
-  @VisibleForTesting
-  void sendShutdownRequest() {
-    Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
-    criteria.setPartition("%");
-    criteria.setPartitionState("%");
-    criteria.setResource("%");
-    if (this.isHelixClusterManaged) {
-      //In the managed mode, the Gobblin Yarn Application Master connects to the Helix cluster in the Participant role.
-      criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
-      criteria.setInstanceName(this.helixInstanceName);
-    } else {
-      criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
-    }
-    criteria.setSessionSpecific(true);
-
-    Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
-        HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString().toLowerCase() + UUID.randomUUID().toString());
-    shutdownRequest.setMsgSubType(HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
-    shutdownRequest.setMsgState(Message.MessageState.NEW);
-    shutdownRequest.setTgtSessionId("*");
-
-    int messagesSent = this.messagingService.send(criteria, shutdownRequest);
-    if (messagesSent == 0) {
-      LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
     }
   }
 

@@ -15,19 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.yarn;
+package org.apache.gobblin.yarn.helix;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Stopwatch;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.helix.HelixAdmin;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Stopwatch;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
-import org.apache.helix.HelixAdmin;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 
 @Slf4j

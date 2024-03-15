@@ -212,8 +212,16 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_CLUSTER_OVERWRITE_KEY = GOBBLIN_CLUSTER_PREFIX + "helix.overwrite";
   public static final boolean DEFAULT_HELIX_CLUSTER_OVERWRITE = true;
 
-  //Config to enable/disable cluster creation. Should set this config to false if Helix-as-a-Service is used to manage
-  // the cluster
+  /**
+   * Config to enable/disable cluster creation. Should set this config to false if Helix-as-a-Service is used to manage
+   * the cluster.<br><br>
+   *
+   * When Gobblin is leveraging helix-as-a-service (i.e. an externally provided helix controller), the Gobblin Helix
+   * code should not try to create a helix cluster because helix clusters are meant to be created by the Helix controller.<br><br>
+   *
+   * Non-managed mode means that the helix controller code runs internally, and therefore Gobblin should create the helix
+   * cluster if it does not already exist.
+   */
   public static final String IS_HELIX_CLUSTER_MANAGED = GOBBLIN_CLUSTER_PREFIX + "isHelixClusterManaged";
   public static final boolean DEFAULT_IS_HELIX_CLUSTER_MANAGED = false;
 
