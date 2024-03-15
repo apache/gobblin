@@ -33,7 +33,7 @@ import org.apache.gobblin.yarn.helix.HelixClusterLifecycleManager;
 
 /**
  * <p>
- *   <br> Gobblin Yarn apps can run often need leverage Helix to do cluster management, and so this class provides optional
+ *   <br> Gobblin Yarn apps often leverage Helix to do cluster management, and so this class provides optional
  *   mechanisms for sending token file updates via Helix. Token refreshes are needed when the application is expected
  *   to run for a long time, and the initial token is expected to expire.<br><br>
  *

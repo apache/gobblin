@@ -43,6 +43,32 @@ import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
+/**
+ * The HelixClusterLifecycleManager class is responsible for managing the lifecycle of a Helix cluster in a Gobblin application.
+ * It provides methods to create and connect to a Helix cluster, send shutdown requests, and send token file updated messages.
+ * 
+ * The class uses the GobblinClusterConfigurationKeys and GobblinHelixConstants classes for configuration keys and constants.
+ * It also relies on the GobblinClusterManager and GobblinHelixMessagingService classes for managing the Gobblin cluster and
+ * sending messages to the Helix cluster, respectively.
+ * 
+ * To use this class, create an instance with a Config object containing the necessary configuration properties. The class will
+ * automatically connect to the Helix cluster and create the cluster if necessary. To close the connection and send a shutdown
+ * request, call the close() method.
+ * 
+ * Note: This class requires a ZooKeeper connection string and a Helix cluster name to be provided in the configuration.
+ * 
+ * Example usage:
+ * <pre>
+ * {@code
+ * Config config = ConfigFactory.load();
+ * Closer closer = Closer.create();
+ * HelixClusterLifecycleManager lifecycleManager = new HelixClusterLifecycleManager(config);
+ * closer.register(lifecycleManager);
+ * // Use the lifecycleManager instance...
+ * closer.close();
+ * }
+ * </pre>
+ */
 @Slf4j
 public class HelixClusterLifecycleManager implements Closeable {
   private final Config config;
