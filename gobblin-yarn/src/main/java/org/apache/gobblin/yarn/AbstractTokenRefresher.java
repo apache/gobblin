@@ -90,8 +90,8 @@ public abstract class AbstractTokenRefresher extends AbstractIdleService {
 
   @Override
   protected void startUp() throws Exception {
-    log.info("Starting the {}", this.getClass().getSimpleName());
-    log.info("Scheduling the login task with an interval of {} minute(s)", this.loginIntervalInMinutes);
+    log.info("Starting the {}. Scheduling the login task with an interval of {} minute(s)",
+        this.getClass().getSimpleName(), this.loginIntervalInMinutes);
 
     // Schedule the Kerberos re-login task
     this.loginExecutor.scheduleAtFixedRate(() -> {
