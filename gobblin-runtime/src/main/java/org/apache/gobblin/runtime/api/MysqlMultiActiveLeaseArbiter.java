@@ -43,11 +43,11 @@ import org.apache.gobblin.util.DBStatementExecutor;
 
 /**
  * MySQL based implementation of the {@link MultiActiveLeaseArbiter} which uses a MySQL store to resolve ownership of
- * a flow event amongst multiple competing participants. A MySQL table is used to store flow identifying information as
- * well as the dag action associated with it. It uses two additional values of the `event_timestamp` and
+ * a dag action event amongst multiple competing participants. A MySQL table is used to store flow and job identifying
+ * information as well as the dag action associated with it. It uses two additional values of the `event_timestamp` and
  * `lease_acquisition_timestamp` to indicate an active lease, expired lease, and state of no longer leasing. The table
  * schema is as follows:
- * [flow_group | flow_name | flow_action | event_timestamp | lease_acquisition_timestamp]
+ * [flow_group | flow_name | job_name | dag_action | event_timestamp | lease_acquisition_timestamp]
  * (----------------------primary key------------------------)
  * We also maintain another table in the database with two constants that allow us to coordinate between participants
  * and ensure they are using the same values to base their coordination off of.
@@ -56,15 +56,15 @@ import org.apache.gobblin.util.DBStatementExecutor;
  * `linger` - minimum time to occur before another host may attempt a lease on a flow event. It should be much greater
  *            than epsilon and encapsulate executor communication latency including retry attempts
  *
- * The `event_timestamp` is the time of the flow_action event request.
+ * The `event_timestamp` is the time of the dag_action event request.
  * --- Database event_timestamp laundering ---
- * We only use the participant's local event_timestamp internally to identify the particular flow_action event, but
+ * We only use the participant's local event_timestamp internally to identify the particular dag_action event, but
  * after interacting with the database utilize the CURRENT_TIMESTAMP of the database to insert or keep
  * track of our event, "laundering" or replacing the local timestamp with the database one. This is to avoid any
  * discrepancies due to clock drift between participants as well as variation in local time and database time for
  * future comparisons.
  * --- Event consolidation ---
- * Note that for the sake of simplification, we only allow one event associated with a particular flow's flow_action
+ * Note that for the sake of simplification, we only allow one event associated with a particular flow's dag_action
  * (ie: only one LAUNCH for example of flow FOO, but there can be a LAUNCH, KILL, & RESUME for flow FOO at once) during
  * the time it takes to execute the dag action. In most cases, the execution time should be so negligible that this
  * event consolidation of duplicate dag action requests is not noticed and even during executor downtime this behavior
@@ -106,14 +106,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           default auto-update/initialization values
     - We desire millisecond level precision and denote that with `(3)` for the TIMESTAMP types
    */
-  // TODO: Update arbiter to store and retrieve jobName from dagAction received
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "job_name varchar("
-      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_action varchar(100) NOT NULL, "
+      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, dag_action varchar(100) NOT NULL, "
       + "event_timestamp TIMESTAMP(3) NOT NULL, "
       + "lease_acquisition_timestamp TIMESTAMP(3) NULL, "
-      + "PRIMARY KEY (flow_group,flow_name,job_name,flow_action))";
+      + "PRIMARY KEY (flow_group,flow_name,job_name,dag_action))";
   // Deletes rows older than retention time period regardless of lease status as they should all be invalid or completed
   // since retention >> linger
   private static final String LEASE_ARBITER_TABLE_RETENTION_STATEMENT = "DELETE FROM %s WHERE event_timestamp < "
@@ -123,7 +122,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   // Only insert epsilon and linger values from config if this table does not contain a pre-existing values already.
   private static final String UPSERT_CONSTANTS_TABLE_STATEMENT = "INSERT INTO %s (primary_key, epsilon, linger) "
       + "VALUES(1, ?, ?) ON DUPLICATE KEY UPDATE epsilon=VALUES(epsilon), linger=VALUES(linger)";
-  protected static final String WHERE_CLAUSE_TO_MATCH_KEY = "WHERE flow_group=? AND flow_name=? AND flow_action=?";
+  protected static final String WHERE_CLAUSE_TO_MATCH_KEY = "WHERE flow_group=? AND flow_name=? AND job_name=? dag_action=?";
   protected static final String WHERE_CLAUSE_TO_MATCH_ROW = WHERE_CLAUSE_TO_MATCH_KEY
       + " AND event_timestamp=CONVERT_TZ(?, '+00:00', @@session.time_zone)"
       + " AND lease_acquisition_timestamp=CONVERT_TZ(?, '+00:00', @@session.time_zone)";
@@ -157,8 +156,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       + WHERE_CLAUSE_TO_MATCH_KEY;
   // Insert or update row to acquire lease if values have not changed since the previous read
   // Need to define three separate statements to handle cases where row does not exist or has null values to check
-  protected static final String ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT = "INSERT INTO %s (flow_group, flow_name, "
-      + "flow_action, event_timestamp, lease_acquisition_timestamp) VALUES(?, ?, ?, CURRENT_TIMESTAMP(3), "
+  protected static final String ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT = "INSERT INTO %s (flow_group, flow_name, job_name"
+      + "dag_action, event_timestamp, lease_acquisition_timestamp) VALUES(?, ?, ?, CURRENT_TIMESTAMP(3), "
       + "CURRENT_TIMESTAMP(3))";
   protected static final String CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT = "UPDATE %s "
       + "SET event_timestamp=CURRENT_TIMESTAMP(3), lease_acquisition_timestamp=CURRENT_TIMESTAMP(3) "
@@ -360,6 +359,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           }
           getInfoStatement.setString(++i, dagAction.getFlowGroup());
           getInfoStatement.setString(++i, dagAction.getFlowName());
+          getInfoStatement.setString(++i, dagAction.getJobName());
           getInfoStatement.setString(++i, dagAction.get_dagActionType().toString());
           ResultSet resultSet = getInfoStatement.executeQuery();
           try {
@@ -528,6 +528,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     // Values to set in new row
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
+    statement.setString(++i, dagAction.getJobName());
     statement.setString(++i, dagAction.get_dagActionType().toString());
   }
 
@@ -542,6 +543,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     int i = 0;
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
+    statement.setString(++i, dagAction.getJobName());
     statement.setString(++i, dagAction.get_dagActionType().toString());
   }
 
@@ -563,6 +565,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     // Values to check if existing row matches previous read
     statement.setString(++i, dagAction.getFlowGroup());
     statement.setString(++i, dagAction.getFlowName());
+    statement.setString(++i, dagAction.getJobName());
     statement.setString(++i, dagAction.get_dagActionType().toString());
     // Values that may be needed depending on the insert statement
     if (needEventTimeCheck) {
@@ -577,15 +580,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   public boolean recordLeaseSuccess(LeaseObtainedStatus status)
       throws IOException {
     DagActionStore.DagAction dagAction = status.getDagAction();
-    String flowGroup = dagAction.getFlowGroup();
-    String flowName = dagAction.getFlowName();
-    DagActionStore.DagActionType dagActionType = dagAction.get_dagActionType();
     return dbStatementExecutor.withPreparedStatement(String.format(CONDITIONALLY_COMPLETE_LEASE_STATEMENT, leaseArbiterTableName),
         updateStatement -> {
           int i = 0;
-          updateStatement.setString(++i, flowGroup);
-          updateStatement.setString(++i, flowName);
-          updateStatement.setString(++i, dagActionType.toString());
+          updateStatement.setString(++i, dagAction.getFlowGroup());
+          updateStatement.setString(++i, dagAction.getFlowName());
+          updateStatement.setString(++i, dagAction.getJobName());
+          updateStatement.setString(++i, dagAction.get_dagActionType().toString());
           updateStatement.setTimestamp(++i, new Timestamp(status.getEventTimeMillis()), UTC_CAL.get());
           updateStatement.setTimestamp(++i, new Timestamp(status.getLeaseAcquisitionTimestamp()), UTC_CAL.get());
           int numRowsUpdated = updateStatement.executeUpdate();

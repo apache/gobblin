@@ -200,7 +200,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(value.getDagAction().toString());
 
     // Used to easily log information to identify the dag action
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
+    // TODO: add jobName to the dagAction change event
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "",
         dagActionType);
 
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of

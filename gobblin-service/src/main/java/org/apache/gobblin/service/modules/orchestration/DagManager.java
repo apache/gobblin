@@ -184,7 +184,8 @@ public class DagManager extends AbstractIdleService {
     }
 
     DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
-      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, actionType);
+      // defaults to empty jobName 
+      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", actionType);
     }
   }
 
@@ -591,7 +592,7 @@ public class DagManager extends AbstractIdleService {
     private void removeDagActionFromStore(DagId dagId, DagActionStore.DagActionType dagActionType) throws IOException {
       if (this.dagActionStore.isPresent()) {
         this.dagActionStore.get().deleteDagAction(
-            new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, dagActionType));
+            new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, "", dagActionType));
       }
     }
 

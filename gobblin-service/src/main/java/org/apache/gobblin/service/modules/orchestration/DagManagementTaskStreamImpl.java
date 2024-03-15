@@ -57,6 +57,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
+  // TODO: need to pass reference to DagProcLeaseArbiter without creating a circular reference in Guice
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore) {
     this.config = config;
@@ -83,16 +84,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   @Override
   public DagTask next() {
     try {
-      DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-      // todo reconsider the use of MultiActiveLeaseArbiter
-      //MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction);
-      // todo - uncomment after flow trigger handler provides such an api
-      //Properties jobProps = getJobProperties(dagAction);
-      //flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis());
-      //if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-      // can it return null? is this iterator allowed to return null?
-      return createDagTask(dagAction, new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction, System.currentTimeMillis()));
-      //}
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
+      DagActionStore.DagAction dagAction = null;
+//      while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
+        dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
+//        multiActiveLeaseArbiter.tryAcquireLease(dagAction);
+//      }
+
+      return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {
       //TODO: need to handle exceptions gracefully
       log.error("Error getting DagAction from the queue / creating DagTask", t);

@@ -70,6 +70,7 @@ import org.apache.gobblin.service.modules.db.ServiceDatabaseProvider;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseProviderImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementTaskStreamImpl;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
@@ -200,10 +201,10 @@ public class GobblinServiceGuiceModule implements Module {
     // Note: only one SchedulerFactory instance should exist per JVM
     binder.bind(StdSchedulerFactory.class);
 
+    // TODO: create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
     OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isMultiActiveExecutionEnabled()) {
-      // TODO: instantiate dagManagementTaskStreamImpl
       binder.bind(DagActionReminderScheduler.class);
       binder.bind(ReminderSettingDagProcLeaseArbiter.class);
     }

@@ -35,13 +35,13 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /*
-  A generic lease arbitration decorator built upon the {@link MysqlMultiActiveLeaseArbiter} which encapsulates common
+  A generic lease arbitration decorator built upon the {@link MultiActiveLeaseArbiter} which encapsulates common
   functionality desired by lease arbiter users to track metrics on all lease attempts made by the arbiter. The metrics
   can be used to compare relative performance among arbitration participants.
  */
 @Slf4j
-public class InstrumentedLeaseArbiterDecorator implements MultiActiveLeaseArbiter {
-  protected MultiActiveLeaseArbiter multiActiveLeaseArbiter;
+public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
+  protected MultiActiveLeaseArbiter decoratedMultiActiveLeaseArbiter;
   @Getter
   protected MetricContext metricContext;
   private ContextAwareCounter leaseObtainedCount;
@@ -51,9 +51,9 @@ public class InstrumentedLeaseArbiterDecorator implements MultiActiveLeaseArbite
   private ContextAwareCounter noLongerLeasingStatusCount;
   private ContextAwareMeter leasesObtainedDueToReminderCount;
 
-  public InstrumentedLeaseArbiterDecorator(Config config, MultiActiveLeaseArbiter leaseDeterminationStore,
+  public InstrumentedLeaseArbiter(Config config, MultiActiveLeaseArbiter leaseDeterminationStore,
       String metricsPrefix) {
-    this.multiActiveLeaseArbiter = leaseDeterminationStore;
+    this.decoratedMultiActiveLeaseArbiter = leaseDeterminationStore;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
         this.getClass());
     initializeMetrics(metricsPrefix);
@@ -75,7 +75,7 @@ public class InstrumentedLeaseArbiterDecorator implements MultiActiveLeaseArbite
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
 
     MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
-        multiActiveLeaseArbiter.tryAcquireLease(flowAction, eventTimeMillis, isReminderEvent,
+        decoratedMultiActiveLeaseArbiter.tryAcquireLease(flowAction, eventTimeMillis, isReminderEvent,
             skipFlowExecutionIdReplacement);
     log.info("Multi-active scheduler lease attempt for dagAction: {} received type of leaseAttemptStatus: [{}, "
             + "eventTimestamp: {}] ", flowAction, leaseAttemptStatus.getClass().getName(), eventTimeMillis);
@@ -99,6 +99,6 @@ public class InstrumentedLeaseArbiterDecorator implements MultiActiveLeaseArbite
   @Override
   public boolean recordLeaseSuccess(LeaseObtainedStatus status)
       throws IOException {
-    return this.multiActiveLeaseArbiter.recordLeaseSuccess(status);
+    return this.decoratedMultiActiveLeaseArbiter.recordLeaseSuccess(status);
   }
 }

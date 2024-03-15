@@ -58,7 +58,19 @@ public interface DagActionStore {
 
 
   /**
-   * Check if an action exists in dagAction store by flow group, flow name and flow execution id.
+   * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException;
+
+  /**
+   * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
+   * empty ("").
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
@@ -69,6 +81,17 @@ public interface DagActionStore {
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  void addDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
