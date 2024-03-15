@@ -51,6 +51,9 @@ public class HelixClusterLifecycleManager implements Closeable {
   @Getter
   private final AtomicBoolean isApplicationRunningFlag;
 
+  /**
+   * See {@link GobblinClusterConfigurationKeys#IS_HELIX_CLUSTER_MANAGED}
+   */
   private final boolean isHelixClusterManaged;
   @Getter
   private final HelixManager helixManager;
@@ -101,7 +104,7 @@ public class HelixClusterLifecycleManager implements Closeable {
     }
   }
 
-  void connectHelixManager() {
+  private void connectHelixManager() {
     try {
       this.helixManager.connect();
     } catch (Exception e) {
@@ -110,13 +113,13 @@ public class HelixClusterLifecycleManager implements Closeable {
     }
   }
 
-  void disconnectHelixManager() {
+  private void disconnectHelixManager() {
     if (this.helixManager.isConnected()) {
       this.helixManager.disconnect();
     }
   }
 
-  void sendShutdownRequest() {
+  private void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setPartition("%");
@@ -144,4 +147,46 @@ public class HelixClusterLifecycleManager implements Closeable {
   }
 
 
+  public void sendTokenFileUpdatedMessage() {
+    // Send a message to the controller (when the cluster is not managed)
+    // and all the participants if this is not the first login
+    if (!this.isHelixClusterManaged) {
+      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+    }
+    sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+  }
+
+  public void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+    Criteria criteria = new Criteria();
+    criteria.setInstanceName("%");
+    criteria.setResource("%");
+    criteria.setPartition("%");
+    criteria.setPartitionState("%");
+    criteria.setRecipientInstanceType(instanceType);
+    /**
+     * #HELIX-0.6.7-WORKAROUND
+     * Add back when LIVESTANCES messaging is ported to 0.6 branch
+     if (instanceType == InstanceType.PARTICIPANT) {
+     criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+     }
+     **/
+    criteria.setSessionSpecific(true);
+
+    Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG,
+        HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().toLowerCase() + UUID.randomUUID().toString());
+    tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
+    tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
+    if (instanceType == InstanceType.CONTROLLER) {
+      tokenFileUpdatedMessage.setTgtSessionId("*");
+    }
+
+    // #HELIX-0.6.7-WORKAROUND
+    // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
+    // for messaging to instances
+    //int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
+    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(helixManager);
+
+    int messagesSent = messagingService.send(criteria, tokenFileUpdatedMessage);
+    log.info("Sent {} token file updated message(s) to the {}", messagesSent, instanceType);
+  }
 }

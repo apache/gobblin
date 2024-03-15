@@ -28,14 +28,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.Credentials;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -49,13 +48,11 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  *   This class uses a scheduled task to do re-login to re-fetch token on a
  *   configurable schedule. It also uses a second scheduled task
  *   to renew the delegation token after each login. Both the re-login interval and the token
- *   renewing interval are configurable.
+ *   renewal interval are configurable.
  * </p>
- * @author Zihan Li
  */
-public abstract class AbstractAppSecurityManager extends AbstractIdleService {
-
-  protected Logger LOGGER = LoggerFactory.getLogger(this.getClass().getName());
+@Slf4j
+public abstract class AbstractTokenRefresher extends AbstractIdleService {
 
   protected Config config;
 
@@ -75,7 +72,7 @@ public abstract class AbstractAppSecurityManager extends AbstractIdleService {
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   protected volatile boolean firstLogin = true;
 
-  public AbstractAppSecurityManager(Config config, FileSystem fs, Path tokenFilePath) {
+  public AbstractTokenRefresher(Config config, FileSystem fs, Path tokenFilePath) {
     this.config = config;
     this.fs = fs;
     this.tokenFilePath = tokenFilePath;
@@ -86,69 +83,60 @@ public abstract class AbstractAppSecurityManager extends AbstractIdleService {
         GobblinYarnConfigurationKeys.DEFAULT_TOKEN_RENEW_INTERVAL_IN_MINUTES);
 
     this.loginExecutor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("KeytabReLoginExecutor")));
     this.tokenRenewExecutor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("TokenRenewExecutor")));
   }
 
   @Override
   protected void startUp() throws Exception {
-    LOGGER.info("Starting the " + this.getClass().getSimpleName());
-
-    LOGGER.info(
-        String.format("Scheduling the login task with an interval of %d minute(s)", this.loginIntervalInMinutes));
+    log.info("Starting the {}", this.getClass().getSimpleName());
+    log.info("Scheduling the login task with an interval of {} minute(s)", this.loginIntervalInMinutes);
 
     // Schedule the Kerberos re-login task
-    this.loginExecutor.scheduleAtFixedRate(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          loginAndScheduleTokenRenewal();
-        }catch(Exception e){
-          LOGGER.error("Error during login, will continue the thread and try next time.");
-        }
+    this.loginExecutor.scheduleAtFixedRate(() -> {
+      try {
+        loginAndScheduleTokenRenewal();
+      } catch (Exception e){
+        log.error("Error during login, will continue the thread and try next time.");
       }
     }, this.loginIntervalInMinutes, this.loginIntervalInMinutes, TimeUnit.MINUTES);
   }
 
   @Override
-  protected void shutDown() throws Exception {
-    LOGGER.info("Stopping the " + this.getClass().getSimpleName());
+  protected synchronized void shutDown() throws Exception {
+    log.info("Stopping the {}", this.getClass().getSimpleName());
 
     if (this.scheduledTokenRenewTask.isPresent()) {
       this.scheduledTokenRenewTask.get().cancel(true);
     }
-    ExecutorsUtils.shutdownExecutorService(this.loginExecutor, Optional.of(LOGGER));
-    ExecutorsUtils.shutdownExecutorService(this.tokenRenewExecutor, Optional.of(LOGGER));
+    ExecutorsUtils.shutdownExecutorService(this.loginExecutor, Optional.of(log));
+    ExecutorsUtils.shutdownExecutorService(this.tokenRenewExecutor, Optional.of(log));
   }
 
   protected void scheduleTokenRenewTask() {
-    LOGGER.info(String.format("Scheduling the token renew task with an interval of %d minute(s)",
-        this.tokenRenewIntervalInMinutes));
+    log.info("Scheduling the token renew task with an interval of {} minute(s)", this.tokenRenewIntervalInMinutes);
 
-    this.scheduledTokenRenewTask = Optional.<ScheduledFuture<?>>of(
-        this.tokenRenewExecutor.scheduleAtFixedRate(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              renewDelegationToken();
-            } catch (IOException ioe) {
-              LOGGER.error("Failed to renew delegation token", ioe);
-              throw Throwables.propagate(ioe);
-            } catch (InterruptedException ie) {
-              LOGGER.error("Token renew task has been interrupted");
-              Thread.currentThread().interrupt();
-            }
+    this.scheduledTokenRenewTask = Optional.of(
+        this.tokenRenewExecutor.scheduleAtFixedRate(() -> {
+          try {
+            renewDelegationToken();
+          } catch (IOException ioe) {
+            log.error("Failed to renew delegation token", ioe);
+            throw new RuntimeException(ioe);
+          } catch (InterruptedException ie) {
+            log.error("Token renew task has been interrupted");
+            Thread.currentThread().interrupt();
           }
         }, this.tokenRenewIntervalInMinutes, this.tokenRenewIntervalInMinutes, TimeUnit.MINUTES));
   }
 
   //The whole logic for each re-login
-  public void loginAndScheduleTokenRenewal() {
+  public synchronized void loginAndScheduleTokenRenewal() {
     try {
       // Cancel the currently scheduled token renew task
       if (scheduledTokenRenewTask.isPresent() && scheduledTokenRenewTask.get().cancel(true)) {
-        LOGGER.info("Cancelled the token renew task");
+        log.info("Cancelled the token renew task");
       }
 
       login();
@@ -159,8 +147,8 @@ public abstract class AbstractAppSecurityManager extends AbstractIdleService {
       // Re-schedule the token renew task after re-login
       scheduleTokenRenewTask();
     } catch (IOException | InterruptedException ioe) {
-      LOGGER.error("Failed to login from keytab", ioe);
-      throw Throwables.propagate(ioe);
+      log.error("Failed to login from keytab", ioe);
+      throw new RuntimeException(ioe);
     }
   }
 
@@ -170,18 +158,19 @@ public abstract class AbstractAppSecurityManager extends AbstractIdleService {
   protected synchronized void writeDelegationTokenToFile(Credentials cred) throws IOException {
 
     if (this.fs.exists(this.tokenFilePath)) {
-      LOGGER.info("Deleting existing token file " + this.tokenFilePath);
+      log.info("Deleting existing token file " + this.tokenFilePath);
       this.fs.delete(this.tokenFilePath, false);
     }
 
-    LOGGER.debug("creating new token file {} with 644 permission.", this.tokenFilePath);
+    FsPermission permission = new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE);
+    log.debug("Creating new token file {} with permission={}.", this.tokenFilePath, permission);
 
     YarnHelixUtils.writeTokenToFile(this.tokenFilePath, cred, this.fs.getConf());
-    // Only grand access to the token file to the login user
-    this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
+    // Only grant access to the token file to the login user
+    this.fs.setPermission(this.tokenFilePath, permission);
 
     System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFilePath.toUri().getPath());
-    LOGGER.info("set HADOOP_TOKEN_FILE_LOCATION = {}", this.tokenFilePath);
+    log.info("set HADOOP_TOKEN_FILE_LOCATION = {}", this.tokenFilePath);
   }
 
   /**

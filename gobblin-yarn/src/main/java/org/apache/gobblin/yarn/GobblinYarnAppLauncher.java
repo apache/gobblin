@@ -67,7 +67,6 @@ import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,7 +231,7 @@ public class GobblinYarnAppLauncher {
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
-  private Optional<AbstractAppSecurityManager> securityManager = Optional.absent();
+  private Optional<AbstractTokenRefresher> tokenRefreshManager = Optional.absent();
 
   private final String containerTimezone;
   private final String appLauncherMode;
@@ -336,8 +335,8 @@ public class GobblinYarnAppLauncher {
 
     //Before connect with yarn client, we need to login to get the token
     if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
-      this.securityManager = Optional.of(buildSecurityManager());
-      this.securityManager.get().loginAndScheduleTokenRenewal();
+      this.tokenRefreshManager = Optional.of(buildTokenRefreshManager());
+      this.tokenRefreshManager.get().loginAndScheduleTokenRenewal();
     }
 
     startYarnClient();
@@ -373,9 +372,9 @@ public class GobblinYarnAppLauncher {
 
   private void addServices() throws IOException{
     List<Service> services = Lists.newArrayList();
-    if (this.securityManager.isPresent()) {
+    if (this.tokenRefreshManager.isPresent()) {
       LOGGER.info("Adding KeyManagerService since key management is enabled");
-      services.add(this.securityManager.get());
+      services.add(this.tokenRefreshManager.get());
     }
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
@@ -863,21 +862,22 @@ public class GobblinYarnAppLauncher {
    * @return
    * @throws IOException
    */
-  private AbstractAppSecurityManager buildSecurityManager() throws IOException {
+  private AbstractTokenRefresher buildTokenRefreshManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     String securityManagerClassName = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS);
 
     try {
+      // The constructor utils will catastrophically fail if you pass null as a param because it's not possible to infer the type of null.
+      // So, there are 2 separate code paths for helix and non-helix security manager
       if (helixClusterLifecycleManager.isPresent()) {
-        HelixManager helixManager = helixClusterLifecycleManager.get().getHelixManager();
         ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(AbstractYarnAppSecurityManager.class);
-        return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, helixManager, this.fs,
-            tokenFilePath);
+        return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, this.fs,
+            tokenFilePath, this.helixClusterLifecycleManager.get());
       }
 
-      ClassAliasResolver aliasResolver = new ClassAliasResolver<>(AbstractAppSecurityManager.class);
-      return (AbstractAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, this.fs, tokenFilePath);
+      ClassAliasResolver aliasResolver = new ClassAliasResolver<>(AbstractTokenRefresher.class);
+      return (AbstractTokenRefresher) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(securityManagerClassName)), this.config, this.fs, tokenFilePath);
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);
     }

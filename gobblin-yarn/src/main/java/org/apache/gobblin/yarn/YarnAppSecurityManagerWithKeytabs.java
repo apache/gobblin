@@ -22,19 +22,23 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
 
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.helix.HelixManager;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.hadoop.TokenUtils;
+import org.apache.gobblin.yarn.helix.HelixClusterLifecycleManager;
+
 import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION;
 
 
@@ -60,6 +64,7 @@ import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_SECURITY
  *
  * @author Yinan Li
  */
+@Slf4j
 public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
   private UserGroupInformation loginUser;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
@@ -68,9 +73,9 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   // sent to the controller and the participants as they may not be up running yet. The first login
   // happens after this class starts up so the token gets regularly refreshed before the next login.
 
-  public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
+  public YarnAppSecurityManagerWithKeytabs(Config config, FileSystem fs, Path tokenFilePath, HelixClusterLifecycleManager helixClusterLifecycleManager)
       throws IOException {
-    super(config, helixManager, fs, tokenFilePath);
+    super(config, fs, tokenFilePath, helixClusterLifecycleManager);
     this.loginUser = UserGroupInformation.getLoginUser();
   }
 
@@ -78,18 +83,18 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
    * Renew the existing delegation token.
    */
   protected synchronized void renewDelegationToken() throws IOException, InterruptedException {
-    LOGGER.debug("renewing all tokens {}", credentials.getAllTokens());
+    log.debug("renewing all tokens {}", credentials.getAllTokens());
 
     credentials.getAllTokens().forEach(
       existingToken -> {
         try {
           long expiryTime = existingToken.renew(this.fs.getConf());
-          LOGGER.info("renewed token: {}, expiryTime: {}, Id; {}", existingToken, expiryTime, Arrays.toString(existingToken.getIdentifier()));
+          log.info("renewed token: {}, expiryTime: {}, Id; {}", existingToken, expiryTime, Arrays.toString(existingToken.getIdentifier()));
 
           // TODO: If token failed to get renewed in case its expired ( can be detected via the error text ),
           //  it should call the login() to reissue the new tokens
         } catch (IOException | InterruptedException e) {
-          LOGGER.error("Error renewing token: " + existingToken + " ,error: " + e, e);
+          log.error("Error renewing token: " + existingToken + " ,error: " + e, e);
         }
       }
     );
@@ -97,10 +102,10 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile(credentials);
 
     if (!this.firstLogin) {
-      LOGGER.info("This is not a first login, sending TokenFileUpdatedMessage.");
+      log.info("This is not a first login, sending TokenFileUpdatedMessage.");
       sendTokenFileUpdatedMessage();
     } else {
-      LOGGER.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage.");
+      log.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage.");
     }
   }
 
@@ -114,11 +119,11 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
 //    Text renewer = TokenUtils.getMRTokenRenewerInternal(new JobConf());
     String renewer = UserGroupInformation.getLoginUser().getShortUserName();
 
-    LOGGER.info("creating new login tokens with renewer: {}", renewer);
+    log.info("creating new login tokens with renewer: {}", renewer);
     TokenUtils.getAllFSTokens(newConfig, allCreds, renewer, Optional.absent(), ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
     //TODO: Any other required tokens can be fetched here based on config or any other detection mechanism
 
-    LOGGER.debug("All new tokens in credential: {}", allCreds.getAllTokens());
+    log.debug("All new tokens in credential: {}", allCreds.getAllTokens());
 
     this.credentials = allCreds;
   }
@@ -140,14 +145,14 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     if (Strings.isNullOrEmpty(principal)) {
       principal = this.loginUser.getShortUserName() + "/localhost@LOCALHOST";
     }
-    LOGGER.info("Login using kerberos principal : "+ principal);
+    log.info("Login using kerberos principal : "+ principal);
 
     Configuration conf = new Configuration();
     conf.set(HADOOP_SECURITY_AUTHENTICATION, UserGroupInformation.AuthenticationMethod.KERBEROS.toString().toLowerCase());
     UserGroupInformation.setConfiguration(conf);
     UserGroupInformation.loginUserFromKeytab(principal, keyTabFilePath);
 
-    LOGGER.info(String.format("Logged in from keytab file %s using principal %s for user: %s", keyTabFilePath, principal, this.loginUser));
+    log.info(String.format("Logged in from keytab file %s using principal %s for user: %s", keyTabFilePath, principal, this.loginUser));
 
     getNewDelegationTokenForLoginUser();
 
@@ -156,10 +161,10 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     UserGroupInformation.getCurrentUser().addCredentials(this.credentials);
 
     if (!this.firstLogin) {
-      LOGGER.info("This is not a first login, sending TokenFileUpdatedMessage from Login().");
+      log.info("This is not a first login, sending TokenFileUpdatedMessage from Login().");
       sendTokenFileUpdatedMessage();
     }else {
-      LOGGER.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage from Login().");
+      log.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage from Login().");
     }
   }
 }
