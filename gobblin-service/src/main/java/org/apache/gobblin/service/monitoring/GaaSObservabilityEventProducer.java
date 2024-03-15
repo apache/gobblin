@@ -17,23 +17,18 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.base.Optional;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
-import io.opentelemetry.api.metrics.ObservableLongGauge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.gson.reflect.TypeToken;
 
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
@@ -78,12 +73,12 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected State state;
 
   protected OpenTelemetryMetricsBase opentelemetryMetrics;
-  private LongCounter jobStatusMetric;
+  private ObservableLongMeasurement jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
   protected boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
 
-  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled, OpenTelemetryMetricsBase opentelemetryMetrics) {
+  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     this.state = state;
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;
@@ -91,24 +86,16 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
       this.metricContext = Instrumented.getMetricContext(state, getClass());
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ISSUES_READ_FAILED_METRIC_NAME));
-      this.opentelemetryMetrics = opentelemetryMetrics;
+      this.opentelemetryMetrics = OpenTelemetryMetrics.getInstance(state);
       setupMetrics(state);
     }
   }
 
-  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
-    this(state, issueRepository, instrumentationEnabled, OpenTelemetryMetrics.getInstance(state));
-  }
-
   private void setupMetrics(State state) {
-//    this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
-//        .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
-//        .ofLongs()
-//        .buildObserver()
-
     this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
-        .counterBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
-        .build();
+        .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+        .ofLongs()
+        .buildObserver();
   }
 
   public void emitObservabilityEvent(final State jobState) {
@@ -118,17 +105,15 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   public void sendMetrics(GaaSObservabilityEventExperimental event) {
-    Attributes tags = Attributes.builder()
-        .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
-        .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
-        .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
-        .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId())
-        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId())
-        .build();
-    int jobStatus = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
-    this.jobStatusMetric.add(jobStatus, tags);
-//    this.jobStatusMetric.record(jobStatus, tags);
+    if (this.instrumentationEnabled) {
+      Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
+          .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
+          .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
+          .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
+          .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId()).put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId()).build();
+      int jobStatus = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
+      this.jobStatusMetric.record(jobStatus, tags);
+    }
   }
 
   /**

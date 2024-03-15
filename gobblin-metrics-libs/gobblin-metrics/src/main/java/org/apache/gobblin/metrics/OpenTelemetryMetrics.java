@@ -1,12 +1,9 @@
 package org.apache.gobblin.metrics;
 
-import com.google.common.base.Optional;
-import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import java.time.Duration;
 import java.util.Properties;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.PropertiesUtils;
+
+import com.google.common.base.Optional;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -15,8 +12,13 @@ import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.PropertiesUtils;
 /**
  * A metrics reporter wrapper that uses the OpenTelemetry standard to emit metrics
  * Currently separated from the legacy codehale metrics as we need to maintain backwards compatibility, but eventually
@@ -62,10 +64,8 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
             PeriodicMetricReader.builder(this.metricExporter)
                 .setInterval(Duration.ofMillis(state.getPropAsLong(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS)))
                 .build())
-
         .build();
 
     this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
-//    this.closer.register(this.openTelemetry);
   }
 }

@@ -23,7 +23,6 @@ import java.util.List;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
-import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
@@ -36,10 +35,6 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
 
   public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
     super(state, issueRepository, false);
-  }
-
-  public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, InMemoryOpenTelemetryMetrics metricProvider) {
-    super(state, issueRepository, true, metricProvider);
   }
 
   @Override

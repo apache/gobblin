@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -25,10 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
-import org.testng.annotations.Test;
 import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
@@ -179,54 +176,6 @@ public class GaaSObservabilityProducerTest {
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
-  }
-
-  @Test
-  public void testCreateGaaSObservabilityMetricEmission() throws Exception {
-    String flowGroup = "testFlowGroup2";
-    String flowName = "testFlowName2";
-    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobName1");
-    String flowExecutionId = "1";
-    State state = new State();
-    state.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
-    state.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT, "<stub>");
-    state.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS, "1000");
-    state.setProp(GaaSObservabilityEventProducer.GAAS_OBSERVABILITY_GROUP_NAME, "testGaaSMetricGroup");
-
-    InMemoryOpenTelemetryMetrics metricProvider = new InMemoryOpenTelemetryMetrics(state);
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(state, this.issueRepository, metricProvider);
-    Map<String, String> gteEventMetadata = Maps.newHashMap();
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowExecutionId);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
-    gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
-
-    Properties jobStatusProps = new Properties();
-    jobStatusProps.putAll(gteEventMetadata);
-    producer.emitObservabilityEvent(new State(jobStatusProps));
-    Thread.sleep(1000);
-
-    producer.emitObservabilityEvent(new State(jobStatusProps));
-    Thread.sleep(1000);
-
-    producer.emitObservabilityEvent(new State(jobStatusProps));
-    Thread.sleep(1000);
-
-    producer.emitObservabilityEvent(new State(jobStatusProps));
-    Thread.sleep(1000);
-
-    producer.emitObservabilityEvent(new State(jobStatusProps));
-    Thread.sleep(1000);
-//    List<MetricData> metrics = metricProvider.getInMemoryMetricExporter().getFinishedMetricItems();
-//
-//
-//    for (MetricData metric : metrics) {
-//      System.out.println(metric);
-//    }
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
