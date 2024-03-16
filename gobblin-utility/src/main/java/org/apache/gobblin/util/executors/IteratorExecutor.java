@@ -31,7 +31,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.util.hash.Hash;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
