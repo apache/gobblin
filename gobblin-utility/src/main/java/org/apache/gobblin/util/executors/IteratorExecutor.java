@@ -17,10 +17,8 @@
 
 package org.apache.gobblin.util.executors;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
@@ -165,28 +163,6 @@ public class IteratorExecutor<T> {
         actualLogger.error("Iterator executor failure.", exc);
         printed++;
         if (printed >= atMost) {
-          return;
-        }
-      }
-    }
-  }
-
-  /**
-   * Aggregate failures before logging them by collecting tasks that failed due to the same root cause
-   * Avoid over-logging by logging at most {@code atMost} unique root causes.
-   *
-   */
-  public static <T> void aggregateAndLogFailures(List<Either<T, ExecutionException>> results, Logger useLogger, int atMost) {
-    Logger actualLogger = useLogger == null ? log : useLogger;
-    Iterator<Either<T, ExecutionException>> it = results.iterator();
-    Set<Throwable> exceptions = new HashSet<>();
-    while (it.hasNext()) {
-      Either<T, ExecutionException> nextResult = it.next();
-      if (nextResult instanceof Either.Right) {
-        ExecutionException exc = ((Either.Right<T, ExecutionException>) nextResult).getRight();
-        exceptions.add(exc.getCause());
-        actualLogger.error("Gobblin task failed due to: ", exc.getCause());
-        if (exceptions.size() > atMost) {
           return;
         }
       }
