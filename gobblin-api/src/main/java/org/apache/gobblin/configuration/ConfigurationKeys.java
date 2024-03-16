@@ -912,8 +912,6 @@ public class ConfigurationKeys {
       METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.configs";
   public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_USE_HTTP =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.http.enabled";
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.endpoint";
 
