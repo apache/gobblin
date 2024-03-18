@@ -30,9 +30,10 @@ import java.util.concurrent.TimeUnit;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
-import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.Retryer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
@@ -40,7 +41,6 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -64,7 +64,10 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.*;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 
 /**
@@ -241,7 +244,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
       List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
-      if (states.size() > 0) {
+      if (!states.isEmpty()) {
         org.apache.gobblin.configuration.State previousJobStatus = states.get(states.size() - 1);
         String previousStatus = previousJobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
         String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
@@ -305,7 +308,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
-    if (prevStates.size() == 0) {
+    if (prevStates.isEmpty()) {
       return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
     }
     return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))

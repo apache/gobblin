@@ -24,8 +24,6 @@ import lombok.Getter;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -41,12 +39,10 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
-  @Getter protected final DagManager.DagId dagId;
 
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
-    this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);

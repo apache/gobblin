@@ -171,6 +171,7 @@ public class DagManager extends AbstractIdleService {
     String flowGroup;
     String flowName;
     String flowExecutionId;
+
     public DagId(String flowGroup, String flowName, String flowExecutionId) {
       this.flowGroup = flowGroup;
       this.flowName = flowName;
@@ -185,6 +186,10 @@ public class DagManager extends AbstractIdleService {
     DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
       // defaults to empty jobName
       return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", actionType);
+    }
+
+    public FlowId getFlowId() {
+      return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
     }
   }
 

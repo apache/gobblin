@@ -26,9 +26,9 @@ import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
@@ -60,8 +60,7 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
   }
 
-  private DagActionStoreChangeMonitor createDagActionStoreMonitor()
-    throws ReflectiveOperationException {
+  private DagActionStoreChangeMonitor createDagActionStoreMonitor() {
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
     log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
 
@@ -74,12 +73,8 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
 
   @Override
   public DagActionStoreChangeMonitor get() {
-    try {
-      DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
-      changeMonitor.initializeMonitor();
-      return changeMonitor;
-    } catch (ReflectiveOperationException e) {
-      throw new RuntimeException("Failed to initialize DagActionStoreMonitor due to ", e);
-    }
+    DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
+    changeMonitor.initializeMonitor();
+    return changeMonitor;
   }
 }
