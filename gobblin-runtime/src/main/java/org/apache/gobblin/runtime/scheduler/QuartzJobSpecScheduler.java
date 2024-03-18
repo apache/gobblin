@@ -93,7 +93,7 @@ public class QuartzJobSpecScheduler extends AbstractJobSpecScheduler {
   }
 
   protected static SchedulerService createDefaultSchedulerService(Config cfg) {
-    return new SchedulerService(cfg, null);
+    return new SchedulerService(cfg);
   }
 
   /** {@inheritDoc} */

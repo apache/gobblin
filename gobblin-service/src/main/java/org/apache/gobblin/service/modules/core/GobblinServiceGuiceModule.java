@@ -195,7 +195,7 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     // Note: only one SchedulerFactory instance should exist per JVM
-    binder.bind(StdSchedulerFactory.class);
+    binder.bind(StdSchedulerFactory.class).in(Singleton.class);
 
     OptionalBinder.newOptionalBinder(binder, DagManagement.class);
     OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);

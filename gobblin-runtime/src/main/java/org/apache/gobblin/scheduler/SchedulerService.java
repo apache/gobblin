@@ -74,6 +74,10 @@ public class SchedulerService extends AbstractIdleService {
     this(props, null);
   }
 
+  public SchedulerService(Config cfg) {
+    this(cfg, null);
+  }
+
   @Inject
   public SchedulerService(Config cfg, StdSchedulerFactory schedulerFactory) {
     this(cfg.hasPath(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) ?

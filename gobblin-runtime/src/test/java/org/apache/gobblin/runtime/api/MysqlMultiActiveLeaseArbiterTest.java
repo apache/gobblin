@@ -35,10 +35,10 @@ import static org.apache.gobblin.runtime.api.MysqlMultiActiveLeaseArbiter.*;
 
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTest {
-  private static final int EPSILON = 10000;
-  private static final int MORE_THAN_EPSILON = (int) (EPSILON * 1.1);
-  private static final int LINGER = 50000;
-  private static final int MORE_THAN_LINGER = (int) (LINGER * 1.1);
+  private static final long EPSILON = 10000;
+  private static final long MORE_THAN_EPSILON = (long) (EPSILON * 1.1);
+  private static final long LINGER = 50000;
+  private static final long MORE_THAN_LINGER = (long) (LINGER * 1.1);
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "mysql_multi_active_lease_arbiter_store";
