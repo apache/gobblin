@@ -490,7 +490,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
   /**
    * Parse result of attempted insert/update to obtain a lease for a
-   * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} event by selecting values corresponding to that
+   * {@link DagActionStore.DagAction} event by selecting values corresponding to that
    * event from the table to return the corresponding status based on successful insert/update or not.
    * @throws SQLException
    * @throws IOException
