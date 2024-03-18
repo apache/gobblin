@@ -193,22 +193,27 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowLaunchHandler.class);
     }
 
+    // Note: only one SchedulerFactory instance should exist per JVM
+    binder.bind(StdSchedulerFactory.class);
+
+    // TODO: create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
+//    OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
+//    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
+    /* TODO: remove explicit binding for these classes and for dagManagement classes below. They should only be initialized with right configuration.
+     & create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
+     */
+    binder.bind(ReminderSettingDagProcLeaseArbiter.class);
+    binder.bind(DagActionReminderScheduler.class);
+//    if (serviceConfig.isMultiActiveExecutionEnabled()) {
+//      binder.bind(DagActionReminderScheduler.class);
+//      binder.bind(ReminderSettingDagProcLeaseArbiter.class);
+//    }
+
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
     binder.bind(DagProcFactory.class);
     binder.bind(DagProcessingEngine.class);
-
-    // Note: only one SchedulerFactory instance should exist per JVM
-    binder.bind(SchedulerFactory.class).to(StdSchedulerFactory.class);
-
-    // TODO: create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
-    OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
-    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
-    if (serviceConfig.isMultiActiveExecutionEnabled()) {
-      binder.bind(DagActionReminderScheduler.class);
-      binder.bind(ReminderSettingDagProcLeaseArbiter.class);
-    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
