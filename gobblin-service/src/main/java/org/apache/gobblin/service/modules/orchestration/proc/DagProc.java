@@ -38,6 +38,7 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 @Alpha
 @Slf4j
 public abstract class DagProc<S, T> {
+  protected DagTask dagTask;
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
   protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
       metricContext, "org.apache.gobblin.service").build();

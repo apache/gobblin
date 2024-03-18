@@ -17,13 +17,13 @@
 
 package org.apache.gobblin.service.modules.spec;
 
-import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;

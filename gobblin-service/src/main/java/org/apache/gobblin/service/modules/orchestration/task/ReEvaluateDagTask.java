@@ -15,13 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
 
-import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.ReEvaluateDagTask;
+import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 
 
-public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask);
-  T meet(ReEvaluateDagTask launchDagTask);
+/**
+ * A {@link DagTask} responsible to handle launch tasks.
+ */
+
+public class ReEvaluateDagTask extends DagTask {
+  public ReEvaluateDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+    super(dagAction, leaseObtainedStatus);
+  }
+
+  public <T> T host(DagTaskVisitor<T> visitor) {
+    return visitor.meet(this);
+  }
+
+  @Override
+  public boolean conclude() {
+    // todo - release lease
+    return true;
+  }
 }

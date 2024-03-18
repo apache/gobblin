@@ -80,7 +80,7 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(), null);
-    this.dagProcFactory = new DagProcFactory(null);
+    this.dagProcFactory = new DagProcFactory(null, null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore);
