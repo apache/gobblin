@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -39,10 +40,11 @@ public class MysqlUserQuotaManagerTest {
   private static final String PROXY_USER = "abora";
   private MysqlUserQuotaManager quotaManager;
   public static int INCREMENTS = 1000;
+  ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
         .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
@@ -53,7 +55,6 @@ public class MysqlUserQuotaManagerTest {
 
     this.quotaManager = new MysqlUserQuotaManager(config);
   }
-
   @Test
   public void testRunningDagStore() throws Exception {
     String dagId = DagManagerUtils.generateDagId(DagManagerTest.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
@@ -166,5 +167,10 @@ public class MysqlUserQuotaManagerTest {
     thread5.join();
     thread6.join();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), -1);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    testDb.close();
   }
 }

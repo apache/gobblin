@@ -96,7 +96,7 @@ public abstract class JobStatusRetrieverTest {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
   }
 
   static Properties createAttemptsProperties(int currGen, int currAttempts, boolean shouldRetry) {

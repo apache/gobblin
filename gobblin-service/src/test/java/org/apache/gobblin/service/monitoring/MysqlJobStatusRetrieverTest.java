@@ -45,11 +45,12 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
   private MysqlJobStatusStateStore<State> dbJobStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
+  private ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   @Override
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
 
     ConfigBuilder configBuilder = ConfigBuilder.create();
@@ -135,7 +136,7 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
     State jobStatus = new State(properties);
 
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
     Iterator<JobStatus>
         jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
     Assert.assertTrue(jobStatusIterator.hasNext());
@@ -157,7 +158,7 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     State jobStatus = new State(properties);
 
     try {
-      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
     } catch (IOException e) {
       Assert.assertTrue(e.getCause().getCause().getMessage().contains("Data too long"));
       return;
@@ -168,5 +169,10 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
   @Override
   void cleanUpDir() throws Exception {
     this.dbJobStateStore.delete(KafkaJobStatusMonitor.jobStatusStoreName(FLOW_GROUP, FLOW_NAME));
+  }
+
+  @Override
+  public void tearDown() throws Exception {
+    this.testMetastoreDatabase.close();
   }
 }

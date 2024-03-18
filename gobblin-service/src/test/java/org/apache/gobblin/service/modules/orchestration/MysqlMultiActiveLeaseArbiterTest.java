@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.util.Optional;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -65,12 +66,13 @@ public class MysqlMultiActiveLeaseArbiterTest {
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT, TABLE);
   private String formattedAcquireLeaseIfFinishedStatement =
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, TABLE);
+  ITestMetastoreDatabase testDb;
 
   // The setup functionality verifies that the initialization of the tables is done correctly and verifies any SQL
   // syntax errors.
   @BeforeClass
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    this.testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
@@ -351,5 +353,10 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
     Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
+  }
+
+  @AfterClass
+  public void tearDown() throws IOException {
+    this.testDb.close();
   }
 }

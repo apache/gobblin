@@ -40,6 +40,8 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
  * actions based on the type of {@link DagTask}. Submitting events in time is found to be important in
  * <a href="https://github.com/apache/gobblin/pull/3641">PR#3641</a>, hence initialize and act methods submit events as
  * they happen.
+ * Parameter T is the type of object that needs an initialisation before the dag proc does the main work in `act` method.
+ * This object is then passed to `act` method.
  */
 @Alpha
 @Data

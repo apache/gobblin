@@ -18,8 +18,10 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 
 
 public interface DagTaskVisitor<T> {
   T meet(LaunchDagTask launchDagTask);
+  T meet(ReevaluateDagTask reevaluateDagTask);
 }

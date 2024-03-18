@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -55,11 +57,12 @@ public class DagProcessingEngineTest {
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  static ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
@@ -163,7 +166,8 @@ public class DagProcessingEngineTest {
 
   // This tests verifies that all the dag tasks entered to the dag task stream are retrieved by dag proc engine threads
   @Test
-  public void dagProcessingTest() throws InterruptedException, TimeoutException {
+  public void dagProcessingTest()
+      throws InterruptedException, TimeoutException, IOException {
     // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
     // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
     // (MAX_NUM_OF_TASKS + 1) th call
@@ -175,5 +179,10 @@ public class DagProcessingEngineTest {
         log, 1, 1000L);
 
     Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+  }
+
+  @AfterClass
+  public void tearDown() throws IOException {
+    testMetastoreDatabase.close();
   }
 }

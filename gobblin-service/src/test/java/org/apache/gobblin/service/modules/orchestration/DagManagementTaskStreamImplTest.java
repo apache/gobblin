@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -109,5 +110,10 @@ public class DagManagementTaskStreamImplTest {
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);
     Assert.assertNotNull(dagProc);
+  }
+
+  @AfterClass
+  public void tearDown() throws IOException {
+    testMetastoreDatabase.close();
   }
 }

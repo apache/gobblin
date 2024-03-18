@@ -132,11 +132,12 @@ public interface DagManagementStateStore {
   void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus},
-   * or Optional.absent if it is not found.
+   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.
+   * Both params are returned as optional and are empty if not present in the store.
+   * JobStatus can be non-empty only if DagNode is non-empty.
    * @param dagNodeId of the dag node
    */
-  Optional<Pair<Dag.DagNode<JobExecutionPlan>, JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId);
+  Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId);
 
   /**
    * Returns a list of {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for a {@link Dag}.
