@@ -92,10 +92,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   private void setupMetrics(State state) {
-    this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
-        .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
-        .ofLongs()
-        .buildObserver();
+    if (this.opentelemetryMetrics != null) {
+      this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME)).gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME).ofLongs().buildObserver();
+    }
   }
 
   public void emitObservabilityEvent(final State jobState) {
@@ -105,7 +104,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   public void sendMetrics(GaaSObservabilityEventExperimental event) {
-    if (this.instrumentationEnabled) {
+    if (this.instrumentationEnabled && this.jobStatusMetric != null) {
       Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
           .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
           .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
