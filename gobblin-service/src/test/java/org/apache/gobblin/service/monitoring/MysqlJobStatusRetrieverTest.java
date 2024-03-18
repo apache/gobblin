@@ -34,10 +34,13 @@ import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 
 
@@ -60,6 +63,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     this.jobStatusRetriever =
         new MysqlJobStatusRetriever(configBuilder.build(), mock(MultiContextIssueRepository.class));
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
+    this.mysqlDagActionStore = mock(MysqlDagActionStore.class);
+    doNothing().when(this.mysqlDagActionStore).addDagAction(any(), any(), any(), any());
     cleanUpDir();
   }
 
@@ -135,7 +140,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
     State jobStatus = new State(properties);
 
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(),
+        new NoopGaaSObservabilityEventProducer(), mysqlDagActionStore);
     Iterator<JobStatus>
         jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
     Assert.assertTrue(jobStatusIterator.hasNext());
@@ -157,7 +163,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     State jobStatus = new State(properties);
 
     try {
-      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(),
+          new NoopGaaSObservabilityEventProducer(), mysqlDagActionStore);
     } catch (IOException e) {
       Assert.assertTrue(e.getCause().getCause().getMessage().contains("Data too long"));
       return;

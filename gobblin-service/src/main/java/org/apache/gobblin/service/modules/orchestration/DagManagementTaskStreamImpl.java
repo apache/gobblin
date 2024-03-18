@@ -37,6 +37,7 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ReEvaluateDagTask;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -106,6 +107,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     switch (flowActionType) {
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus);
+      case REEVALUATE:
+        return new ReEvaluateDagTask(dagAction, leaseObtainedStatus);
       default:
         throw new UnsupportedOperationException("Not yet implemented");
     }

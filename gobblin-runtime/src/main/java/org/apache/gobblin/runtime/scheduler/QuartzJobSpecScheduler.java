@@ -42,6 +42,8 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Data;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -49,8 +51,6 @@ import org.apache.gobblin.runtime.api.JobSpecSchedule;
 import org.apache.gobblin.runtime.api.JobSpecScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.service.StandardServiceConfig;
-
-import lombok.Data;
 
 /**
  * A {@link JobSpecScheduler} using Quartz.

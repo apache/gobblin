@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.test.matchers.service.monitoring.FlowStatusMatch;
 import org.apache.gobblin.test.matchers.service.monitoring.JobStatusMatch;
@@ -56,6 +57,7 @@ public abstract class JobStatusRetrieverTest {
   protected static final long JOB_START_TIME = 5;
   protected static final long JOB_END_TIME = 15;
   JobStatusRetriever jobStatusRetriever;
+  protected MysqlDagActionStore mysqlDagActionStore;
 
   abstract void setUp() throws Exception;
 
@@ -96,7 +98,8 @@ public abstract class JobStatusRetrieverTest {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(), new NoopGaaSObservabilityEventProducer());
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore(),
+        new NoopGaaSObservabilityEventProducer(), mysqlDagActionStore);
   }
 
   static Properties createAttemptsProperties(int currGen, int currAttempts, boolean shouldRetry) {

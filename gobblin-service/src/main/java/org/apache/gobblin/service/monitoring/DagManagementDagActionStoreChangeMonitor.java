@@ -23,9 +23,7 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -38,7 +36,6 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 @Slf4j
 public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
   private final DagManagement dagManagement;
-  protected ContextAwareMeter unexpectedLaunchEventErrors;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -62,28 +59,18 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       // todo - add actions for other other type of dag actions
-      if (dagAction.getFlowActionType().equals(DagActionStore.FlowActionType.LAUNCH)) {
-        // If multi-active scheduler is NOT turned on we should not receive these type of events
-        if (!this.isMultiActiveSchedulerEnabled) {
-          this.unexpectedLaunchEventErrors.mark();
-          throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
-              + "mode for flowAction: %s", dagAction));
-        }
-        dagManagement.addDagAction(dagAction);
-      } else {
-        log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getFlowActionType());
-        this.unexpectedErrors.mark();
+      switch (dagAction.getFlowActionType()) {
+        case LAUNCH :
+        case REEVALUATE :
+          dagManagement.addDagAction(dagAction);
+          break;
+        default:
+          log.warn("Received unsupported dagAction {}. Expected to be a REEVALUATE or LAUNCH", dagAction.getFlowActionType());
+          this.unexpectedErrors.mark();
       }
     } catch (IOException e) {
       log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
       launchSubmissionMetricProxy.markFailure();
     }
-  }
-
-  @Override
-  protected void createMetrics() {
-    super.createMetrics();
-    // Dag Action specific metrics
-    this.unexpectedLaunchEventErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
   }
 }
