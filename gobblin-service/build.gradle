@@ -75,6 +75,7 @@ dependencies {
   compile externalDependency.joptSimple
 
   testCompile project(":gobblin-example")
+
   // Required for adding Test class into classpath
   testCompile project(":gobblin-runtime").sourceSets.test.output
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
