@@ -53,7 +53,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
-  protected ReminderSettingDagProcLeaseArbiter reminderSettingDagProcLeaseArbiter;
+  protected Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter;
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
@@ -61,7 +61,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   // TODO: need to pass reference to DagProcLeaseArbiter without creating a circular reference in Guice
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
-      ReminderSettingDagProcLeaseArbiter reminderSettingDagProcLeaseArbiter) {
+      Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter) {
     this.config = config;
     this.dagActionStore = dagActionStore;
     this.reminderSettingDagProcLeaseArbiter = reminderSettingDagProcLeaseArbiter;
@@ -86,13 +86,19 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
+    /*TODO: this requires use of lease arbiter, in single-active execution lease arbiter will not be present and we can
+     provide a dummy LeaseObtainedStatus or create alternate route
+    */
+    if (!this.reminderSettingDagProcLeaseArbiter.isPresent()) {
+      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    }
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;
       while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
         dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
         // TODO: need to handle reminder events and flag them
-        leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.get().tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
       }
       return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {

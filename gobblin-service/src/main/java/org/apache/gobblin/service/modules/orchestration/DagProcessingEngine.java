@@ -17,11 +17,11 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
@@ -52,23 +52,25 @@ import org.apache.gobblin.util.ExecutorsUtils;
 @Singleton
 public class DagProcessingEngine {
 
-  @Getter private final DagTaskStream dagTaskStream;
-  @Getter DagManagementStateStore dagManagementStateStore;
+  @Getter private final Optional<DagTaskStream> dagTaskStream;
+  @Getter Optional<DagManagementStateStore> dagManagementStateStore;
 
   @Inject
-  public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
-      DagManagementStateStore dagManagementStateStore) {
+  public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream,
+      Optional<DagProcFactory> dagProcFactory, Optional<DagManagementStateStore> dagManagementStateStore) {
     Integer numThreads = ConfigUtils.getInt
         (config, ServiceConfigKeys.NUM_DAG_PROC_THREADS_KEY, ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS);
     ScheduledExecutorService scheduledExecutorPool =
         Executors.newScheduledThreadPool(numThreads,
-            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("DagProcessingEngineThread")));
+            ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
+                com.google.common.base.Optional.of("DagProcessingEngineThread")));
     this.dagTaskStream = dagTaskStream;
     this.dagManagementStateStore = dagManagementStateStore;
 
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
-      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream, dagProcFactory, dagManagementStateStore);
+      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
+          dagManagementStateStore.get());
       scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }

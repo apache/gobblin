@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Optional;
 
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -32,11 +33,13 @@ import org.quartz.TriggerBuilder;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
 
 
 /**
@@ -50,12 +53,16 @@ import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
  */
 @Slf4j
 public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbiter {
-  private final MultiActiveLeaseArbiter decoratedLeaseArbiter;
-  private final DagActionReminderScheduler dagActionReminderScheduler;
+  private final Optional<MultiActiveLeaseArbiter> decoratedLeaseArbiter;
+  private final Optional<DagActionReminderScheduler> dagActionReminderScheduler;
   private final Config config;
+  private final String MISSING_OPTIONAL_ERROR_MESSAGE = String.format("Multi-active execution is not enabled so dag "
+      + "action should not passed to %s", ReminderSettingDagProcLeaseArbiter.class.getSimpleName());
 
   @Inject
-  public ReminderSettingDagProcLeaseArbiter(Config config, MultiActiveLeaseArbiter leaseArbiter, DagActionReminderScheduler dagActionReminderScheduler) throws IOException {
+  public ReminderSettingDagProcLeaseArbiter(Config config,
+      @Named(GobblinServiceGuiceModule.EXECUTOR_LEASE_ARBITER_NAME) Optional<MultiActiveLeaseArbiter> leaseArbiter,
+      Optional<DagActionReminderScheduler> dagActionReminderScheduler) {
     this.decoratedLeaseArbiter = leaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.config = config;
@@ -67,30 +74,42 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
   @Override
   public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) {
-    try {
-      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
-          this.decoratedLeaseArbiter.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
+    if (this.decoratedLeaseArbiter.isPresent()) {
+      try {
+        MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
+            this.decoratedLeaseArbiter.get().tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent,
+                skipFlowExecutionIdReplacement);
       /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
       we, when we might become the lease owner still fail to complete processing
       */
-      if (!(leaseAttemptStatus instanceof NoLongerLeasingStatus)) {
-        scheduleReminderForEvent(leaseAttemptStatus);
+        if (!(leaseAttemptStatus instanceof NoLongerLeasingStatus)) {
+          scheduleReminderForEvent(leaseAttemptStatus);
+        }
+        return leaseAttemptStatus;
+      } catch (SchedulerException | IOException e) {
+        throw new RuntimeException(e);
       }
-      return leaseAttemptStatus;
-    } catch (SchedulerException | IOException e) {
-      throw new RuntimeException(e);
+    } else {
+      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
     }
   }
 
   @Override
   public boolean recordLeaseSuccess(LeaseObtainedStatus status)
       throws IOException {
-    return this.decoratedLeaseArbiter.recordLeaseSuccess(status);
+    if (!this.decoratedLeaseArbiter.isPresent()) {
+      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
+    }
+    return this.decoratedLeaseArbiter.get().recordLeaseSuccess(status);
   }
 
   protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.scheduleReminder(leaseStatus.getDagAction(), leaseStatus.getMinimumLingerDurationMillis());
+    if (!this.dagActionReminderScheduler.isPresent()) {
+      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
+    }
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getDagAction(),
+        leaseStatus.getMinimumLingerDurationMillis());
   }
 
   /**

@@ -216,7 +216,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
       DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
       Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowLaunchHandler> flowTriggerDecorator,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, DagManagementStateStore dagManagementStateStore,
+      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<DagManagementStateStore> dagManagementStateStore,
       FlowCompilationValidationHelper flowCompilationValidationHelper)
       throws Exception {
     this(serviceName, config, helixManager, flowCatalog,

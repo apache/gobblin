@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.Optional;
+
 import org.quartz.JobDetail;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
@@ -36,10 +38,10 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
-  private final DagManagement dagManagement;
+  private final Optional<DagManagement> dagManagement;
 
   @Inject
-  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, DagManagement dagManagement)
+  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, Optional<DagManagement> dagManagement)
       throws SchedulerException {
     // Create a new Scheduler to be used solely for the DagProc reminders
     this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
@@ -55,13 +57,19 @@ public class DagActionReminderScheduler {
    */
   public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
       throws SchedulerException {
-    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement, dagAction);
+    if (!dagManagement.isPresent()) {
+      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    }
+    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement.get(), dagAction);
     Trigger trigger = ReminderSettingDagProcLeaseArbiter.createReminderJobTrigger(dagAction, reminderDurationMillis);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement, dagAction);
+    if (!dagManagement.isPresent()) {
+      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    }
+    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement.get(), dagAction);
     quartzScheduler.deleteJob(jobDetail.getKey());
   }
 

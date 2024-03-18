@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
-import org.quartz.SchedulerFactory;
 import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +108,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class GobblinServiceGuiceModule implements Module {
+  public static final String SCHEDULER_LEASE_ARBITER_NAME = "SchedulerLeaseArbiter";
+  public static final String EXECUTOR_LEASE_ARBITER_NAME = "ExecutorLeaseArbiter";
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceGuiceModule.class);
   private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
@@ -189,31 +190,34 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
     OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
+      binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(SCHEDULER_LEASE_ARBITER_NAME)).to(MysqlMultiActiveLeaseArbiter.class);
       binder.bind(FlowLaunchHandler.class);
     }
 
     // Note: only one SchedulerFactory instance should exist per JVM
     binder.bind(StdSchedulerFactory.class);
 
-    // TODO: create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
-//    OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
-//    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
-    /* TODO: remove explicit binding for these classes and for dagManagement classes below. They should only be initialized with right configuration.
-     & create optional multi-active execution instance of lease arbiter for the dagProcLeaseArbiter
-     */
-    binder.bind(ReminderSettingDagProcLeaseArbiter.class);
-    binder.bind(DagActionReminderScheduler.class);
-//    if (serviceConfig.isMultiActiveExecutionEnabled()) {
-//      binder.bind(DagActionReminderScheduler.class);
-//      binder.bind(ReminderSettingDagProcLeaseArbiter.class);
-//    }
+    OptionalBinder.newOptionalBinder(binder, DagManagement.class);
+    OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
+    OptionalBinder.newOptionalBinder(binder, DagManagementStateStore.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcFactory.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
+    if (serviceConfig.isDagProcessingEngineEnabled()) {
+      binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
+      binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
+      binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
+      binder.bind(DagProcFactory.class);
+      binder.bind(DagProcessingEngine.class);
 
-    binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
-    binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
-    binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
-    binder.bind(DagProcFactory.class);
-    binder.bind(DagProcessingEngine.class);
+      // Multi-active execution is only compatible with dagProcessingEngine configuration
+      OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
+      OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
+      if (serviceConfig.isMultiActiveExecutionEnabled()) {
+        binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(EXECUTOR_LEASE_ARBITER_NAME)).to(MysqlMultiActiveLeaseArbiter.class);
+        binder.bind(DagActionReminderScheduler.class);
+        binder.bind(ReminderSettingDagProcLeaseArbiter.class);
+      }
+    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
