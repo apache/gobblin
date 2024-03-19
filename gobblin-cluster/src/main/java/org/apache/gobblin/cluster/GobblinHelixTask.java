@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -24,6 +25,11 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.TaskCreationException;
 import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.messaging.DynamicWorkUnitConfigKeys;
+import org.apache.gobblin.runtime.messaging.DynamicWorkUnitProducer;
+import org.apache.gobblin.runtime.messaging.MessageBuffer;
+import org.apache.gobblin.runtime.messaging.data.SplitWorkUnitMessage;
+import org.apache.gobblin.runtime.messaging.hdfs.FileSystemMessageBuffer;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -77,6 +83,7 @@ import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_T
 public class GobblinHelixTask implements Task {
 
   private final TaskConfig taskConfig;
+  private final Config dynamicConfig;
   private final String applicationName;
   private final String instanceName;
 
@@ -91,6 +98,8 @@ public class GobblinHelixTask implements Task {
   private String helixTaskId;
   private EventBus eventBus;
   private boolean isCanceled;
+  private DynamicWorkUnitProducer dynamicWorkUnitProducer;
+  private Path appWorkPath;
 
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
@@ -104,12 +113,11 @@ public class GobblinHelixTask implements Task {
     this.applicationName = builder.getApplicationName();
     this.instanceName = builder.getInstanceName();
     this.taskMetrics = taskMetrics;
+    this.appWorkPath = builder.getAppWorkPath();
     getInfoFromTaskConfig();
 
     Path jobStateFilePath = GobblinClusterUtils
-        .getJobStateFilePath(stateStores.haveJobStateStore(),
-                             builder.getAppWorkPath(),
-                             this.jobId);
+        .getJobStateFilePath(stateStores.haveJobStateStore(), appWorkPath, this.jobId);
 
     Integer partitionNum = getPartitionForHelixTask(taskDriver);
     if (partitionNum == null) {
@@ -119,7 +127,7 @@ public class GobblinHelixTask implements Task {
 
     // Dynamic config is considered as part of JobState in SingleTask
     // Important to distinguish between dynamicConfig and Config
-    final Config dynamicConfig = builder.getDynamicConfig()
+    dynamicConfig = builder.getDynamicConfig()
         .withValue(GobblinClusterConfigurationKeys.TASK_RUNNER_HOST_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getHostName()))
         .withValue(GobblinClusterConfigurationKeys.CONTAINER_ID_KEY, ConfigValueFactory.fromAnyRef(builder.getContainerId()))
         .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getInstanceName()))
@@ -165,6 +173,8 @@ public class GobblinHelixTask implements Task {
     this.isCanceled = false;
     long startTime = System.currentTimeMillis();
     log.info("Actual task {} started. [{} {}]", this.taskId, this.applicationName, this.instanceName);
+    this.buildDynamicWorkUnitProducer();
+    this.sendSplitWorkUnitMessage();
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
@@ -237,6 +247,24 @@ public class GobblinHelixTask implements Task {
       }
     } else {
       log.warn("Cancel called for an uninitialized Gobblin helix task for jobId {}.", jobId);
+    }
+  }
+
+
+  private void buildDynamicWorkUnitProducer() {
+    MessageBuffer fileSystemMessageBuffer = new FileSystemMessageBuffer.Factory(
+        dynamicConfig.withValue(DynamicWorkUnitConfigKeys.DYNAMIC_WORKUNIT_HDFS_PATH,
+            ConfigValueFactory.fromAnyRef(this.appWorkPath.toString()))).getBuffer(
+        DynamicWorkUnitConfigKeys.DYNAMIC_WORKUNIT_HDFS_FOLDER);
+    dynamicWorkUnitProducer = new DynamicWorkUnitProducer(fileSystemMessageBuffer);
+  }
+
+  private void sendSplitWorkUnitMessage() {
+    SplitWorkUnitMessage splitWorkUnitMessage = SplitWorkUnitMessage.builder().workUnitId(helixTaskId).build();
+    try {
+      this.dynamicWorkUnitProducer.produce(splitWorkUnitMessage);
+    } catch (IOException ioException) {
+      log.error("Failed to send splitWorkUnitMessage. ", ioException);
     }
   }
 }
