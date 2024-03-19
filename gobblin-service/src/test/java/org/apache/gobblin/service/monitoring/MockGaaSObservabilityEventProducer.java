@@ -23,6 +23,9 @@ import java.util.List;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.OpenTelemetryMetrics;
+import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
@@ -33,10 +36,14 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
   private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
 
-  public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository) {
-    super(state, issueRepository, false);
+  public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+    super(state, issueRepository, instrumentationEnabled);
   }
 
+  @Override
+  protected OpenTelemetryMetricsBase getOpentelemetryMetrics(State state) {
+    return InMemoryOpenTelemetryMetrics.getInstance(state);
+  }
   @Override
   protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
     emittedEvents.add(event);
@@ -49,5 +56,9 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
    */
   public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
     return Collections.unmodifiableList(this.emittedEvents);
+  }
+
+  public InMemoryOpenTelemetryMetrics getOpentelemetryMetrics() {
+    return (InMemoryOpenTelemetryMetrics) this.opentelemetryMetrics;
   }
 }

@@ -19,16 +19,25 @@ package org.apache.gobblin.service.monitoring;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
+import org.checkerframework.checker.units.qual.A;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.metrics.data.Data;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
 import org.apache.gobblin.metrics.JobStatus;
@@ -71,7 +80,7 @@ public class GaaSObservabilityProducerTest {
 
     State state = new State();
     state.setProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, "testCluster");
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(state, this.issueRepository);
+    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(state, this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -139,7 +148,7 @@ public class GaaSObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository);
+    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -176,6 +185,97 @@ public class GaaSObservabilityProducerTest {
         GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
+  }
+
+  @Test
+  public void testEnableMetrics() throws Exception {
+    String flowGroup = "testFlowGroup2";
+    String flowName = "testFlowName2";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobName1");
+    String flowExecutionId = "1";
+    this.issueRepository.put(
+        TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
+        createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
+    );
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT, "http://localhost:5000");
+
+    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(producerState, this.issueRepository, true);
+
+    Map<String, String> gteEventMetadata = Maps.newHashMap();
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+    gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
+
+    Properties jobStatusProps = new Properties();
+    jobStatusProps.putAll(gteEventMetadata);
+
+    // Ensure that this doesn't throw due to NPE
+    producer.emitObservabilityEvent(new State(jobStatusProps));
+  }
+
+  @Test
+  public void testMockProduceMetrics() throws Exception {
+    String flowGroup = "testFlowGroup2";
+    String flowName = "testFlowName2";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobName1");
+    String flowExecutionId = "1";
+    this.issueRepository.put(
+        TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
+        createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
+    );
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+
+    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(producerState, this.issueRepository, true);
+    Map<String, String> gteEventMetadata = Maps.newHashMap();
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+    gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
+
+    Map<String, String> gteEventMetadata2 = Maps.newHashMap();
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "2");
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+    gteEventMetadata2.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+    gteEventMetadata2.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+
+    Properties jobStatusProps = new Properties();
+    Properties jobStatusProps2 = new Properties();
+    jobStatusProps.putAll(gteEventMetadata);    // Ensure that this doesn't throw due to NPE
+    producer.emitObservabilityEvent(new State(jobStatusProps));
+    jobStatusProps2.putAll(gteEventMetadata2);
+    producer.emitObservabilityEvent(new State(jobStatusProps2));
+    Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+    // Check number of meters
+    Assert.assertEquals(metrics.size(), 1);
+    Map<String, MetricData > metricsByName = metrics.stream().collect(Collectors.toMap(metric -> metric.getName(), metricData -> metricData));
+    MetricData jobStatusMetric = metricsByName.get("gaas.observability.jobStatus");
+    // Check the attributes of the metrics
+    List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+    Assert.assertEquals(datapoints.size(), 2);
+    // Check that the values are different for the two events (order not guaranteed for the same collection event)
+    Assert.assertNotEquals(datapoints.get(0).getValue(), datapoints.get(1).getValue());
+    Assert.assertNotEquals(datapoints.get(0).getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")),
+        datapoints.get(1).getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")));
+
+    // Check common string tag
+    Assert.assertEquals(datapoints.get(0).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
+    Assert.assertEquals(datapoints.get(1).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {

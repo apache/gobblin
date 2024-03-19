@@ -83,7 +83,8 @@ public class PropertiesUtils {
   /** @throws {@link NullPointerException} when `key` not in `properties` */
   public static String getRequiredPropRaw(Properties properties, String key, Optional<String> desc) {
     String value = properties.getProperty(key);
-    Preconditions.checkNotNull(value, "'" + key + "' must be set" + desc.transform(s -> " (to " + desc + ")").or(""));
+    Preconditions.checkNotNull(value, "'" + key + "' must be set" + desc.transform
+        (s -> " (to " + desc + ")").or(""));
     return value;
   }
 

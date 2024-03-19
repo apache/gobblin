@@ -44,7 +44,7 @@ import org.apache.gobblin.util.PropertiesUtils;
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   private static OpenTelemetryMetrics GLOBAL_INSTANCE;
-
+  private static final Long DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS = 10000L;
   private OpenTelemetryMetrics(State state) {
     super(state);
   }
@@ -79,7 +79,9 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
         .setResource(metricsResource)
         .registerMetricReader(
             PeriodicMetricReader.builder(this.metricExporter)
-                .setInterval(Duration.ofMillis(state.getPropAsLong(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS)))
+                .setInterval(Duration.ofMillis(
+                    state.getPropAsLong(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS,
+                        DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS)))
                 .build())
         .build();
 

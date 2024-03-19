@@ -21,13 +21,16 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.gson.reflect.TypeToken;
 
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import lombok.extern.slf4j.Slf4j;
 
@@ -72,8 +75,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected MetricContext metricContext;
   protected State state;
 
+  List<GaaSObservabilityEventExperimental> eventCollector = new ArrayList<>();
   protected OpenTelemetryMetricsBase opentelemetryMetrics;
-  private ObservableLongMeasurement jobStatusMetric;
+  protected ObservableLongMeasurement jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
   protected boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
@@ -86,33 +90,46 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
       this.metricContext = Instrumented.getMetricContext(state, getClass());
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
           ISSUES_READ_FAILED_METRIC_NAME));
-      this.opentelemetryMetrics = OpenTelemetryMetrics.getInstance(state);
       setupMetrics(state);
     }
   }
 
+  protected OpenTelemetryMetricsBase getOpentelemetryMetrics(State state) {
+    return OpenTelemetryMetrics.getInstance(state);
+  }
+
+
   private void setupMetrics(State state) {
+    this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
-      this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME)).gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME).ofLongs().buildObserver();
+      this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+          .ofLongs()
+          .buildObserver();
+      this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+          .batchCallback(() -> {
+            for (GaaSObservabilityEventExperimental event : this.eventCollector) {
+              Attributes tags = getEventAttributes(event);
+              int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
+              this.jobStatusMetric.record(status, tags);
+            }
+          }, this.jobStatusMetric);
     }
   }
 
   public void emitObservabilityEvent(final State jobState) {
     GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
-    sendMetrics(event);
+    this.eventCollector.add(event);
   }
 
-  public void sendMetrics(GaaSObservabilityEventExperimental event) {
-    if (this.instrumentationEnabled && this.jobStatusMetric != null) {
-      Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
-          .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
-          .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
-          .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-          .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId()).put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId()).build();
-      int jobStatus = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
-      this.jobStatusMetric.record(jobStatus, tags);
-    }
+  public Attributes getEventAttributes(GaaSObservabilityEventExperimental event) {
+    Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
+        .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
+        .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
+        .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
+        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId()).put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId()).build();
+    return tags;
   }
 
   /**
