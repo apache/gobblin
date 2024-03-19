@@ -37,7 +37,7 @@ public class InMemoryOpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   }
   @Override
   void initialize(State state) {
-    this.metricReader = InMemoryMetricReader.create(AggregationTemporalitySelector.deltaPreferred(),  DefaultAggregationSelector.getDefault());
+    this.metricReader = InMemoryMetricReader.create();
     SdkMeterProvider meterProvider = SdkMeterProvider.builder()
         .registerMetricReader(this.metricReader)
         .build();

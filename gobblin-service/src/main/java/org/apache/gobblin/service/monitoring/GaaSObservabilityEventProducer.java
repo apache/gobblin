@@ -21,16 +21,13 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
 import com.google.gson.reflect.TypeToken;
 
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import lombok.extern.slf4j.Slf4j;
 
