@@ -33,6 +33,7 @@ public class InMemoryOpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   public InMemoryOpenTelemetryMetrics(State state) {
     super(state);
   }
+
   @Override
   void initialize(State state) {
     this.metricReader = InMemoryMetricReader.create();
