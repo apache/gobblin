@@ -110,6 +110,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
               int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
             }
+            // Empty the list of events as they are all emitted at this point.
+            this.eventCollector.clear();
           }, this.jobStatusMetric);
     }
   }
