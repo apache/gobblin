@@ -26,7 +26,7 @@ import org.apache.gobblin.service.FlowId;
 
 
 public interface DagActionStore {
-  enum FlowActionType {
+  enum DagActionType {
     KILL, // Kill invoked through API call
     RESUME, // Resume flow invoked through API call
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
@@ -40,7 +40,8 @@ public interface DagActionStore {
     final String flowGroup;
     final String flowName;
     final String flowExecutionId;
-    final FlowActionType flowActionType;
+    final String jobName;
+    final DagActionType dagActionType;
 
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
@@ -51,30 +52,53 @@ public interface DagActionStore {
      */
     public DagAction updateFlowExecutionId(long eventTimeMillis) {
       return new DagAction(this.getFlowGroup(), this.getFlowName(),
-          String.valueOf(eventTimeMillis), this.getFlowActionType());
+          String.valueOf(eventTimeMillis), this.getJobName(), this.getDagActionType());
     }
   }
 
 
   /**
-   * Check if an action exists in dagAction store by flow group, flow name and flow execution id.
+   * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
-   * @param flowActionType the value of the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException;
+
+  /**
+   * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
+   * empty ("").
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
-   * @param flowActionType the value of the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException;
+  void addDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
 
   /**
    * delete the dag action from {@link DagActionStore}

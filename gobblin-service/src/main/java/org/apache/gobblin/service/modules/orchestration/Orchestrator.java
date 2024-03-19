@@ -106,22 +106,23 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private Optional<FlowTriggerHandler> flowTriggerHandler;
+  private Optional<FlowLaunchHandler> flowTriggerDecorator;
   private Optional<FlowCatalog> flowCatalog;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowTriggerHandler> flowTriggerHandler,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowLaunchHandler> flowTriggerDecorator,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
-      DagManagementStateStore dagManagementStateStore, FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
+      Optional<DagManagementStateStore> dagManagementStateStore,
+      FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     ClassAliasResolver<SpecCompiler> aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-    this.flowTriggerHandler = flowTriggerHandler;
+    this.flowTriggerDecorator = flowTriggerDecorator;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
     try {
@@ -139,7 +140,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
-    ((MostlyMySqlDagManagementStateStore) dagManagementStateStore).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
+    if (dagManagementStateStore.isPresent()) {
+      ((MostlyMySqlDagManagementStateStore) dagManagementStateStore.get()).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
+    }
 
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.flowOrchestrationSuccessFulMeter = this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER);
@@ -230,18 +233,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
       String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
 
-      DagActionStore.DagAction flowAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.LAUNCH);
+
+      DagActionStore.DagAction launchDagAction =
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", DagActionStore.DagActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
-      if (flowTriggerHandler.isPresent()) {
+      if (flowTriggerDecorator.isPresent()) {
 
         // Adopt consensus flowExecutionId for scheduled flows
-        flowTriggerHandler.get().handleTriggerEvent(jobProps, flowAction, triggerTimestampMillis, isReminderEvent,
+        flowTriggerDecorator.get().handleFlowLaunchTriggerEvent(jobProps, launchDagAction, triggerTimestampMillis, isReminderEvent,
             flowSpec.isScheduled());
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
-            flowAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
+            launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =

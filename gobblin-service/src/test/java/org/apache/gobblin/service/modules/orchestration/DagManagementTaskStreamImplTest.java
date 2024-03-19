@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,10 +33,18 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 
 public class DagManagementTaskStreamImplTest {
   private static final String TEST_USER = "testUser";
@@ -70,18 +77,32 @@ public class DagManagementTaskStreamImplTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty());
+        new DagManagementTaskStreamImpl(config, Optional.empty(), Optional.of(mock(ReminderSettingDagProcLeaseArbiter.class)));
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
   }
 
-  // This tests adding and removal of dag actions from dag task stream
-  // when we have different dag procs in future, we can test dag processing and exception handling
+  /* This tests adding and removal of dag actions from dag task stream with a launch task. It verifies that the
+  {@link DagManagementTaskStreamImpl#next()} call blocks until a {@link LeaseAttemptStatus.LeaseObtainedStatus} is
+  returned for a particular action.
+  TODO: when we have different dag procs in future, update this test to add other types of actions (and tasks)
+  */
   @Test
-  public void addRemoveDagActions() throws IOException {
-    dagManagementTaskStream.addDagAction(
-        new DagActionStore.DagAction("fg", "fn", "12345", DagActionStore.FlowActionType.LAUNCH));
+  public void addRemoveDagActions() {
+    /* Three duplicate actions are added to the task stream, since the first two calls to lease arbitration will return
+    statuses that should cause the next() method to continue polling for tasks before finally providing the
+     LeaseObtainedStatus to the taskStream to break its loop and return a newly created dagTask
+    */
+    DagActionStore.DagAction launchAction = new DagActionStore.DagAction("fg", "fn", "12345", "jn", DagActionStore.DagActionType.LAUNCH);
+    dagManagementTaskStream.addDagAction(launchAction);
+    dagManagementTaskStream.addDagAction(launchAction);
+    dagManagementTaskStream.addDagAction(launchAction);
+    when(dagManagementTaskStream.getReminderSettingDagProcLeaseArbiter().get()
+        .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
+        .thenReturn(new MultiActiveLeaseArbiter.NoLongerLeasingStatus(),
+            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(launchAction, 15),
+            new MultiActiveLeaseArbiter.LeaseObtainedStatus(launchAction, 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);

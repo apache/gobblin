@@ -110,7 +110,7 @@ public class OrchestratorTest {
 
     this.serviceLauncher.addService(flowCatalog);
     FlowStatusGenerator mockStatusGenerator = mock(FlowStatusGenerator.class);
-    FlowTriggerHandler mockFlowTriggerHandler = mock(FlowTriggerHandler.class);
+    FlowLaunchHandler mockFlowTriggerHandler = mock(FlowLaunchHandler.class);
     DagManager mockDagManager = mock(DagManager.class);
     doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
     Config config = ConfigBuilder.create()
@@ -127,7 +127,7 @@ public class OrchestratorTest {
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
         Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(
-            orchestratorProperties)), Optional.of(mock(FlowCatalog.class)), dagManagementStateStore, null);
+            orchestratorProperties)), Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore), null);
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
+import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,8 +75,10 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
-import org.apache.gobblin.service.modules.orchestration.FlowTriggerHandler;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.modules.orchestration.ReminderSettingDagProcLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.FlowLaunchHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -105,6 +108,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class GobblinServiceGuiceModule implements Module {
+  public static final String SCHEDULER_LEASE_ARBITER_NAME = "SchedulerLeaseArbiter";
+  public static final String EXECUTOR_LEASE_ARBITER_NAME = "ExecutorLeaseArbiter";
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceGuiceModule.class);
   private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
@@ -166,6 +171,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
         .to(serviceConfig.isDagProcessingEngineEnabled());
+    binder.bindConstant()
+        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED))
+        .to(serviceConfig.isMultiActiveExecutionEnabled());
 
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
@@ -180,17 +188,36 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
-    OptionalBinder.newOptionalBinder(binder, FlowTriggerHandler.class);
+    OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MultiActiveLeaseArbiter.class).to(MysqlMultiActiveLeaseArbiter.class);
-      binder.bind(FlowTriggerHandler.class);
+      binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(SCHEDULER_LEASE_ARBITER_NAME)).to(MysqlMultiActiveLeaseArbiter.class);
+      binder.bind(FlowLaunchHandler.class);
     }
 
-    binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
-    binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
-    binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
-    binder.bind(DagProcFactory.class);
-    binder.bind(DagProcessingEngine.class);
+    // Note: only one SchedulerFactory instance should exist per JVM
+    binder.bind(StdSchedulerFactory.class).in(Singleton.class);
+
+    OptionalBinder.newOptionalBinder(binder, DagManagement.class);
+    OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
+    OptionalBinder.newOptionalBinder(binder, DagManagementStateStore.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcFactory.class);
+    OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
+    if (serviceConfig.isDagProcessingEngineEnabled()) {
+      binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
+      binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
+      binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class).in(Singleton.class);
+      binder.bind(DagProcFactory.class);
+      binder.bind(DagProcessingEngine.class);
+
+      // Multi-active execution is only compatible with dagProcessingEngine configuration
+      OptionalBinder.newOptionalBinder(binder, ReminderSettingDagProcLeaseArbiter.class);
+      OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
+      if (serviceConfig.isMultiActiveExecutionEnabled()) {
+        binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(EXECUTOR_LEASE_ARBITER_NAME)).to(MysqlMultiActiveLeaseArbiter.class);
+        binder.bind(DagActionReminderScheduler.class);
+        binder.bind(ReminderSettingDagProcLeaseArbiter.class);
+      }
+    }
 
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
