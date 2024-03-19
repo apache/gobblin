@@ -41,6 +41,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * Currently separated from the legacy codehale metrics as we need to maintain backwards compatibility, but eventually
  * can replace the old metrics system with tighter integrations once it's stable
  */
+
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   private static OpenTelemetryMetrics GLOBAL_INSTANCE;
@@ -57,10 +58,9 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   }
 
   public static OpenTelemetryMetrics getInstance(State state) {
-    if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED)) {
-      if (GLOBAL_INSTANCE == null) {
-        GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
-      }
+    if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED) && GLOBAL_INSTANCE == null) {
+      GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
     }
     return GLOBAL_INSTANCE;
   }
