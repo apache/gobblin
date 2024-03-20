@@ -33,7 +33,10 @@ dependencies {
   compile externalDependency.commonsLang3
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
-
+  compile externalDependency.opentelemetryApi
+  compile externalDependency.opentelemetrySdk
+  compile externalDependency.opentelemetryExporterOtlp
+  compile externalDependency.opentelemetrySdkTesting
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
