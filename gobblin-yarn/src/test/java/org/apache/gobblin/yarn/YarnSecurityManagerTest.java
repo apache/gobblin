@@ -56,8 +56,8 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.HelixUtils;
-import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.yarn.helix.HelixClusterLifecycleManager;
 
 import static org.mockito.Mockito.any;
 
@@ -126,9 +126,7 @@ public class YarnSecurityManagerTest {
 
     HelixUtils.createGobblinHelixCluster(zkConnectingString, helixClusterName);
 
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.SPECTATOR, zkConnectingString);
-    this.helixManager.connect();
+    HelixClusterLifecycleManager helixClusterLifecycleManager = closer.register(new HelixClusterLifecycleManager(config));
 
     this.helixManagerParticipant = HelixManagerFactory.getZKHelixManager(
         helixClusterName, HELIX_TEST_INSTANCE_PARTICIPANT, InstanceType.PARTICIPANT, zkConnectingString);
@@ -150,7 +148,7 @@ public class YarnSecurityManagerTest {
 
     this.baseDir = new Path(YarnSecurityManagerTest.class.getSimpleName());
     this.tokenFilePath = new Path(this.baseDir, GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    this._yarnAppYarnAppSecurityManagerWithKeytabs = Mockito.spy(new YarnAppSecurityManagerWithKeytabs(config, this.helixManager, this.localFs, this.tokenFilePath));
+    this._yarnAppYarnAppSecurityManagerWithKeytabs = Mockito.spy(new YarnAppSecurityManagerWithKeytabs(config, this.localFs, this.tokenFilePath, helixClusterLifecycleManager));
     this.yarnContainerSecurityManager = new YarnContainerSecurityManager(config, this.localFs, new EventBus());
 
     Mockito.doAnswer(new Answer<Void>() {
@@ -219,7 +217,7 @@ public class YarnSecurityManagerTest {
       .assertEquals(new GetHelixMessageNumFunc(YarnSecurityManagerTest.class.getSimpleName(), InstanceType.CONTROLLER, "",
           this.curatorFramework), 1, "1 controller message queued");
 
-    this._yarnAppYarnAppSecurityManagerWithKeytabs.sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, HELIX_TEST_INSTANCE_PARTICIPANT);
+    this._yarnAppYarnAppSecurityManagerWithKeytabs.sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/INSTANCES/%s/MESSAGES", YarnSecurityManagerTest.class.getSimpleName(), HELIX_TEST_INSTANCE_PARTICIPANT)).getVersion(), 0);
     AssertWithBackoff.create().logger(log).timeoutMs(20000)
@@ -238,9 +236,6 @@ public class YarnSecurityManagerTest {
   @AfterClass
   public void tearDown() throws IOException {
     try {
-      if (this.helixManager.isConnected()) {
-        this.helixManager.disconnect();
-      }
       if (this.helixManagerParticipant.isConnected()) {
         this.helixManagerParticipant.disconnect();
       }

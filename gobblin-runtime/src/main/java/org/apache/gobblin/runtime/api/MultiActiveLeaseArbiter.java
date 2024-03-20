@@ -20,6 +20,8 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 
 import lombok.Data;
+import lombok.Getter;
+import lombok.AccessLevel;
 
 
 /**
@@ -30,7 +32,7 @@ import lombok.Data;
  * the attempt.
  *
  * At a high level the lease arbiter works as follows:
- *  1. Multiple participants independently learn of a flow action event to act upon
+ *  1. Multiple participants independently learn of a dag action event to act upon
  *  2. Each participant attempts to acquire rights or `a lease` to be the sole participant acting on the event by
  *     calling the tryAcquireLease method below and receives the resulting status. The status indicates whether this
  *     participant has
@@ -45,27 +47,29 @@ import lombok.Data;
  */
 public interface MultiActiveLeaseArbiter {
   /**
-   * This method attempts to insert an entry into store for a particular flow action event if one does not already
-   * exist in the store for the flow action or has expired. Regardless of the outcome it also reads the lease
-   * acquisition timestamp of the entry for that flow action event (it could have pre-existed in the table or been newly
+   * This method attempts to insert an entry into store for a particular dag action event if one does not already
+   * exist in the store for the dag action or has expired. Regardless of the outcome it also reads the lease
+   * acquisition timestamp of the entry for that dag action event (it could have pre-existed in the table or been newly
    * added by the previous write). Based on the transaction results, it will return {@link LeaseAttemptStatus} to
    * determine the next action.
-   * @param flowAction uniquely identifies the flow and the present action upon it
-   * @param eventTimeMillis is the time this flow action was triggered
-   * @param isReminderEvent true if the flow action event we're checking on is a reminder event
-   * @param adoptConsensusFlowExecutionId if true then replaces the flowAction flowExecutionId returned in
+   * @param dagAction uniquely identifies the flow and the present action upon it
+   * @param eventTimeMillis is the time this dag action was triggered
+   * @param isReminderEvent true if the dag action event we're checking on is a reminder event
+   * @param adoptConsensusFlowExecutionId if true then replaces the dagAction flowExecutionId returned in
    *                                      LeaseAttemptStatuses with the consensus eventTime
    *
-   * @return LeaseAttemptStatus
+   * @return LeaseAttemptStatus, containing a dag action that will have an updated flow execution id if `
+   * adoptConsensusFlowExecutionId` is true. The caller should use the newer version of the dag action to easily track
+   * the action moving forward.
    * @throws IOException
    */
-  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction flowAction, long eventTimeMillis, boolean isReminderEvent,
+  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis, boolean isReminderEvent,
       boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
   /**
    * This method is used to indicate the owner of the lease has successfully completed required actions while holding
-   * the lease of the flow action event. It marks the lease as "no longer leasing", if the eventTimeMillis and
+   * the lease of the dag action event. It marks the lease as "no longer leasing", if the eventTimeMillis and
    * leaseAcquisitionTimeMillis values have not changed since this owner acquired the lease (indicating the lease did
    * not expire).
    * @return true if successfully updated, indicating no further actions need to be taken regarding this event.
@@ -76,40 +80,62 @@ public interface MultiActiveLeaseArbiter {
 
   /*
    Class used to encapsulate status of lease acquisition attempt and derivations should contain information specific to
-   the status that results.
+   the status that results. The #getDagAction and #getMinimumLingerDurationMillis are meant to be overriden and used by
+   relevant derived classes.
    */
-  abstract class LeaseAttemptStatus {}
+  abstract class LeaseAttemptStatus {
+    public DagActionStore.DagAction getDagAction() {
+      return null;
+    }
+
+    public long getMinimumLingerDurationMillis() {
+      return 0;
+    }
+  }
 
   class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
   /*
-  The participant calling this method acquired the lease for the event in question. `Flow action`'s flow execution id
+  The participant calling this method acquired the lease for the event in question. `Dag action`'s flow execution id
   is the timestamp associated with the lease and the time the caller obtained the lease is stored within the
-  `leaseAcquisitionTimestamp` field.
+  `leaseAcquisitionTimestamp` field. The `multiActiveLeaseArbiter` reference is used to recordLeaseSuccess for the
+  current LeaseObtainedStatus via the completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
   */
   @Data
   class LeaseObtainedStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction flowAction;
+    private final DagActionStore.DagAction dagAction;
     private final long leaseAcquisitionTimestamp;
+    private final long minimumLingerDurationMillis;
+    @Getter(AccessLevel.NONE)
+    private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
 
     /**
      * @return event time in millis since epoch for the event of this lease acquisition
      */
     public long getEventTimeMillis() {
-      return Long.parseLong(flowAction.getFlowExecutionId());
+      return Long.parseLong(dagAction.getFlowExecutionId());
+    }
+
+    /**
+     * Completes the lease referenced by this status object if it has not expired.
+     * @return true if able to complete lease, false otherwise.
+     * @throws IOException
+     */
+    public boolean completeLease() throws IOException {
+      return multiActiveLeaseArbiter.recordLeaseSuccess(this);
     }
   }
 
   /*
-  This flow action event already has a valid lease owned by another participant.
-  `Flow action`'s flow execution id is the timestamp the lease is associated with, however the flow action event it
+  This dag action event already has a valid lease owned by another participant.
+  `Dag action`'s flow execution id is the timestamp the lease is associated with, however the dag action event it
   corresponds to may be a different and distinct occurrence of the same event.
   `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
   the lease has completed or expired
    */
   @Data
   class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction flowAction;
+    private final DagActionStore.DagAction dagAction;
     private final long minimumLingerDurationMillis;
 
     /**
@@ -117,7 +143,7 @@ public interface MultiActiveLeaseArbiter {
      * @return
      */
     public long getEventTimeMillis() {
-      return Long.parseLong(flowAction.getFlowExecutionId());
+      return Long.parseLong(dagAction.getFlowExecutionId());
     }
 }
 }

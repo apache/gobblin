@@ -54,14 +54,18 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
+  protected Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter;
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
 
+  // TODO: need to pass reference to DagProcLeaseArbiter without creating a circular reference in Guice
   @Inject
-  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore) {
+  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
+      Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter) {
     this.config = config;
     this.dagActionStore = dagActionStore;
+    this.reminderSettingDagProcLeaseArbiter = reminderSettingDagProcLeaseArbiter;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
   }
@@ -83,17 +87,21 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
+    /*TODO: this requires use of lease arbiter, in single-active execution lease arbiter will not be present and we can
+     provide a dummy LeaseObtainedStatus or create alternate route
+    */
+    if (!this.reminderSettingDagProcLeaseArbiter.isPresent()) {
+      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    }
     try {
-      DagActionStore.DagAction dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-      // todo reconsider the use of MultiActiveLeaseArbiter
-      //MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction);
-      // todo - uncomment after flow trigger handler provides such an api
-      //Properties jobProps = getJobProperties(dagAction);
-      //flowTriggerHandler.getLeaseOnDagAction(jobProps, dagAction, System.currentTimeMillis());
-      //if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-      // can it return null? is this iterator allowed to return null?
-      return createDagTask(dagAction, new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction, System.currentTimeMillis()));
-      //}
+      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
+      DagActionStore.DagAction dagAction = null;
+      while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
+        dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
+        // TODO: need to handle reminder events and flag them
+        leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.get().tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+      }
+      return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {
       //TODO: need to handle exceptions gracefully
       log.error("Error getting DagAction from the queue / creating DagTask", t);
@@ -102,9 +110,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-    DagActionStore.FlowActionType flowActionType = dagAction.getFlowActionType();
+    DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
-    switch (flowActionType) {
+    switch (dagActionType) {
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus);
       case REEVALUATE:

@@ -87,8 +87,8 @@ public class DagManagerFlowTest {
         .build();
 
     dagActionStore = new MysqlDagActionStore(config);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.FlowActionType.KILL);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.FlowActionType.RESUME);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionType.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props));
     dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
@@ -129,9 +129,9 @@ public class DagManagerFlowTest {
 
     // mock add spec
     // for very first dag to be added, add dag action to store and check its deleted by the addDag call
-    dagManager.getDagActionStore().get().addDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.FlowActionType.LAUNCH);
+    dagManager.getDagActionStore().get().addDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH);
     dagManager.addDag(dag1, true, true);
-    Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.FlowActionType.LAUNCH));
+    Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH));
     dagManager.addDag(dag2, true, true);
     dagManager.addDag(dag3, true, true);
 
@@ -338,7 +338,7 @@ public class DagManagerFlowTest {
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
     // Add kill action to action store and call kill
-    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.KILL);
+    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.KILL);
     dagManager.handleKillFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the kill dag action is removed
@@ -346,7 +346,7 @@ public class DagManagerFlowTest {
         assertTrue(input -> {
       try {
         return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId),
-            DagActionStore.FlowActionType.KILL);
+            DagActionStore.DagActionType.KILL);
       } catch (IOException | SQLException e) {
         throw new RuntimeException(e);
       }
@@ -355,13 +355,13 @@ public class DagManagerFlowTest {
 
 
     // Add resume action to action store and call resume
-    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.RESUME);
+    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
     dagManager.handleResumeFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the resume dag action is removed
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(input -> {
           try {
-            return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.FlowActionType.RESUME);
+            return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
           } catch (IOException | SQLException e) {
             throw new RuntimeException(e);
           }

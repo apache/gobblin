@@ -111,6 +111,7 @@ import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
 import org.apache.gobblin.yarn.event.NewContainerRequest;
+import org.apache.gobblin.yarn.helix.HelixInstancePurgerWithMetrics;
 
 import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX;
 

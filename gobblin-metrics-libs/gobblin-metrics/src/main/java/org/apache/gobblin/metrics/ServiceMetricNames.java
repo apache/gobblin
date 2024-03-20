@@ -35,7 +35,8 @@ public class ServiceMetricNames {
   public static final String FLOW_ORCHESTRATION_TIMER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowOrchestration.time";
   public static final String FLOW_ORCHESTRATION_DELAY = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowOrchestration.delay";
 
-  // Flow Trigger Handler
+  // Flow Trigger Decorator
+  // TODO: change these metric variable and names after verifying the refactoring preserves existing functionality
   public static final String FLOW_TRIGGER_HANDLER_PREFIX = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowTriggerHandler.";
   public static final String GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED = FLOW_TRIGGER_HANDLER_PREFIX + "numFlowsSubmitted";
   public static final String FLOW_TRIGGER_HANDLER_LEASE_OBTAINED_COUNT = FLOW_TRIGGER_HANDLER_PREFIX + "leaseObtained";

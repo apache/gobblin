@@ -55,17 +55,17 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
-        dagAction.getFlowActionType(), dagAction);
+        dagAction.getDagActionType(), dagAction);
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       // todo - add actions for other other type of dag actions
-      switch (dagAction.getFlowActionType()) {
+      switch (dagAction.getDagActionType()) {
         case LAUNCH :
         case REEVALUATE :
           dagManagement.addDagAction(dagAction);
           break;
         default:
-          log.warn("Received unsupported dagAction {}. Expected to be a REEVALUATE or LAUNCH", dagAction.getFlowActionType());
+          log.warn("Received unsupported dagAction {}. Expected to be a REEVALUATE or LAUNCH", dagAction.getDagActionType());
           this.unexpectedErrors.mark();
       }
     } catch (IOException e) {

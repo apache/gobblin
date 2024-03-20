@@ -51,18 +51,18 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
   @Override
   public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     FlowStatusId id = key.getKey();
-    addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.FlowActionType.RESUME);
+    addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.RESUME);
   }
 
   @Override
   public UpdateResponse delete(ComplexResourceKey<org.apache.gobblin.service.FlowStatusId, EmptyRecord> key) {
     FlowStatusId id = key.getKey();
-    addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.FlowActionType.KILL);
+    addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.KILL);
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
 
   /** NOTE: may throw {@link RestLiServiceException}, see: https://linkedin.github.io/rest.li/user_guide/restli_server#returning-errors */
-  protected void addDagAction(String flowGroup, String flowName, Long flowExecutionId, DagActionStore.FlowActionType actionType) {
+  protected void addDagAction(String flowGroup, String flowName, Long flowExecutionId, DagActionStore.DagActionType actionType) {
     try {
       // If an existing resume request is still pending then do not accept this request
       if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), actionType)) {

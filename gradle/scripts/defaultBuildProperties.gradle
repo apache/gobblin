@@ -41,7 +41,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
     .register(new BuildProperty("publishToNexus", false, "Enable publishing of artifacts to Nexus"))
     .register(new BuildProperty("salesforceVersion", "42.0.0", "Salesforce dependencies version"))
-
+    .register(new BuildProperty("openTelemetryVersion", "1.29.0", "OpenTelemetry dependencies version"))
 task buildProperties(description: 'Lists main properties that can be used to customize the build') {
   doLast {
     BUILD_PROPERTIES.printHelp();
@@ -73,5 +73,6 @@ BUILD_PROPERTIES.ensureDefined('kafka09Version')
 BUILD_PROPERTIES.ensureDefined('kafka1Version')
 BUILD_PROPERTIES.ensureDefined('pegasusVersion')
 BUILD_PROPERTIES.ensureDefined('salesforceVersion')
+BUILD_PROPERTIES.ensureDefined('openTelemetryVersion')
 
 ext.buildProperties = BUILD_PROPERTIES

@@ -46,24 +46,26 @@ import org.apache.gobblin.util.DBStatementExecutor;
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
+  public static final String NO_JOB_NAME_DEFAULT = "";
 
   protected final DataSource dataSource;
   private final DBStatementExecutor dbStatementExecutor;
   private final String tableName;
   private final long retentionPeriodSeconds;
   private String thisTableRetentionStatement;
-  private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND dag_action = ?)";
+  private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name = ? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?)";
 
-  protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, dag_action) "
-      + "VALUES (?, ?, ?, ?)";
-  private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND dag_action = ?";
-  private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND dag_action = ?";
-  private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, dag_action FROM %s";
+  protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, job_name, dag_action) "
+      + "VALUES (?, ?, ?, ?, ?)";
+  private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
+  private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
+  private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s";
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (" +
   "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, "
       + "flow_execution_id varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
-      + "dag_action varchar(100) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
-      + "PRIMARY KEY (flow_group,flow_name,flow_execution_id, dag_action))";
+      + "job_name varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
+      + "dag_action varchar(50) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
+      + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,job_name,dag_action))";
   // Deletes rows older than retention time period (in seconds) to prevent this table from growing unbounded.
   private static final String RETENTION_STATEMENT = "DELETE FROM %s WHERE modified_time < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL %s SECOND)";
 
@@ -97,13 +99,14 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public boolean exists(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType) throws IOException, SQLException {
+  public boolean exists(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException {
     return dbStatementExecutor.withPreparedStatement(String.format(EXISTS_STATEMENT, tableName), existStatement -> {
       int i = 0;
       existStatement.setString(++i, flowGroup);
       existStatement.setString(++i, flowName);
       existStatement.setString(++i, flowExecutionId);
-      existStatement.setString(++i, flowActionType.toString());
+      existStatement.setString(++i, jobName);
+      existStatement.setString(++i, dagActionType.toString());
       ResultSet rs = null;
       try {
         rs = existStatement.executeQuery();
@@ -111,7 +114,7 @@ public class MysqlDagActionStore implements DagActionStore {
         return rs.getBoolean(1);
       } catch (SQLException e) {
         throw new IOException(String.format("Failure checking existence of DagAction: %s in table %s",
-            new DagAction(flowGroup, flowName, flowExecutionId, flowActionType), tableName), e);
+            new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
       } finally {
         if (rs != null) {
           rs.close();
@@ -121,7 +124,12 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType)
+  public boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException {
+    return exists(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
+  }
+
+  @Override
+  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
       throws IOException {
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
     try {
@@ -129,12 +137,19 @@ public class MysqlDagActionStore implements DagActionStore {
       insertStatement.setString(++i, flowGroup);
       insertStatement.setString(++i, flowName);
       insertStatement.setString(++i, flowExecutionId);
-      insertStatement.setString(++i, flowActionType.toString());
+      insertStatement.setString(++i, jobName);
+      insertStatement.setString(++i, dagActionType.toString());
       return insertStatement.executeUpdate();
     } catch (SQLException e) {
       throw new IOException(String.format("Failure adding action for DagAction: %s in table %s",
-          new DagAction(flowGroup, flowName, flowExecutionId, flowActionType), tableName), e);
+          new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
     }}, true);
+  }
+
+  @Override
+  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
+      throws IOException {
+    addDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
   }
 
   @Override
@@ -145,7 +160,8 @@ public class MysqlDagActionStore implements DagActionStore {
       deleteStatement.setString(++i, dagAction.getFlowGroup());
       deleteStatement.setString(++i, dagAction.getFlowName());
       deleteStatement.setString(++i, dagAction.getFlowExecutionId());
-      deleteStatement.setString(++i, dagAction.getFlowActionType().toString());
+      deleteStatement.setString(++i, dagAction.getJobName());
+      deleteStatement.setString(++i, dagAction.getDagActionType().toString());
       int result = deleteStatement.executeUpdate();
       return result != 0;
     } catch (SQLException e) {
@@ -155,27 +171,27 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   // TODO: later change this to getDagActions relating to a particular flow execution if it makes sense
-  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, FlowActionType flowActionType, ExponentialBackoff exponentialBackoff)
+  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, ExponentialBackoff exponentialBackoff)
       throws IOException, SQLException {
     return dbStatementExecutor.withPreparedStatement(String.format(GET_STATEMENT, tableName), getStatement -> {
       int i = 0;
       getStatement.setString(++i, flowGroup);
       getStatement.setString(++i, flowName);
       getStatement.setString(++i, flowExecutionId);
-      getStatement.setString(++i, flowActionType.toString());
+      getStatement.setString(++i, dagActionType.toString());
       try (ResultSet rs = getStatement.executeQuery()) {
         if (rs.next()) {
-          return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), FlowActionType.valueOf(rs.getString(4)));
+          return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), DagActionType.valueOf(rs.getString(5)));
         } else if (exponentialBackoff.awaitNextRetryIfAvailable()) {
-          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, flowActionType, exponentialBackoff);
+          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, jobName, dagActionType, exponentialBackoff);
         } else {
           log.warn(String.format("Can not find dag action: %s with flowGroup: %s, flowName: %s, flowExecutionId: %s",
-              flowActionType, flowGroup, flowName, flowExecutionId));
+              dagActionType, flowGroup, flowName, flowExecutionId));
           return null;
         }
       } catch (SQLException | InterruptedException e) {
         throw new IOException(String.format("Failure get %s from table %s",
-            new DagAction(flowGroup, flowName, flowExecutionId, flowActionType), tableName), e);
+            new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
       }
     }, true);
   }
@@ -186,7 +202,7 @@ public class MysqlDagActionStore implements DagActionStore {
       HashSet<DagAction> result = new HashSet<>();
       try (ResultSet rs = getAllStatement.executeQuery()) {
         while (rs.next()) {
-          result.add(new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), FlowActionType.valueOf(rs.getString(4))));
+          result.add(new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), DagActionType.valueOf(rs.getString(5))));
         }
         return result;
       } catch (SQLException e) {

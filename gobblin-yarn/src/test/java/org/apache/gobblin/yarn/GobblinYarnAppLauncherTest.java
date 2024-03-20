@@ -87,6 +87,7 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.yarn.helix.HelixMessageSubTypes;
 
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -129,6 +130,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   private ApplicationId applicationId;
 
   private final Closer closer = Closer.create();
+  private final YarnConfiguration clusterConf = new YarnConfiguration();
+  private TestingServer testingZKServer;
 
   private static void setEnv(String key, String value) {
     try {
@@ -149,7 +152,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     String javaHome = System.getProperty("java.home");
     setEnv("JAVA_HOME", javaHome);
 
-    final YarnConfiguration clusterConf = new YarnConfiguration();
     clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
 
     MiniYARNCluster miniYARNCluster = this.closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
@@ -169,7 +171,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.yarnClient.start();
 
     // Use a random ZK port
-    TestingServer testingZKServer = this.closer.register(new TestingServer(-1));
+    testingZKServer = this.closer.register(new TestingServer(-1));
     LOG.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     // the zk port is dynamically configured
@@ -204,9 +206,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TestHelper.TEST_HELIX_INSTANCE_NAME,
         InstanceType.CONTROLLER, zkConnectionString);
 
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
-    this.gobblinYarnAppLauncher.initializeYarnClients(this.config);
-
     this.configManagedHelix = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
             ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
@@ -214,13 +213,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(TEST_HELIX_INSTANCE_NAME_MANAGED))
         .withValue(GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED, ConfigValueFactory.fromAnyRef("true"))
         .resolve();
-
-    this.helixManagerManagedHelix = HelixManagerFactory.getZKHelixManager(
-        this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME_MANAGED,
-        InstanceType.PARTICIPANT, zkConnectionString);
-
-    this.gobblinYarnAppLauncherManagedHelix = new GobblinYarnAppLauncher(this.configManagedHelix, clusterConf);
-    this.gobblinYarnAppLauncherManagedHelix.initializeYarnClients(this.configManagedHelix);
   }
 
   @Test
@@ -259,6 +251,17 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         this.curatorFramework.checkExists()
             .forPath(String.format("/%s/CONTROLLER", MANAGED_HELIX_CLUSTER_NAME)).getVersion(),
         0);
+
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+    this.gobblinYarnAppLauncher.initializeYarnClients(this.config);
+
+    String zkConnectionString = this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    this.helixManagerManagedHelix = HelixManagerFactory.getZKHelixManager(
+        this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME_MANAGED,
+        InstanceType.PARTICIPANT, zkConnectionString);
+
+    this.gobblinYarnAppLauncherManagedHelix = new GobblinYarnAppLauncher(this.configManagedHelix, clusterConf);
+    this.gobblinYarnAppLauncherManagedHelix.initializeYarnClients(this.configManagedHelix);
   }
 
   /**
@@ -314,8 +317,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.helixManager.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
-    this.gobblinYarnAppLauncher.connectHelixManager();
-    this.gobblinYarnAppLauncher.sendShutdownRequest();
+    this.gobblinYarnAppLauncher.getHelixClusterLifecycleManager().get().getIsApplicationRunningFlag().set(true);
+    this.gobblinYarnAppLauncher.getHelixClusterLifecycleManager().get().close();
 
     Assert.assertEquals(this.curatorFramework.checkExists()
         .forPath(String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName()))
@@ -334,8 +337,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     this.helixManagerManagedHelix.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
         new TestShutdownMessageHandlerFactory(this));
 
-    this.gobblinYarnAppLauncherManagedHelix.connectHelixManager();
-    this.gobblinYarnAppLauncherManagedHelix.sendShutdownRequest();
+    this.gobblinYarnAppLauncherManagedHelix.getHelixClusterLifecycleManager().get().getIsApplicationRunningFlag().set(true);
+    this.gobblinYarnAppLauncherManagedHelix.getHelixClusterLifecycleManager().get().close();
 
     Assert.assertEquals(this.curatorFramework.checkExists()
         .forPath(String.format("/%s/INSTANCES/%s/MESSAGES", this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME_MANAGED))
@@ -367,8 +370,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
       if (this.helixManagerManagedHelix.isConnected()) {
         this.helixManagerManagedHelix.disconnect();
       }
-
-      this.gobblinYarnAppLauncher.disconnectHelixManager();
 
       if (applicationId != null) {
         this.gobblinYarnAppLauncher.cleanUpAppWorkDirectory(applicationId);

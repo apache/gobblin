@@ -122,7 +122,6 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
      throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 
-  @Override
   protected void sendNotification(Optional<Dag<JobExecutionPlan>> result, EventSubmitter eventSubmitter) {
   }
 }
