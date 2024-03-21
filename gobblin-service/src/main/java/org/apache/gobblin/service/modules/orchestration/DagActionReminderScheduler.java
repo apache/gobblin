@@ -36,7 +36,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 
 
@@ -58,7 +57,7 @@ public class DagActionReminderScheduler {
   }
 
   protected void initialize() {
-    this.dagManagement = GobblinServiceGuiceModule.getClassByNameOrAlias(DagManagement.class);
+    this.dagManagement = GobblinServiceManager.getClass(DagManagement.class);
   }
 
   /**

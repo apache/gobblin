@@ -179,10 +179,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           + "before all properties", ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX));
     }
 
-    this.leaseArbiterTableName = ConfigUtils.getString(config, ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
-        ConfigurationKeys.DEFAULT_LEASE_DETERMINATION_STORE_DB_TABLE);
-    this.constantsTableName = ConfigUtils.getString(config, ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY,
-        ConfigurationKeys.DEFAULT_MULTI_ACTIVE_CONSTANTS_DB_TABLE);
+    if (!config.hasPath(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY)
+        || !config.hasPath(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY)) {
+      throw new RuntimeException(String.format("Table names %s and %s are required to be configured so multiple instances do not "
+          + "utilize the same table name", ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
+          ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY));
+    }
+    this.leaseArbiterTableName = ConfigUtils.emptyIfNotPresent(config, ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY);
+    this.constantsTableName = ConfigUtils.emptyIfNotPresent(config, ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY);
     this.epsilonMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
     this.lingerMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,

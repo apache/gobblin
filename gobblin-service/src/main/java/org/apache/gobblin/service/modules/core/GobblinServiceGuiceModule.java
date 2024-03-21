@@ -44,7 +44,6 @@ import org.apache.gobblin.runtime.api.DagActionExecutionMultiActiveLeaseArbiterF
 import org.apache.gobblin.runtime.api.FlowLaunchMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -204,6 +203,7 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, DagManagementStateStore.class);
     OptionalBinder.newOptionalBinder(binder, DagProcFactory.class);
     OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
+    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isDagProcessingEngineEnabled()) {
       binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
       binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
@@ -213,11 +213,11 @@ public class GobblinServiceGuiceModule implements Module {
 
       // Multi-active execution is only compatible with dagProcessingEngine configuration
       OptionalBinder.newOptionalBinder(binder, InstrumentedLeaseArbiter.class);
-      OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
       if (serviceConfig.isMultiActiveExecutionEnabled()) {
         binder.bind(InstrumentedLeaseArbiter.class).annotatedWith(Names.named(
             ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME)).toProvider(
                 DagActionExecutionMultiActiveLeaseArbiterFactory.class);
+        // TODO does this need to be bound before dagManagement is initialized?
         binder.bind(DagActionReminderScheduler.class);
       }
     }
@@ -339,7 +339,7 @@ public class GobblinServiceGuiceModule implements Module {
     return HelixUtils.buildHelixManager(helixInstanceName, helixClusterName, zkConnectionString);
   }
 
-  public static <T> Class<? extends T> getClassByNameOrAlias(Class<T> baseClass, Config config,
+  protected static <T> Class<? extends T> getClassByNameOrAlias(Class<T> baseClass, Config config,
       String classPropertyName, String defaultClass) {
     String className = ConfigUtils.getString(config, classPropertyName, defaultClass);
     ClassAliasResolver<T> aliasResolver = new ClassAliasResolver<T>(baseClass);

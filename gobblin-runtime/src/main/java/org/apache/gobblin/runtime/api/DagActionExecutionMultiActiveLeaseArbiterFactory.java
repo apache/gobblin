@@ -30,7 +30,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A factory implementation that returns a {@link MysqlMultiActiveLeaseArbiter} instance used by the
+ * A factory implementation that returns a {@link InstrumentedLeaseArbiter} instance used by the
  * {@link DagManagementTaskStreamImpl} in multi-active execution mode
  */
 @Slf4j
