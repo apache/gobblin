@@ -64,9 +64,11 @@ public class CommitActivityImpl implements CommitActivity {
   public int commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
+    String jobName = "";
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
+      jobName = jobState.getJobName();
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
@@ -86,7 +88,7 @@ public class CommitActivityImpl implements CommitActivity {
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
-          "Failed to commit dataset state for some dataset(s) of job <jobStub>",
+          String.format("Failed to commit dataset state for some dataset(s) of job %s", jobName),
           IOException.class.toString(),
           new IOException(e),
           null
@@ -135,6 +137,12 @@ public class CommitActivityImpl implements CommitActivity {
 
       IteratorExecutor.logFailures(result, null, 10);
 
+      for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
+        // Set the overall job state to FAILED if the job failed to process any dataset
+        if (datasetState.getState() == JobState.RunningState.FAILED) {
+          throw new IOException("Failed to commit dataset state for dataset " + datasetState.getDatasetUrn());
+        }
+      }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
         String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, "<job_name_stub>");

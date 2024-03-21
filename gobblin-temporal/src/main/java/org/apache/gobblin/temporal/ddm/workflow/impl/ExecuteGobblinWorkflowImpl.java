@@ -26,6 +26,7 @@ import com.typesafe.config.ConfigFactory;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
@@ -33,8 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
@@ -73,38 +75,47 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   public int execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     EventTimer timer = timerFactory.createJobTimer();
+    int numWUsGenerated = 0;
+    try {
+      numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
+      if (numWUsGenerated > 0) {
+        JobState jobState = new JobState(jobProps);
+        URI fileSystemUri = JobStateUtils.getFileSystemUri(jobState);
+        Path workUnitsDirPath = JobStateUtils.getWorkUnitsPath(jobState);
+        ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
+        WUProcessingSpec wuSpec = new WUProcessingSpec(fileSystemUri, workUnitsDirPath.toString(), eventSubmitterContext);
+        // TODO: use our own prop names; don't "borrow" from `ProcessWorkUnitsJobLauncher`
+        if (jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE)
+            && jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
+          int maxBranchesPerTree = PropertiesUtils.getRequiredPropAsInt(jobProps, ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE);
+          int maxSubTreesPerTree = PropertiesUtils.getRequiredPropAsInt(jobProps, ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE);
+          wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
+        }
 
-    int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
-    if (numWUsGenerated > 0) {
-      ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow();
-
-      JobState jobState = new JobState(jobProps);
-      URI fileSystemUri = JobStateUtils.getFileSystemUri(jobState);
-      Path workUnitsDirPath = JobStateUtils.getWorkUnitsPath(jobState);
-      WUProcessingSpec wuSpec = new WUProcessingSpec(fileSystemUri, workUnitsDirPath.toString(), eventSubmitterContext);
-      // TODO: use our own prop names; don't "borrow" from `ProcessWorkUnitsJobLauncher`
-      if (jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE) &&
-          jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
-        int maxBranchesPerTree = PropertiesUtils.getRequiredPropAsInt(jobProps, ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE);
-        int maxSubTreesPerTree = PropertiesUtils.getRequiredPropAsInt(jobProps, ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE);
-        wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
+        int numWUsProcessed = processWUsWorkflow.process(wuSpec);
+        if (numWUsProcessed != numWUsGenerated) {
+          log.warn("Not all work units generated were processed: {} != {}", numWUsGenerated, numWUsProcessed);
+          // TODO provide more robust indication that things went wrong!  (retryable or non-retryable error??)
+        }
       }
-
-      int numWUsProcessed = processWUsWorkflow.process(wuSpec);
-      if (numWUsProcessed != numWUsGenerated) {
-        log.warn("Not all work units generated were processed: {} != {}", numWUsGenerated, numWUsProcessed);
-        // TODO provide more robust indication that things went wrong!  (retryable or non-retryable error??)
-      }
+      timer.stop();
+    } catch (Exception e) {
+      // Emit a failed GobblinTrackingEvent to record job failures
+      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).stop();
+      throw ApplicationFailure.newNonRetryableFailureWithCause(
+          String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
+          e.getClass().toString(),
+          e,
+          null
+      );
     }
-    timer.stop();
     return numWUsGenerated;
-
   }
 
-  protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow() {
+  protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow(Properties jobProps) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(PROCESS_WORKFLOW_ID_BASE, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(PROCESS_WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
         .build();
     return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts);
   }
