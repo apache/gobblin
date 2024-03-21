@@ -62,11 +62,13 @@ public class CommitActivityImpl implements CommitActivity {
 
   static int DEFAULT_NUM_DESERIALIZATION_THREADS = 10;
   static int DEFAULT_NUM_COMMIT_THREADS = 1;
+  static String UNDEFINED_JOB_NAME = "<job_name_stub>";
+
   @Override
   public int commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
-    String jobName = "";
+    String jobName = UNDEFINED_JOB_NAME;
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
@@ -153,7 +155,7 @@ public class CommitActivityImpl implements CommitActivity {
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
-        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, "<job_name_stub>");
+        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, UNDEFINED_JOB_NAME);
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
     } catch (InterruptedException exc) {
