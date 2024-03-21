@@ -25,10 +25,12 @@ import com.google.common.collect.Maps;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
@@ -137,11 +139,17 @@ public class CommitActivityImpl implements CommitActivity {
 
       IteratorExecutor.logFailures(result, null, 10);
 
+      Set<String> failedDatasetUrns = new HashSet<>();
       for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
         // Set the overall job state to FAILED if the job failed to process any dataset
         if (datasetState.getState() == JobState.RunningState.FAILED) {
-          throw new IOException("Failed to commit dataset state for dataset " + datasetState.getDatasetUrn());
+          failedDatasetUrns.add(datasetState.getDatasetUrn());
         }
+      }
+      if (!failedDatasetUrns.isEmpty()) {
+        String allFailedDatasets = String.join(", ", failedDatasetUrns);
+        log.error("Failed to commit dataset state for dataset(s) {}" + String.join(", ", failedDatasetUrns));
+        throw new IOException("Failed to commit dataset state for " + allFailedDatasets);
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
