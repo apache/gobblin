@@ -79,9 +79,10 @@ public class DagProcessingEngineTest {
     topologySpecMap.put(specExecURI, topologySpec);
     this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), null);
-    this.dagProcFactory = new DagProcFactory(null);
+        new DagManagementTaskStreamImpl(config, Optional.empty(), Optional.empty(), Optional.empty(), false);
+    this.dagProcFactory = new DagProcFactory(null, false);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore);

@@ -46,7 +46,6 @@ import org.apache.gobblin.util.DBStatementExecutor;
 public class MysqlDagActionStore implements DagActionStore {
 
   public static final String CONFIG_PREFIX = "MysqlDagActionStore";
-  public static final String NO_JOB_NAME_DEFAULT = "";
 
   protected final DataSource dataSource;
   private final DBStatementExecutor dbStatementExecutor;
@@ -129,7 +128,7 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
+  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
       throws IOException {
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
     try {
@@ -147,9 +146,9 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
+  public void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
       throws IOException {
-    addDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
+    addJobDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
   }
 
   @Override

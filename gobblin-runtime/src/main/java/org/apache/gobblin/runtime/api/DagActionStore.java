@@ -26,6 +26,7 @@ import org.apache.gobblin.service.FlowId;
 
 
 public interface DagActionStore {
+  public static final String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
     KILL, // Kill invoked through API call
     RESUME, // Resume flow invoked through API call
@@ -88,7 +89,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
+  void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
@@ -98,7 +99,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
+  void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
 
   /**
    * delete the dag action from {@link DagActionStore}

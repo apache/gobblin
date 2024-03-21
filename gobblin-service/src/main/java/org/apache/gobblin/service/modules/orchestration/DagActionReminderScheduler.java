@@ -17,17 +17,27 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.util.Optional;
+import java.io.IOException;
+import java.util.Date;
 
+import org.quartz.Job;
+import org.quartz.JobBuilder;
+import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 
 
 /**
@@ -38,14 +48,17 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
-  private final Optional<DagManagement> dagManagement;
+  private DagManagement dagManagement;
 
   @Inject
-  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, Optional<DagManagement> dagManagement)
+  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
       throws SchedulerException {
     // Create a new Scheduler to be used solely for the DagProc reminders
     this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
-    this.dagManagement = dagManagement;
+  }
+
+  protected void initialize() {
+    this.dagManagement = GobblinServiceGuiceModule.getClassByNameOrAlias(DagManagement.class);
   }
 
   /**
@@ -57,20 +70,104 @@ public class DagActionReminderScheduler {
    */
   public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
       throws SchedulerException {
-    if (!dagManagement.isPresent()) {
-      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    if (this.dagManagement == null) {
+      initialize();
     }
-    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement.get(), dagAction);
-    Trigger trigger = ReminderSettingDagProcLeaseArbiter.createReminderJobTrigger(dagAction, reminderDurationMillis);
+    JobDetail jobDetail = createReminderJobDetail(dagManagement, dagAction);
+    Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    if (!dagManagement.isPresent()) {
-      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
+    if (this.dagManagement == null) {
+      initialize();
     }
-    JobDetail jobDetail = ReminderSettingDagProcLeaseArbiter.createReminderJobDetail(dagManagement.get(), dagAction);
+    JobDetail jobDetail = createReminderJobDetail(dagManagement, dagAction);
     quartzScheduler.deleteJob(jobDetail.getKey());
   }
 
+  /**
+   * Static class used to store information regarding a pending dagAction that needs to be revisited at a later time
+   * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
+   * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
+   */
+  @Slf4j
+  public static class ReminderJob implements Job {
+    public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String DAG_MANAGEMENT_KEY = "dag.management";
+
+    @Override
+    public void execute(JobExecutionContext context) {
+      // Get properties from the trigger to create a dagAction
+      JobDataMap jobDataMap = context.getTrigger().getJobDataMap();
+      String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
+      String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
+      String flowId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(
+          jobDataMap.getString(FLOW_ACTION_TYPE_KEY));
+      DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class); //(DagManagement) jobDataMap.get(DAG_MANAGEMENT_KEY);
+
+      log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
+          + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");
+
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName,
+          dagActionType);
+
+      try {
+        dagManagement.addDagAction(dagAction);
+      } catch (IOException e) {
+        log.error("Failed to add DagAction to DagManagement. Action: {}", dagAction);
+      }
+    }
+  }
+
+  /**
+   * Creates a key for the reminder job by concatenating all dagAction fields
+   */
+  public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
+    return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getFlowExecutionId(),
+        dagAction.getJobName(), dagAction.getDagActionType());
+  }
+
+  /**
+   * Creates a key for the reminder job by concatenating flowName, flowGroup, flowExecutionId, jobName, dagActionType
+   * in that order
+   */
+  public static String createDagActionReminderKey(String flowName, String flowGroup, String flowId, String jobName,
+      DagActionStore.DagActionType dagActionType) {
+    return String.format("%s.%s.%s.%s.%s", flowGroup, flowName, flowId, jobName, dagActionType);
+  }
+
+  /**
+   * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
+   *  by a key comprised of the dagAction's fields. It also serializes a reference to the {@link DagManagement} object
+   *  to be referenced when the trigger fires.
+   */
+  public static JobDetail createReminderJobDetail(DagManagement dagManagement, DagActionStore.DagAction dagAction) {
+    JobDataMap dataMap = new JobDataMap();
+    dataMap.put(ReminderJob.DAG_MANAGEMENT_KEY, dagManagement);
+    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagAction.getFlowName());
+    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
+    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
+    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
+
+    return JobBuilder.newJob(ReminderJob.class)
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
+        .usingJobData(dataMap)
+        .build();
+  }
+
+  /**
+   * Creates a Trigger object with the same key as the ReminderJob (since only one trigger is expected to be associated
+   * with a job at any given time) that should fire after `reminderDurationMillis` millis.
+   */
+  public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis) {
+    Trigger trigger = TriggerBuilder.newTrigger()
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
+        .startAt(new Date(System.currentTimeMillis() + reminderDurationMillis))
+        .build();
+    return trigger;
+  }
 }

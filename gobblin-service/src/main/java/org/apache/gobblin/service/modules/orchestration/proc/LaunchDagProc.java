@@ -62,6 +62,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
   private final LaunchDagTask launchDagTask;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
+  private final boolean isMultiActiveExecutionEnabled;
   // todo - this is not orchestration delay and should be renamed. keeping it the same because DagManager is also using
   // the same name
   private static final AtomicLong orchestrationDelayCounter = new AtomicLong(0);
@@ -192,6 +193,15 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
     }
   }
 
+  @Override
   protected void sendNotification(Optional<Dag<JobExecutionPlan>> result, EventSubmitter eventSubmitter) {
+  }
+
+  @Override
+  protected void commit(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> result) {
+    // Only call conclude method if multi-active execution enabled
+    if (this.isMultiActiveExecutionEnabled) {
+      this.launchDagTask.conclude();
+    }
   }
 }

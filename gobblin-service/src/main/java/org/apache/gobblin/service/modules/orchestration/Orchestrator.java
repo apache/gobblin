@@ -235,7 +235,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
 
       DagActionStore.DagAction launchDagAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", DagActionStore.DagActionType.LAUNCH);
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH);
 
       // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
       // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later

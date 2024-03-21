@@ -20,7 +20,10 @@ package org.apache.gobblin.service.modules.orchestration;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import javax.inject.Named;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -39,15 +42,18 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 public class DagProcFactory implements DagTaskVisitor<DagProc> {
 
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
+  private final boolean isMultiActiveExecutionEnabled;
 
   @Inject
-  public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper) {
+  public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper,
+      @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+    this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
   }
 
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
-    return new LaunchDagProc(launchDagTask, this.flowCompilationValidationHelper);
+    return new LaunchDagProc(launchDagTask, this.flowCompilationValidationHelper, isMultiActiveExecutionEnabled);
   }
   //todo - overload meet method for other dag tasks
 }

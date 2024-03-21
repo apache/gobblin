@@ -70,7 +70,7 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
             + "for action to be completed.", HttpStatus.S_409_CONFLICT);
         return;
       }
-      this.dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
+      this.dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add %s action for flow %s %s %s to dag action store due to:", actionType, flowGroup,

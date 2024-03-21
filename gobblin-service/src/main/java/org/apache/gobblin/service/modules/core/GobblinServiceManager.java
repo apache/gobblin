@@ -116,6 +116,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
+  private static GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -251,10 +252,21 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    GobblinServiceGuiceModule guiceModule = new GobblinServiceGuiceModule(serviceConfiguration);
+    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
 
-    Injector injector = Guice.createInjector(Stage.PRODUCTION, guiceModule);
+    Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
     return injector.getInstance(GobblinServiceManager.class);
+  }
+
+  /**
+   *
+   * @param classToGet
+   * @return a new object if the class type is not marked with @Singleton, otherwise the same instance of the class
+   * @param <T>
+   */
+  public static <T> T getClass(Class<T> classToGet) {
+    Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
+    return injector.getInstance(classToGet);
   }
 
   public URI getRestLiServerListeningURI() {

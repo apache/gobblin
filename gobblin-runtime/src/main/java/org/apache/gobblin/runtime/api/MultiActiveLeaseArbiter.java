@@ -89,7 +89,7 @@ public interface MultiActiveLeaseArbiter {
     }
 
     public long getMinimumLingerDurationMillis() {
-      return 0;
+      return 0L;
     }
   }
 

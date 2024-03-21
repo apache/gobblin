@@ -39,6 +39,7 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -66,7 +67,7 @@ import org.quartz.impl.JobDetailImpl;
  */
 @Slf4j
 public class FlowLaunchHandler {
-  private final Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
+  private final Optional<InstrumentedLeaseArbiter> multiActiveLeaseArbiter;
   private Optional<DagActionStore> dagActionStore;
   private final MetricContext metricContext;
   private final int schedulerMaxBackoffMillis;
@@ -77,7 +78,8 @@ public class FlowLaunchHandler {
   private ContextAwareCounter failedToSetEventReminderCount;
 
   @Inject
-  public FlowLaunchHandler(Config config, @Named(GobblinServiceGuiceModule.SCHEDULER_LEASE_ARBITER_NAME) Optional<MultiActiveLeaseArbiter> leaseArbiter,
+  public FlowLaunchHandler(Config config,
+      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) Optional<InstrumentedLeaseArbiter> leaseArbiter,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
     this.multiActiveLeaseArbiter = leaseArbiter;
     this.dagActionStore = dagActionStore;
@@ -138,7 +140,7 @@ public class FlowLaunchHandler {
     if (this.dagActionStore.isPresent() && this.multiActiveLeaseArbiter.isPresent()) {
       try {
         DagActionStore.DagAction dagAction = leaseStatus.getDagAction();
-        this.dagActionStore.get().addDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
+        this.dagActionStore.get().addFlowDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
         // If the dag action has been persisted to the {@link DagActionStore} we can close the lease
         this.numFlowsSubmitted.mark();
         return this.multiActiveLeaseArbiter.get().recordLeaseSuccess(leaseStatus);

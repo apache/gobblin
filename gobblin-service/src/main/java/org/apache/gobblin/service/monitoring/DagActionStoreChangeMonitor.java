@@ -180,6 +180,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
     String flowExecutionId = value.getFlowExecutionId();
+    String jobName = value.getJobName();
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
     log.debug("Processing Dag Action message for flow group: {} name: {} executionId: {} tid: {} operation: {} lag: {}",
@@ -200,8 +201,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(value.getDagAction().toString());
 
     // Used to easily log information to identify the dag action
-    // TODO: add jobName to the dagAction change event
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "",
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
         dagActionType);
 
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
@@ -210,12 +210,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       if (operation.equals("INSERT")) {
         handleDagAction(dagAction, false);
       } else if (operation.equals("UPDATE")) {
+        // TODO: change this warning message and process updates if for launch or reevaluate type
         log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
             + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
             flowExecutionId, dagActionType);
         this.unexpectedErrors.mark();
       } else if (operation.equals("DELETE")) {
-        log.debug("Deleted flow group: {} name: {} executionId {} from DagActionStore", flowGroup, flowName, flowExecutionId);
+        log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
       } else {
         log.warn("Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
             operation);
