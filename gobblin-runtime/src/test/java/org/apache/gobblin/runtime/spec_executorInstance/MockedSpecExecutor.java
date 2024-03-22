@@ -45,8 +45,7 @@ public class MockedSpecExecutor extends InMemorySpecExecutor {
     when(mockedSpecProducer.addSpec(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
     when(mockedSpecProducer.serializeAddSpecResponse(any())).thenReturn("");
     when(mockedSpecProducer.deserializeAddSpecResponse(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
-    }
-
+  }
   public static SpecExecutor createDummySpecExecutor(URI uri) {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, uri.toString());

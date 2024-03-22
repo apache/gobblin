@@ -47,17 +47,16 @@ public abstract class DagProc<S, T> {
     S state = initialize(dagManagementStateStore);   // todo - retry
     T result = act(dagManagementStateStore, state);   // todo - retry
     commit(dagManagementStateStore, result);   // todo - retry
-    sendNotification(result, eventSubmitter);   // todo - retry
     log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), getDagId());
   }
 
-  protected abstract DagManager.DagId getDagId();
+  protected DagManager.DagId getDagId() {
+    return this.dagTask.getDagId();
+  }
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
 
   protected abstract T act(DagManagementStateStore dagManagementStateStore, S state) throws IOException;
-
-  protected abstract void sendNotification(T result, EventSubmitter eventSubmitter) throws IOException;
 
   // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
   protected void commit(DagManagementStateStore dagManagementStateStore, T result) {

@@ -28,15 +28,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 
@@ -55,13 +53,9 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
         metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get));
   }
 
-  public LaunchDagProc(DagTask dagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+  public LaunchDagProc(LaunchDagTask dagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
     this.dagTask = dagTask;
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
-  }
-  @Override
-  protected DagManager.DagId getDagId() {
-    return this.dagTask.getDagId();
   }
 
   @Override
@@ -109,8 +103,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
 
      //Submit jobs from the dag ready for execution.
      for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
-       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode);
-       dagManagementStateStore.addDagNodeState(dagNode, getDagId());
+       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
        log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
      }
 
@@ -120,8 +113,5 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
 
   private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
      throw new UnsupportedOperationException("More than one start job is not allowed");
-  }
-
-  protected void sendNotification(Optional<Dag<JobExecutionPlan>> result, EventSubmitter eventSubmitter) {
   }
 }

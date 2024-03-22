@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -34,6 +35,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -43,9 +45,12 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public class DagProcUtils {
 
   /**
-   * Submits a {@link JobSpec} to a {@link SpecExecutor}.
+   * - submits a {@link JobSpec} to a {@link SpecExecutor}
+   * - updates metrics
+   * - add updated dag node state to dagManagementStateStore
    */
-  static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode) {
+  static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
+      DagManager.DagId dagId) {
     DagManagerUtils.incrementJobAttempt(dagNode);
     JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
     JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
@@ -83,6 +88,7 @@ public class DagProcUtils {
       jobOrchestrationTimer.stop(jobMetadata);
       log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
       dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
+      dagManagementStateStore.addDagNodeState(dagNode, dagId);
     } catch (Exception e) {
       TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
       String message = "Cannot submit job " + DagManagerUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
@@ -99,5 +105,11 @@ public class DagProcUtils {
       }
       throw new RuntimeException(e);
     }
+  }
+
+  public static boolean hasRunningJobs(DagManager.DagId dagId, DagManagementStateStore dagManagementStateStore)
+      throws IOException {
+    List<Dag.DagNode<JobExecutionPlan>> dagNodes = dagManagementStateStore.getDagNodes(dagId);
+    return dagNodes != null && !dagNodes.isEmpty();
   }
 }
