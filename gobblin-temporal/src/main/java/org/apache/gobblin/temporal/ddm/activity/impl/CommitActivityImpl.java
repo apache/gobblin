@@ -25,10 +25,12 @@ import com.google.common.collect.Maps;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
@@ -60,13 +62,17 @@ public class CommitActivityImpl implements CommitActivity {
 
   static int DEFAULT_NUM_DESERIALIZATION_THREADS = 10;
   static int DEFAULT_NUM_COMMIT_THREADS = 1;
+  static String UNDEFINED_JOB_NAME = "<job_name_stub>";
+
   @Override
   public int commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
+    String jobName = UNDEFINED_JOB_NAME;
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
+      jobName = jobState.getJobName();
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
@@ -86,7 +92,7 @@ public class CommitActivityImpl implements CommitActivity {
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
-          "Failed to commit dataset state for some dataset(s) of job <jobStub>",
+          String.format("Failed to commit dataset state for some dataset(s) of job %s", jobName),
           IOException.class.toString(),
           new IOException(e),
           null
@@ -135,9 +141,21 @@ public class CommitActivityImpl implements CommitActivity {
 
       IteratorExecutor.logFailures(result, null, 10);
 
+      Set<String> failedDatasetUrns = new HashSet<>();
+      for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
+        // Set the overall job state to FAILED if the job failed to process any dataset
+        if (datasetState.getState() == JobState.RunningState.FAILED) {
+          failedDatasetUrns.add(datasetState.getDatasetUrn());
+        }
+      }
+      if (!failedDatasetUrns.isEmpty()) {
+        String allFailedDatasets = String.join(", ", failedDatasetUrns);
+        log.error("Failed to commit dataset state for dataset(s) {}" + allFailedDatasets);
+        throw new IOException("Failed to commit dataset state for " + allFailedDatasets);
+      }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
-        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, "<job_name_stub>");
+        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, UNDEFINED_JOB_NAME);
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
     } catch (InterruptedException exc) {

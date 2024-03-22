@@ -77,9 +77,9 @@ public class Help {
   }
 
   /** @return execution-specific name, incorporating any {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} from `workerConfig` */
-  public static String qualifyNamePerExecWithFlowExecId(String name, Config workerConfig) {
-    Optional<String> optFlowExecId = Optional.ofNullable(ConfigUtils.getString(workerConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
-    return name + "_" + calcPerExecQualifierWithOptFlowExecId(optFlowExecId, workerConfig);
+  public static String qualifyNamePerExecWithFlowExecId(String name, Config jobProps) {
+    Optional<String> optFlowExecId = Optional.ofNullable(ConfigUtils.getString(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
+    return name + "_" + calcPerExecQualifierWithOptFlowExecId(optFlowExecId, jobProps);
   }
 
   public static String calcPerExecQualifierWithOptFlowExecId(Optional<String> optFlowExecId, Config workerConfig) {

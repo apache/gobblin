@@ -75,7 +75,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs);
 
-      return workUnits.size();
+      return jobState.getTaskCount();
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
