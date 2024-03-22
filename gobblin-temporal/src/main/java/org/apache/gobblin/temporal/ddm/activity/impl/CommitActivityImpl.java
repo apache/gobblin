@@ -150,7 +150,7 @@ public class CommitActivityImpl implements CommitActivity {
       }
       if (!failedDatasetUrns.isEmpty()) {
         String allFailedDatasets = String.join(", ", failedDatasetUrns);
-        log.error("Failed to commit dataset state for dataset(s) {}" + String.join(", ", failedDatasetUrns));
+        log.error("Failed to commit dataset state for dataset(s) {}" + allFailedDatasets);
         throw new IOException("Failed to commit dataset state for " + allFailedDatasets);
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
