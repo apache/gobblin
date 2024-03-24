@@ -62,17 +62,14 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       // todo - add actions for other other type of dag actions
-      if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
-        // If multi-active scheduler is NOT turned on we should not receive these type of events
-        if (!this.isMultiActiveSchedulerEnabled) {
-          this.unexpectedLaunchEventErrors.mark();
-          throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
-              + "mode for flowAction: %s", dagAction));
-        }
-        dagManagement.addDagAction(dagAction);
-      } else {
-        log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getDagActionType());
-        this.unexpectedErrors.mark();
+      switch (dagAction.getDagActionType()) {
+        case LAUNCH :
+        case KILL :
+          dagManagement.addDagAction(dagAction);
+          break;
+        default:
+          log.warn("Received unsupported dagAction {}. Expected to be a REEVALUATE or LAUNCH", dagAction.getDagActionType());
+          this.unexpectedErrors.mark();
       }
     } catch (IOException e) {
       log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());

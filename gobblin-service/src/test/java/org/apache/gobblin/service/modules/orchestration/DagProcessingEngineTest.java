@@ -37,7 +37,6 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -156,10 +155,6 @@ public class DagProcessingEngineTest {
         throw new RuntimeException("Simulating an exception!");
       }
       return null;
-    }
-
-    @Override
-    protected void sendNotification(Void result, EventSubmitter eventSubmitter) {
     }
 
     @Override
