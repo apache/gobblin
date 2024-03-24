@@ -62,6 +62,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
       switch (dagAction.getDagActionType()) {
         case LAUNCH :
         case REEVALUATE :
+        case KILL :
           dagManagement.addDagAction(dagAction);
           break;
         default:

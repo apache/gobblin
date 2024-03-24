@@ -174,14 +174,16 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  // todo - updating different mapps here and in addDagNodeState can result in inconsistency between the maps
+  // todo - updating different maps here and in addDagNodeState can result in inconsistency between the maps
   public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
     this.jobToDag.remove(dagNode);
     this.dagNodes.remove(dagNode.getValue().getId());
     this.dagToDeadline.remove(dagId);
-    this.dagToJobs.get(dagId).remove(dagNode);
-    if (this.dagToJobs.get(dagId).isEmpty()) {
-      this.dagToJobs.remove(dagId);
+    if (this.dagToJobs.containsKey(dagId)) {
+      this.dagToJobs.get(dagId).remove(dagNode);
+      if (this.dagToJobs.get(dagId).isEmpty()) {
+        this.dagToJobs.remove(dagId);
+      }
     }
   }
 
@@ -211,6 +213,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     return this.dagStateStore.existsDag(dagId);
   }
 
+  @Override
   public Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId) {
     if (this.dagNodes.containsKey(dagNodeId)) {
       return ImmutablePair.of(Optional.of(this.dagNodes.get(dagNodeId)), getJobStatus(dagNodeId));
