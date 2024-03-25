@@ -42,6 +42,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "mysql_multi_active_lease_arbiter_store";
+  private static final String CONSTANTS_TABLE = "constants_store";
   private static final String flowGroup = "testFlowGroup";
   private static final String flowGroup2 = "testFlowGroup2";
   private static final String flowName = "testFlowName";
@@ -75,6 +76,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, CONSTANTS_TABLE)
         .build();
 
     this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(config);
