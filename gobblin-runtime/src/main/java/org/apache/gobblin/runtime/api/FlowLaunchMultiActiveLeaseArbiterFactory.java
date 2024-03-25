@@ -42,21 +42,15 @@ public class FlowLaunchMultiActiveLeaseArbiterFactory implements Provider<Instru
     this.config = Objects.requireNonNull(config);
   }
 
-  private InstrumentedLeaseArbiter createFlowLaunchLeaseArbiter()
-      throws ReflectiveOperationException, IOException {
-    Config flowLaunchLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
-    log.info("FlowLaunchHandler lease arbiter will be initialized with config {}", flowLaunchLeaseArbiterConfig);
-
-    return new InstrumentedLeaseArbiter(config, new MysqlMultiActiveLeaseArbiter(flowLaunchLeaseArbiterConfig),
-        ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
-  }
-
   @Override
   public InstrumentedLeaseArbiter get() {
     try {
-      InstrumentedLeaseArbiter leaseArbiter = createFlowLaunchLeaseArbiter();
-      return leaseArbiter;
-    } catch (ReflectiveOperationException | IOException e) {
+      Config flowLaunchLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
+      log.info("FlowLaunchHandler lease arbiter will be initialized with config {}", flowLaunchLeaseArbiterConfig);
+
+      return new InstrumentedLeaseArbiter(config, new MysqlMultiActiveLeaseArbiter(flowLaunchLeaseArbiterConfig),
+          ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
+    } catch (IOException e) {
       throw new RuntimeException("Failed to initialize " + ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME
           + " lease arbiter due to ", e);
     }

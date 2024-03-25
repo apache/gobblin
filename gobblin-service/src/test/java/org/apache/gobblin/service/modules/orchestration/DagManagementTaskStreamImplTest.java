@@ -34,6 +34,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -80,7 +81,7 @@ public class DagManagementTaskStreamImplTest {
     // TODO: create tests for cases with multiActiveExecutionEnabled
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(),
-            Optional.of(mock(MultiActiveLeaseArbiter.class)), Optional.of(mock(DagActionReminderScheduler.class)),
+            mock(InstrumentedLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
             false);
     this.dagProcFactory = new DagProcFactory(null, false);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
@@ -103,7 +104,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
-    when(dagManagementTaskStream.getDagActionExecutionLeaseArbiter().get()
+    when(dagManagementTaskStream.getDagActionExecutionLeaseArbiter()
         .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
         .thenReturn(new MultiActiveLeaseArbiter.NoLongerLeasingStatus(),
             new MultiActiveLeaseArbiter.LeasedToAnotherStatus(launchAction, 15),

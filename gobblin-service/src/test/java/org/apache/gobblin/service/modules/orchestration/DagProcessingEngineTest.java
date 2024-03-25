@@ -39,12 +39,14 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 @Slf4j
@@ -81,7 +83,7 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), Optional.empty(), Optional.empty(), false);
+        new DagManagementTaskStreamImpl(config, Optional.empty(), mock(InstrumentedLeaseArbiter.class), Optional.empty(), false);
     this.dagProcFactory = new DagProcFactory(null, false);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,

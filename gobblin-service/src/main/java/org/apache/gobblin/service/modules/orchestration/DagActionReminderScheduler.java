@@ -47,17 +47,12 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
-  private DagManagement dagManagement;
 
   @Inject
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
       throws SchedulerException {
     // Create a new Scheduler to be used solely for the DagProc reminders
     this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
-  }
-
-  protected void initialize() {
-    this.dagManagement = GobblinServiceManager.getClass(DagManagement.class);
   }
 
   /**
@@ -69,19 +64,13 @@ public class DagActionReminderScheduler {
    */
   public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
       throws SchedulerException {
-    if (this.dagManagement == null) {
-      initialize();
-    }
-    JobDetail jobDetail = createReminderJobDetail(dagManagement, dagAction);
+    JobDetail jobDetail = createReminderJobDetail(dagAction);
     Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    if (this.dagManagement == null) {
-      initialize();
-    }
-    JobDetail jobDetail = createReminderJobDetail(dagManagement, dagAction);
+    JobDetail jobDetail = createReminderJobDetail(dagAction);
     quartzScheduler.deleteJob(jobDetail.getKey());
   }
 
@@ -93,7 +82,6 @@ public class DagActionReminderScheduler {
   @Slf4j
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
-    public static final String DAG_MANAGEMENT_KEY = "dag.management";
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -105,7 +93,6 @@ public class DagActionReminderScheduler {
       String flowId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(
           jobDataMap.getString(FLOW_ACTION_TYPE_KEY));
-      DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class); //(DagManagement) jobDataMap.get(DAG_MANAGEMENT_KEY);
 
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
           + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");
@@ -114,6 +101,7 @@ public class DagActionReminderScheduler {
           dagActionType);
 
       try {
+        DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
         dagManagement.addDagAction(dagAction);
       } catch (IOException e) {
         log.error("Failed to add DagAction to DagManagement. Action: {}", dagAction);
@@ -140,12 +128,10 @@ public class DagActionReminderScheduler {
 
   /**
    * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
-   *  by a key comprised of the dagAction's fields. It also serializes a reference to the {@link DagManagement} object
-   *  to be referenced when the trigger fires.
+   *  by a key comprised of the dagAction's fields.
    */
-  public static JobDetail createReminderJobDetail(DagManagement dagManagement, DagActionStore.DagAction dagAction) {
+  public static JobDetail createReminderJobDetail(DagActionStore.DagAction dagAction) {
     JobDataMap dataMap = new JobDataMap();
-    dataMap.put(ReminderJob.DAG_MANAGEMENT_KEY, dagManagement);
     dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagAction.getFlowName());
     dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
     dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());

@@ -205,21 +205,25 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isDagProcessingEngineEnabled()) {
+      /* The only way to differentiate two instances of the same class is with an `annotatedWith` marker provided at time
+      of binding. Even if multiActiveExecution is not enabled, we need to explicitly bind another named instance of
+      InstrumentedLeaseArbiter to `EXECUTOR_LEASE_ARBITER_NAME` to initialize DagManagementTaskStreamImpl. An alternative
+      approach would be to extend the InstrumentedLeaseArbiter class to have another type, but that approach is preferred
+      less */
+      binder.bind(InstrumentedLeaseArbiter.class).
+              annotatedWith(Names.named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME))
+          .toProvider(
+              DagActionExecutionMultiActiveLeaseArbiterFactory.class);
+      // Multi-active execution is only compatible with dagProcessingEngine configuration
+      if (serviceConfig.isMultiActiveExecutionEnabled()) {
+        binder.bind(DagActionReminderScheduler.class);
+      }
+
       binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
       binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
       binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class);
       binder.bind(DagProcFactory.class);
       binder.bind(DagProcessingEngine.class);
-
-      // Multi-active execution is only compatible with dagProcessingEngine configuration
-      OptionalBinder.newOptionalBinder(binder, InstrumentedLeaseArbiter.class);
-      if (serviceConfig.isMultiActiveExecutionEnabled()) {
-        binder.bind(InstrumentedLeaseArbiter.class).annotatedWith(Names.named(
-            ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME)).toProvider(
-                DagActionExecutionMultiActiveLeaseArbiterFactory.class);
-        // TODO does this need to be bound before dagManagement is initialized?
-        binder.bind(DagActionReminderScheduler.class);
-      }
     }
 
     binder.bind(FlowConfigsResource.class);

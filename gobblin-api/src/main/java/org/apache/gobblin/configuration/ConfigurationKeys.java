@@ -104,7 +104,7 @@ public class ConfigurationKeys {
   public static final String EXECUTOR_LEASE_ARBITER_NAME = "DagActionExecutorLeaseArbiter";
   public static final String MYSQL_LEASE_ARBITER_PREFIX = "MysqlMultiActiveLeaseArbiter";
   public static final String MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".constantsTable";
-  public static final String LEASE_DETERMINATION_STORE_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".leaseArbiter.store.db.table";
+  public static final String LEASE_DETERMINATION_STORE_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + "." + STATE_STORE_DB_TABLE_KEY;
   public static final String LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".retentionPeriodMillis";
   public static final long DEFAULT_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS = 3 * 24 * 60 * 60 * 1000; // (3 days in ms)
   // Refers to the event we originally tried to acquire a lease which achieved `consensus` among participants through
