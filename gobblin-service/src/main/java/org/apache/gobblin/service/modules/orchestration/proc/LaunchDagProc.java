@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.Set;
@@ -28,7 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -54,7 +52,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   }
 
   public LaunchDagProc(LaunchDagTask dagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
-    this.dagTask = dagTask;
+    super(dagTask);
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
@@ -62,19 +60,12 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
     try {
-      DagActionStore.DagAction dagAction = this.dagTask.getDagAction();
-      FlowSpec flowSpec = loadFlowSpec(dagManagementStateStore, dagAction);
-      flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
+      FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
+      flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
       return this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private FlowSpec loadFlowSpec(DagManagementStateStore dagManagementStateStore, DagActionStore.DagAction dagAction)
-      throws URISyntaxException, SpecNotFoundException {
-    URI flowUri = FlowSpec.Utils.createFlowSpecUri(dagAction.getFlowId());
-    return dagManagementStateStore.getFlowSpec(flowUri);
   }
 
   @Override

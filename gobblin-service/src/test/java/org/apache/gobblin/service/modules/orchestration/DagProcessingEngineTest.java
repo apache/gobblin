@@ -135,6 +135,7 @@ public class DagProcessingEngineTest {
   static class MockedDagProc extends DagProc<Void, Void> {
     private final boolean isBad;
     public MockedDagProc(boolean isBad) {
+      super(null);
       this.isBad = isBad;
     }
 

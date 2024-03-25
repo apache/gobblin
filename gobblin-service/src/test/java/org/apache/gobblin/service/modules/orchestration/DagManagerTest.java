@@ -156,7 +156,7 @@ public class DagManagerTest {
       throws URISyntaxException {
     if (additionalConfig.hasPath(ConfigurationKeys.JOB_NAME_KEY)) {
       throw new RuntimeException("Please do not set " + ConfigurationKeys.JOB_NAME_KEY + " because this method is "
-          + "is using hard coded job names in setting " + ConfigurationKeys.JOB_DEPENDENCIES);
+          + "using hard coded job names in setting " + ConfigurationKeys.JOB_DEPENDENCIES);
     }
 
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();

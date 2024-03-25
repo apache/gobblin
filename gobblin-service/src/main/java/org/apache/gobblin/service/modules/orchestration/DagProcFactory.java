@@ -23,10 +23,10 @@ import com.google.inject.Singleton;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
-import org.apache.gobblin.service.modules.orchestration.proc.ReEvaluateDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.ReevaluateDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.ReEvaluateDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
@@ -57,8 +57,8 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   }
 
   @Override
-  public ReEvaluateDagProc meet(ReEvaluateDagTask reEvaluateDagTask) {
-    return new ReEvaluateDagProc(reEvaluateDagTask, this.jobStatusRetriever);
+  public ReevaluateDagProc meet(ReevaluateDagTask reEvaluateDagTask) {
+    return new ReevaluateDagProc(reEvaluateDagTask);
   }
   //todo - overload meet method for other dag tasks
 }

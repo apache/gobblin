@@ -35,7 +35,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.ReEvaluateDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -114,7 +114,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus);
       case REEVALUATE:
-        return new ReEvaluateDagTask(dagAction, leaseObtainedStatus);
+        return new ReevaluateDagTask(dagAction, leaseObtainedStatus);
       default:
         throw new UnsupportedOperationException(dagActionType + " not yet implemented");
     }

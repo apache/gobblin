@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -26,6 +27,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -37,8 +39,9 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
  */
 @Alpha
 @Slf4j
+@RequiredArgsConstructor
 public abstract class DagProc<S, T> {
-  protected DagTask dagTask;
+  protected final DagTask dagTask;
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
   protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
       metricContext, "org.apache.gobblin.service").build();
@@ -52,6 +55,10 @@ public abstract class DagProc<S, T> {
 
   protected DagManager.DagId getDagId() {
     return this.dagTask.getDagId();
+  }
+
+  protected DagNodeId getDagNodeId() {
+    return this.dagTask.getDagNodeId();
   }
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;

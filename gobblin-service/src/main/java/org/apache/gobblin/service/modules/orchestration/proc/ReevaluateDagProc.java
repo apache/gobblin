@@ -33,32 +33,27 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.task.ReEvaluateDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
-import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
  * An implementation for {@link DagProc} that launches a new job if there exists a job whose pre-requisite jobs are
  * completed successfully. If there are no more jobs to run and no job is running for the Dag, it cleans up the Dag.
+ * (In future), if there are multiple new jobs to be launched, separate launch dag actions are created for each of them.
  */
 @Slf4j
-public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecutionPlan>>, Void> {
-  private final JobStatusRetriever jobStatusRetriever;
+public class ReevaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecutionPlan>>, Void> {
   private final Timer jobStatusPolledTimer;
   private final DagNodeId dagNodeId;
-  private JobStatus jobStatus;
+  private Optional<JobStatus> jobStatus;
 
-  public ReEvaluateDagProc(ReEvaluateDagTask reEvaluateDagTask, JobStatusRetriever jobStatusRetriever) {
-    // ReEvaluateDagProc would not require flowCompilationValidationHelper so setting it null
-    this.dagTask = reEvaluateDagTask;
-    this.jobStatusRetriever = jobStatusRetriever;
+  public ReevaluateDagProc(ReevaluateDagTask reEvaluateDagTask) {
+    super(reEvaluateDagTask);
     this.jobStatusPolledTimer = metricContext.timer(ServiceMetricNames.JOB_STATUS_POLLED_TIMER);
-    this.dagNodeId = new DagNodeId(this.dagTask.getDagAction().getFlowGroup(), this.dagTask.getDagAction().getFlowName(),
-        Long.parseLong(this.dagTask.getDagAction().getFlowExecutionId()),
-        this.dagTask.getDagAction().getFlowGroup(), this.dagTask.getDagAction().getJobName());
+    this.dagNodeId = getDagNodeId();
   }
 
   @Override
@@ -66,16 +61,24 @@ public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecution
       throws IOException {
     Optional<Dag.DagNode<JobExecutionPlan>> dagNode = dagManagementStateStore.getDagNode(this.dagNodeId);
     if (!dagNode.isPresent()) {
-      log.error("DagNode not found for a ReEvaluate DagAction with dag node id " + this.dagNodeId);
+      log.error("DagNode not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
       return Optional.empty();
     }
-    this.jobStatus = DagManagerUtils.pollJobStatus(dagNode.get(), this.jobStatusRetriever, this.jobStatusPolledTimer).get();
-    ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
+
+    this.jobStatus = dagManagementStateStore.getJobStatus(getDagNodeId().getFlowGroup(), getDagNodeId().getFlowName(),
+        getDagNodeId().getFlowExecutionId(), getDagNodeId().getJobGroup(), getDagNodeId().getJobName());
+    if (!this.jobStatus.isPresent()) {
+      log.error("JobStatus not found for the dag node {}", getDagNodeId());
+      return Optional.empty();
+    }
+
+    ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.get().getEventName());
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-      log.warn("Job status for dagNode " + dagNodeId + " is " + executionStatus
-          + ". Expected Statuses are " + FlowStatusGenerator.FINISHED_STATUSES);
+      log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
+          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES);
       return Optional.empty();
     }
+
     setStatus(dagManagementStateStore, dagNode.get(), executionStatus);
     return dagNode;
   }
@@ -84,6 +87,7 @@ public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecution
   protected Void act(DagManagementStateStore dagManagementStateStore, Optional<Dag.DagNode<JobExecutionPlan>> dagNode)
       throws IOException {
     if (!dagNode.isPresent()) {
+      // for several reasons it may receive an empty dag node, refer initialize method
       return null;
     }
 
@@ -93,10 +97,10 @@ public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecution
 
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
 
-    if (this.jobStatus.isShouldRetry()) {
+    if (this.jobStatus.get().isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
           DagManagerUtils.getFullyQualifiedJobName(dagNode.get()),
-          jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+          jobStatus.get().getCurrentAttempts(), jobStatus.get().getMaxAttempts());
       dag.setFlowEvent(null);
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode.get(), getDagId());
     }
@@ -133,7 +137,7 @@ public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecution
         return;
       }
     }
-    log.error("DagNode with id " + dagNodeId + " not found in Dag " + getDagId());
+    log.error("DagNode with id {} not found in Dag {}", dagNodeId, getDagId());
   }
 
   /**
@@ -166,7 +170,7 @@ public class ReEvaluateDagProc extends DagProc<Optional<Dag.DagNode<JobExecution
         submitNext(dagManagementStateStore);
         break;
       default:
-        log.warn("It should not reach here. Job status " + executionStatus + " is unexpected.");
+        log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
     }
 
     //Checkpoint the dag state, it should have an updated value of dag fields

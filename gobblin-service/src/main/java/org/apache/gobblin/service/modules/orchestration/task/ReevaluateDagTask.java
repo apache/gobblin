@@ -23,11 +23,11 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 
 
 /**
- * A {@link DagTask} responsible to handle launch tasks.
+ * A {@link DagTask} responsible to handle re-evaluate dag actions.
  */
 
-public class ReEvaluateDagTask extends DagTask {
-  public ReEvaluateDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+public class ReevaluateDagTask extends DagTask {
+  public ReevaluateDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     super(dagAction, leaseObtainedStatus);
   }
 
