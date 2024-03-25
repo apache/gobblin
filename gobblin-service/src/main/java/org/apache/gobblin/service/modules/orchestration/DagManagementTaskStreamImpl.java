@@ -63,7 +63,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * If multi-active execution is NOT enabled, then all flow action events are selected by
  * {@link DagManagementTaskStreamImpl#next()} for processing. A dummy
  * {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseObtainedStatus} is provided without utilizing a
- * lease arbiter that is initialized with a lease that will never expire (or as close to it as possible with long max
+ * lease arbiter. It is initialized with a lease that will never expire (or as close to it as possible with long max
  * value).
  */
 @Slf4j
@@ -86,7 +86,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
   private final String MISSING_OPTIONAL_ERROR_MESSAGE = String.format("Multi-active execution enabled but required "
-      + "instances of %s and %s are absent.", MultiActiveLeaseArbiter.class.getSimpleName(), DagActionReminderScheduler.class.getSimpleName());
+      + "instance %s is absent.", DagActionReminderScheduler.class.getSimpleName());
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,

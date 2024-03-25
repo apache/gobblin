@@ -279,7 +279,7 @@ public class GobblinServiceManagerTest {
 
   /**
    * Tests retrieving two classes initiated by GobblinServiceGuiceModule. One is explicitly bound and another optionally
-   * through a config.
+   * through a configuration enabled in the setup method above.
    */
   @Test
   public void testGetClass() {

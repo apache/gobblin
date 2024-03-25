@@ -42,21 +42,16 @@ public class DagActionExecutionMultiActiveLeaseArbiterFactory implements Provide
     this.config = Objects.requireNonNull(config);
   }
 
-  private InstrumentedLeaseArbiter createDagProcLeaseArbiter()
-      throws ReflectiveOperationException, IOException {
-    Config dagProcLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
-    log.info("ReminderSettingDagProc lease arbiter will be initialized with config {}", dagProcLeaseArbiterConfig);
-
-    return new InstrumentedLeaseArbiter(dagProcLeaseArbiterConfig,
-        new MysqlMultiActiveLeaseArbiter(dagProcLeaseArbiterConfig), ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
-  }
-
   @Override
   public InstrumentedLeaseArbiter get() {
     try {
-      InstrumentedLeaseArbiter leaseArbiter = createDagProcLeaseArbiter();
-      return leaseArbiter;
-    } catch (ReflectiveOperationException | IOException e) {
+      Config dagProcLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
+      log.info("{} lease arbiter will be initialized with config {}", ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME,
+          dagProcLeaseArbiterConfig);
+
+      return new InstrumentedLeaseArbiter(dagProcLeaseArbiterConfig,
+          new MysqlMultiActiveLeaseArbiter(dagProcLeaseArbiterConfig), ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
+    } catch (IOException e) {
       throw new RuntimeException("Failed to initialize" + ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + " due to ", e);
     }
   }
