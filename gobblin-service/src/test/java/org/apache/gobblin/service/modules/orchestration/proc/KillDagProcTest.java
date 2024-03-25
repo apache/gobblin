@@ -137,7 +137,7 @@ public class KillDagProcTest {
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
             .count())
         .sum();
-    // kill dag proc tries to cancel all the dag nodes
+    // kill dag proc tries to cancel only the exact dag node that was provided
     Assert.assertEquals(cancelJobCount, 1);
   }
 }
