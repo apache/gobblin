@@ -234,9 +234,12 @@ public class IcebergUtils {
     Path filePath = new Path(file.getFilePath());
     DataFiles.Builder dataFileBuilder = DataFiles.builder(partitionSpec);
     try {
-      // Use absolute path to support federation
+      if (file.getFileSize() != null) {
+        dataFileBuilder.withFileSizeInBytes(file.getFileSize());
+      } else {
+        dataFileBuilder.withFileSizeInBytes(filePath.getFileSystem(conf).getFileStatus(filePath).getLen());
+      }
       dataFileBuilder.withPath(filePath.toUri().getRawPath())
-          .withFileSizeInBytes(filePath.getFileSystem(conf).getFileStatus(filePath).getLen())
           .withFormat(file.getFileFormat());
     } catch (IOException exception) {
       throw new RuntimeIOException(exception, "Failed to get dataFile for path: %s", filePath);
