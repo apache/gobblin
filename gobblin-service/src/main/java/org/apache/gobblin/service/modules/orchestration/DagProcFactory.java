@@ -40,15 +40,12 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 @Alpha
 @Singleton
 public class DagProcFactory implements DagTaskVisitor<DagProc> {
-
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private final JobStatusRetriever jobStatusRetriever;
 
   @Inject
   public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper,
       JobStatusRetriever jobStatusRetriever) {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
-    this.jobStatusRetriever = jobStatusRetriever;
   }
 
   @Override

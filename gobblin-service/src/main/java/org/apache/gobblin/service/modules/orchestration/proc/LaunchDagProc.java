@@ -41,7 +41,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
  * An implementation for {@link DagProc} that launches a new job.
  */
 @Slf4j
-public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
+public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
   // todo - this is not orchestration delay and should be renamed. keeping it the same because DagManager is also using
   // the same name
@@ -69,16 +69,15 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   }
 
   @Override
-  protected Optional<Dag<JobExecutionPlan>> act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     if (!dag.isPresent()) {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
       // todo - add metrics
-      return Optional.empty();
+    } else {
+      submitNextNodes(dagManagementStateStore, dag.get());
+      orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     }
-    submitNextNodes(dagManagementStateStore, dag.get());
-    orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
-    return dag;
   }
 
   /**

@@ -38,7 +38,7 @@
         "KILL": "Kill the flow corresponding to this dag",
         "RESUME": "Resume or start a new flow corresponding to this dag",
         "LAUNCH": "Launch a new execution of the flow corresponding to this dag",
-        "REEVALUATE": "Re-evaluate what needs to be done when a job status is received"
+        "REEVALUATE": "Re-evaluate what needs to be done upon receipt of a final job status"
       }
     },
     "doc" : "type of dag action",

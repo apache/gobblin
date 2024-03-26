@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,38 +36,39 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 /**
  * Responsible for performing the actual work for a given {@link DagTask} by first initializing its state, performing
- * actions based on the type of {@link DagTask} and finally submitting an event to the executor.
+ * actions based on the type of {@link DagTask}. Submitting events in time is important (PR#3641), hence initialize and
+ * act methods submit events as they happen.
  */
 @Alpha
 @Slf4j
 @RequiredArgsConstructor
-public abstract class DagProc<S, T> {
+public abstract class DagProc<S> {
   protected final DagTask dagTask;
+  @Getter protected final DagManager.DagId dagId;
+  @Getter protected final DagNodeId dagNodeId;
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
   protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
       metricContext, "org.apache.gobblin.service").build();
 
+  public DagProc(DagTask dagTask) {
+    this.dagTask = dagTask;
+    this.dagId = this.dagTask.getDagId();
+    this.dagNodeId = this.dagTask.getDagNodeId();
+  }
+
   public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
     S state = initialize(dagManagementStateStore);   // todo - retry
-    T result = act(dagManagementStateStore, state);   // todo - retry
-    commit(dagManagementStateStore, result);   // todo - retry
-    log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), getDagId());
-  }
-
-  protected DagManager.DagId getDagId() {
-    return this.dagTask.getDagId();
-  }
-
-  protected DagNodeId getDagNodeId() {
-    return this.dagTask.getDagNodeId();
+    act(dagManagementStateStore, state);   // todo - retry
+    commit(dagManagementStateStore);   // todo - retry
+    log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), this.dagId);
   }
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
 
-  protected abstract T act(DagManagementStateStore dagManagementStateStore, S state) throws IOException;
+  protected abstract void act(DagManagementStateStore dagManagementStateStore, S state) throws IOException;
 
   // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
-  protected void commit(DagManagementStateStore dagManagementStateStore, T result) {
+  protected void commit(DagManagementStateStore dagManagementStateStore) {
 
   }
 }

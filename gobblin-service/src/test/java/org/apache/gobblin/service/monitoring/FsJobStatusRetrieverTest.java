@@ -30,9 +30,9 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -51,6 +51,7 @@ public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
         ConfigValueFactory.fromAnyRef(stateStoreDir));
     this.jobStatusRetriever = new FsJobStatusRetriever(config, mock(MultiContextIssueRepository.class));
     this.mysqlDagActionStore = mock(MysqlDagActionStore.class);
+    // job status monitor stores dag action into dag action store, so need to mock that behavior to avoid NPE
     doNothing().when(this.mysqlDagActionStore).addDagAction(any(), any(), any(), any());
   }
 

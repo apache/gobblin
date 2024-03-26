@@ -41,6 +41,9 @@ import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
+/**
+ * A class to group together all the utility methods used by various dag procs.
+ */
 @Slf4j
 public class DagProcUtils {
 

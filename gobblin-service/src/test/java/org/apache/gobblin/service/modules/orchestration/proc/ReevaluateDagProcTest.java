@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -32,13 +33,13 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
@@ -49,8 +50,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -89,10 +88,9 @@ public class ReevaluateDagProcTest {
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(Optional.of(dag.getStartNodes().get(0))).when(dagManagementStateStore).getDagNode(any());
+    doReturn(Optional.of(new ImmutablePair<>(dag.getStartNodes().get(0), jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
     doNothing().when(dagManagementStateStore).deleteDagNodeState(any(), any());
-    doReturn(Optional.of(jobStatus)).when(dagManagementStateStore).getJobStatus(anyString(), anyString(), anyLong(), anyString(), anyString());
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
@@ -131,10 +129,9 @@ public class ReevaluateDagProcTest {
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(Optional.of(dag.getStartNodes().get(0))).when(dagManagementStateStore).getDagNode(any());
+    doReturn(Optional.of(new ImmutablePair<>(dag.getStartNodes().get(0), jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
-    doReturn(Optional.of(jobStatus)).when(dagManagementStateStore).getJobStatus(anyString(), anyString(), anyLong(), anyString(), anyString());
     doNothing().when(dagManagementStateStore).deleteDagNodeState(any(), any());
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {

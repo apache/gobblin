@@ -132,7 +132,7 @@ public class DagProcessingEngineTest {
     }
   }
 
-  static class MockedDagProc extends DagProc<Void, Void> {
+  static class MockedDagProc extends DagProc<Void> {
     private final boolean isBad;
     public MockedDagProc(boolean isBad) {
       super(null);
@@ -140,7 +140,7 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected DagManager.DagId getDagId() {
+    public DagManager.DagId getDagId() {
       return new DagManager.DagId("fg", "fn", "12345");
     }
 
@@ -150,15 +150,10 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected Void act(DagManagementStateStore dagManagementStateStore, Void state) {
+    protected void act(DagManagementStateStore dagManagementStateStore, Void state) {
       if (this.isBad) {
         throw new RuntimeException("Simulating an exception!");
       }
-      return null;
-    }
-
-    @Override
-    protected void commit(DagManagementStateStore dagManagementStateStore, Void result) {
     }
   }
 
