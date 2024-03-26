@@ -97,12 +97,13 @@ public class ReevaluateDagProc extends DagProc<Optional<Pair<Dag.DagNode<JobExec
       if (dag.getFlowEvent() == null) {
         // If the dag flow event is not set, then it is successful
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_SUCCEEDED);
-        // send an event before cleaning up dag
-        DagManagerUtils.emitFlowEvent(eventSubmitter, dag, dag.getFlowEvent());
+      }
+      String flowEvent = dag.getFlowEvent();
+      DagManagerUtils.emitFlowEvent(eventSubmitter, dag, flowEvent);
+      if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
       } else {
-        DagManagerUtils.emitFlowEvent(eventSubmitter, dag, dag.getFlowEvent());
         dagManagementStateStore.markDagFailed(dag);
       }
     }
