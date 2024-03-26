@@ -79,7 +79,8 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(), null);
-    this.dagProcFactory = new DagProcFactory(null, null);
+    this.dagProcFactory = new DagProcFactory(null);
+
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore);
@@ -123,7 +124,7 @@ public class DagProcessingEngineTest {
 
     @Override
     public <T> T host(DagTaskVisitor<T> visitor) {
-      return (T) new MockedDagProc(this.isBad);
+      return (T) new MockedDagProc(this, this.isBad);
     }
 
     @Override
@@ -134,8 +135,8 @@ public class DagProcessingEngineTest {
 
   static class MockedDagProc extends DagProc<Void> {
     private final boolean isBad;
-    public MockedDagProc(boolean isBad) {
-      super(null);
+    public MockedDagProc(MockedDagTask mockedDagTask, boolean isBad) {
+      super(mockedDagTask);
       this.isBad = isBad;
     }
 

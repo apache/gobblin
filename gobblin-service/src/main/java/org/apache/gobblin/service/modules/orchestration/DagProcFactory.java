@@ -28,7 +28,6 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
-import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
@@ -43,8 +42,7 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
 
   @Inject
-  public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper,
-      JobStatusRetriever jobStatusRetriever) {
+  public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper) {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
