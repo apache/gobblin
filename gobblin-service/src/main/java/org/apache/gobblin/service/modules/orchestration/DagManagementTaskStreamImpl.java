@@ -134,10 +134,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   /**
    * Returns a {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseAttemptStatus} associated with the
-   * `dagAction`. If in multi-active execution mode, it retrieves the status from calling
-   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}, otherwise
-   * it returns a {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseObtainedStatus} that will not
-   * expire for a very long time to the current instance.
+   * `dagAction` by calling
+   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}
    * @param dagAction
    * @return
    * @throws IOException
@@ -146,18 +144,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private MultiActiveLeaseArbiter.LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagAction dagAction)
       throws IOException, SchedulerException {
     MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
-    if (!this.isMultiActiveExecutionEnabled) {
-      leaseAttemptStatus = new MultiActiveLeaseArbiter.LeaseObtainedStatus(dagAction, System.currentTimeMillis(), Long.MAX_VALUE, null);
-    } else {
-      // TODO: need to handle reminder events and flag them
-      leaseAttemptStatus = this.dagActionExecutionLeaseArbiter
-          .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
-          /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
-          we, when we might become the lease owner still fail to complete processing
-          */
-      if (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus)) {
-        scheduleReminderForEvent(leaseAttemptStatus);
-      }
+    // TODO: need to handle reminder events and flag them
+    leaseAttemptStatus = this.dagActionExecutionLeaseArbiter
+        .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
+        we, when we might become the lease owner still fail to complete processing
+        */
+    if (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus)) {
+      scheduleReminderForEvent(leaseAttemptStatus);
     }
     return leaseAttemptStatus;
   }

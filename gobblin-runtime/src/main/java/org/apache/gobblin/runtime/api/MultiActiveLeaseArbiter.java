@@ -117,16 +117,12 @@ public interface MultiActiveLeaseArbiter {
     }
 
     /**
-     * Completes the lease referenced by this status object if it has not expired. Defaults to true if no lease arbiter
-     * to complete lease on.
+     * Completes the lease referenced by this status object if it has not expired.
      * @return true if able to complete lease, false otherwise.
      * @throws IOException
      */
     public boolean completeLease() throws IOException {
-      if (multiActiveLeaseArbiter != null) {
         return multiActiveLeaseArbiter.recordLeaseSuccess(this);
-      }
-      return true;
     }
   }
 
