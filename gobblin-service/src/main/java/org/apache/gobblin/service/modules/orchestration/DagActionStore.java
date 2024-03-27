@@ -15,14 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
 
 import lombok.Data;
+
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 
 
 public interface DagActionStore {
@@ -53,6 +55,14 @@ public interface DagActionStore {
     public DagAction updateFlowExecutionId(long eventTimeMillis) {
       return new DagAction(this.getFlowGroup(), this.getFlowName(),
           String.valueOf(eventTimeMillis), this.getJobName(), this.getDagActionType());
+    }
+
+    /**
+     * Creates and returns a {@link DagNodeId} for this DagAction.
+     */
+    public DagNodeId getDagNodeId() {
+      return new DagNodeId(this.flowGroup, this.flowName,
+          Long.parseLong(this.flowExecutionId), this.flowGroup, this.jobName);
     }
   }
 

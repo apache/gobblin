@@ -65,7 +65,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -184,7 +183,7 @@ public class DagManager extends AbstractIdleService {
     }
 
     DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
-      // defaults to empty jobName 
+      // defaults to empty jobName
       return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", actionType);
     }
   }

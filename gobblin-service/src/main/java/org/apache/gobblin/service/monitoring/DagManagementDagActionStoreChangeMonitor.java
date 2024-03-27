@@ -24,7 +24,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
@@ -52,7 +52,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   }
 
   /**
-   * This implementation passes on the {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} to the
+   * This implementation passes on the {@link DagActionStore.DagAction} to the
    * {@link DagManagement} instead of finding a {@link org.apache.gobblin.runtime.api.FlowSpec} and passing the spec to {@link Orchestrator}.
    */
   @Override

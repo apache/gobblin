@@ -19,12 +19,10 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
-
 
 /**
  * An interface to provide abstractions for managing operations on Dag.
- * It accepts a {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction} which can be processed later.
+ * It accepts a {@link DagActionStore.DagAction} which can be processed later.
  * Consumption of the Dags happen through {@link DagTaskStream}.
  */
 public interface DagManagement {
