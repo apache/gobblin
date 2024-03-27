@@ -27,8 +27,9 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
  */
 
 public class LaunchDagTask extends DagTask {
-  public LaunchDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
-    super(dagAction, leaseObtainedStatus);
+  public LaunchDagTask(DagActionStore.DagAction dagAction,
+      MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus, DagActionStore dagActionStore) {
+    super(dagAction, leaseObtainedStatus, dagActionStore);
   }
 
   public <T> T host(DagTaskVisitor<T> visitor) {

@@ -128,6 +128,12 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
+  public boolean exists(DagAction dagAction) throws SQLException, IOException {
+    return exists(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(),
+        dagAction.getJobName(), dagAction.getDagActionType());
+  }
+
+  @Override
   public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
       throws IOException {
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {

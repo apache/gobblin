@@ -158,7 +158,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
     switch (dagActionType) {
       case LAUNCH:
-        return new LaunchDagTask(dagAction, leaseObtainedStatus);
+        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       default:
         throw new UnsupportedOperationException("Not yet implemented");
     }

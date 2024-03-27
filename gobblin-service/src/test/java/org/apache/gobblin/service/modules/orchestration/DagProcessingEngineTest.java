@@ -124,7 +124,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, null);
+      super(dagAction, null, null);
       this.isBad = isBad;
     }
 

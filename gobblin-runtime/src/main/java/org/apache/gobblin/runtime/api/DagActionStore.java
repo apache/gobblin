@@ -81,6 +81,14 @@ public interface DagActionStore {
   boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
   /**
+   * check if the dag action exists in {@link DagActionStore} using {@link DagAction} to identify dag and specific
+   * action value
+   * @throws IOException
+   * @return true if we successfully delete one record, return false if the record does not exist
+   */
+  boolean exists(DagAction dagAction) throws IOException, SQLException;
+
+  /**
    * Persist the dag action in {@link DagActionStore} for durability
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
