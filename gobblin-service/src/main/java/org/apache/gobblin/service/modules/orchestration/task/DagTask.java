@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration.task;
 
 import java.io.IOException;
+import java.sql.SQLException;
 
 import lombok.Getter;
 
@@ -41,25 +42,33 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
+  private final DagActionStore dagActionStore;
   @Getter protected final DagManager.DagId dagId;
 
-  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus,
+      DagActionStore dagActionStore) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
+    this.dagActionStore = dagActionStore;
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);
 
   /**
-   * Any cleanup work, e.g. releasing lease if it was acquired earlier, may be done in this method.
+   * Any cleanup work, including removing the dagAction from the dagActionStore and completing the lease acquired to
+   * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
   // todo call it from the right place
   public boolean conclude() {
     try {
+      // If dagAction is not present in store then it has been deleted by another participant, so we can skip deletion
+      if (this.dagActionStore.exists(this.dagAction)) {
+        this.dagActionStore.deleteDagAction(this.dagAction);
+      }
       return this.leaseObtainedStatus.completeLease();
-    } catch (IOException e) {
+    } catch (IOException | SQLException e) {
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
       throw new RuntimeException(e);
     }

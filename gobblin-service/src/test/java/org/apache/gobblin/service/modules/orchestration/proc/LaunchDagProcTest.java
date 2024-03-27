@@ -77,8 +77,10 @@ public class LaunchDagProcTest {
         5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
-    LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "fn",
-        "12345", "jn", DagActionStore.DagActionType.LAUNCH), null), flowCompilationValidationHelper);
+    LaunchDagProc launchDagProc = new LaunchDagProc(
+        new LaunchDagTask(new DagActionStore.DagAction("fg", "fn", "12345",
+            "jn", DagActionStore.DagActionType.LAUNCH), null, mock(DagActionStore.class)),
+        flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
     int expectedNumOfSavingDagNodeStates = 1; // = number of start nodes

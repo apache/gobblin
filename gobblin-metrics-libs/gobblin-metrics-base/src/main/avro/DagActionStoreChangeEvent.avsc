@@ -24,6 +24,11 @@
     "doc" : "flow execution id for the dag action",
     "compliance" : "NONE"
   }, {
+    "name" : "jobName",
+    "type" : "string",
+    "doc" : "job name for the dag action (empty string if not applicable)",
+    "compliance" : "NONE"
+  }, {
     "name" : "dagAction",
     "type": {
       "type": "enum",

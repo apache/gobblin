@@ -61,9 +61,11 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagStateStore;
 import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.testing.AssertWithBackoff;
@@ -190,6 +192,16 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(AbstractUserQuotaManager.PER_USER_QUOTA, "testUser:1");
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
 
+    serviceCoreProperties.put(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, true);
+    serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED, true);
+    serviceCoreProperties.put(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, "leaseDeterminationStore");
+    serviceCoreProperties.put(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, "executionConstantsStore");
+    String prefix = ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + ".";
+    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    serviceCoreProperties.put(prefix + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl());
+    serviceCoreProperties.put(prefix + ConfigurationKeys.STATE_STORE_DB_USER_KEY, "testUser");
+    serviceCoreProperties.put(prefix + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "testPassword");
+
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
     fileKey.open(false).create(true);
@@ -264,6 +276,16 @@ public class GobblinServiceManagerTest {
     }
 
     mysql.stop();
+  }
+
+  /**
+   * Tests retrieving two classes initiated by GobblinServiceGuiceModule. One is explicitly bound and another optionally
+   * through a configuration enabled in the setup method above.
+   */
+  @Test
+  public void testGetClass() {
+    Assert.assertTrue(this.gobblinServiceManager.getClass(FlowCompilationValidationHelper.class) instanceof FlowCompilationValidationHelper);
+    Assert.assertTrue(this.gobblinServiceManager.getClass(DagManagement.class) instanceof DagManagement);
   }
 
   /**

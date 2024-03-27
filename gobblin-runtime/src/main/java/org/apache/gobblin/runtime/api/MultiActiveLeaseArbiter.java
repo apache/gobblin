@@ -89,7 +89,7 @@ public interface MultiActiveLeaseArbiter {
     }
 
     public long getMinimumLingerDurationMillis() {
-      return 0;
+      return 0L;
     }
   }
 
@@ -122,7 +122,7 @@ public interface MultiActiveLeaseArbiter {
      * @throws IOException
      */
     public boolean completeLease() throws IOException {
-      return multiActiveLeaseArbiter.recordLeaseSuccess(this);
+        return multiActiveLeaseArbiter.recordLeaseSuccess(this);
     }
   }
 

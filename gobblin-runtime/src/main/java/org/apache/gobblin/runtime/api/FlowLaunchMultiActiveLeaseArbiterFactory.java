@@ -15,24 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration.task;
+package org.apache.gobblin.runtime.api;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import com.typesafe.config.Config;
+
+import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A {@link DagTask} responsible to handle launch tasks.
+ * A factory implementation that returns a {@link MultiActiveLeaseArbiter} instance used by the
+ * {@link FlowLaunchHandler} in multi-active scheduler mode
  */
+@Slf4j
+public class FlowLaunchMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
 
-public class LaunchDagTask extends DagTask {
-  public LaunchDagTask(DagActionStore.DagAction dagAction,
-      MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus, DagActionStore dagActionStore) {
-    super(dagAction, leaseObtainedStatus, dagActionStore);
-  }
-
-  public <T> T host(DagTaskVisitor<T> visitor) {
-    return visitor.meet(this);
+  @Inject
+  public FlowLaunchMultiActiveLeaseArbiterFactory(Config config) {
+    super(config, ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
   }
 }

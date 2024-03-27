@@ -17,24 +17,30 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.inject.Named;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.util.ConfigUtils;
@@ -43,6 +49,18 @@ import org.apache.gobblin.util.ConfigUtils;
 /**
  * DagManagementTaskStreamImpl implements {@link DagManagement} and {@link DagTaskStream}. It accepts
  * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}s and iteratively provides {@link DagTask}.
+ *
+ * It uses {@link MultiActiveLeaseArbiter} to coordinate multiple hosts with execution components enabled in
+ * multi-active execution mode to respond to flow action events by attempting ownership over a flow action event at a
+ * given event time. Only events that the current instance acquires a lease for are selected by
+ * {@link DagManagementTaskStreamImpl#next()}. If the status of the lease ownership attempt is anything other than an
+ * indication the lease has been completed
+ * ({@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.NoLongerLeasingStatus}) then the
+ * {@link MultiActiveLeaseArbiter#tryAcquireLease} method will set a reminder for the flow action using
+ * {@link DagActionReminderScheduler} to reattempt the lease after the current leaseholder's grant would have expired.
+ * Note that if multi-active execution is NOT enabled, then all flow action events are selected by
+ * {@link DagManagementTaskStreamImpl#next()} by virtue of having no other contenders for the lease at the time
+ * {@link MultiActiveLeaseArbiter#tryAcquireLease} is called.
  */
 @Slf4j
 @Singleton
@@ -53,20 +71,30 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
-  protected Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter;
+  protected MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter;
+  protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
+  private final boolean isMultiActiveExecutionEnabled;
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
+  private final String MISSING_OPTIONAL_ERROR_MESSAGE = String.format("Multi-active execution enabled but required "
+      + "instance %s is absent.", DagActionReminderScheduler.class.getSimpleName());
 
-  // TODO: need to pass reference to DagProcLeaseArbiter without creating a circular reference in Guice
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
-      Optional<ReminderSettingDagProcLeaseArbiter> reminderSettingDagProcLeaseArbiter) {
+      @Named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter,
+      Optional<DagActionReminderScheduler> dagActionReminderScheduler,
+      @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.config = config;
     this.dagActionStore = dagActionStore;
-    this.reminderSettingDagProcLeaseArbiter = reminderSettingDagProcLeaseArbiter;
+    this.dagActionExecutionLeaseArbiter = dagActionExecutionLeaseArbiter;
+    this.dagActionReminderScheduler = dagActionReminderScheduler;
+    this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
+    if (this.isMultiActiveExecutionEnabled && !this.dagActionReminderScheduler.isPresent()) {
+      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
+    }
   }
 
   @Override
@@ -86,19 +114,12 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
-    /*TODO: this requires use of lease arbiter, in single-active execution lease arbiter will not be present and we can
-     provide a dummy LeaseObtainedStatus or create alternate route
-    */
-    if (!this.reminderSettingDagProcLeaseArbiter.isPresent()) {
-      throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
-    }
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;
       while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
         dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
-        // TODO: need to handle reminder events and flag them
-        leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.get().tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        leaseAttemptStatus = retrieveLeaseStatus(dagAction);
       }
       return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {
@@ -108,14 +129,47 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     return null;
   }
 
+  /**
+   * Returns a {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseAttemptStatus} associated with the
+   * `dagAction` by calling
+   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}.
+   * @param dagAction
+   * @return
+   * @throws IOException
+   * @throws SchedulerException
+   */
+  private MultiActiveLeaseArbiter.LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagAction dagAction)
+      throws IOException, SchedulerException {
+    MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
+    // TODO: need to handle reminder events and flag them
+    leaseAttemptStatus = this.dagActionExecutionLeaseArbiter
+        .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
+        we, when we might become the lease owner still fail to complete processing
+        */
+    if (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus)) {
+      scheduleReminderForEvent(leaseAttemptStatus);
+    }
+    return leaseAttemptStatus;
+  }
+
   private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
     DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
     switch (dagActionType) {
       case LAUNCH:
-        return new LaunchDagTask(dagAction, leaseObtainedStatus);
+        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       default:
         throw new UnsupportedOperationException("Not yet implemented");
     }
+  }
+
+  /* Schedules a reminder for the flow action using {@link DagActionReminderScheduler} to reattempt the lease after the
+  current leaseholder's grant would have expired.
+  */
+  protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus)
+      throws SchedulerException {
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getDagAction(),
+        leaseStatus.getMinimumLingerDurationMillis());
   }
 }

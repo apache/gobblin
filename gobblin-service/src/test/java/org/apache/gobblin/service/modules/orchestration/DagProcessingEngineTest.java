@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,12 +40,14 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 @Slf4j
@@ -79,8 +82,10 @@ public class DagProcessingEngineTest {
     topologySpecMap.put(specExecURI, topologySpec);
     this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null);
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), null);
+        new DagManagementTaskStreamImpl(config, Optional.empty(), mock(MultiActiveLeaseArbiter.class),
+            Optional.empty(), false);
     this.dagProcFactory = new DagProcFactory(null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
@@ -119,7 +124,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, null);
+      super(dagAction, null, null);
       this.isBad = isBad;
     }
 
@@ -137,6 +142,7 @@ public class DagProcessingEngineTest {
   static class MockedDagProc extends DagProc<Void, Void> {
     private final boolean isBad;
     public MockedDagProc(boolean isBad) {
+      super(null);
       this.isBad = isBad;
     }
 
@@ -159,11 +165,7 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected void sendNotification(Void result, EventSubmitter eventSubmitter) {
-    }
-
-    @Override
-    protected void commit(DagManagementStateStore dagManagementStateStore, Void result) {
+    protected void sendNotification(Void result, EventSubmitter eventSubmitter) throws IOException {
     }
   }
 

@@ -87,8 +87,8 @@ public class DagManagerFlowTest {
         .build();
 
     dagActionStore = new MysqlDagActionStore(config);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
-    dagActionStore.addDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionType.RESUME);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionType.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props));
     dagManager.dagActionStore = Optional.of(dagActionStore);
     dagManager.setActive(true);
@@ -129,7 +129,7 @@ public class DagManagerFlowTest {
 
     // mock add spec
     // for very first dag to be added, add dag action to store and check its deleted by the addDag call
-    dagManager.getDagActionStore().get().addDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH);
+    dagManager.getDagActionStore().get().addFlowDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH);
     dagManager.addDag(dag1, true, true);
     Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH));
     dagManager.addDag(dag2, true, true);
@@ -338,7 +338,7 @@ public class DagManagerFlowTest {
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
     // Add kill action to action store and call kill
-    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.KILL);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.KILL);
     dagManager.handleKillFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the kill dag action is removed
@@ -355,7 +355,7 @@ public class DagManagerFlowTest {
 
 
     // Add resume action to action store and call resume
-    dagActionStore.addDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
     dagManager.handleResumeFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the resume dag action is removed

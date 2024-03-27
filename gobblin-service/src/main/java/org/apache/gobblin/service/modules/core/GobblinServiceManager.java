@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -116,6 +117,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
+  private static GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -251,10 +253,25 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    GobblinServiceGuiceModule guiceModule = new GobblinServiceGuiceModule(serviceConfiguration);
+    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
 
-    Injector injector = Guice.createInjector(Stage.PRODUCTION, guiceModule);
-    return injector.getInstance(GobblinServiceManager.class);
+    return getClass(GobblinServiceManager.class);
+  }
+
+  /**
+   *
+   * @param classToGet
+   * @return a new object if the class type is not marked with @Singleton, otherwise the same instance of the class
+   * @param <T>
+   */
+  public static <T> T getClass(Class<T> classToGet) {
+    if (GOBBLIN_SERVICE_GUICE_MODULE == null) {
+      throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
+          + "initialize GobblinServiceGuiceModule. Stacktrace of current thread %s", classToGet,
+          Arrays.toString(Thread.currentThread().getStackTrace()).replace(", ", "\n  at ")));
+    }
+    Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
+    return injector.getInstance(classToGet);
   }
 
   public URI getRestLiServerListeningURI() {
@@ -633,14 +650,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       Config config = ConfigFactory.load();
 
-      GobblinServiceConfiguration serviceConfiguration =
-          new GobblinServiceConfiguration(cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd), config,
-              null);
-
-      GobblinServiceGuiceModule guiceModule = new GobblinServiceGuiceModule(serviceConfiguration);
-      Injector injector = Guice.createInjector(guiceModule);
-
-      try (GobblinServiceManager gobblinServiceManager = injector.getInstance(GobblinServiceManager.class)) {
+      try (GobblinServiceManager gobblinServiceManager =
+          create(cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd), config, null)) {
         gobblinServiceManager.start();
 
         if (isTestMode) {

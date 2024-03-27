@@ -206,7 +206,8 @@ public class DagActionStoreChangeMonitorTest {
     GenericStoreChangeEvent genericStoreChangeEvent =
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
     txidCounter++;
-    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, flowExecutionId, dagAction);
+    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, flowExecutionId,
+        DagActionStore.NO_JOB_NAME_DEFAULT, dagAction);
   }
 
   /**
