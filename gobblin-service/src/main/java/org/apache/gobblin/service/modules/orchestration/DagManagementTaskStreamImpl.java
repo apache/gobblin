@@ -39,7 +39,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -75,12 +74,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
-  @Inject
-  @Named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME)
-  protected InstrumentedLeaseArbiter dagActionExecutionLeaseArbiter;
+  protected MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter;
   protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
-  @Inject
-  @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED)
   private final boolean isMultiActiveExecutionEnabled;
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
@@ -90,7 +85,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
-      @Named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME) InstrumentedLeaseArbiter dagActionExecutionLeaseArbiter,
+      @Named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter,
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.config = config;
@@ -100,6 +95,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
+    if (this.isMultiActiveExecutionEnabled && !this.dagActionReminderScheduler.isPresent()) {
+      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
+    }
   }
 
   @Override
@@ -119,9 +117,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
-    if (this.isMultiActiveExecutionEnabled && !this.dagActionReminderScheduler.isPresent()) {
-      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
-    }
     try {
       MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;

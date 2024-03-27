@@ -78,7 +78,7 @@ public class LaunchDagProcTest {
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "fn",
-        "12345", "jn", DagActionStore.DagActionType.LAUNCH), null), flowCompilationValidationHelper, false);
+        "12345", "jn", DagActionStore.DagActionType.LAUNCH), null), flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
     int expectedNumOfSavingDagNodeStates = 1; // = number of start nodes

@@ -185,8 +185,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           + "utilize the same table name", ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
           ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY));
     }
-    this.leaseArbiterTableName = ConfigUtils.emptyIfNotPresent(config, ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY);
-    this.constantsTableName = ConfigUtils.emptyIfNotPresent(config, ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY);
+    this.leaseArbiterTableName = config.getString(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY);
+    this.constantsTableName = config.getString(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY);
     this.epsilonMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
     this.lingerMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,

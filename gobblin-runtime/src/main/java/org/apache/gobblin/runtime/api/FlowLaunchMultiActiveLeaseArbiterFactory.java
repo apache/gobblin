@@ -17,42 +17,23 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.io.IOException;
-import java.util.Objects;
-
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A factory implementation that returns a {@link InstrumentedLeaseArbiter} instance used by the
+ * A factory implementation that returns a {@link MultiActiveLeaseArbiter} instance used by the
  * {@link FlowLaunchHandler} in multi-active scheduler mode
  */
 @Slf4j
-public class FlowLaunchMultiActiveLeaseArbiterFactory implements Provider<InstrumentedLeaseArbiter> {
-  private final Config config;
+public class FlowLaunchMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
 
   @Inject
   public FlowLaunchMultiActiveLeaseArbiterFactory(Config config) {
-    this.config = Objects.requireNonNull(config);
-  }
-
-  @Override
-  public InstrumentedLeaseArbiter get() {
-    try {
-      Config flowLaunchLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
-      log.info("FlowLaunchHandler lease arbiter will be initialized with config {}", flowLaunchLeaseArbiterConfig);
-
-      return new InstrumentedLeaseArbiter(config, new MysqlMultiActiveLeaseArbiter(flowLaunchLeaseArbiterConfig),
-          ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to initialize " + ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME
-          + " lease arbiter due to ", e);
-    }
+    super(config, ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
   }
 }

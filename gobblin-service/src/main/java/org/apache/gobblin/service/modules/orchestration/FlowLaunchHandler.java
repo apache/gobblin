@@ -39,7 +39,6 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -66,7 +65,7 @@ import org.quartz.impl.JobDetailImpl;
  */
 @Slf4j
 public class FlowLaunchHandler {
-  private final Optional<InstrumentedLeaseArbiter> multiActiveLeaseArbiter;
+  private final Optional<MultiActiveLeaseArbiter> multiActiveLeaseArbiter;
   private Optional<DagActionStore> dagActionStore;
   private final MetricContext metricContext;
   private final int schedulerMaxBackoffMillis;
@@ -78,7 +77,7 @@ public class FlowLaunchHandler {
 
   @Inject
   public FlowLaunchHandler(Config config,
-      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) Optional<InstrumentedLeaseArbiter> leaseArbiter,
+      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) Optional<MultiActiveLeaseArbiter> leaseArbiter,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
     this.multiActiveLeaseArbiter = leaseArbiter;
     this.dagActionStore = dagActionStore;

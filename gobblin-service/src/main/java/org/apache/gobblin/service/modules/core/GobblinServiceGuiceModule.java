@@ -43,7 +43,7 @@ import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.DagActionExecutionMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.runtime.api.FlowLaunchMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
-import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.dag_action_store.MysqlDagActionStore;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -186,10 +186,10 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
     }
 
-    OptionalBinder.newOptionalBinder(binder, InstrumentedLeaseArbiter.class);
+    OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
     OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(InstrumentedLeaseArbiter.class).annotatedWith(Names.named(
+      binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(
           ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
           FlowLaunchMultiActiveLeaseArbiterFactory.class);
       binder.bind(FlowLaunchHandler.class);
@@ -207,11 +207,11 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isDagProcessingEngineEnabled()) {
       /* The only way to differentiate two instances of the same class is with an `annotatedWith` marker provided at
       time of binding. Even if multiActiveExecution is not enabled, we need to explicitly bind a named instance of
-      InstrumentedLeaseArbiter to `EXECUTOR_LEASE_ARBITER_NAME` to initialize DagManagementTaskStreamImpl, otherwise the
+      MultiActiveLeaseArbiter to `EXECUTOR_LEASE_ARBITER_NAME` to initialize DagManagementTaskStreamImpl, otherwise the
       named instance DagManagementTaskStreamImpl requires as a parameter will not be found. An alternative approach
-      would be to extend the InstrumentedLeaseArbiter class to differentiate the two lease arbiters by type, but that
+      would be to extend the MultiActiveLeaseArbiter class to differentiate the two lease arbiters by type, but that
       approach is less desirable. */
-      binder.bind(InstrumentedLeaseArbiter.class).
+      binder.bind(MultiActiveLeaseArbiter.class).
               annotatedWith(Names.named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME))
           .toProvider(
               DagActionExecutionMultiActiveLeaseArbiterFactory.class);

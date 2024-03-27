@@ -17,42 +17,23 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.io.IOException;
-import java.util.Objects;
-
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
- * A factory implementation that returns a {@link InstrumentedLeaseArbiter} instance used by the
+ * A factory implementation that returns a {@link MultiActiveLeaseArbiter} instance used by the
  * {@link DagManagementTaskStreamImpl} in multi-active execution mode
  */
 @Slf4j
-public class DagActionExecutionMultiActiveLeaseArbiterFactory implements Provider<InstrumentedLeaseArbiter> {
-  private final Config config;
+public class DagActionExecutionMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
 
   @Inject
   public DagActionExecutionMultiActiveLeaseArbiterFactory(Config config) {
-    this.config = Objects.requireNonNull(config);
-  }
-
-  @Override
-  public InstrumentedLeaseArbiter get() {
-    try {
-      Config dagProcLeaseArbiterConfig = this.config.getConfig(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
-      log.info("{} lease arbiter will be initialized with config {}", ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME,
-          dagProcLeaseArbiterConfig);
-
-      return new InstrumentedLeaseArbiter(dagProcLeaseArbiterConfig,
-          new MysqlMultiActiveLeaseArbiter(dagProcLeaseArbiterConfig), ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to initialize" + ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + " due to ", e);
-    }
+    super(config, ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
   }
 }

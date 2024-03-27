@@ -83,7 +83,7 @@ public class DagManagementTaskStreamImplTest {
         new DagManagementTaskStreamImpl(config, Optional.empty(),
             mock(InstrumentedLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
             false);
-    this.dagProcFactory = new DagProcFactory(null, false);
+    this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
   }

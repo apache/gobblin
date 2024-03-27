@@ -84,7 +84,7 @@ public class DagProcessingEngineTest {
     // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(), mock(InstrumentedLeaseArbiter.class), Optional.empty(), false);
-    this.dagProcFactory = new DagProcFactory(null, false);
+    this.dagProcFactory = new DagProcFactory(null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore);
@@ -140,6 +140,7 @@ public class DagProcessingEngineTest {
   static class MockedDagProc extends DagProc<Void, Void> {
     private final boolean isBad;
     public MockedDagProc(boolean isBad) {
+      super(null);
       this.isBad = isBad;
     }
 
