@@ -52,8 +52,8 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   }
 
   /**
-   * This implementation passes on {@link DagActionStore.DagAction} to the
-   * {@link DagManagement} instead of finding a {@link org.apache.gobblin.runtime.api.FlowSpec} and passing the spec to {@link Orchestrator}.
+   * This implementation passes on the {@link DagActionStore.DagAction} to {@link DagManagement} instead of finding a
+   * {@link org.apache.gobblin.runtime.api.FlowSpec} and passing the spec to {@link Orchestrator}.
    */
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {

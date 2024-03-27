@@ -26,7 +26,8 @@ import lombok.Getter;
 
 /**
  Class used to encapsulate status of lease acquisition attempts made by {@link MultiActiveLeaseArbiter} and contains
- information specific to the status that results. The #getDagAction and #getMinimumLingerDurationMillis are meant to be
+ information specific to the status that results. The {@link LeaseAttemptStatus#getDagAction} and
+ {@link LeaseAttemptStatus#getMinimumLingerDurationMillis} are meant to be
  overridden and used by relevant derived classes.
  */
 public abstract class LeaseAttemptStatus {
