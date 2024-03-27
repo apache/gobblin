@@ -154,7 +154,7 @@ public class CompactionGMCEPublishingActionTest {
   }
 
   public static class GobblinMCETestProducer extends GobblinMCEProducer {
-    public GobblinMCETestProducer(State state) {
+    public GobblinMCETestProducer(State state) throws IOException {
       super(state);
     }
 

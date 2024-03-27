@@ -169,6 +169,11 @@
               {
                 "name": "file_metrics",
                 "type": "org.apache.gobblin.metadata.DataMetrics"
+              },
+              {
+                "name": "file_size",
+                "type":["null", "long"],
+                "default": null
               }
             ]
           }
