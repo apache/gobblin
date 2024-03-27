@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -39,7 +38,6 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
  */
 @Alpha
 @Data
-@RequiredArgsConstructor
 @Slf4j
 public abstract class DagProc<S, T> {
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
@@ -50,12 +48,13 @@ public abstract class DagProc<S, T> {
   public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
     S state = initialize(dagManagementStateStore);   // todo - retry
     T result = act(dagManagementStateStore, state);   // todo - retry
-    commit(dagManagementStateStore, result);   // todo - retry
     sendNotification(result, eventSubmitter);   // todo - retry
     log.info("{} successfully concluded actions for dagId : {}", getClass().getSimpleName(), getDagId());
   }
 
-  protected abstract DagManager.DagId getDagId();
+  protected DagManager.DagId getDagId() {
+    return this.dagTask.getDagId();
+  }
 
   protected abstract S initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
 
@@ -64,7 +63,4 @@ public abstract class DagProc<S, T> {
   protected abstract void sendNotification(T result, EventSubmitter eventSubmitter) throws IOException;
 
   // todo - commit the modified dags to the persistent store, maybe not required for InMem dagManagementStateStore
-  protected void commit(DagManagementStateStore dagManagementStateStore, T result) {
-    dagTask.conclude();
-  }
 }

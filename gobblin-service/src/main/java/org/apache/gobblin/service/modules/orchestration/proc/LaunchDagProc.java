@@ -45,10 +45,9 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
-import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 
@@ -63,19 +62,14 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
   // the same name
   private static final AtomicLong orchestrationDelayCounter = new AtomicLong(0);
 
-  public LaunchDagProc(DagTask dagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
-    super(dagTask);
+  public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+    super(launchDagTask);
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
   static {
     metricContext.register(
         metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get));
-  }
-
-  @Override
-  protected DagManager.DagId getDagId() {
-    return this.getDagTask().getDagId();
   }
 
   @Override

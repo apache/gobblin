@@ -27,28 +27,32 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * An abstract base class for creating {@link MultiActiveLeaseArbiter} factories that use a specific configuration key.
+ * An abstract base class for {@link MultiActiveLeaseArbiter} factories that use a specific configuration key.
  * Subclasses must provide a key to use in the constructor.
  */
 @Slf4j
 public abstract class MultiActiveLeaseArbiterFactory implements Provider<MultiActiveLeaseArbiter> {
     private final Config config;
-    private final String key;
+    private final String configPrefix;
 
-    public MultiActiveLeaseArbiterFactory(Config config, String key) {
+    public MultiActiveLeaseArbiterFactory(Config config, String configPrefix) {
       this.config = Objects.requireNonNull(config);
-      this.key = Objects.requireNonNull(key);
+      this.configPrefix = Objects.requireNonNull(configPrefix);
+      if (!this.config.hasPath(configPrefix)) {
+        throw new RuntimeException(String.format("Unable to initialize multiActiveLeaseArbiter due to missing "
+            + "configurations that should be prefixed by %s.", configPrefix));
+      }
     }
 
     @Override
     public MultiActiveLeaseArbiter get() {
       try {
-        Config leaseArbiterConfig = this.config.getConfig(key);
+        Config leaseArbiterConfig = this.config.getConfig(configPrefix);
         log.info("Lease arbiter will be initialized with config {}", leaseArbiterConfig);
 
-        return new InstrumentedLeaseArbiter(config, new MysqlMultiActiveLeaseArbiter(leaseArbiterConfig), key);
+        return new InstrumentedLeaseArbiter(config, new MysqlMultiActiveLeaseArbiter(leaseArbiterConfig), configPrefix);
       } catch (IOException e) {
-        throw new RuntimeException("Failed to initialize " + key + " lease arbiter due to ", e);
+        throw new RuntimeException("Failed to initialize " + configPrefix + " lease arbiter due to ", e);
       }
    }
 }

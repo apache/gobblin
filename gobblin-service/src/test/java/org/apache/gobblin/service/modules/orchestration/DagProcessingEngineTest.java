@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,7 +40,7 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
+import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -83,7 +84,8 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), mock(InstrumentedLeaseArbiter.class), Optional.empty(), false);
+        new DagManagementTaskStreamImpl(config, Optional.empty(), mock(MultiActiveLeaseArbiter.class),
+            Optional.empty(), false);
     this.dagProcFactory = new DagProcFactory(null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
@@ -163,11 +165,7 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected void sendNotification(Void result, EventSubmitter eventSubmitter) {
-    }
-
-    @Override
-    protected void commit(DagManagementStateStore dagManagementStateStore, Void result) {
+    protected void sendNotification(Void result, EventSubmitter eventSubmitter) throws IOException {
     }
   }
 

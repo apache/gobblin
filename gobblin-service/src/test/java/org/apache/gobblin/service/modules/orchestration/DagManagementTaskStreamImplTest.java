@@ -34,7 +34,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.InstrumentedLeaseArbiter;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -81,7 +80,7 @@ public class DagManagementTaskStreamImplTest {
     // TODO: create tests for cases with multiActiveExecutionEnabled
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(),
-            mock(InstrumentedLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
             false);
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(

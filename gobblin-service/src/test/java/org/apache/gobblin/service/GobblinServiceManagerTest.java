@@ -65,6 +65,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagStateStore;
 import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.testing.AssertWithBackoff;
@@ -283,7 +284,7 @@ public class GobblinServiceManagerTest {
    */
   @Test
   public void testGetClass() {
-    Assert.assertTrue(this.gobblinServiceManager.getClass(DagManager.class) instanceof DagManager);
+    Assert.assertTrue(this.gobblinServiceManager.getClass(FlowCompilationValidationHelper.class) instanceof FlowCompilationValidationHelper);
     Assert.assertTrue(this.gobblinServiceManager.getClass(DagManagement.class) instanceof DagManagement);
   }
 

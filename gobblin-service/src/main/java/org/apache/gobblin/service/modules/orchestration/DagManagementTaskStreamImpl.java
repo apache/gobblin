@@ -178,9 +178,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    if (!this.dagActionReminderScheduler.isPresent()) {
-      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
-    }
     dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getDagAction(),
         leaseStatus.getMinimumLingerDurationMillis());
   }
