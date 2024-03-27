@@ -24,10 +24,10 @@ import lombok.Data;
 import lombok.Getter;
 
 
-/*
- Class used to encapsulate status of lease acquisition attempt and derivations should contain information specific to
- the status that results. The #getDagAction and #getMinimumLingerDurationMillis are meant to be overriden and used by
- relevant derived classes.
+/**
+ Class used to encapsulate status of lease acquisition attempts made by {@link MultiActiveLeaseArbiter} and contains
+ information specific to the status that results. The #getDagAction and #getMinimumLingerDurationMillis are meant to be
+ overridden and used by relevant derived classes.
  */
 public abstract class LeaseAttemptStatus {
   public DagActionStore.DagAction getDagAction() {
@@ -38,6 +38,10 @@ public abstract class LeaseAttemptStatus {
     return 0;
   }
 
+  /*
+   * This LeaseAttemptStatus tells the caller that work for which lease was requested is completed and thus lease is no
+   * longer required. There is also no need to set reminder events.
+   */
   public static class NoLongerLeasingStatus extends LeaseAttemptStatus {}
 
   /*
