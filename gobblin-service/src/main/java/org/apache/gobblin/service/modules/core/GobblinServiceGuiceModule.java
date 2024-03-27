@@ -205,12 +205,9 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isDagProcessingEngineEnabled()) {
-      /* The only way to differentiate two instances of the same class is with an `annotatedWith` marker provided at
-      time of binding. Even if multiActiveExecution is not enabled, we need to explicitly bind a named instance of
-      MultiActiveLeaseArbiter to `EXECUTOR_LEASE_ARBITER_NAME` to initialize DagManagementTaskStreamImpl, otherwise the
-      named instance DagManagementTaskStreamImpl requires as a parameter will not be found. An alternative approach
-      would be to extend the MultiActiveLeaseArbiter class to differentiate the two lease arbiters by type, but that
-      approach is less desirable. */
+      /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
+      binding time (optionally bound classes cannot have names associated with them). Unlike, the scheduler lease arbiter,
+      the execution lease arbiter is used in single-active or multi-active execution. */
       binder.bind(MultiActiveLeaseArbiter.class).
               annotatedWith(Names.named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME))
           .toProvider(

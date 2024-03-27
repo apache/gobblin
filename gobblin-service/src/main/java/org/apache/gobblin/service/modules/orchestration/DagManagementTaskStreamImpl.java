@@ -50,20 +50,17 @@ import org.apache.gobblin.util.ConfigUtils;
  * DagManagementTaskStreamImpl implements {@link DagManagement} and {@link DagTaskStream}. It accepts
  * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}s and iteratively provides {@link DagTask}.
  *
- * If multi-active execution is enabled, then it uses {@link MultiActiveLeaseArbiter} to coordinate multiple hosts with
- * execution components enabled to respond to flow action events by attempting ownership over a flow action event at a
+ * It uses {@link MultiActiveLeaseArbiter} to coordinate multiple hosts with execution components enabled in
+ * multi-active execution mode to respond to flow action events by attempting ownership over a flow action event at a
  * given event time. Only events that the current instance acquires a lease for are selected by
  * {@link DagManagementTaskStreamImpl#next()}. If the status of the lease ownership attempt is anything other than an
  * indication the lease has been completed
  * ({@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.NoLongerLeasingStatus}) then the
  * {@link MultiActiveLeaseArbiter#tryAcquireLease} method will set a reminder for the flow action using
  * {@link DagActionReminderScheduler} to reattempt the lease after the current leaseholder's grant would have expired.
- *
- * If multi-active execution is NOT enabled, then all flow action events are selected by
- * {@link DagManagementTaskStreamImpl#next()} for processing. A dummy
- * {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseObtainedStatus} is provided without utilizing a
- * lease arbiter. It is initialized with a lease that will never expire (or as close to it as possible with long max
- * value).
+ * Note that if multi-active execution is NOT enabled, then all flow action events are selected by
+ * {@link DagManagementTaskStreamImpl#next()} by virtue of having no other contenders for the lease at the time
+ * {@link MultiActiveLeaseArbiter#tryAcquireLease} is called.
  */
 @Slf4j
 @Singleton
@@ -135,7 +132,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   /**
    * Returns a {@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.LeaseAttemptStatus} associated with the
    * `dagAction` by calling
-   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}
+   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}.
    * @param dagAction
    * @return
    * @throws IOException
