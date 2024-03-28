@@ -37,7 +37,6 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -81,6 +80,7 @@ public class DagProcessingEngineTest {
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.empty(), null);
     this.dagProcFactory = new DagProcFactory(null);
+
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore);
@@ -124,7 +124,7 @@ public class DagProcessingEngineTest {
 
     @Override
     public <T> T host(DagTaskVisitor<T> visitor) {
-      return (T) new MockedDagProc(this.isBad);
+      return (T) new MockedDagProc(this, this.isBad);
     }
 
     @Override
@@ -133,14 +133,15 @@ public class DagProcessingEngineTest {
     }
   }
 
-  static class MockedDagProc extends DagProc<Void, Void> {
+  static class MockedDagProc extends DagProc<Void> {
     private final boolean isBad;
-    public MockedDagProc(boolean isBad) {
+    public MockedDagProc(MockedDagTask mockedDagTask, boolean isBad) {
+      super(mockedDagTask);
       this.isBad = isBad;
     }
 
     @Override
-    protected DagManager.DagId getDagId() {
+    public DagManager.DagId getDagId() {
       return new DagManager.DagId("fg", "fn", "12345");
     }
 
@@ -150,19 +151,10 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected Void act(DagManagementStateStore dagManagementStateStore, Void state) {
+    protected void act(DagManagementStateStore dagManagementStateStore, Void state) {
       if (this.isBad) {
         throw new RuntimeException("Simulating an exception!");
       }
-      return null;
-    }
-
-    @Override
-    protected void sendNotification(Void result, EventSubmitter eventSubmitter) {
-    }
-
-    @Override
-    protected void commit(DagManagementStateStore dagManagementStateStore, Void result) {
     }
   }
 
