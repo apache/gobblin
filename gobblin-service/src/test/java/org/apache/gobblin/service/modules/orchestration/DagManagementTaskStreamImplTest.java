@@ -32,8 +32,6 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -100,9 +98,9 @@ public class DagManagementTaskStreamImplTest {
     dagManagementTaskStream.addDagAction(launchAction);
     when(dagManagementTaskStream.getReminderSettingDagProcLeaseArbiter().get()
         .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
-        .thenReturn(new MultiActiveLeaseArbiter.NoLongerLeasingStatus(),
-            new MultiActiveLeaseArbiter.LeasedToAnotherStatus(launchAction, 15),
-            new MultiActiveLeaseArbiter.LeaseObtainedStatus(launchAction, 0, 5, null));
+        .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),
+            new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 15),
+            new LeaseAttemptStatus.LeaseObtainedStatus(launchAction, 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);

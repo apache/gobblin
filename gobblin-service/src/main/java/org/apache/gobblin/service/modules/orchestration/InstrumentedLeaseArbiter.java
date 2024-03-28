@@ -29,8 +29,6 @@ import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -74,24 +72,24 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
+  public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
 
-    MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
+    LeaseAttemptStatus leaseAttemptStatus =
         decoratedMultiActiveLeaseArbiter.tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent,
             skipFlowExecutionIdReplacement);
     log.info("Multi-active scheduler lease attempt for dagAction: {} received type of leaseAttemptStatus: [{}, "
             + "eventTimestamp: {}] ", dagAction, leaseAttemptStatus.getClass().getName(), eventTimeMillis);
-    if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
+    if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
       if (isReminderEvent) {
         this.leasesObtainedDueToReminderCount.mark();
       }
       this.leaseObtainedCount.inc();
       return leaseAttemptStatus;
-    } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
+    } else if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus) {
       this.leasedToAnotherStatusCount.inc();
       return leaseAttemptStatus;
-    } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus) {
+    } else if (leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus) {
       this.noLongerLeasingStatusCount.inc();
       return leaseAttemptStatus;
     }
@@ -100,7 +98,7 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public boolean recordLeaseSuccess(LeaseObtainedStatus status)
+  public boolean recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus status)
       throws IOException {
     if (this.decoratedMultiActiveLeaseArbiter.recordLeaseSuccess(status)) {
       this.recordedLeaseSuccessCount.mark();

@@ -19,8 +19,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.junit.Assert;
 import org.quartz.JobDataMap;
@@ -35,8 +33,8 @@ public class FlowLaunchHandlerTest {
   int schedulerBackOffMillis = 10;
   DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowName", "flowGroup",
       String.valueOf(eventToRevisit), "jobName", DagActionStore.DagActionType.LAUNCH);
-  MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus =
-      new MultiActiveLeaseArbiter.LeasedToAnotherStatus(dagAction, minimumLingerDurationMillis);
+  LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus =
+      new LeaseAttemptStatus.LeasedToAnotherStatus(dagAction, minimumLingerDurationMillis);
 
   /**
    * Remove first two fields from cron expression representing seconds and minutes to return truncated cron expression

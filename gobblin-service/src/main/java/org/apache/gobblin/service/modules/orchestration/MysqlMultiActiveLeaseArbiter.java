@@ -15,10 +15,8 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.inject.Inject;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,9 +28,14 @@ import java.util.Calendar;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
+
+import com.google.inject.Inject;
+import com.typesafe.config.Config;
+
 import javax.sql.DataSource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
@@ -271,7 +274,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - A new event trigger "
                   + "is being worked on, so this older reminder will be dropped.", dagAction,
               isReminderEvent ? "reminder" : "original", eventTimeMillis, dbEventTimestamp);
-          return new NoLongerLeasingStatus();
+          return new LeaseAttemptStatus.NoLongerLeasingStatus();
         }
         if (eventTimeMillis > dbEventTimestamp.getTime()) {
           // TODO: emit metric here to capture this unexpected behavior
@@ -303,7 +306,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
               updatedDagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
-          return new LeasedToAnotherStatus(updatedDagAction,
+          return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
         DagActionStore.DagAction updatedDagAction =
@@ -311,7 +314,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             updatedDagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
-        return new LeasedToAnotherStatus(updatedDagAction,
+        return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
       else if (leaseValidityStatus == 2) {
@@ -332,7 +335,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         if (isWithinEpsilon) {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 5: Same event, no longer leasing event"
               + " in db", dagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
-          return new NoLongerLeasingStatus();
+          return new LeaseAttemptStatus.NoLongerLeasingStatus();
         }
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 6: Distinct event, no longer leasing "
             + "event in db", dagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
@@ -499,7 +502,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     SelectInfoResult selectInfoResult = getRowInfo(dagAction);
     // Another participant won the lease in between
     if (!selectInfoResult.getLeaseAcquisitionTimeMillis().isPresent()) {
-      return new NoLongerLeasingStatus();
+      return new LeaseAttemptStatus.NoLongerLeasingStatus();
     }
     DagActionStore.DagAction updatedDagAction =
         adoptConsensusFlowExecutionId ? dagAction.updateFlowExecutionId(selectInfoResult.eventTimeMillis) : dagAction;
@@ -510,12 +513,12 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     if (numRowsUpdated == 1) {
       log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", updatedDagAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
-      return new LeaseObtainedStatus(updatedDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), minimumLingerDurationMillis, this);
+      return new LeaseAttemptStatus.LeaseObtainedStatus(updatedDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), minimumLingerDurationMillis, this);
     }
     log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: {}",
         updatedDagAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
     // Another participant acquired lease in between
-    return new LeasedToAnotherStatus(updatedDagAction, minimumLingerDurationMillis);
+    return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction, minimumLingerDurationMillis);
   }
 
   /**
@@ -579,7 +582,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public boolean recordLeaseSuccess(LeaseObtainedStatus status)
+  public boolean recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus status)
       throws IOException {
     DagActionStore.DagAction dagAction = status.getDagAction();
     return dbStatementExecutor.withPreparedStatement(String.format(CONDITIONALLY_COMPLETE_LEASE_STATEMENT, leaseArbiterTableName),

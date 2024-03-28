@@ -33,8 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.util.ConfigUtils;
@@ -42,7 +40,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * DagManagementTaskStreamImpl implements {@link DagManagement} and {@link DagTaskStream}. It accepts
- * {@link org.apache.gobblin.runtime.api.DagActionStore.DagAction}s and iteratively provides {@link DagTask}.
+ * {@link DagActionStore.DagAction}s and iteratively provides {@link DagTask}.
  */
 @Slf4j
 @Singleton
@@ -93,14 +91,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throw new RuntimeException("DagManagement not initialized in multi-active execution mode when required.");
     }
     try {
-      MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus = null;
+      LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;
-      while (!(leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus)) {
+      while (!(leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus)) {
         dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
         // TODO: need to handle reminder events and flag them
         leaseAttemptStatus = this.reminderSettingDagProcLeaseArbiter.get().tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
       }
-      return createDagTask(dagAction, (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus);
+      return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
     } catch (Throwable t) {
       //TODO: need to handle exceptions gracefully
       log.error("Error getting DagAction from the queue / creating DagTask", t);
@@ -108,7 +106,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     return null;
   }
 
-  private DagTask createDagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus) {
+  private DagTask createDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus) {
     DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
     switch (dagActionType) {

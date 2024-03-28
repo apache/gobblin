@@ -37,8 +37,6 @@ import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
 
 
@@ -47,7 +45,7 @@ import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
  * added capabilities to properly handle the result of attempted ownership over these flow action events. It uses the
  * {@link MultiActiveLeaseArbiter} to determine a single lease owner at a given event time for a flow action event.
  * If the status of the lease ownership attempt is anything other than an indication the lease has been completed
- * ({@link org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter.NoLongerLeasingStatus}) then the
+ * ({@link LeaseAttemptStatus.NoLongerLeasingStatus}) then the
  * {@link MultiActiveLeaseArbiter#tryAcquireLease} method will set a reminder for the flow action using
  * {@link DagActionReminderScheduler} to reattempt the lease after the current lease holder's grant would have expired.
  */
@@ -72,17 +70,17 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
    * Attempts a lease for a particular job event and sets a reminder to revisit if the lease has not been completed.
    */
   @Override
-  public MultiActiveLeaseArbiter.LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
+  public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis,
       boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) {
     if (this.decoratedLeaseArbiter.isPresent()) {
       try {
-        MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus =
+        LeaseAttemptStatus leaseAttemptStatus =
             this.decoratedLeaseArbiter.get().tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent,
                 skipFlowExecutionIdReplacement);
       /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
       we, when we might become the lease owner still fail to complete processing
       */
-        if (!(leaseAttemptStatus instanceof NoLongerLeasingStatus)) {
+        if (!(leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus)) {
           scheduleReminderForEvent(leaseAttemptStatus);
         }
         return leaseAttemptStatus;
@@ -95,7 +93,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
   }
 
   @Override
-  public boolean recordLeaseSuccess(LeaseObtainedStatus status)
+  public boolean recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus status)
       throws IOException {
     if (!this.decoratedLeaseArbiter.isPresent()) {
       throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
@@ -103,7 +101,7 @@ public class ReminderSettingDagProcLeaseArbiter implements MultiActiveLeaseArbit
     return this.decoratedLeaseArbiter.get().recordLeaseSuccess(status);
   }
 
-  protected void scheduleReminderForEvent(MultiActiveLeaseArbiter.LeaseAttemptStatus leaseStatus)
+  protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
     if (!this.dagActionReminderScheduler.isPresent()) {
       throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
