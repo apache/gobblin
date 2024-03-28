@@ -80,7 +80,6 @@ public class DagProcessingEngineTest {
     topologySpecMap.put(specExecURI, topologySpec);
     this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null, null);
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
-    // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.empty(), false);

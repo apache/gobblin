@@ -19,7 +19,9 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -43,6 +45,7 @@ public abstract class DagProc<S, T> {
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
   protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
       metricContext, "org.apache.gobblin.service").build();
+  @Getter(AccessLevel.PROTECTED)
   private final DagTask dagTask;
 
   public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {

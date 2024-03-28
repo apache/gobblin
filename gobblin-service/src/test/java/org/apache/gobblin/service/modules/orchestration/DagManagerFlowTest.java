@@ -58,6 +58,10 @@ import org.apache.gobblin.util.ConfigUtils;
 import static org.mockito.Mockito.*;
 
 
+/**
+ * Tests the state updates (including updating in-memory state and MysqlDagActionStore) after performing add or cancel
+ * operations by calling addDag, stopDag, kill, and resume. It also tests flows with and without sla configs.
+ */
 public class DagManagerFlowTest {
   MockedDagManager dagManager;
   int dagNumThreads;

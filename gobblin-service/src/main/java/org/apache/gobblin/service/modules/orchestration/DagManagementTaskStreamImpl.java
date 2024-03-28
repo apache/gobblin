@@ -76,8 +76,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
-  private final String MISSING_OPTIONAL_ERROR_MESSAGE = String.format("Multi-active execution enabled but required "
-      + "instance %s is absent.", DagActionReminderScheduler.class.getSimpleName());
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
@@ -86,6 +84,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.config = config;
     if (!dagActionStore.isPresent()) {
+      /* DagActionStore is optional because there are other configurations that do not require it and it's initialized
+      in {@link GobblinServiceGuiceModule} which handles all possible configurations */
       throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
     }
     this.dagActionStore = dagActionStore;
@@ -95,7 +95,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
     if (this.isMultiActiveExecutionEnabled && !this.dagActionReminderScheduler.isPresent()) {
-      throw new RuntimeException(MISSING_OPTIONAL_ERROR_MESSAGE);
+      throw new RuntimeException(String.format("Multi-active execution enabled but required "
+          + "instance %s is absent.", DagActionReminderScheduler.class.getSimpleName()));
     }
   }
 
@@ -116,19 +117,20 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
-    try {
       LeaseAttemptStatus leaseAttemptStatus = null;
       DagActionStore.DagAction dagAction = null;
-      while (!(leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus)) {
-        dagAction = this.dagActionQueue.take();  //`take` blocks till element is not available
+      while (true) {
+        try {
+        dagAction = this.dagActionQueue.take();
         leaseAttemptStatus = retrieveLeaseStatus(dagAction);
+        } catch (Exception e) {
+          //TODO: need to handle exceptions gracefully
+          log.error("Exception getting DagAction from the queue / creating DagTask", e);
+        }
+        if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+          return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
+        }
       }
-      return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
-    } catch (Throwable t) {
-      //TODO: need to handle exceptions gracefully
-      log.error("Error getting DagAction from the queue / creating DagTask", t);
-    }
-    return null;
   }
 
   /**

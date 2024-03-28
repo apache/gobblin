@@ -116,7 +116,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
-  private static GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
+  private static volatile GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -252,7 +252,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
+    if (GOBBLIN_SERVICE_GUICE_MODULE != null) {
+      GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
+    }
 
     return getClass(GobblinServiceManager.class);
   }

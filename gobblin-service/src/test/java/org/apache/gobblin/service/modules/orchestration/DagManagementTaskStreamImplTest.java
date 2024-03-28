@@ -75,7 +75,6 @@ public class DagManagementTaskStreamImplTest {
     topologySpecMap.put(specExecURI, topologySpec);
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
-    // TODO: create tests for cases with multiActiveExecutionEnabled
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
@@ -88,7 +87,7 @@ public class DagManagementTaskStreamImplTest {
   /* This tests adding and removal of dag actions from dag task stream with a launch task. It verifies that the
   {@link DagManagementTaskStreamImpl#next()} call blocks until a {@link LeaseAttemptStatus.LeaseObtainedStatus} is
   returned for a particular action.
-  TODO: when we have different dag procs in future, update this test to add other types of actions (and tasks)
+  TODO: when we have different dag procs in the future, update this test to add other types of actions (and tasks)
   */
   @Test
   public void addRemoveDagActions()
