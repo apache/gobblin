@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -42,17 +41,19 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 /**
- * A class to group together all the utility methods used by various dag procs.
+ * A class to group together all the utility methods for {@link DagProc} derived class implementations.
  */
 @Slf4j
 public class DagProcUtils {
 
   /**
    * - submits a {@link JobSpec} to a {@link SpecExecutor}
-   * - updates metrics
+   * - emits a {@link TimingEvent.LauncherTimings#JOB_ORCHESTRATED} {@link org.apache.gobblin.metrics.GobblinTrackingEvent}
+   * that measures the time needed to submit the job to {@link SpecExecutor}
+   * - increment running jobs counter for the {@link Dag}, the proxy user that submitted the job and the {@link SpecExecutor} job was sent to
    * - add updated dag node state to dagManagementStateStore
    */
-  static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
+  public static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
       DagManager.DagId dagId) {
     DagManagerUtils.incrementJobAttempt(dagNode);
     JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
@@ -65,6 +66,7 @@ public class DagProcUtils {
     SpecProducer<Spec> producer;
     try {
       producer = DagManagerUtils.getSpecProducer(dagNode);
+      // todo - submits an event with some other name, because it is not really orchestration happening here
       TimingEvent jobOrchestrationTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED);
 
       // Increment job count before submitting the job onto the spec producer, in case that throws an exception.
@@ -108,11 +110,5 @@ public class DagProcUtils {
       }
       throw new RuntimeException(e);
     }
-  }
-
-  public static boolean hasRunningJobs(DagManager.DagId dagId, DagManagementStateStore dagManagementStateStore)
-      throws IOException {
-    List<Dag.DagNode<JobExecutionPlan>> dagNodes = dagManagementStateStore.getDagNodes(dagId);
-    return dagNodes != null && !dagNodes.isEmpty();
   }
 }

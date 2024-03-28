@@ -263,4 +263,9 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
       return java.util.Optional.empty();
     }
   }
+
+  @Override
+  public boolean hasRunningJobs(DagManager.DagId dagId) {
+    return !getDagNodes(dagId).isEmpty();
+  }
 }
