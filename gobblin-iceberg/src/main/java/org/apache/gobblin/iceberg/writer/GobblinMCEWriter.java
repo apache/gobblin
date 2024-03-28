@@ -202,20 +202,20 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   private void computeSpecMap(List<String> files, ConcurrentHashMap<String, Collection<HiveSpec>> specsMap,
       Cache<String, Collection<HiveSpec>> cache, State registerState, boolean isPrefix) throws IOException {
     try (Timer.Context context = hiveSpecComputationTimer.time()) {
-      HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(registerState);
       for (String file : files) {
         parallelRunner.submitCallable(new Callable<Void>() {
           @Override
           public Void call() throws Exception {
             try {
               Path regPath = isPrefix ? new Path(file) : new Path(file).getParent();
-              //Use raw path to comply with HDFS federation setting.
-              Path rawPath = new Path(regPath.toUri().getRawPath());
-              specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath)));
+              specsMap.put(regPath.toString(), cache.get(regPath.toString(), () -> {
+                HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(registerState);
+                //Use raw path to comply with HDFS federation setting.
+                Path rawPath = new Path(regPath.toUri().getRawPath());
+                return policy.getHiveSpecs(rawPath);}));
             } catch (Throwable e) {
               //todo: Emit failed GMCE in the future to easily track the error gmce and investigate the reason for that.
-              log.warn("Cannot get Hive Spec for {} using policy {} due to:", file, policy.toString());
-              log.warn(e.getMessage());
+              log.warn("Cannot get Hive Spec for {} due to: {}", file, e.getMessage());
             }
             return null;
           }

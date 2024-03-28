@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
 
 /**
@@ -27,8 +27,8 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
  */
 
 public class LaunchDagTask extends DagTask {
-  public LaunchDagTask(DagActionStore.DagAction dagAction,
-      MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus, DagActionStore dagActionStore) {
+  public LaunchDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
+      DagActionStore dagActionStore) {
     super(dagAction, leaseObtainedStatus, dagActionStore);
   }
 

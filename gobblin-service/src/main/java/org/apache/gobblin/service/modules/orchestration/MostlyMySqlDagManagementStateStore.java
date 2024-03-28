@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,9 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
@@ -42,6 +46,8 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatus;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -64,6 +70,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final Map<DagManager.DagId, Long> dagToDeadline = new ConcurrentHashMap<>();
   private DagStateStore dagStateStore;
   private DagStateStore failedDagStateStore;
+  private JobStatusRetriever jobStatusRetriever;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
@@ -75,10 +82,12 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
 
   @Inject
-  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager) {
+  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager,
+      JobStatusRetriever jobStatusRetriever) {
     this.quotaManager = userQuotaManager;
     this.config = config;
     this.flowCatalog = flowCatalog;
+    this.jobStatusRetriever = jobStatusRetriever;
     this.dagManagerMetrics.activate();
    }
 
@@ -194,7 +203,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
 
   @Override
   public Optional<Dag<JobExecutionPlan>> getDag(DagManager.DagId dagId) throws IOException {
-    return Optional.of(this.dagStateStore.getDag(dagId.toString()));
+    return Optional.ofNullable(this.dagStateStore.getDag(dagId.toString()));
   }
 
   @Override
@@ -202,11 +211,14 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     return this.dagStateStore.existsDag(dagId);
   }
 
-  @Override
-  public Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId) {
-    return Optional.of(this.dagNodes.get(dagNodeId));
+  public Optional<Pair<Dag.DagNode<JobExecutionPlan>, JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId) {
+    Optional<JobStatus> jobStatus = getJobStatus(dagNodeId);
+    if (this.dagNodes.containsKey(dagNodeId) && jobStatus.isPresent()) {
+      return Optional.of(ImmutablePair.of(this.dagNodes.get(dagNodeId), jobStatus.get()));
+    } else {
+      return Optional.empty();
+    }
   }
-
 
   @Override
   public Optional<Dag<JobExecutionPlan>> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode) {
@@ -236,5 +248,19 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public boolean releaseQuota(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     return this.quotaManager.releaseQuota(dagNode);
+  }
+
+  @Override
+  public Optional<JobStatus> getJobStatus(DagNodeId dagNodeId) {
+    Iterator<JobStatus> jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(dagNodeId.getFlowName(),
+        dagNodeId.getFlowGroup(), dagNodeId.getFlowExecutionId(), dagNodeId.getJobName(), dagNodeId.getJobGroup());
+
+    if (jobStatusIterator.hasNext()) {
+      // there must exist exactly one job status for a dag node id, because fields of dag node id makes the primary key
+      // of the job status table
+      return Optional.of(jobStatusIterator.next());
+    } else {
+      return java.util.Optional.empty();
+    }
   }
 }

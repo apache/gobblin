@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Objects;

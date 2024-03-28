@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.orchestration;
 
 import com.typesafe.config.Config;
 
@@ -27,13 +27,13 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 
 /**
  * A factory implementation that returns a {@link MultiActiveLeaseArbiter} instance used by the
- * {@link DagManagementTaskStreamImpl} in multi-active execution mode
+ * {@link FlowLaunchHandler} in multi-active scheduler mode
  */
 @Slf4j
-public class DagActionProcessingMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
+public class FlowLaunchMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
 
   @Inject
-  public DagActionProcessingMultiActiveLeaseArbiterFactory(Config config) {
-    super(config, ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME);
+  public FlowLaunchMultiActiveLeaseArbiterFactory(Config config) {
+    super(config, ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME);
   }
 }

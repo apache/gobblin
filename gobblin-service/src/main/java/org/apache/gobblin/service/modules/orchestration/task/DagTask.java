@@ -23,12 +23,12 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 
 
@@ -42,11 +42,11 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Slf4j
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
-  private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
+  private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
   private final DagActionStore dagActionStore;
   @Getter protected final DagManager.DagId dagId;
 
-  public DagTask(DagActionStore.DagAction dagAction, MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus,
+  public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagActionStore dagActionStore) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;

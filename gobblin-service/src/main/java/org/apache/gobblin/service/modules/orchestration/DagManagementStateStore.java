@@ -25,6 +25,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.exception.QuotaExceededException;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -32,6 +34,7 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatus;
 
 
 /**
@@ -129,11 +132,11 @@ public interface DagManagementStateStore {
   void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}, or Optional.absent if it
-   * is not found.
+   * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus},
+   * or Optional.absent if it is not found.
    * @param dagNodeId of the dag node
    */
-  Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId);
+  Optional<Pair<Dag.DagNode<JobExecutionPlan>, JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId);
 
   /**
    * Returns a list of {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for a {@link Dag}.
@@ -186,4 +189,9 @@ public interface DagManagementStateStore {
    * Returns a {@link DagManagerMetrics} that monitors dags execution.
    */
   DagManagerMetrics getDagManagerMetrics();
+
+  /**
+   * @return {@link JobStatus} or {@link Optional#empty} if not present in the Job-Status Store
+   */
+  Optional<JobStatus> getJobStatus(DagNodeId dagNodeId);
 }

@@ -48,9 +48,11 @@ import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.ClustersNames;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Metrics;
 
@@ -77,10 +79,12 @@ public abstract class GobblinMCEProducer implements Closeable {
   @Setter
   protected State state;
   protected MetricContext metricContext;
+  protected FileSystem fs;
 
-  public GobblinMCEProducer(State state) {
+  public GobblinMCEProducer(State state) throws IOException {
     this.state = state;
     this.metricContext = Instrumented.getMetricContext(state, this.getClass());
+    this.fs = FileSystem.get(HadoopUtils.getConfFromState(state));
   }
 
   public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
@@ -254,9 +258,16 @@ public abstract class GobblinMCEProducer implements Closeable {
   }
 
   private DataFile.Builder createBuilderWithFilePath(Path filePath) {
-    return DataFile.newBuilder()
-        .setFilePath(filePath.toString())
-        .setFileFormat(IcebergUtils.getIcebergFormat(state).toString());
+    try {
+      long len = this.fs.getFileStatus(filePath).getLen();
+      return DataFile.newBuilder()
+          .setFilePath(filePath.toString())
+          .setFileFormat(IcebergUtils.getIcebergFormat(state).toString())
+          .setFileSize(len);
+    } catch (IOException e) {
+      log.error("fail to get the iceberg data file for {}, due to {}", filePath, e);
+      throw new RuntimeException(e);
+    }
   }
 
   private void addMetricsToFileBuilder(DataFile.Builder builder, Metrics metrics) {

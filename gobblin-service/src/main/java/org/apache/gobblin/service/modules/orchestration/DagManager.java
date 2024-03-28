@@ -65,7 +65,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.api.DagActionStore;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -86,8 +85,8 @@ import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static org.apache.gobblin.runtime.api.DagActionStore.NO_JOB_NAME_DEFAULT;
 import static org.apache.gobblin.service.ExecutionStatus.*;
+import static org.apache.gobblin.service.modules.orchestration.DagActionStore.NO_JOB_NAME_DEFAULT;
 
 
 /**

@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -29,27 +26,32 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.Random;
-import javax.inject.Inject;
-import javax.inject.Named;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareCounter;
-import org.apache.gobblin.metrics.ContextAwareMeter;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
-import org.apache.gobblin.scheduler.JobScheduler;
-import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
-import org.apache.gobblin.util.ConfigUtils;
+
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.impl.JobDetailImpl;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.scheduler.JobScheduler;
+import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -58,7 +60,7 @@ import org.quartz.impl.JobDetailImpl;
  * lease owner at a given time for the launch dag action event. After acquiring the lease, it persists the dag action
  * event to the {@link DagActionStore} to be eventually acted upon by execution module of host(s) to execute the launch.
  * Once it has completed persisting the action to the store, it will mark the lease as completed by calling the
- * {@link MultiActiveLeaseArbiter#recordLeaseSuccess(MultiActiveLeaseArbiter.LeaseObtainedStatus)} method. Hosts
+ * {@link MultiActiveLeaseArbiter#recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus)} method. Hosts
  * that do not gain the lease for the event, instead schedule a reminder using the {@link SchedulerService} to check
  * back in on the previous lease owner's completion status after the lease should expire to ensure the event is handled
  * in failure cases.
@@ -107,12 +109,12 @@ public class FlowLaunchHandler {
   public void handleFlowLaunchTriggerEvent(Properties jobProps, DagActionStore.DagAction dagAction,
       long eventTimeMillis, boolean isReminderEvent, boolean skipFlowExecutionIdReplacement) throws IOException {
       if (this.multiActiveLeaseArbiter.isPresent()) {
-        MultiActiveLeaseArbiter.LeaseAttemptStatus
+        LeaseAttemptStatus
             leaseAttemptStatus = this.multiActiveLeaseArbiter.get()
             .tryAcquireLease(dagAction, eventTimeMillis, isReminderEvent, skipFlowExecutionIdReplacement);
-        if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeaseObtainedStatus) {
-          MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus =
-              (MultiActiveLeaseArbiter.LeaseObtainedStatus) leaseAttemptStatus;
+        if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+          LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus =
+              (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus;
           if (persistDagAction(leaseObtainedStatus)) {
             log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseObtainedStatus.getDagAction(),
                 leaseObtainedStatus.getEventTimeMillis());
@@ -121,9 +123,9 @@ public class FlowLaunchHandler {
           // If persisting the dag action failed, then we set another trigger for this event to occur immediately to
           // re-attempt handling the event
           scheduleReminderForEvent(jobProps,
-              new MultiActiveLeaseArbiter.LeasedToAnotherStatus(leaseObtainedStatus.getDagAction(), 0L), eventTimeMillis);
-        } else if (leaseAttemptStatus instanceof MultiActiveLeaseArbiter.LeasedToAnotherStatus) {
-          scheduleReminderForEvent(jobProps, (MultiActiveLeaseArbiter.LeasedToAnotherStatus) leaseAttemptStatus,
+              new LeaseAttemptStatus.LeasedToAnotherStatus(leaseObtainedStatus.getDagAction(), 0L), eventTimeMillis);
+        } else if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus) {
+          scheduleReminderForEvent(jobProps, (LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttemptStatus,
               eventTimeMillis);
         }
         // Otherwise leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus & no need to do anything
@@ -134,7 +136,7 @@ public class FlowLaunchHandler {
   }
 
   // Called after obtaining a lease to persist the dag action to {@link DagActionStore} and mark the lease as done
-  private boolean persistDagAction(MultiActiveLeaseArbiter.LeaseObtainedStatus leaseStatus) {
+  private boolean persistDagAction(LeaseAttemptStatus.LeaseObtainedStatus leaseStatus) {
     if (this.dagActionStore.isPresent() && this.multiActiveLeaseArbiter.isPresent()) {
       try {
         DagActionStore.DagAction dagAction = leaseStatus.getDagAction();
@@ -159,7 +161,7 @@ public class FlowLaunchHandler {
    * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
    * @param triggerEventTimeMillis the event timestamp we were originally handling
    */
-  private void scheduleReminderForEvent(Properties jobProps, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
+  private void scheduleReminderForEvent(Properties jobProps, LeaseAttemptStatus.LeasedToAnotherStatus status,
       long triggerEventTimeMillis) {
     DagActionStore.DagAction dagAction = status.getDagAction();
     JobKey origJobKey = new JobKey(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "<<no job name>>"),
@@ -190,7 +192,7 @@ public class FlowLaunchHandler {
    * @return Trigger for reminder
    * @throws SchedulerException
    */
-  protected Trigger createAndScheduleReminder(JobKey origJobKey, MultiActiveLeaseArbiter.LeasedToAnotherStatus status,
+  protected Trigger createAndScheduleReminder(JobKey origJobKey, LeaseAttemptStatus.LeasedToAnotherStatus status,
       long triggerEventTimeMillis) throws SchedulerException {
     // Generate a suffix to differentiate the reminder Job and Trigger from the original JobKey and Trigger, so we can
     // allow us to keep track of additional properties needed for reminder events (all triggers associated with one job
@@ -214,7 +216,7 @@ public class FlowLaunchHandler {
    * @return
    */
   @VisibleForTesting
-  public static String createSuffixForJobTrigger(MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus) {
+  public static String createSuffixForJobTrigger(LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus) {
     return "reminder_for_" + leasedToAnotherStatus.getEventTimeMillis();
   }
 
@@ -229,7 +231,7 @@ public class FlowLaunchHandler {
    * @throws SchedulerException
    */
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus status)
+      LeaseAttemptStatus.LeasedToAnotherStatus status)
       throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
@@ -253,7 +255,7 @@ public class FlowLaunchHandler {
    */
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
-      MultiActiveLeaseArbiter.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
+      LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()

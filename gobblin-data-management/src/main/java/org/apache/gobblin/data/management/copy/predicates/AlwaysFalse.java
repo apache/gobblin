@@ -15,17 +15,20 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.data.management.copy.predicates;
 
-import java.io.IOException;
+import com.google.common.base.Predicate;
+
+import javax.annotation.Nullable;
 
 
 /**
- * An interface to provide abstractions for managing operations on Dag.
- * It accepts a {@link DagActionStore.DagAction} which can be processed later.
- * Consumption of the Dags happen through {@link DagTaskStream}.
+ * Predicate that is always false.
  */
-public interface DagManagement {
+public class AlwaysFalse<T> implements Predicate<T> {
 
-  void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
+  @Override
+  public boolean apply(@Nullable T input) {
+    return false;
+  }
 }

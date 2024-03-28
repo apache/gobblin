@@ -904,6 +904,20 @@ public class ConfigurationKeys {
   //Custom-reporting
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
 
+  // Opentelemetry based metrics reporting
+  public static final String METRICS_REPORTING_OPENTELEMETRY_ENABLED =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemtry.metrics.enabled";
+
+  public static final String METRICS_REPORTING_OPENTELEMETRY_CONFIGS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.configs";
+  public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
+
+  public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.endpoint";
+
+  public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS =
+      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.interval.millis";
+
   /**
    * Rest server configuration properties.
    */
