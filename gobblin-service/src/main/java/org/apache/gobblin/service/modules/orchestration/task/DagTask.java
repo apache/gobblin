@@ -18,9 +18,9 @@
 package org.apache.gobblin.service.modules.orchestration.task;
 
 import java.io.IOException;
-import java.sql.SQLException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.DagActionStore;
@@ -39,6 +39,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
  */
 
 @Alpha
+@Slf4j
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final MultiActiveLeaseArbiter.LeaseObtainedStatus leaseObtainedStatus;
@@ -60,15 +61,11 @@ public abstract class DagTask {
    * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
-  // todo call it from the right place
   public boolean conclude() {
     try {
-      // If dagAction is not present in store then it has been deleted by another participant, so we can skip deletion
-      if (this.dagActionStore.exists(this.dagAction)) {
-        this.dagActionStore.deleteDagAction(this.dagAction);
-      }
+      this.dagActionStore.deleteDagAction(this.dagAction);
       return this.leaseObtainedStatus.completeLease();
-    } catch (IOException | SQLException e) {
+    } catch (IOException e) {
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
       throw new RuntimeException(e);
     }

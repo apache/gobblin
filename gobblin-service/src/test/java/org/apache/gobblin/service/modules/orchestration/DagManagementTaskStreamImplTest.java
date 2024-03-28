@@ -79,7 +79,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     // TODO: create tests for cases with multiActiveExecutionEnabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(),
+        new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
             false);
     this.dagProcFactory = new DagProcFactory(null);

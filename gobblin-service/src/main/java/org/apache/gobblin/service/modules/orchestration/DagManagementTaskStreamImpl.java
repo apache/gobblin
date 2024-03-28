@@ -86,6 +86,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.config = config;
+    if (!dagActionStore.isPresent()) {
+      throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
+    }
     this.dagActionStore = dagActionStore;
     this.dagActionExecutionLeaseArbiter = dagActionExecutionLeaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;

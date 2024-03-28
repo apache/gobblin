@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -267,8 +266,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static <T> T getClass(Class<T> classToGet) {
     if (GOBBLIN_SERVICE_GUICE_MODULE == null) {
       throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
-          + "initialize GobblinServiceGuiceModule. Stacktrace of current thread %s", classToGet,
-          Arrays.toString(Thread.currentThread().getStackTrace()).replace(", ", "\n  at ")));
+          + "initialize GobblinServiceGuiceModule.", classToGet));
     }
     Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
     return injector.getInstance(classToGet);

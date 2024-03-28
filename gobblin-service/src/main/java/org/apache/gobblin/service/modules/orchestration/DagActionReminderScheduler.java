@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.function.Supplier;
 
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -65,7 +66,7 @@ public class DagActionReminderScheduler {
   public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
       throws SchedulerException {
     JobDetail jobDetail = createReminderJobDetail(dagAction);
-    Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis);
+    Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis, System::currentTimeMillis);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
@@ -113,17 +114,8 @@ public class DagActionReminderScheduler {
    * Creates a key for the reminder job by concatenating all dagAction fields
    */
   public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
-    return createDagActionReminderKey(dagAction.getFlowName(), dagAction.getFlowGroup(), dagAction.getFlowExecutionId(),
-        dagAction.getJobName(), dagAction.getDagActionType());
-  }
-
-  /**
-   * Creates a key for the reminder job by concatenating flowName, flowGroup, flowExecutionId, jobName, dagActionType
-   * in that order
-   */
-  public static String createDagActionReminderKey(String flowName, String flowGroup, String flowId, String jobName,
-      DagActionStore.DagActionType dagActionType) {
-    return String.format("%s.%s.%s.%s.%s", flowGroup, flowName, flowId, jobName, dagActionType);
+    return String.format("%s.%s.%s.%s.%s", dagAction.getFlowGroup(), dagAction.getFlowName(),
+        dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType());
   }
 
   /**
@@ -139,19 +131,21 @@ public class DagActionReminderScheduler {
     dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
         .usingJobData(dataMap)
         .build();
   }
 
   /**
    * Creates a Trigger object with the same key as the ReminderJob (since only one trigger is expected to be associated
-   * with a job at any given time) that should fire after `reminderDurationMillis` millis.
+   * with a job at any given time) that should fire after `reminderDurationMillis` millis. It uses
+   * `getCurrentTimeMillis` to determine the current time.
    */
-  public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis) {
+  public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
+      Supplier<Long> getCurrentTimeMillis) {
     Trigger trigger = TriggerBuilder.newTrigger()
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowName())
-        .startAt(new Date(System.currentTimeMillis() + reminderDurationMillis))
+        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
     return trigger;
   }
