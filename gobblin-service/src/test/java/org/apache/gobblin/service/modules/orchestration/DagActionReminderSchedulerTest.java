@@ -30,7 +30,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.DagActionStore;
 
 
 public class DagActionReminderSchedulerTest {
