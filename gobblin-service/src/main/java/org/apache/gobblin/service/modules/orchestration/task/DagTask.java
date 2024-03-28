@@ -22,6 +22,7 @@ import java.io.IOException;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
@@ -42,11 +43,14 @@ public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
   @Getter protected final DagManager.DagId dagId;
+  @Getter protected final DagNodeId dagNodeId;
 
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
+    this.dagNodeId = new DagNodeId(dagAction.getFlowGroup(), dagAction.getFlowName(),
+        Long.parseLong(dagAction.getFlowExecutionId()), dagAction.getFlowGroup(), dagAction.getJobName());
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);

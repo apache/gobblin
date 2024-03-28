@@ -24,6 +24,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +34,8 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -49,24 +52,29 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final JobIssueEventHandler jobIssueEventHandler;
   private final MultiContextIssueRepository issueRepository;
   private final boolean instrumentationEnabled;
+  private final DagActionStore dagActionStore;
+  private final boolean dagProcEngineEnabled;
 
   @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      GobblinInstanceEnvironment env) {
-    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled());
+      GobblinInstanceEnvironment env, DagActionStore dagActionStore, @Named(InjectionNames.DAG_PROC_ENGINE_ENABLED) boolean dagProcEngineEnabled) {
+    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled(), dagActionStore, dagProcEngineEnabled);
   }
 
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      boolean instrumentationEnabled) {
+      boolean instrumentationEnabled, DagActionStore dagActionStore, boolean dagProcEngineEnabled) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;
+    this.dagActionStore = dagActionStore;
+    this.dagProcEngineEnabled = dagProcEngineEnabled;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
       throws ReflectiveOperationException {
     Config jobStatusConfig = config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX);
+    jobStatusConfig = jobStatusConfig.withValue(InjectionNames.DAG_PROC_ENGINE_ENABLED, ConfigValueFactory.fromAnyRef(this.dagProcEngineEnabled));
 
     String topic = jobStatusConfig.getString(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_TOPIC_KEY);
     int numThreads = ConfigUtils.getInt(jobStatusConfig, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_NUM_THREADS_KEY, 5);
@@ -95,7 +103,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
         observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository, this.instrumentationEnabled);
 
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
-        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer);
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer, dagActionStore);
   }
 
   @Override

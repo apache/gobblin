@@ -246,7 +246,7 @@ public class DagManagerUtils {
     return nextNodesToExecute;
   }
 
-  static FailureOption getFailureOption(Dag<JobExecutionPlan> dag) {
+  public static FailureOption getFailureOption(Dag<JobExecutionPlan> dag) {
     if (dag.isEmpty()) {
       return null;
     }

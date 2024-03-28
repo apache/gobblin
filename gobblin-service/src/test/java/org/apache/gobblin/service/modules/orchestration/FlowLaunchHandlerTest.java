@@ -18,11 +18,13 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.util.Properties;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
+
 import org.junit.Assert;
 import org.quartz.JobDataMap;
 import org.testng.annotations.Test;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
 
 public class FlowLaunchHandlerTest {

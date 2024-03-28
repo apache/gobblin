@@ -154,6 +154,11 @@ public class DagManagerTest {
 
   public static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser, Config additionalConfig)
       throws URISyntaxException {
+    if (additionalConfig.hasPath(ConfigurationKeys.JOB_NAME_KEY)) {
+      throw new RuntimeException("Please do not set " + ConfigurationKeys.JOB_NAME_KEY + " because this method is "
+          + "using hard coded job names in setting " + ConfigurationKeys.JOB_DEPENDENCIES);
+    }
+
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < numNodes; i++) {
@@ -188,7 +193,7 @@ public class DagManagerTest {
     return getMockJobStatus(flowName, flowGroup, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, eventName);
   }
 
-  static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
+  public static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
     return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false, flowExecutionId + 10);
   }
 
