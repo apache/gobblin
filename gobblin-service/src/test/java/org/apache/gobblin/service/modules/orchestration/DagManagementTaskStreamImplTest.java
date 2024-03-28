@@ -103,7 +103,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
-    when(dagManagementTaskStream.getDagActionExecutionLeaseArbiter()
+    when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
         .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
         .thenReturn(new MultiActiveLeaseArbiter.NoLongerLeasingStatus(),
             new MultiActiveLeaseArbiter.LeasedToAnotherStatus(launchAction, 15),

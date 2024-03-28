@@ -40,7 +40,7 @@ import javax.inject.Singleton;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.DagActionStore;
-import org.apache.gobblin.runtime.api.DagActionExecutionMultiActiveLeaseArbiterFactory;
+import org.apache.gobblin.runtime.api.DagActionProcessingMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.runtime.api.FlowLaunchMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.MultiActiveLeaseArbiter;
@@ -209,9 +209,9 @@ public class GobblinServiceGuiceModule implements Module {
       binding time (optionally bound classes cannot have names associated with them). Unlike, the scheduler lease arbiter,
       the execution lease arbiter is used in single-active or multi-active execution. */
       binder.bind(MultiActiveLeaseArbiter.class).
-              annotatedWith(Names.named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME))
+              annotatedWith(Names.named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME))
           .toProvider(
-              DagActionExecutionMultiActiveLeaseArbiterFactory.class);
+              DagActionProcessingMultiActiveLeaseArbiterFactory.class);
       // Multi-active execution is only compatible with dagProcessingEngine configuration
       if (serviceConfig.isMultiActiveExecutionEnabled()) {
         binder.bind(DagActionReminderScheduler.class);

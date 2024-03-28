@@ -71,7 +71,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject(optional=true)
   protected Optional<DagActionStore> dagActionStore;
-  protected MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter;
+  protected MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter;
   protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
   private final boolean isMultiActiveExecutionEnabled;
   @Inject
@@ -82,7 +82,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
-      @Named(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionExecutionLeaseArbiter,
+      @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
     this.config = config;
@@ -90,7 +90,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
     }
     this.dagActionStore = dagActionStore;
-    this.dagActionExecutionLeaseArbiter = dagActionExecutionLeaseArbiter;
+    this.dagActionProcessingLeaseArbiter = dagActionProcessingLeaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -145,7 +145,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throws IOException, SchedulerException {
     MultiActiveLeaseArbiter.LeaseAttemptStatus leaseAttemptStatus;
     // TODO: need to handle reminder events and flag them
-    leaseAttemptStatus = this.dagActionExecutionLeaseArbiter
+    leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
         .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing

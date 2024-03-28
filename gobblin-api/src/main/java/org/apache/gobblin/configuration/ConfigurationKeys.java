@@ -101,7 +101,7 @@ public class ConfigurationKeys {
   public static final long DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY = 3 * 24 * 60 * 60; // (3 days in seconds)
   // Scheduler lease determination store configuration
   public static final String SCHEDULER_LEASE_ARBITER_NAME = "SchedulerFlowLaunchLeaseArbiter";
-  public static final String EXECUTOR_LEASE_ARBITER_NAME = "DagActionExecutorLeaseArbiter";
+  public static final String PROCESSING_LEASE_ARBITER_NAME = "DagActionProcessingLeaseArbiter";
   public static final String MYSQL_LEASE_ARBITER_PREFIX = "MysqlMultiActiveLeaseArbiter";
   public static final String MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + ".constantsTable";
   public static final String LEASE_DETERMINATION_STORE_DB_TABLE_KEY = MYSQL_LEASE_ARBITER_PREFIX + "." + STATE_STORE_DB_TABLE_KEY;

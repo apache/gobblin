@@ -30,10 +30,10 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
  * {@link DagManagementTaskStreamImpl} in multi-active execution mode
  */
 @Slf4j
-public class DagActionExecutionMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
+public class DagActionProcessingMultiActiveLeaseArbiterFactory extends MultiActiveLeaseArbiterFactory {
 
   @Inject
-  public DagActionExecutionMultiActiveLeaseArbiterFactory(Config config) {
-    super(config, ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME);
+  public DagActionProcessingMultiActiveLeaseArbiterFactory(Config config) {
+    super(config, ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME);
   }
 }

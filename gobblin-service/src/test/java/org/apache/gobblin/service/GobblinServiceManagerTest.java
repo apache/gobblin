@@ -194,9 +194,9 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, true);
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED, true);
-    serviceCoreProperties.put(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, "leaseDeterminationStore");
-    serviceCoreProperties.put(ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, "executionConstantsStore");
-    String prefix = ConfigurationKeys.EXECUTOR_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + ".";
+    serviceCoreProperties.put(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME + "." + ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, "leaseDeterminationStore");
+    serviceCoreProperties.put(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, "executionConstantsStore");
+    String prefix = ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME + "." + ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + ".";
     ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
     serviceCoreProperties.put(prefix + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl());
     serviceCoreProperties.put(prefix + ConfigurationKeys.STATE_STORE_DB_USER_KEY, "testUser");
