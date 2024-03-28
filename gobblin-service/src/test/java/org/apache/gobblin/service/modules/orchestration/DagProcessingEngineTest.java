@@ -82,8 +82,8 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     // TODO create another test with multiActiveExecution enabled
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), mock(MultiActiveLeaseArbiter.class),
-            Optional.empty(), false);
+        new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
+            mock(MultiActiveLeaseArbiter.class), Optional.empty(), false);
     this.dagProcFactory = new DagProcFactory(null);
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,

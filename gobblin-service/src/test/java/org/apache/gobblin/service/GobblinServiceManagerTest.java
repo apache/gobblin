@@ -192,6 +192,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(AbstractUserQuotaManager.PER_USER_QUOTA, "testUser:1");
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
 
+    serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, true);
     serviceCoreProperties.put(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, true);
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED, true);
     serviceCoreProperties.put(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME + "." + ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, "leaseDeterminationStore");
