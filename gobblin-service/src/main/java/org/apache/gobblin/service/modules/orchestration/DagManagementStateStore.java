@@ -191,7 +191,7 @@ public interface DagManagementStateStore {
   DagManagerMetrics getDagManagerMetrics();
 
   /**
-   * Returns job status or empty optional if job status is not present in the JobStatusStore.
+   * @return {@link JobStatus} or {@link Optional#empty} if not present in the Job-Status Store
    */
   Optional<JobStatus> getJobStatus(DagNodeId dagNodeId);
 }
