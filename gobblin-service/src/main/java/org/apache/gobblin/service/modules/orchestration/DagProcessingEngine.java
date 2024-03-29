@@ -97,7 +97,7 @@ public class DagProcessingEngine {
           dagProc.process(dagManagementStateStore);
           dagTask.conclude();
         } catch (Exception e) {
-          log.error("DagProcEngineThread encountered exception while processing dag " + dagTask.getDagId(), e);
+          log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
         // todo mark lease success and releases it

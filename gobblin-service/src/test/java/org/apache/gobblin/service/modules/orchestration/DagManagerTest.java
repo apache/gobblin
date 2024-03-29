@@ -154,6 +154,11 @@ public class DagManagerTest {
 
   public static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser, Config additionalConfig)
       throws URISyntaxException {
+    if (additionalConfig.hasPath(ConfigurationKeys.JOB_NAME_KEY)) {
+      throw new RuntimeException("Please do not set " + ConfigurationKeys.JOB_NAME_KEY + " because this method is "
+          + "using hard coded job names in setting " + ConfigurationKeys.JOB_DEPENDENCIES);
+    }
+
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < numNodes; i++) {

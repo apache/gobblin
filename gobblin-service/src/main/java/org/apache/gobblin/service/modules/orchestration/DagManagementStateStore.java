@@ -194,4 +194,10 @@ public interface DagManagementStateStore {
    * @return {@link JobStatus} or {@link Optional#empty} if not present in the Job-Status Store
    */
   Optional<JobStatus> getJobStatus(DagNodeId dagNodeId);
+
+  /**
+   * Returns true if the {@link Dag} identified by the given {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
+   * has any running job, false otherwise.
+   */
+  public boolean hasRunningJobs(DagManager.DagId dagId);
 }

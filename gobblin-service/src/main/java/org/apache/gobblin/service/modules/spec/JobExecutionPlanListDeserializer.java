@@ -120,7 +120,6 @@ public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<J
         String jobExecutionFuture = serializedJobExecutionPlan.get(SerializationConstants.JOB_EXECUTION_FUTURE).getAsString();
         Future future = specExecutor.getProducer().get().deserializeAddSpecResponse(jobExecutionFuture);
         jobExecutionPlan.setJobFuture(Optional.fromNullable(future));
-
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Error during deserialization of JobExecutionFuture.");
         throw new RuntimeException(e);
