@@ -37,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.ack.Ackable;
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContextUtils;
 import org.apache.gobblin.publisher.DataPublisher;
@@ -52,6 +53,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.LastWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkStorage;
 import org.apache.gobblin.writer.WatermarkTracker;
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -87,6 +89,9 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
 
   public static final String WATERMARK_COMMIT_TIME_METRIC = "state.store.metrics.watermarkCommitTime";
   public static final String COMMIT_STEP_METRIC_PREFIX = "commit.step.";
+
+  public static final String WRITER_OUTPUT_DIR_UPDATE_ENABLED =
+      "extractor.writerOutputDirUpdateEnabled";
 
   @Getter
   protected Map<String, CheckpointableWatermark> lastCommittedWatermarks;
@@ -129,6 +134,21 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
     initFlushPublisher();
     MetricContextUtils.registerGauge(this.getMetricContext(), WATERMARK_COMMIT_TIME_METRIC, this.watermarkCommitTime);
     initCommitStepMetrics(this.preCommitSteps, this.postCommitSteps);
+
+    if (state.getPropAsBoolean(WRITER_OUTPUT_DIR_UPDATE_ENABLED, false)) {
+      updateTaskOutputPath(this.workUnitState);
+    }
+  }
+
+  private void updateTaskOutputPath(WorkUnitState workUnitState) {
+    if (this.workUnitState.contains(ConfigurationKeys.TASK_ATTEMPT_ID_KEY)) {
+      String taskAttemptId = workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY);
+      if (this.workUnitState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+        String writerOutputDirWithTaskAttemptId =
+            new Path(this.workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), taskAttemptId).toString();
+        this.workUnitState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithTaskAttemptId);
+      }
+    }
   }
 
   private void initCommitStepMetrics(List<String>... commitStepLists) {

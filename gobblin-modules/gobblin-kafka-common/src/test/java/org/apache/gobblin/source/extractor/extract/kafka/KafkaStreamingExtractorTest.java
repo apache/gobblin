@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -128,6 +129,21 @@ public class KafkaStreamingExtractorTest {
       RecordEnvelope<DecodeableKafkaRecord> recordEnvelope = streamingExtractorWithNulls.readRecordEnvelopeImpl();
       Assert.assertNotNull(recordEnvelope.getRecord().getValue() != null);
     }
+  }
+
+  @Test
+  public void testWriteOutputDirUpdate() {
+    WorkUnitState state = KafkaExtractorUtils.getWorkUnitState("testTopic", numPartitions);
+    state.setProp(FlushingExtractor.FLUSH_DATA_PUBLISHER_CLASS, TestDataPublisher.class.getName());
+    state.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, "GobblinYarnTaskRunner_1");
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, "/tmp/test");
+    state.setProp(FlushingExtractor.WRITER_OUTPUT_DIR_UPDATE_ENABLED, false);
+    new KafkaStreamingExtractor(state);
+    Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), "/tmp/test");
+    state.setProp(FlushingExtractor.WRITER_OUTPUT_DIR_UPDATE_ENABLED, true);
+    new KafkaStreamingExtractor(state);
+    Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        "/tmp/test/GobblinYarnTaskRunner_1");
   }
 
   static class TestDataPublisher extends DataPublisher {
