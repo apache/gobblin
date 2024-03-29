@@ -117,18 +117,16 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public DagTask next() {
-      LeaseAttemptStatus leaseAttemptStatus = null;
-      DagActionStore.DagAction dagAction = null;
       while (true) {
         try {
-        dagAction = this.dagActionQueue.take();
-        leaseAttemptStatus = retrieveLeaseStatus(dagAction);
+          DagActionStore.DagAction dagAction = this.dagActionQueue.take();
+          LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
+          if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+            return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
+          }
         } catch (Exception e) {
           //TODO: need to handle exceptions gracefully
           log.error("Exception getting DagAction from the queue / creating DagTask", e);
-        }
-        if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
-          return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
         }
       }
   }
