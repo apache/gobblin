@@ -18,16 +18,22 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
+
+import org.apache.hadoop.fs.Path;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.hadoop.fs.Path;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+
 
 /**
  * Conveys a {@link org.apache.gobblin.source.workunit.WorkUnit} by claim-check, where the `workUnitPath` is resolved
@@ -41,6 +47,7 @@ public class WorkUnitClaimCheck implements FileSystemApt, FileSystemJobStateful 
   @NonNull private String correlator;
   @NonNull private URI fileSystemUri;
   @NonNull private String workUnitPath;
+  @NonNull private EventSubmitterContext eventSubmitterContext;
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override

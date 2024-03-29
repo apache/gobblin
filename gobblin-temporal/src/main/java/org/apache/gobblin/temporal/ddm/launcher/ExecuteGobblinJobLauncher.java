@@ -21,15 +21,14 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.client.WorkflowOptions;
-
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;

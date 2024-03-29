@@ -21,6 +21,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.Path;
+
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.activity.ActivityOptions;
@@ -29,7 +31,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.Path;
