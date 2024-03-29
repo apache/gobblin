@@ -251,11 +251,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return create(new GobblinServiceConfiguration(serviceName, serviceId, config, serviceWorkDir));
   }
 
+  /**
+   * Uses the provided serviceConfiguration to create a new Guice module and obtain a new class associated with it.
+   * This method should only be called once per application.
+   */
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    if (GOBBLIN_SERVICE_GUICE_MODULE != null) {
-      GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
-    }
-
+    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
     return getClass(GobblinServiceManager.class);
   }
 
