@@ -29,7 +29,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.Maps;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -46,7 +45,6 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -58,28 +56,27 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
  * An implementation for {@link DagProc} that launches a new job.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Optional<Dag<JobExecutionPlan>>> {
-  private final LaunchDagTask launchDagTask;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
   // todo - this is not orchestration delay and should be renamed. keeping it the same because DagManager is also using
   // the same name
   private static final AtomicLong orchestrationDelayCounter = new AtomicLong(0);
+
+  public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+    super(launchDagTask);
+    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+  }
+
   static {
     metricContext.register(
         metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get));
   }
 
   @Override
-  protected DagManager.DagId getDagId() {
-    return this.launchDagTask.getDagId();
-  }
-
-  @Override
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
     try {
-      DagActionStore.DagAction dagAction = this.launchDagTask.getDagAction();
+      DagActionStore.DagAction dagAction = this.getDagTask().getDagAction();
       FlowSpec flowSpec = loadFlowSpec(dagManagementStateStore, dagAction);
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
       return this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
@@ -192,6 +189,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>, Opti
     }
   }
 
+  @Override
   protected void sendNotification(Optional<Dag<JobExecutionPlan>> result, EventSubmitter eventSubmitter) {
   }
 }

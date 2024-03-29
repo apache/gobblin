@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration.task;
 import java.io.IOException;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -38,26 +39,31 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
  */
 
 @Alpha
+@Slf4j
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
+  private final DagActionStore dagActionStore;
   @Getter protected final DagManager.DagId dagId;
 
-  public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus) {
+  public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
+      DagActionStore dagActionStore) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
+    this.dagActionStore = dagActionStore;
     this.dagId = DagManagerUtils.generateDagId(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);
 
   /**
-   * Any cleanup work, e.g. releasing lease if it was acquired earlier, may be done in this method.
+   * Any cleanup work, including removing the dagAction from the dagActionStore and completing the lease acquired to
+   * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
-  // todo call it from the right place
   public boolean conclude() {
     try {
+      this.dagActionStore.deleteDagAction(this.dagAction);
       return this.leaseObtainedStatus.completeLease();
     } catch (IOException e) {
       // TODO: Decide appropriate exception to throw and add to the commit method's signature

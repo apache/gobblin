@@ -38,13 +38,14 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 
 @Slf4j
 public class MysqlMultiActiveLeaseArbiterTest {
-  private static final long EPSILON = 10000;
+  private static final long EPSILON = 10000L;
   private static final long MORE_THAN_EPSILON = (long) (EPSILON * 1.1);
-  private static final long LINGER = 50000;
+  private static final long LINGER = 50000L;
   private static final long MORE_THAN_LINGER = (long) (LINGER * 1.1);
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "mysql_multi_active_lease_arbiter_store";
+  private static final String CONSTANTS_TABLE = "constants_store";
   private static final String flowGroup = "testFlowGroup";
   private static final String flowGroup2 = "testFlowGroup2";
   private static final String flowName = "testFlowName";
@@ -77,7 +78,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive(ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, CONSTANTS_TABLE)
         .build();
 
     this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(config);

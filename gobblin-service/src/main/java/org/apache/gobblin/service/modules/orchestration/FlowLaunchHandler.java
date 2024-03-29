@@ -50,7 +50,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -79,7 +78,8 @@ public class FlowLaunchHandler {
   private ContextAwareCounter failedToSetEventReminderCount;
 
   @Inject
-  public FlowLaunchHandler(Config config, @Named(GobblinServiceGuiceModule.SCHEDULER_LEASE_ARBITER_NAME) Optional<MultiActiveLeaseArbiter> leaseArbiter,
+  public FlowLaunchHandler(Config config,
+      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) Optional<MultiActiveLeaseArbiter> leaseArbiter,
       SchedulerService schedulerService, Optional<DagActionStore> dagActionStore) {
     this.multiActiveLeaseArbiter = leaseArbiter;
     this.dagActionStore = dagActionStore;
@@ -140,7 +140,7 @@ public class FlowLaunchHandler {
     if (this.dagActionStore.isPresent() && this.multiActiveLeaseArbiter.isPresent()) {
       try {
         DagActionStore.DagAction dagAction = leaseStatus.getDagAction();
-        this.dagActionStore.get().addDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
+        this.dagActionStore.get().addFlowDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
         // If the dag action has been persisted to the {@link DagActionStore} we can close the lease
         this.numFlowsSubmitted.mark();
         return this.multiActiveLeaseArbiter.get().recordLeaseSuccess(leaseStatus);

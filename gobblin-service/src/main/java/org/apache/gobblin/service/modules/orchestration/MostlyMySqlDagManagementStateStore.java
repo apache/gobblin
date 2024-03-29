@@ -35,6 +35,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
+import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,6 +61,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * They are used here to provide complete access to dag related information at one place.
  */
 @Slf4j
+@Singleton
 public class MostlyMySqlDagManagementStateStore implements DagManagementStateStore {
   private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new ConcurrentHashMap<>();
   private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new ConcurrentHashMap<>();

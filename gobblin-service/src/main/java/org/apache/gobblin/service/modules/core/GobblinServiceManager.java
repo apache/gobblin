@@ -116,6 +116,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
+  private static volatile GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -250,11 +251,28 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return create(new GobblinServiceConfiguration(serviceName, serviceId, config, serviceWorkDir));
   }
 
+  /**
+   * Uses the provided serviceConfiguration to create a new Guice module and obtain a new class associated with it.
+   * This method should only be called once per application.
+   */
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    GobblinServiceGuiceModule guiceModule = new GobblinServiceGuiceModule(serviceConfiguration);
+    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
+    return getClass(GobblinServiceManager.class);
+  }
 
-    Injector injector = Guice.createInjector(Stage.PRODUCTION, guiceModule);
-    return injector.getInstance(GobblinServiceManager.class);
+  /**
+   *
+   * @param classToGet
+   * @return a new object if the class type is not marked with @Singleton, otherwise the same instance of the class
+   * @param <T>
+   */
+  public static <T> T getClass(Class<T> classToGet) {
+    if (GOBBLIN_SERVICE_GUICE_MODULE == null) {
+      throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
+          + "initialize GobblinServiceGuiceModule.", classToGet));
+    }
+    Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
+    return injector.getInstance(classToGet);
   }
 
   public URI getRestLiServerListeningURI() {
@@ -633,14 +651,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       Config config = ConfigFactory.load();
 
-      GobblinServiceConfiguration serviceConfiguration =
-          new GobblinServiceConfiguration(cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd), config,
-              null);
-
-      GobblinServiceGuiceModule guiceModule = new GobblinServiceGuiceModule(serviceConfiguration);
-      Injector injector = Guice.createInjector(guiceModule);
-
-      try (GobblinServiceManager gobblinServiceManager = injector.getInstance(GobblinServiceManager.class)) {
+      try (GobblinServiceManager gobblinServiceManager =
+          create(cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd), config, null)) {
         gobblinServiceManager.start();
 
         if (isTestMode) {

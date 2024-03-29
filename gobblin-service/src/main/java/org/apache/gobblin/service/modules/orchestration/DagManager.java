@@ -86,6 +86,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
+import static org.apache.gobblin.service.modules.orchestration.DagActionStore.NO_JOB_NAME_DEFAULT;
 
 
 /**
@@ -183,8 +184,7 @@ public class DagManager extends AbstractIdleService {
     }
 
     DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
-      // defaults to empty jobName
-      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "", actionType);
+      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, actionType);
     }
   }
 
@@ -591,7 +591,7 @@ public class DagManager extends AbstractIdleService {
     private void removeDagActionFromStore(DagId dagId, DagActionStore.DagActionType dagActionType) throws IOException {
       if (this.dagActionStore.isPresent()) {
         this.dagActionStore.get().deleteDagAction(
-            new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, "", dagActionType));
+            new DagActionStore.DagAction(dagId.flowGroup, dagId.flowName, dagId.flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType));
       }
     }
 

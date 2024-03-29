@@ -29,7 +29,6 @@ import java.util.Optional;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
-import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
@@ -175,7 +174,6 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private static final ThreadLocal<Calendar> UTC_CAL =
       ThreadLocal.withInitial(() -> Calendar.getInstance(TimeZone.getTimeZone("UTC")));
 
-  @Inject
   public MysqlMultiActiveLeaseArbiter(Config config) throws IOException {
     if (config.hasPath(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX)) {
       config = config.getConfig(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX).withFallback(config);
@@ -184,17 +182,20 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           + "before all properties", ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX));
     }
 
-    // TODO: create two tables or take in table name as parameter to have scheduler and executor table
-    this.leaseArbiterTableName = ConfigUtils.getString(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
-        ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_STORE_DB_TABLE);
-    this.constantsTableName = ConfigUtils.getString(config, ConfigurationKeys.MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE_KEY,
-        ConfigurationKeys.DEFAULT_MULTI_ACTIVE_SCHEDULER_CONSTANTS_DB_TABLE);
+    if (!config.hasPath(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY)
+        || !config.hasPath(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY)) {
+      throw new RuntimeException(String.format("Table names %s and %s are required to be configured so multiple instances do not "
+          + "utilize the same table name", ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY,
+          ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY));
+    }
+    this.leaseArbiterTableName = config.getString(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY);
+    this.constantsTableName = config.getString(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY);
     this.epsilonMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_EPSILON_MILLIS);
     this.lingerMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_EVENT_LINGER_MILLIS);
-    this.retentionPeriodMillis = ConfigUtils.getLong(config, ConfigurationKeys.SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY,
-        ConfigurationKeys.DEFAULT_SCHEDULER_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS);
+    this.retentionPeriodMillis = ConfigUtils.getLong(config, ConfigurationKeys.LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS_KEY,
+        ConfigurationKeys.DEFAULT_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS);
     this.thisTableRetentionStatement = String.format(LEASE_ARBITER_TABLE_RETENTION_STATEMENT, this.leaseArbiterTableName,
         retentionPeriodMillis);
     this.thisTableGetInfoStatement = String.format(GET_EVENT_INFO_STATEMENT, this.leaseArbiterTableName,

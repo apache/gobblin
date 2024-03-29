@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,7 +76,9 @@ public class DagManagementTaskStreamImplTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null, null);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.empty(), Optional.of(mock(ReminderSettingDagProcLeaseArbiter.class)));
+        new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
+            false);
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
@@ -84,10 +87,11 @@ public class DagManagementTaskStreamImplTest {
   /* This tests adding and removal of dag actions from dag task stream with a launch task. It verifies that the
   {@link DagManagementTaskStreamImpl#next()} call blocks until a {@link LeaseAttemptStatus.LeaseObtainedStatus} is
   returned for a particular action.
-  TODO: when we have different dag procs in future, update this test to add other types of actions (and tasks)
+  TODO: when we have different dag procs in the future, update this test to add other types of actions (and tasks)
   */
   @Test
-  public void addRemoveDagActions() {
+  public void addRemoveDagActions()
+      throws IOException {
     /* Three duplicate actions are added to the task stream, since the first two calls to lease arbitration will return
     statuses that should cause the next() method to continue polling for tasks before finally providing the
      LeaseObtainedStatus to the taskStream to break its loop and return a newly created dagTask
@@ -96,7 +100,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
-    when(dagManagementTaskStream.getReminderSettingDagProcLeaseArbiter().get()
+    when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
         .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
         .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),
             new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 15),
