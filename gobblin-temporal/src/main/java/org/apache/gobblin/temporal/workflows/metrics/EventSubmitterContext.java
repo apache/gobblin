@@ -32,7 +32,6 @@ import lombok.NoArgsConstructor;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -103,7 +102,6 @@ public class EventSubmitterContext {
 
     public Builder withGaaSJobProps(Properties jobProps) {
       // TODO: Add temporal specific metadata tags
-      List<Tag<?>> customTags = GobblinMetrics.getCustomTagsFromState(new State(jobProps));
 
       if (jobProps.containsKey(ConfigurationKeys.FLOW_GROUP_KEY)) {
         this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY)));
