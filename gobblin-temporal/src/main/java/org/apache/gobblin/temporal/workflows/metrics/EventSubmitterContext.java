@@ -21,14 +21,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
-import com.google.common.collect.ImmutableList;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
 import lombok.NoArgsConstructor;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -125,7 +125,6 @@ public class EventSubmitterContext {
           jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
       this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
           jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
-      this.tags.add(new Tag<>(TimingEvent.METADATA_MESSAGE, ""));
 
       this.tags.add(new Tag<>(Help.USER_TO_PROXY_KEY, jobProps.getProperty(Help.USER_TO_PROXY_KEY, "")));
       return this;
