@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -40,22 +41,29 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
+import org.apache.gobblin.runtime.util.GsonUtils;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 
 @Slf4j
 public class CommitActivityImpl implements CommitActivity {
@@ -68,11 +76,11 @@ public class CommitActivityImpl implements CommitActivity {
   public int commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
-    String jobName = UNDEFINED_JOB_NAME;
+    Optional<String> jobNameOpt = Optional.empty();
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
-      jobName = jobState.getJobName();
+      jobNameOpt = Optional.of(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
@@ -87,12 +95,14 @@ public class CommitActivityImpl implements CommitActivity {
         return 0;
       }
       Queue<TaskState> taskStateQueue = taskStateQueueOpt.get();
-      commitTaskStates(jobState, ImmutableList.copyOf(taskStateQueue), globalGobblinContext);
+      Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(ImmutableList.copyOf(taskStateQueue));
+      commitTaskStates(jobState, datasetStatesByUrns, globalGobblinContext, jobNameOpt);
+      summarizeDatasetFileMetrics(datasetStatesByUrns, globalGobblinContext, workSpec.getEventSubmitterContext().create());
       return taskStateQueue.size();
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
-          String.format("Failed to commit dataset state for some dataset(s) of job %s", jobName),
+          String.format("Failed to commit dataset state for some dataset(s) of job %s", jobNameOpt.orElse(UNDEFINED_JOB_NAME)),
           IOException.class.toString(),
           new IOException(e),
           null
@@ -103,12 +113,12 @@ public class CommitActivityImpl implements CommitActivity {
   /**
    * Commit task states to the dataset state store.
    * @param jobState
-   * @param taskStates
+   * @param datasetStatesByUrns
    * @param jobContext
    * @throws IOException
    */
-  private void commitTaskStates(State jobState, Collection<TaskState> taskStates, JobContext jobContext) throws IOException {
-    Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(taskStates);
+  private void commitTaskStates(State jobState, Map<String, JobState.DatasetState> datasetStatesByUrns,
+      JobContext jobContext, Optional<String> jobNameOpt) throws IOException {
     final boolean shouldCommitDataInJob = JobContext.shouldCommitDataInJob(jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.AT_LEAST_ONCE;
     //TODO: Make this configurable
@@ -141,13 +151,10 @@ public class CommitActivityImpl implements CommitActivity {
 
       IteratorExecutor.logFailures(result, null, 10);
 
-      Set<String> failedDatasetUrns = new HashSet<>();
-      for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
-        // Set the overall job state to FAILED if the job failed to process any dataset
-        if (datasetState.getState() == JobState.RunningState.FAILED) {
-          failedDatasetUrns.add(datasetState.getDatasetUrn());
-        }
-      }
+      Set<String> failedDatasetUrns = datasetStatesByUrns.values().stream()
+          .filter(datasetState -> datasetState.getState() == JobState.RunningState.FAILED)
+          .collect(HashSet::new, (set, datasetState) -> set.add(datasetState.getDatasetUrn()), HashSet::addAll);
+
       if (!failedDatasetUrns.isEmpty()) {
         String allFailedDatasets = String.join(", ", failedDatasetUrns);
         log.error("Failed to commit dataset state for dataset(s) {}" + allFailedDatasets);
@@ -155,8 +162,7 @@ public class CommitActivityImpl implements CommitActivity {
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
-        String jobName = jobState.getProperties().getProperty(ConfigurationKeys.JOB_NAME_KEY, UNDEFINED_JOB_NAME);
-        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
+        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobNameOpt.orElse(UNDEFINED_JOB_NAME));
       }
     } catch (InterruptedException exc) {
       throw new IOException(exc);
@@ -179,6 +185,42 @@ public class CommitActivityImpl implements CommitActivity {
     }
 
     return datasetStatesByUrns;
+  }
+
+  public void summarizeDatasetFileMetrics(Map<String, JobState.DatasetState> datasetStatesByUrns, JobContext jobContext, EventSubmitter eventSubmitter) {
+    List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
+    // Only process successful datasets unless configuration to process failed datasets is set
+    boolean processFailedTasks =
+        PropertiesUtils.getPropAsBoolean(jobContext.getJobState().getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS,
+            "false");
+    for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
+      if (datasetState.getState() == JobState.RunningState.COMMITTED || (datasetState.getState() == JobState.RunningState.FAILED
+          && jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS)) {
+        long totalBytesWritten = 0;
+        long totalRecordsWritten = 0;
+        for (TaskState taskState : datasetState.getTaskStates()) {
+          // Certain writers may omit these metrics e.g. CompactionLauncherWriter
+          if ((taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED || processFailedTasks)) {
+            totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN, 0);
+            totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN, 0);
+          }
+        }
+        log.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(),
+            totalRecordsWritten, totalBytesWritten));
+        datasetTaskSummaries.add(
+            new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
+                datasetState.getState() == JobState.RunningState.COMMITTED));
+      } else if (datasetState.getState() == JobState.RunningState.FAILED) {
+        // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
+        if (jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
+          log.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
+          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0, false));
+        }
+      }
+    }
+    TimingEvent jobSummaryTimer = eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
+    jobSummaryTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
+    jobSummaryTimer.stop();
   }
 
   private static String createDatasetUrn(Map<String, JobState.DatasetState> datasetStatesByUrns, TaskState taskState) {
