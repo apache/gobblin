@@ -56,7 +56,6 @@ import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
-import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 
@@ -71,34 +70,28 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
     AutomaticTroubleshooter troubleshooter = null;
-    Optional<EventSubmitter> eventSubmitter = Optional.ofNullable(wu.getEventSubmitterContext()).map(EventSubmitterContext::create);
+    EventSubmitter eventSubmitter = wu.getEventSubmitterContext().create();
+    String correlator = String.format("(M)WU [%s]", wu.getCorrelator());
     try (FileSystem fs = Help.loadFileSystemForce(wu)) {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
-      log.info("(M)WU [{}] - loaded; found {} workUnits", wu.getCorrelator(), workUnits.size());
+      log.info("{} - loaded; found {} workUnits", correlator, workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
-      log.info("Loaded jobState. Instantiating and starting troubleshooter...");
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
       troubleshooter.start();
-      log.info("Finished instantiating troubleshooter. Now executing flow");
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository());
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
       try {
         if (troubleshooter == null) {
-          log.warn("No troubleshooter to report issues from automatic troubleshooter");
+          log.warn("{} - No troubleshooter to report issues from automatic troubleshooter", correlator);
         } else {
-          log.info("Refining issues and logging summary...");
           troubleshooter.refineIssues();
           troubleshooter.logIssueSummary();
-          if (eventSubmitter.isPresent()) {
-            troubleshooter.reportJobIssuesAsEvents(eventSubmitter.get());
-          } else {
-            log.warn("No eventSubmitter to report issues from automatic troubleshooter");
-          }
+          troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
         }
       } catch (Exception e) {
-        log.error("Failed to report issues from automatic troubleshooter", e);
+        log.error(String.format("%s - Failed to report issues from automatic troubleshooter", correlator), e);
       }
     }
   }
