@@ -19,8 +19,12 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
 import java.util.Comparator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.apache.hadoop.fs.FileStatus;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 /**
@@ -30,15 +34,17 @@ import org.apache.hadoop.fs.FileStatus;
 @lombok.NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @lombok.ToString(callSuper = true)
 public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsDirBackedWorkload<WorkUnitClaimCheck> {
+  private EventSubmitterContext eventSubmitterContext;
 
-  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI fileSystemUri, String hdfsDir) {
+  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI fileSystemUri, String hdfsDir, EventSubmitterContext eventSubmitterContext) {
     super(fileSystemUri, hdfsDir);
+    this.eventSubmitterContext = eventSubmitterContext;
   }
 
   @Override
   protected WorkUnitClaimCheck fromFileStatus(FileStatus fileStatus) {
     // begin by setting all correlators to empty
-    return new WorkUnitClaimCheck("", this.getFileSystemUri(), fileStatus.getPath().toString());
+    return new WorkUnitClaimCheck("", this.getFileSystemUri(), fileStatus.getPath().toString(), this.eventSubmitterContext);
   }
 
   @Override

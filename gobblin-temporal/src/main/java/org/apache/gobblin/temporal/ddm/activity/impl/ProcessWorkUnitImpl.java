@@ -24,12 +24,12 @@ import java.util.Properties;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -40,6 +40,7 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.AbstractTaskStateTracker;
 import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
 import org.apache.gobblin.runtime.JobState;
@@ -48,12 +49,14 @@ import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
-import org.apache.gobblin.runtime.troubleshooter.NoopAutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 
@@ -66,13 +69,30 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
 
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
+    AutomaticTroubleshooter troubleshooter = null;
+    EventSubmitter eventSubmitter = wu.getEventSubmitterContext().create();
+    String correlator = String.format("(M)WU [%s]", wu.getCorrelator());
     try (FileSystem fs = Help.loadFileSystemForce(wu)) {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
-      log.info("(M)WU [{}] - loaded; found {} workUnits", wu.getCorrelator(), workUnits.size());
+      log.info("{} - loaded; found {} workUnits", correlator, workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
-      return execute(workUnits, wu, jobState, fs);
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
+      troubleshooter.start();
+      return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository());
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
+    } finally {
+      try {
+        if (troubleshooter == null) {
+          log.warn("{} - No troubleshooter to report issues from automatic troubleshooter", correlator);
+        } else {
+          troubleshooter.refineIssues();
+          troubleshooter.logIssueSummary();
+          troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
+        }
+      } catch (Exception e) {
+        log.error(String.format("%s - Failed to report issues from automatic troubleshooter", correlator), e);
+      }
     }
   }
 
@@ -87,7 +107,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
    * NOTE: adapted from {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher.TaskRunner#run(org.apache.hadoop.mapreduce.Mapper.Context)}
    * @return count of how many tasks executed (0 if execution ultimately failed, but we *believe* TaskState should already have been recorded beforehand)
    */
-  protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs) throws IOException, InterruptedException {
+  protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs, IssueRepository issueRepository) throws IOException, InterruptedException {
     String containerId = "container-id-for-wu-" + wu.getCorrelator();
     StateStore<TaskState> taskStateStore = Help.openTaskStateStore(wu, fs);
 
@@ -96,10 +116,6 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy = GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE; // as no speculative exec
 
     SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-    AutomaticTroubleshooter troubleshooter = new NoopAutomaticTroubleshooter();
-    // AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(wu.getStateConfig().getProperties()));
-    troubleshooter.start();
-
     List<String> fileSourcePaths = workUnits.stream()
         .map(workUnit -> getCopyableFileSourcePathDesc(workUnit, wu.getWorkUnitPath()))
         .collect(Collectors.toList());
@@ -114,7 +130,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
         jobState.getJobId(), containerId, jobState, workUnits,
         taskStateTracker, taskExecutor, taskStateStore, multiTaskAttemptCommitPolicy,
-        resourcesBroker, troubleshooter.getIssueRepository(), createInterruptionPredicate(fs, jobState));
+        resourcesBroker, issueRepository, createInterruptionPredicate(fs, jobState));
     return taskAttempt.getNumTasksCreated();
   }
 
