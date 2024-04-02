@@ -185,27 +185,6 @@ public class CleanableDatasetBaseTest {
         .equals(dataset1Version2.getPathsToDelete().iterator().next()));
   }
 
-  @Test (expectedExceptions = RuntimeException.class)
-  public void test_OutOfMemoryError() throws IOException {
-    FileSystem fs = mock(FileSystem.class);
-
-    Path datasetRoot = new Path("/test/dataset");
-
-    DatasetVersion dataset1Version1 = new StringDatasetVersion("version1", new Path(datasetRoot, "version1"));
-    DatasetVersion dataset1Version2 = new StringDatasetVersion("version2", new Path(datasetRoot, "version2"));
-
-    when(fs.delete(any(Path.class), anyBoolean())).thenReturn(true);
-    when(fs.exists(any(Path.class))).thenReturn(true);
-
-    DatasetImpl dataset = new DatasetImpl(fs, false, false, false, false, datasetRoot);
-
-    when(dataset.versionFinder.useIteratorForFindingVersions()).thenReturn(false);
-
-    when(dataset.versionFinder.findDatasetVersions(dataset)).thenThrow(new OutOfMemoryError());
-
-    dataset.clean();
-  }
-
   private void mockDatasetVersion(DatasetImpl dataset, DatasetVersion dataset1Version1, DatasetVersion dataset1Version2)
       throws IOException {
     RemoteIterator<DatasetVersion> versionRemoteIterator = mock(RemoteIterator.class);

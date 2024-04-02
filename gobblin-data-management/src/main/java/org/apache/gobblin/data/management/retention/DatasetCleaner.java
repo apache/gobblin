@@ -155,6 +155,9 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         public void onFailure(Throwable throwable) {
           DatasetCleaner.this.finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
+          if (throwable instanceof OutOfMemoryError) {
+            throw new RuntimeException(throwable);
+          }
           DatasetCleaner.this.throwables.add(throwable);
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanFailureMeter);
           DatasetCleaner.this.eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
