@@ -327,7 +327,9 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
     boolean isCleanSuccess = true;
     Collections.sort(versions, Collections.reverseOrder());
     Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-    cleanImpl(deletableVersions);
+    if (!deletableVersions.isEmpty()) {
+      cleanImpl(deletableVersions);
+    }
     List<DatasetVersion> allVersions = Lists.newArrayList(versions);
     for (RetentionAction retentionAction : retentionActions) {
       try {
