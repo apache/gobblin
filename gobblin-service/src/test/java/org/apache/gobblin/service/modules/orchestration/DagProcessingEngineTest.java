@@ -131,11 +131,6 @@ public class DagProcessingEngineTest {
     public <T> T host(DagTaskVisitor<T> visitor) {
       return (T) new MockedDagProc(this, this.isBad);
     }
-
-    @Override
-    public boolean conclude() {
-      return false;
-    }
   }
 
   static class MockedDagProc extends DagProc<Void> {

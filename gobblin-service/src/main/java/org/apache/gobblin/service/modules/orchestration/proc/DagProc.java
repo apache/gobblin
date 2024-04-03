@@ -42,6 +42,8 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
  * they happen.
  * Parameter T is the type of object that needs an initialisation before the dag proc does the main work in `act` method.
  * This object is then passed to `act` method.
+ *
+ * @param <T> type of the initialization "state" on which to {@link DagProc#act}
  */
 @Alpha
 @Data

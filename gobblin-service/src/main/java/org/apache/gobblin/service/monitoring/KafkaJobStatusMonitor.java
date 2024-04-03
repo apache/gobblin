@@ -198,16 +198,18 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         if (jobStatus != null) {
           try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
             Optional<org.apache.gobblin.configuration.State> updatedJobStatus = addJobStatusToStateStore(jobStatus, this.stateStore);
-            boolean isJobStatusUpdated = updatedJobStatus.isPresent();
             // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
-            if (isJobStatusUpdated) {
+            if (updatedJobStatus.isPresent()) {
               jobStatus = updatedJobStatus.get();
               this.eventProducer.emitObservabilityEvent(jobStatus);
               String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
               String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
               String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
               String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
-              this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+
+              if (this.dagProcEngineEnabled) {
+                this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              }
             }
           }
         }
@@ -236,8 +238,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    * It fills missing fields in job status and also merge the fields with the
    * existing job status in the state store. Merging is required because we
    * do not want to lose the information sent by other GobblinTrackingEvents.
-   * Returns false if adding this state transitions the job status of the job to final, otherwise returns false.
-   * It will also return false if the job status was already final before calling this method.
+   * Returns an absent Optional if adding this state transitions the job status of the job to final, otherwise returns
+   * the updated job status wrapped inside an Optional.
+   * It will also return an absent Optional if the job status was already final before calling this method.
    * @throws IOException
    */
   @VisibleForTesting
@@ -293,7 +296,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       modifyStateIfRetryRequired(jobStatus);
       stateStore.put(storeName, tableName, jobStatus);
 
-      return isNewStateTransitionToFinal(jobStatus, states) ? Optional.of(jobStatus) : Optional.empty();
+      return Optional.of(jobStatus).filter(js -> isNewStateTransitionToFinal(js, states));
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);

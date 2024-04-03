@@ -213,10 +213,9 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
 
   public Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId) {
     if (this.dagNodes.containsKey(dagNodeId)) {
-      // no point of searching for status if the node itself is absent.
-      Optional<JobStatus> jobStatus = getJobStatus(dagNodeId);
-      return ImmutablePair.of(Optional.of(this.dagNodes.get(dagNodeId)), jobStatus);
+      return ImmutablePair.of(Optional.of(this.dagNodes.get(dagNodeId)), getJobStatus(dagNodeId));
     } else {
+      // no point of searching for status if the node itself is absent.
       return ImmutablePair.of(Optional.empty(), Optional.empty());
     }
   }

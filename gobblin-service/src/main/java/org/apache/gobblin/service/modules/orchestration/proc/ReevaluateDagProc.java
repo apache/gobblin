@@ -39,8 +39,9 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 
 
 /**
- * An implementation for {@link DagProc} that launches a new job if there exists a job whose pre-requisite jobs are
- * completed successfully. If there are no more jobs to run and no job is running for the Dag, it cleans up the Dag.
+ * suggest:
+ * A {@link DagProc} to launch any subsequent (dependent) job(s) once all pre-requisite job(s) in the Dag have succeeded.
+ * When there are no more jobs to run and no more running, it cleans up the Dag.
  * (In future), if there are multiple new jobs to be launched, separate launch dag actions are created for each of them.
  */
 @Slf4j
@@ -77,15 +78,18 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeWithJobStatus)
       throws IOException {
     if (!dagNodeWithJobStatus.getLeft().isPresent()) {
+      // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
+      // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
+      // todo - add metrics to count such occurrences
       return;
     }
 
     Dag.DagNode<JobExecutionPlan> dagNode = dagNodeWithJobStatus.getLeft().get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = dagNode.getValue().getExecutionStatus();
-    onJobFinish(dagManagementStateStore, dagNode, executionStatus);
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+    onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
 
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
@@ -135,17 +139,14 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    * Method that defines the actions to be performed when a job finishes either successfully or with failure.
    * This method updates the state of the dag and performs clean up actions as necessary.
    */
-  private void onJobFinish(DagManagementStateStore dagManagementStateStore,
-      Dag.DagNode<JobExecutionPlan> dagNode, ExecutionStatus executionStatus)
-      throws IOException {
+  private void onJobFinish(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
+      ExecutionStatus executionStatus, Dag<JobExecutionPlan> dag) throws IOException {
     String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
     log.info("Job {} of Dag {} has finished with status {}", jobName, getDagId(), executionStatus.name());
     // Only decrement counters and quota for jobs that actually ran on the executor, not from a GaaS side failure/skip event
     if (dagManagementStateStore.releaseQuota(dagNode)) {
       dagManagementStateStore.getDagManagerMetrics().decrementRunningJobMetrics(dagNode);
     }
-
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
 
     switch (executionStatus) {
       case FAILED:
@@ -158,7 +159,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);
-        submitNext(dagManagementStateStore);
+        submitNextNodes(dagManagementStateStore, dag);
         break;
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
@@ -172,9 +173,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   /**
    * Submit next set of Dag nodes in the Dag identified by the provided dagId
    */
-  void submitNext(DagManagementStateStore dagManagementStateStore) throws IOException {
-    // get the most up-to-date dag from the store before finding the next dag nodes to run
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+  private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
     Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
 
     if (nextNodes.size() > 1) {
@@ -188,7 +187,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     }
   }
 
-  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
+  private static void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
     throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 }

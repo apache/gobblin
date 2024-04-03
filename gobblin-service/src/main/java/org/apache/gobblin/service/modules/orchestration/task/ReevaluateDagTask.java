@@ -35,10 +35,4 @@ public class ReevaluateDagTask extends DagTask {
   public <T> T host(DagTaskVisitor<T> visitor) {
     return visitor.meet(this);
   }
-
-  @Override
-  public boolean conclude() {
-    // todo - release lease
-    return true;
-  }
 }
