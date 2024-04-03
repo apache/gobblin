@@ -186,12 +186,15 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
     }
 
-    OptionalBinder.newOptionalBinder(binder, MultiActiveLeaseArbiter.class);
+    /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
+    binding time (optionally bound classes cannot have names associated with them), so both arbiters need to be
+    explicitly bound to be differentiated. The scheduler lease arbiter is only used in single-active scheduler mode,
+    while the execution lease arbiter is used in single-active or multi-active execution. */
+    binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(
+        ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
+        FlowLaunchMultiActiveLeaseArbiterFactory.class);
     OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(
-          ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
-          FlowLaunchMultiActiveLeaseArbiterFactory.class);
       binder.bind(FlowLaunchHandler.class);
     }
 
@@ -205,9 +208,6 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
     OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
     if (serviceConfig.isDagProcessingEngineEnabled()) {
-      /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
-      binding time (optionally bound classes cannot have names associated with them). Unlike, the scheduler lease arbiter,
-      the execution lease arbiter is used in single-active or multi-active execution. */
       binder.bind(MultiActiveLeaseArbiter.class).
               annotatedWith(Names.named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME))
           .toProvider(
