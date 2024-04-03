@@ -137,10 +137,10 @@ public class KafkaStreamingExtractorTest {
     state.setProp(FlushingExtractor.FLUSH_DATA_PUBLISHER_CLASS, TestDataPublisher.class.getName());
     state.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, "GobblinYarnTaskRunner_1");
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, "/tmp/test");
-    state.setProp(FlushingExtractor.WRITER_OUTPUT_DIR_UPDATE_ENABLED, false);
+    state.setProp(FlushingExtractor.ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID, false);
     new KafkaStreamingExtractor(state);
     Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), "/tmp/test");
-    state.setProp(FlushingExtractor.WRITER_OUTPUT_DIR_UPDATE_ENABLED, true);
+    state.setProp(FlushingExtractor.ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID, true);
     new KafkaStreamingExtractor(state);
     Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         "/tmp/test/GobblinYarnTaskRunner_1");
