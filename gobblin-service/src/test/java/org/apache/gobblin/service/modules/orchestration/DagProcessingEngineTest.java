@@ -45,6 +45,8 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -58,11 +60,17 @@ public class DagProcessingEngineTest {
   private DagProcFactory dagProcFactory;
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   static ITestMetastoreDatabase testMetastoreDatabase;
+  static DagActionStore dagActionStore;
+  static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
      testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+     dagActionStore = mock(DagActionStore.class);
+     doReturn(true).when(dagActionStore).deleteDagAction(any());
+    leaseObtainedStatus = mock(LeaseAttemptStatus.LeaseObtainedStatus.class);
+    doReturn(true).when(leaseObtainedStatus).completeLease();
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
@@ -123,7 +131,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, null, null);
+      super(dagAction, leaseObtainedStatus, dagActionStore);
       this.isBad = isBad;
     }
 
