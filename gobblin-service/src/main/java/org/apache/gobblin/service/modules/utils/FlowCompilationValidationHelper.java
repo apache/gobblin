@@ -132,8 +132,8 @@ public class FlowCompilationValidationHelper {
    */
   public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
       String flowGroup, String flowName, Map<String,String> flowMetadata) throws IOException {
-    boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig,
-        ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, isFlowConcurrencyEnabled);
+    boolean allowConcurrentExecution = Boolean.parseBoolean(ConfigUtils.getString(flowConfig,
+        ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
     if (jobExecutionPlanDag.isEmpty()) {
