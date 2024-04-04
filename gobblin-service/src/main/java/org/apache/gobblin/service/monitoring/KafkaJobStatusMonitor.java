@@ -249,8 +249,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   /**
    * It fills missing fields in job status and also merge the fields with the existing job status in the state store.
    * Merging is required because we do not want to lose the information sent by other GobblinTrackingEvents.
-   * Returns a pair of current job status after update in this method and the last previous state for this job wrapped
-   * inside an Optional.
+   * Returns a pair of current job status after update in this method and a boolean suggesting if the new job status is
+   * now in final state and was not in final state before this method was called.
    * @throws IOException
    */
   @VisibleForTesting
