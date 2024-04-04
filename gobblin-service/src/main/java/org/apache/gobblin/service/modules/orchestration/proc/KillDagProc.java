@@ -24,8 +24,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import org.apache.directory.api.util.Strings;
-
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +32,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
@@ -53,11 +52,10 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
   public KillDagProc(KillDagTask killDagTask) {
     super(killDagTask);
-    this.dagNodeId = Strings.isEmpty(this.dagTask.getDagAction().getJobName())
-        ? Optional.empty()
-        : Optional.of(new DagNodeId(this.dagTask.getDagAction().getFlowGroup(), this.dagTask.getDagAction().getFlowName(),
-        Long.parseLong(this.dagTask.getDagAction().getFlowExecutionId()),
-        this.dagTask.getDagAction().getFlowGroup(), this.dagTask.getDagAction().getJobName()));
+    // override dag node id
+    this.dagNodeId = Optional.of(this.dagTask.getDagAction())
+        .filter(da -> !da.getJobName().isEmpty())
+        .map(DagActionStore.DagAction::getDagNodeId);
   }
 
   @Override
@@ -69,7 +67,10 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
+    log.info("Request to kill " + (this.dagNodeId.isPresent() ? " dag node " + getDagNodeId() : " dag " + getDagId()));
+
     if (!dag.isPresent()) {
+      // todo - add a metric here
       log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagId());
       return;
     }
@@ -80,17 +81,22 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     dagManagementStateStore.checkpointDag(dag.get());
 
     if (this.dagNodeId.isPresent()) {
-      cancelDagNode(dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId.get()).getLeft().get());
-      return;
-    }
+      Optional<Dag.DagNode<JobExecutionPlan>> dagNodeToCancel = dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId.get()).getLeft();
+      if (dagNodeToCancel.isPresent()) {
+        cancelDagNode(dagNodeToCancel.get());
+      } else {
+        // todo - add a metric here
+        log.error("Did not find Dag node with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagNodeId());
+      }
+    } else {
+      List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.get().getNodes();
+      log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
 
-    List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.get().getNodes();
-    log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
-
-    for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-      cancelDagNode(dagNodeToCancel);
-      // todo - why was it not being cleaned up in DagManager?
-      dagManagementStateStore.deleteDagNodeState(getDagId(), dagNodeToCancel);
+      for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
+        cancelDagNode(dagNodeToCancel);
+        // todo - why was it not being cleaned up in DagManager?
+        dagManagementStateStore.deleteDagNodeState(getDagId(), dagNodeToCancel);
+      }
     }
   }
 

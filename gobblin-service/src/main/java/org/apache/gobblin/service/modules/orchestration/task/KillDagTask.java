@@ -23,7 +23,7 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
 
 /**
- * A {@link DagTask} responsible to handle killing of tasks.
+ * A {@link DagTask} responsible for killing running jobs.
  */
 
 public class KillDagTask extends DagTask {
