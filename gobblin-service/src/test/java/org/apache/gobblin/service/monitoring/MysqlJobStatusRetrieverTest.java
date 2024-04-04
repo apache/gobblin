@@ -19,8 +19,10 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Properties;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -128,15 +130,25 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     long flowExecutionId = 12340L;
     String flowGroup = Strings.repeat("A", ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH);
     String flowName = Strings.repeat("B", ServiceConfigKeys.MAX_FLOW_NAME_LENGTH);
+    String jobGroup = Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH);
+    String jobName = Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH);
+
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
-    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.ORCHESTRATED.name());
-    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     State jobStatus = new State(properties);
 
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+    Pair<State, Optional<State>> currentAndOldStates =
+        KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    jobStatus = currentAndOldStates.getLeft();
+    this.jobStatusRetriever.getStateStore().put(
+        KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
+        KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
+        jobStatus);
+
     Iterator<JobStatus>
         jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
     Assert.assertTrue(jobStatusIterator.hasNext());
@@ -149,18 +161,27 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     long flowExecutionId = 12340L;
     String flowGroup = Strings.repeat("A", ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + 1);
     String flowName = Strings.repeat("B", ServiceConfigKeys.MAX_FLOW_NAME_LENGTH);
+    String jobGroup = Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH);
+    String jobName = Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH);
+
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
     properties.setProperty(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(flowExecutionId));
-    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, Strings.repeat("C", ServiceConfigKeys.MAX_JOB_NAME_LENGTH));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.ORCHESTRATED.name());
-    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, Strings.repeat("D", ServiceConfigKeys.MAX_JOB_GROUP_LENGTH));
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     State jobStatus = new State(properties);
 
     try {
-      KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+      Pair<State, Optional<State>> currentAndOldStates =
+          KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+      jobStatus = currentAndOldStates.getLeft();
+      this.jobStatusRetriever.getStateStore().put(
+          KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
+          KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
+          jobStatus);
     } catch (IOException e) {
-      Assert.assertTrue(e.getCause().getCause().getMessage().contains("Data too long"));
+      Assert.assertTrue(e.getCause().getMessage().contains("Data too long"));
       return;
     }
     Assert.fail();

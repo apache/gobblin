@@ -27,6 +27,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
@@ -195,23 +198,34 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       persistJobStatusRetryer.call(() -> {
         // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
         org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
-        if (jobStatus != null) {
-          try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-            Optional<org.apache.gobblin.configuration.State> updatedJobStatus = addJobStatusToStateStore(jobStatus, this.stateStore);
-            // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
-            if (updatedJobStatus.isPresent()) {
-              jobStatus = updatedJobStatus.get();
-              this.eventProducer.emitObservabilityEvent(jobStatus);
-              String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-              String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-              String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-              String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+        if (jobStatus == null) {
+          return null;
+        }
 
-              if (this.dagProcEngineEnabled) {
-                this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
-              }
+        String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+        String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+        String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+        String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+        String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+        String storeName = jobStatusStoreName(flowGroup, flowName);
+        String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
+
+        try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
+          Pair<org.apache.gobblin.configuration.State, Optional<org.apache.gobblin.configuration.State>> currentAndOldStates =
+              updateJobStatus(jobStatus, this.stateStore);
+          jobStatus = currentAndOldStates.getLeft();
+
+          if (isNewStateTransitionToFinal(jobStatus, currentAndOldStates.getRight())) {
+            this.eventProducer.emitObservabilityEvent(jobStatus);
+
+            if (this.dagProcEngineEnabled) {
+              // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
+              this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
             }
           }
+
+          // update the state store after adding a dag action to guaranty at-least-once adding of dag action
+          stateStore.put(storeName, tableName, jobStatus);
         }
         return null;
       });
@@ -234,17 +248,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   /**
-   * Persist job status to the underlying {@link StateStore}.
-   * It fills missing fields in job status and also merge the fields with the
-   * existing job status in the state store. Merging is required because we
-   * do not want to lose the information sent by other GobblinTrackingEvents.
-   * Returns an absent Optional if adding this state transitions the job status of the job to final, otherwise returns
-   * the updated job status wrapped inside an Optional.
-   * It will also return an absent Optional if the job status was already final before calling this method.
+   * It fills missing fields in job status and also merge the fields with the existing job status in the state store.
+   * Merging is required because we do not want to lose the information sent by other GobblinTrackingEvents.
+   * Returns a pair of current job status after update in this method and the last previous state for this job wrapped
+   * inside an Optional.
    * @throws IOException
    */
   @VisibleForTesting
-  static Optional<org.apache.gobblin.configuration.State> addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus,
+  static Pair<org.apache.gobblin.configuration.State, Optional<org.apache.gobblin.configuration.State>> updateJobStatus(org.apache.gobblin.configuration.State jobStatus,
       StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
@@ -294,9 +305,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-      stateStore.put(storeName, tableName, jobStatus);
 
-      return Optional.of(jobStatus).filter(js -> isNewStateTransitionToFinal(js, states));
+      return ImmutablePair.of(jobStatus, states.isEmpty() ? Optional.empty() : Optional.of(states.get(states.size() - 1)));
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -324,12 +334,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
-  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
-    if (prevStates.isEmpty()) {
-      return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
-    }
-    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-        && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, Optional<org.apache.gobblin.configuration.State> previousState) {
+    return previousState.map(state ->
+            currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD)
+            && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+            && !FlowStatusGenerator.FINISHED_STATUSES.contains(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        ).orElseGet(() -> FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
   }
 
   /**

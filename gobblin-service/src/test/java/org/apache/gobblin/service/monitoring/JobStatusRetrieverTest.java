@@ -20,8 +20,10 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -96,7 +98,13 @@ public abstract class JobStatusRetrieverTest {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
-    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
+    Pair<State, Optional<State>> currentAndOldStates =
+        KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    jobStatus = currentAndOldStates.getLeft();
+    this.jobStatusRetriever.getStateStore().put(
+        KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
+        KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
+        jobStatus);
   }
 
   static Properties createAttemptsProperties(int currGen, int currAttempts, boolean shouldRetry) {

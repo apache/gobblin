@@ -794,7 +794,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
     /**
      * Overridden to stub potential exception within core processing of `processMessage` (specifically retried portion).
-     * Although truly plausible (IO)Exceptions would originate from `KafkaJobStatusMonitor.addJobStatusToStateStore`,
+     * Although truly plausible (IO)Exceptions would originate from `KafkaJobStatusMonitor.updateJobStatus`,
      * that is `static`, so unavailable for override.  The approach here is a pragmatic compromise, being simpler than
      * the alternative of writing a mock `StateStore.Factory` that the `KafkaJobStatusMonitor` ctor could reflect,
      * instantiate, and finally create a mock `StateStore` from.
