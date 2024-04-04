@@ -202,18 +202,18 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           return null;
         }
 
-        String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-        String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-        String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-        String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
-        String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
-        String storeName = jobStatusStoreName(flowGroup, flowName);
-        String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
-
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           Pair<org.apache.gobblin.configuration.State, Optional<org.apache.gobblin.configuration.State>> currentAndOldStates =
               updateJobStatus(jobStatus, this.stateStore);
           jobStatus = currentAndOldStates.getLeft();
+
+          String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+          String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+          String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+          String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+          String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+          String storeName = jobStatusStoreName(flowGroup, flowName);
+          String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
           if (isNewStateTransitionToFinal(jobStatus, currentAndOldStates.getRight())) {
             this.eventProducer.emitObservabilityEvent(jobStatus);

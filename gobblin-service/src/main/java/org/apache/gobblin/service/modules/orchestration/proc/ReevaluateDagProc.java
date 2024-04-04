@@ -188,7 +188,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     }
   }
 
-  private static void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
+  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
     throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 }
