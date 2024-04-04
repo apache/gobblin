@@ -203,9 +203,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         }
 
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-          Pair<org.apache.gobblin.configuration.State, Optional<org.apache.gobblin.configuration.State>> currentAndOldStates =
-              updateJobStatus(jobStatus, this.stateStore);
-          jobStatus = currentAndOldStates.getLeft();
+          Pair<org.apache.gobblin.configuration.State, Boolean> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
+          jobStatus = updatedJobStatus.getLeft();
 
           String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
           String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
@@ -215,7 +214,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String storeName = jobStatusStoreName(flowGroup, flowName);
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
-          if (isNewStateTransitionToFinal(jobStatus, currentAndOldStates.getRight())) {
+          if (updatedJobStatus.getRight()) {
             this.eventProducer.emitObservabilityEvent(jobStatus);
 
             if (this.dagProcEngineEnabled) {
@@ -255,7 +254,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    * @throws IOException
    */
   @VisibleForTesting
-  static Pair<org.apache.gobblin.configuration.State, Optional<org.apache.gobblin.configuration.State>> updateJobStatus(org.apache.gobblin.configuration.State jobStatus,
+  static Pair<org.apache.gobblin.configuration.State, Boolean> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
       StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
@@ -305,8 +304,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-
-      return ImmutablePair.of(jobStatus, states.isEmpty() ? Optional.empty() : Optional.of(states.get(states.size() - 1)));
+      return ImmutablePair.of(jobStatus, isNewStateTransitionToFinal(jobStatus, states));
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -334,12 +332,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
   }
 
-  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, Optional<org.apache.gobblin.configuration.State> previousState) {
-    return previousState.map(state ->
-            currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD)
-            && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-            && !FlowStatusGenerator.FINISHED_STATUSES.contains(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-        ).orElseGet(() -> FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
+  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+    if (prevStates.isEmpty()) {
+      return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    }
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**

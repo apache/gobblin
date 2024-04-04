@@ -19,7 +19,6 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -141,9 +140,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     State jobStatus = new State(properties);
 
-    Pair<State, Optional<State>> currentAndOldStates =
-        KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
-    jobStatus = currentAndOldStates.getLeft();
+    Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    jobStatus = updatedJobStatus.getLeft();
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
         KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
@@ -173,9 +171,8 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     State jobStatus = new State(properties);
 
     try {
-      Pair<State, Optional<State>> currentAndOldStates =
-          KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
-      jobStatus = currentAndOldStates.getLeft();
+      Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+      jobStatus = updatedJobStatus.getLeft();
       this.jobStatusRetriever.getStateStore().put(
           KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
           KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),

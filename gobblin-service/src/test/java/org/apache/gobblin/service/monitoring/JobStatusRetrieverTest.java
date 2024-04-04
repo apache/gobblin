@@ -20,7 +20,6 @@ package org.apache.gobblin.service.monitoring;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -98,9 +97,8 @@ public abstract class JobStatusRetrieverTest {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
-    Pair<State, Optional<State>> currentAndOldStates =
-        KafkaJobStatusMonitor.updateJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
-    jobStatus = currentAndOldStates.getLeft();
+    Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    jobStatus = updatedJobStatus.getLeft();
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
         KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
