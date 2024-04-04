@@ -71,6 +71,7 @@ import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueReposi
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.monitoring.GaaSObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
@@ -97,6 +98,7 @@ public class KafkaAvroJobStatusMonitorTest {
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
+  private MysqlDagActionStore mysqlDagActionStore;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -115,6 +117,7 @@ public class KafkaAvroJobStatusMonitorTest {
     builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
     builder = builder.withKafkaPusher(pusher).withKeys(Lists.newArrayList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
         TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
+    this.mysqlDagActionStore = mock(MysqlDagActionStore.class);
   }
 
   @Test
@@ -775,7 +778,7 @@ public class KafkaAvroJobStatusMonitorTest {
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSObservabilityEventProducer producer)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, mysqlDagActionStore);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 
@@ -791,7 +794,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
     /**
      * Overridden to stub potential exception within core processing of `processMessage` (specifically retried portion).
-     * Although truly plausible (IO)Exceptions would originate from `KafkaJobStatusMonitor.addJobStatusToStateStore`,
+     * Although truly plausible (IO)Exceptions would originate from `KafkaJobStatusMonitor.updateJobStatus`,
      * that is `static`, so unavailable for override.  The approach here is a pragmatic compromise, being simpler than
      * the alternative of writing a mock `StateStore.Factory` that the `KafkaJobStatusMonitor` ctor could reflect,
      * instantiate, and finally create a mock `StateStore` from.

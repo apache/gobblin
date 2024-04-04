@@ -27,6 +27,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.github.rholder.retry.Attempt;
@@ -60,6 +63,7 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
@@ -112,10 +116,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final JobIssueEventHandler jobIssueEventHandler;
   private final Retryer<Void> persistJobStatusRetryer;
   private final GaaSObservabilityEventProducer eventProducer;
-
+  private final DagActionStore dagActionStore;
+  private final boolean dagProcEngineEnabled;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSObservabilityEventProducer observabilityEventProducer)
+      GaaSObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -125,6 +130,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
     this.jobIssueEventHandler = jobIssueEventHandler;
+    this.dagActionStore = dagActionStore;
+    this.dagProcEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
@@ -191,10 +198,33 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       persistJobStatusRetryer.call(() -> {
         // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
         org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
-        if (jobStatus != null) {
-          try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-            addJobStatusToStateStore(jobStatus, this.stateStore, this.eventProducer);
+        if (jobStatus == null) {
+          return null;
+        }
+
+        try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
+          Pair<org.apache.gobblin.configuration.State, Boolean> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
+          jobStatus = updatedJobStatus.getLeft();
+
+          String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+          String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+          String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+          String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+          String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+          String storeName = jobStatusStoreName(flowGroup, flowName);
+          String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
+
+          if (updatedJobStatus.getRight()) {
+            this.eventProducer.emitObservabilityEvent(jobStatus);
+
+            if (this.dagProcEngineEnabled) {
+              // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
+              this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+            }
           }
+
+          // update the state store after adding a dag action to guaranty at-least-once adding of dag action
+          stateStore.put(storeName, tableName, jobStatus);
         }
         return null;
       });
@@ -217,17 +247,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   /**
-   * Persist job status to the underlying {@link StateStore}.
-   * It fills missing fields in job status and also merge the fields with the
-   * existing job status in the state store. Merging is required because we
-   * do not want to lose the information sent by other GobblinTrackingEvents.
-   * @param jobStatus
+   * It fills missing fields in job status and also merge the fields with the existing job status in the state store.
+   * Merging is required because we do not want to lose the information sent by other GobblinTrackingEvents.
+   * Returns a pair of current job status after update in this method and a boolean suggesting if the new job status is
+   * now in final state and was not in final state before this method was called.
    * @throws IOException
    */
   @VisibleForTesting
-  static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore,
-      GaaSObservabilityEventProducer eventProducer)
-      throws IOException {
+  static Pair<org.apache.gobblin.configuration.State, Boolean> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
+      StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
         jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
@@ -276,10 +304,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-      stateStore.put(storeName, tableName, jobStatus);
-      if (isNewStateTransitionToFinal(jobStatus, states)) {
-        eventProducer.emitObservabilityEvent(jobStatus);
-      }
+      return ImmutablePair.of(jobStatus, isNewStateTransitionToFinal(jobStatus, states));
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);

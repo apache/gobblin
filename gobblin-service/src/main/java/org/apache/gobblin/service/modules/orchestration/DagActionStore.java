@@ -35,7 +35,7 @@ public interface DagActionStore {
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
     RETRY, // Invoked through DagManager for flows configured to allow retries
     CANCEL, // Invoked through DagManager if flow has been stuck in Orchestrated state for a while
-    ADVANCE // Launch next step in multi-hop dag
+    REEVALUATE // Re-evaluate what needs to be done upon receipt of a final job status
   }
 
   @Data

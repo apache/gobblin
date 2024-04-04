@@ -61,10 +61,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
       // todo - add actions for other other type of dag actions
       switch (dagAction.getDagActionType()) {
         case LAUNCH :
+        case REEVALUATE :
           dagManagement.addDagAction(dagAction);
           break;
         default:
-          log.warn("Received unsupported dagAction {}. Expected to be a LAUNCH", dagAction.getDagActionType());
+          log.warn("Received unsupported dagAction {}. Expected to be a REEVALUATE or LAUNCH", dagAction.getDagActionType());
           this.unexpectedErrors.mark();
       }
     } catch (IOException e) {

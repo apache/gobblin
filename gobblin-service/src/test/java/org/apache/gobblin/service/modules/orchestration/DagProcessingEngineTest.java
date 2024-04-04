@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -43,6 +45,8 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -55,11 +59,18 @@ public class DagProcessingEngineTest {
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  static ITestMetastoreDatabase testMetastoreDatabase;
+  static DagActionStore dagActionStore;
+  static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+     dagActionStore = mock(DagActionStore.class);
+     doReturn(true).when(dagActionStore).deleteDagAction(any());
+    leaseObtainedStatus = mock(LeaseAttemptStatus.LeaseObtainedStatus.class);
+    doReturn(true).when(leaseObtainedStatus).completeLease();
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
@@ -120,18 +131,13 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, null, null);
+      super(dagAction, leaseObtainedStatus, dagActionStore);
       this.isBad = isBad;
     }
 
     @Override
     public <T> T host(DagTaskVisitor<T> visitor) {
       return (T) new MockedDagProc(this, this.isBad);
-    }
-
-    @Override
-    public boolean conclude() {
-      return false;
     }
   }
 
@@ -163,7 +169,8 @@ public class DagProcessingEngineTest {
 
   // This tests verifies that all the dag tasks entered to the dag task stream are retrieved by dag proc engine threads
   @Test
-  public void dagProcessingTest() throws InterruptedException, TimeoutException {
+  public void dagProcessingTest()
+      throws InterruptedException, TimeoutException, IOException {
     // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
     // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
     // (MAX_NUM_OF_TASKS + 1) th call
@@ -175,5 +182,10 @@ public class DagProcessingEngineTest {
         log, 1, 1000L);
 
     Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+  }
+
+  @AfterClass
+  public void tearDown() throws IOException {
+    testMetastoreDatabase.close();
   }
 }

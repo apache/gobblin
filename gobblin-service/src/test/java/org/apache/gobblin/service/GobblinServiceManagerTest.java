@@ -124,6 +124,7 @@ public class GobblinServiceManagerTest {
   private FlowConfigV2Client flowConfigClient;
 
   private MySQLContainer mysql;
+  ITestMetastoreDatabase testMetastoreDatabase;
 
   private Git gitForPush;
   private TestingServer testingServer;
@@ -145,7 +146,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_USERNAME, mysql.getUsername());
     serviceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_PASSWORD, mysql.getPassword());
 
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     testingServer = new TestingServer(true);
 
@@ -267,6 +268,7 @@ public class GobblinServiceManagerTest {
     }
 
     mysql.stop();
+    testMetastoreDatabase.close();
   }
 
   /**

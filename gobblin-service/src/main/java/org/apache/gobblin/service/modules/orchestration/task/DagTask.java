@@ -57,7 +57,7 @@ public abstract class DagTask {
    * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
-  public boolean conclude() {
+  public final boolean conclude() {
     try {
       this.dagActionStore.deleteDagAction(this.dagAction);
       return this.leaseObtainedStatus.completeLease();
