@@ -271,7 +271,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
           + "initialize GobblinServiceGuiceModule.", classToGet));
     }
-    // Use development stage to enable more verbose error messages and runtime checks 
+    // Use development stage to enable more verbose error messages and runtime checks
     Injector injector = Guice.createInjector(Stage.DEVELOPMENT, GOBBLIN_SERVICE_GUICE_MODULE);
     return injector.getInstance(classToGet);
   }
@@ -451,18 +451,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.eventBus.register(this);
     this.serviceLauncher.start();
 
-    // Wait until spec consumer service is running to set scheduler to active
-    if (this.configuration.isWarmStandbyEnabled()) {
-      while (!this.specStoreChangeMonitor.isRunning()) {
-        try {
-          LOGGER.info("Waiting for SpecStoreChangeMonitor to be started...");
-          Thread.sleep(10);
-        } catch (InterruptedException e) {
-          LOGGER.warn("Interrupted while waiting for SpecStoreChangeMonitor to be started");
-        }
-      }
-    }
-
     if (this.helixManager.isPresent()) {
       // Subscribe to leadership changes
       this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
@@ -539,8 +527,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.eventBus.register(this.dagManager);
     }
 
-    // Activate the DagActionStoreChangeMonitor last as it's dependent on DagManager & SpecCompiler
+    // Activate both monitors last as they're dependent on the SpecCompiler, Scheduler, and DagManager being active
     if (configuration.isWarmStandbyEnabled()) {
+      this.specStoreChangeMonitor.setActive();
       this.dagActionStoreChangeMonitor.setActive();
     }
   }

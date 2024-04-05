@@ -74,7 +74,6 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
   @Override
   public DagActionStoreChangeMonitor get() {
     DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
-    changeMonitor.initializeMonitor();
     return changeMonitor;
   }
 }
