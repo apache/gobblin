@@ -292,13 +292,13 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
           cleanableVersionsBatch.add(version);
           if (cleanableVersionsBatch.size() >= CLEANABLE_DATASET_BATCH_SIZE) {
             boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy,
-                versionFinderAndPolicy.getRetentionActions());
+                versionFinderAndPolicy.getRetentionActions(), false);
             atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
           }
         }
         if (!cleanableVersionsBatch.isEmpty()) {
           boolean isCleanSuccess = cleanDatasetVersions(cleanableVersionsBatch, selectionPolicy,
-              versionFinderAndPolicy.getRetentionActions());
+              versionFinderAndPolicy.getRetentionActions(), false);
           atLeastOneFailureSeen = atLeastOneFailureSeen || !isCleanSuccess;
         }
       } else {
@@ -309,7 +309,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
           continue;
         }
         boolean isCleanSuccess =
-            cleanDatasetVersions(versions, selectionPolicy, versionFinderAndPolicy.getRetentionActions());
+            cleanDatasetVersions(versions, selectionPolicy, versionFinderAndPolicy.getRetentionActions(), true);
         atLeastOneFailureSeen = !isCleanSuccess || atLeastOneFailureSeen;
       }
     }
@@ -322,12 +322,14 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   private boolean cleanDatasetVersions(List<T> versions, VersionSelectionPolicy<T> selectionPolicy,
-      List<RetentionAction> retentionActions)
+      List<RetentionAction> retentionActions, boolean runningInBatchMode)
       throws IOException {
     boolean isCleanSuccess = true;
     Collections.sort(versions, Collections.reverseOrder());
     Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-    cleanImpl(deletableVersions);
+    if (!deletableVersions.isEmpty() || runningInBatchMode) {
+      cleanImpl(deletableVersions);
+    }
     List<DatasetVersion> allVersions = Lists.newArrayList(versions);
     for (RetentionAction retentionAction : retentionActions) {
       try {
