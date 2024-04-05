@@ -78,6 +78,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   protected FlowCatalog flowCatalog;
 
   protected GobblinServiceJobScheduler scheduler;
+  private volatile boolean isActive;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -95,6 +96,28 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     // Expects underlying consumer to handle initializing partitions and offset for the topic -
     // subscribe to all partitions from latest offset
     return;
+  }
+
+  /*
+ Override this method to do nothing, instead only start processing the queues after #setActive is called to make sure
+ dependent services are initialized properly.
+*/
+  @Override
+  protected void startUp() {}
+
+  /*
+   This method should be called once by the {@link GobblinServiceManager} only after the Scheduler is active to ensure
+   calls to onAddSpec don't fail specCompilation.
+   */
+  public synchronized void setActive() {
+    if (this.isActive) {
+      return;
+    }
+
+    if (isActive) {
+      this.isActive = true;
+      super.startUp();
+    }
   }
 
   @Override

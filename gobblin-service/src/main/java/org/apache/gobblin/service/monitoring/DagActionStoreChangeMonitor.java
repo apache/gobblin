@@ -99,6 +99,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
   protected DagActionStore dagActionStore;
+  @Getter
+  private volatile boolean isActive;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -147,20 +149,34 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   }
 
   /*
-   Override this method to do the same sequence as the parent class, except create metrics. Instead, we create metrics
-   earlier upon class initialization because they are used immediately as dag actions are loaded and processed from
-   the DagActionStore.
+   Override this method to do nothing, instead we create metrics upon class initialization and start processing the
+   queues and load dag actions from the DagActionStore after #setActive is called to make sure dependent services are
+   initialized properly.
   */
   @Override
-  protected void startUp() {
-    // Method that starts threads that processes queues
-    processQueues();
-    // Main thread that constantly polls messages from kafka
-    consumerExecutor.execute(() -> {
-      while (!shutdownRequested) {
-        consume();
-      }
-    });
+  protected void startUp() {}
+
+  /*
+   This method should be called once by the {@link GobblinServiceManager} only after the DagManager, FlowGraph and
+   SpecCompiler are initialized and running.
+   */
+  public synchronized void setActive() {
+    if (this.isActive) {
+      return;
+    }
+
+    if (isActive) {
+      this.isActive = true;
+      initializeMonitor();
+      // Method that starts threads that processes queues
+      processQueues();
+      // Main thread that constantly polls messages from kafka
+      consumerExecutor.execute(() -> {
+        while (!shutdownRequested) {
+          consume();
+        }
+      });
+    }
   }
 
   @Override
