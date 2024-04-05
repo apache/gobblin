@@ -271,7 +271,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
           + "initialize GobblinServiceGuiceModule.", classToGet));
     }
-    Injector injector = Guice.createInjector(Stage.PRODUCTION, GOBBLIN_SERVICE_GUICE_MODULE);
+    // Use development stage to enable more verbose error messages and runtime checks 
+    Injector injector = Guice.createInjector(Stage.DEVELOPMENT, GOBBLIN_SERVICE_GUICE_MODULE);
     return injector.getInstance(classToGet);
   }
 
@@ -536,6 +537,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
       this.dagManager.setActive(true);
       this.eventBus.register(this.dagManager);
+    }
+
+    // Activate the DagActionStoreChangeMonitor last as it's dependent on DagManager & SpecCompiler
+    if (configuration.isWarmStandbyEnabled()) {
+      this.dagActionStoreChangeMonitor.setActive();
     }
   }
 
