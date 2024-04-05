@@ -322,12 +322,12 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   }
 
   private boolean cleanDatasetVersions(List<T> versions, VersionSelectionPolicy<T> selectionPolicy,
-      List<RetentionAction> retentionActions, boolean shouldLogDeletableVersion)
+      List<RetentionAction> retentionActions, boolean runningInBatchMode)
       throws IOException {
     boolean isCleanSuccess = true;
     Collections.sort(versions, Collections.reverseOrder());
     Collection<T> deletableVersions = selectionPolicy.listSelectedVersions(versions);
-    if (!deletableVersions.isEmpty() || shouldLogDeletableVersion) {
+    if (!deletableVersions.isEmpty() || runningInBatchMode) {
       cleanImpl(deletableVersions);
     }
     List<DatasetVersion> allVersions = Lists.newArrayList(versions);

@@ -42,8 +42,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.typesafe.config.Config;
 
-import lombok.SneakyThrows;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.configuration.State;
@@ -153,21 +151,17 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         }
       });
       Futures.addCallback(future, new FutureCallback<Void>() {
-        @SneakyThrows
         @Override
         public void onFailure(Throwable throwable) {
-          DatasetCleaner.this.finishCleanSignal.get().countDown();
           LOG.warn("Exception caught when cleaning " + dataset.datasetURN() + ".", throwable);
-          // Avoid consuming OutOfMemoryError to clean other datasets
-          if (throwable instanceof OutOfMemoryError) {
-            throw throwable;
-          }
           DatasetCleaner.this.throwables.add(throwable);
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanFailureMeter);
           DatasetCleaner.this.eventSubmitter.submit(RetentionEvents.CleanFailed.EVENT_NAME,
               ImmutableMap.of(RetentionEvents.CleanFailed.FAILURE_CONTEXT_METADATA_KEY,
                   ExceptionUtils.getFullStackTrace(throwable), RetentionEvents.DATASET_URN_METADATA_KEY,
                   dataset.datasetURN()));
+          // Moving the countDown at the end, avoid race-condition with close waiting for the countDown to be 0
+          DatasetCleaner.this.finishCleanSignal.get().countDown();
         }
 
         @Override
