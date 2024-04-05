@@ -47,11 +47,11 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
  */
 @Slf4j
 public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
-  private final boolean dagNodeKillRequest;
+  private final boolean shouldKillSpecificJob;
 
   public KillDagProc(KillDagTask killDagTask) {
     super(killDagTask);
-    this.dagNodeKillRequest = !getDagNodeId().getJobName().equals(DagActionStore.NO_JOB_NAME_DEFAULT);
+    this.shouldKillSpecificJob = !getDagNodeId().getJobName().equals(DagActionStore.NO_JOB_NAME_DEFAULT);
   }
 
   @Override
@@ -63,10 +63,7 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
-    log.info("Request to kill dag " + getDagId());
-    if (dagNodeKillRequest) {
-      log.info("Request to kill dag node" + getDagNodeId());
-    }
+    log.info("Request to kill dag {} (node: {})", getDagId(), shouldKillSpecificJob ? getDagNodeId() : "<<all>>");
 
     if (!dag.isPresent()) {
       // todo - add a metric here
@@ -79,7 +76,7 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
     dagManagementStateStore.checkpointDag(dag.get());
 
-    if (this.dagNodeKillRequest) {
+    if (this.shouldKillSpecificJob) {
       Optional<Dag.DagNode<JobExecutionPlan>> dagNodeToCancel = dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId).getLeft();
       if (dagNodeToCancel.isPresent()) {
         cancelDagNode(dagNodeToCancel.get());
