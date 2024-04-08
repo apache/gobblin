@@ -34,6 +34,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -57,6 +59,7 @@ import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -79,7 +82,7 @@ public class CommitActivityImpl implements CommitActivity {
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
-      jobNameOpt = Optional.of(jobState.getJobName());
+      jobNameOpt = Optional.ofNullable(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
@@ -96,7 +99,12 @@ public class CommitActivityImpl implements CommitActivity {
       Queue<TaskState> taskStateQueue = taskStateQueueOpt.get();
       Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(ImmutableList.copyOf(taskStateQueue));
       commitTaskStates(jobState, datasetStatesByUrns, globalGobblinContext, jobNameOpt);
-      summarizeDatasetFileMetrics(datasetStatesByUrns, globalGobblinContext, workSpec.getEventSubmitterContext().create());
+      List<DatasetTaskSummary> datasetTaskSummaries = generateDatasetTaskSummaries(datasetStatesByUrns, globalGobblinContext, workSpec.getEventSubmitterContext().create());
+      // Submit event that summarizes work done
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
+      TemporalEventTimer eventTimer = timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY);
+      eventTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
+      eventTimer.stop();
       return taskStateQueue.size();
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
@@ -151,8 +159,8 @@ public class CommitActivityImpl implements CommitActivity {
       IteratorExecutor.logFailures(result, null, 10);
 
       Set<String> failedDatasetUrns = datasetStatesByUrns.values().stream()
-          .filter(datasetState -> datasetState.getState() == JobState.RunningState.FAILED)
-          .collect(HashSet::new, (set, datasetState) -> set.add(datasetState.getDatasetUrn()), HashSet::addAll);
+          .map(JobState.DatasetState::getDatasetUrn)
+          .collect(Collectors.toCollection(HashSet::new));
 
       if (!failedDatasetUrns.isEmpty()) {
         String allFailedDatasets = String.join(", ", failedDatasetUrns);
@@ -186,7 +194,7 @@ public class CommitActivityImpl implements CommitActivity {
     return datasetStatesByUrns;
   }
 
-  public void summarizeDatasetFileMetrics(Map<String, JobState.DatasetState> datasetStatesByUrns, JobContext jobContext, EventSubmitter eventSubmitter) {
+  public List<DatasetTaskSummary> generateDatasetTaskSummaries(Map<String, JobState.DatasetState> datasetStatesByUrns, JobContext jobContext, EventSubmitter eventSubmitter) {
     List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
     // Only process successful datasets unless configuration to process failed datasets is set
     boolean processFailedTasks =
@@ -217,9 +225,7 @@ public class CommitActivityImpl implements CommitActivity {
         }
       }
     }
-    TimingEvent jobSummaryTimer = eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SUMMARY);
-    jobSummaryTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(datasetTaskSummaries));
-    jobSummaryTimer.stop();
+    return datasetTaskSummaries;
   }
 
   private static String createDatasetUrn(Map<String, JobState.DatasetState> datasetStatesByUrns, TaskState taskState) {
