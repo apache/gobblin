@@ -165,18 +165,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       return;
     }
 
-    if (isActive) {
-      this.isActive = true;
-      initializeMonitor();
-      // Method that starts threads that processes queues
-      processQueues();
-      // Main thread that constantly polls messages from kafka
-      consumerExecutor.execute(() -> {
-        while (!shutdownRequested) {
-          consume();
-        }
-      });
-    }
+    this.isActive = true;
+    initializeMonitor();
+    // Method that starts threads that processes queues
+    processQueues();
+    // Main thread that constantly polls messages from kafka
+    consumerExecutor.execute(() -> {
+      while (!shutdownRequested) {
+        consume();
+      }
+    });
   }
 
   @Override
