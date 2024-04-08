@@ -204,7 +204,7 @@ public class GobblinYarnAppLauncher {
 
   private final Optional<String> appMasterJvmArgs;
 
-  private final Path sinkLogRootDir;
+  private final String sinkLogRootDir;
 
   private final Closer closer = Closer.create();
 
@@ -269,7 +269,7 @@ public class GobblinYarnAppLauncher {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.sinkLogRootDir = new Path(config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY));
+    this.sinkLogRootDir = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY, null);
 
     this.maxGetApplicationReportFailures = config.getInt(GobblinYarnConfigurationKeys.MAX_GET_APP_REPORT_FAILURES_KEY);
 
