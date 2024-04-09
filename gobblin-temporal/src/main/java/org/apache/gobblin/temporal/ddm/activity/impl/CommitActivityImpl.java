@@ -159,6 +159,7 @@ public class CommitActivityImpl implements CommitActivity {
       IteratorExecutor.logFailures(result, null, 10);
 
       Set<String> failedDatasetUrns = datasetStatesByUrns.values().stream()
+          .filter(datasetState -> datasetState.getState() == JobState.RunningState.FAILED)
           .map(JobState.DatasetState::getDatasetUrn)
           .collect(Collectors.toCollection(HashSet::new));
 
