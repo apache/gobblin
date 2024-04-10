@@ -395,7 +395,7 @@ public class JobScheduler extends AbstractIdleService {
 
     try {
       // Schedule the Quartz job with a trigger built from the job configuration
-      Trigger trigger = createTriggerForJob(job.getKey(), jobProps, Optional.absent());
+      Trigger trigger = createTriggerForJob(job.getKey(), jobProps, java.util.Optional.empty());
       this.scheduler.getScheduler().scheduleJob(job, trigger);
       logNewlyScheduledJob(job, trigger);
     } catch (SchedulerException se) {
@@ -585,11 +585,11 @@ public class JobScheduler extends AbstractIdleService {
    * Get a {@link org.quartz.Trigger} from the given job configuration properties. If triggerSuffix is provided, appends
    * it to the end of the flow name. The suffix is used to add multiple unique triggers associated with the same job
    */
-  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps, Optional<String> triggerSuffix) {
+  public static Trigger createTriggerForJob(JobKey jobKey, Properties jobProps, java.util.Optional<String> triggerSuffix) {
     // Build a trigger for the job with the given cron-style schedule
     return TriggerBuilder.newTrigger()
         .withIdentity(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)
-            + triggerSuffix.transform(s -> "_" + s).or(""),
+            + triggerSuffix.map(s -> "_" + s).orElse(""),
             Strings.nullToEmpty(jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY)))
         .forJob(jobKey)
         .withSchedule(CronScheduleBuilder.cronSchedule(jobProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY)))

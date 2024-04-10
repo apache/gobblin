@@ -177,7 +177,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getDagAction(),
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagAction(),
         leaseStatus.getMinimumLingerDurationMillis());
   }
 }

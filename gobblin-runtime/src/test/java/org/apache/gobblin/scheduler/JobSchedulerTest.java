@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.scheduler;
 
-import com.google.common.base.Optional;
+import java.util.Optional;
 import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.junit.Assert;
@@ -39,7 +39,7 @@ public class JobSchedulerTest {
     jobProps.put(ConfigurationKeys.JOB_GROUP_KEY, jobGroup);
     jobProps.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "0/2 * * * * ?");
 
-    Trigger trigger1 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.absent());
+    Trigger trigger1 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.empty());
     Trigger trigger2 = JobScheduler.createTriggerForJob(jobKey, jobProps, Optional.of("suffix"));
 
     Assert.assertFalse(trigger1.getKey().equals(trigger2.getKey()));

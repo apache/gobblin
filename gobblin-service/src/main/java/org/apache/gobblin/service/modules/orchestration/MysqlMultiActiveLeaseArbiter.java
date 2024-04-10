@@ -585,7 +585,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   @Override
   public boolean recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus status)
       throws IOException {
-    DagActionStore.DagAction dagAction = status.getDagAction();
+    DagActionStore.DagAction dagAction = status.getConsensusDagAction();
     return dbStatementExecutor.withPreparedStatement(String.format(CONDITIONALLY_COMPLETE_LEASE_STATEMENT, leaseArbiterTableName),
         updateStatement -> {
           int i = 0;
