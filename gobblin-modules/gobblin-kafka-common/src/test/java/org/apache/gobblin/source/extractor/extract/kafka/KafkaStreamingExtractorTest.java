@@ -142,8 +142,8 @@ public class KafkaStreamingExtractorTest {
     Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), "/tmp/test");
     state.setProp(FlushingExtractor.ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID, true);
     new KafkaStreamingExtractor(state);
-    Assert.assertEquals(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
-        "/tmp/test/GobblinYarnTaskRunner_1");
+    Assert.assertTrue(
+        state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR).contains("/tmp/test/GobblinYarnTaskRunner_1_"));
   }
 
   static class TestDataPublisher extends DataPublisher {

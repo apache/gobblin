@@ -90,13 +90,12 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
   public static final String WATERMARK_COMMIT_TIME_METRIC = "state.store.metrics.watermarkCommitTime";
   public static final String COMMIT_STEP_METRIC_PREFIX = "commit.step.";
   /**
-   * this property is used to append task attempt id to the output directory on startup.
+   * this property is used to append task attempt id with timestamp to the output directory on startup.
    * The purpose of this change is to make sure each task writes to a unique directory. In case corrupted files from
-   * previous run getting picked up by the next run in the same output directory, corrupted files can be easily cleaned
-   * up from publishers. <br><br>
+   * previous run generated, next run will start from a new path and will not pick those corrupted files. <br><br>
    *
-   * NOTE: This feature must be executed before the publisher is initialized. If this assumption is violated,
-   * then this feature will have nondeterministic behavior w.r.t. data loss.
+   * NOTE: This feature must be executed before the publisher is initialized for publisher to use the same path.
+   * If this assumption is violated, then this feature will have nondeterministic behavior w.r.t. data loss.
    */
   public static final String ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID =
       "flush.extractor.enableUniqueWriterOutputDirWithTaskAttemptId";
@@ -157,7 +156,8 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
             ConfigurationKeys.WRITER_OUTPUT_DIR, ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID));
     String taskAttemptId = workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY);
     String writerOutputDirWithTaskAttemptId =
-            new Path(this.workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), taskAttemptId).toString();
+            new Path(this.workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+                taskAttemptId + "_" + System.currentTimeMillis()).toString();
     this.workUnitState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithTaskAttemptId);
   }
 
