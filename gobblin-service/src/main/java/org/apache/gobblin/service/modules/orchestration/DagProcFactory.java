@@ -25,10 +25,12 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.ReevaluateDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.ResumeDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 
 
@@ -59,8 +61,14 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
     return new ReevaluateDagProc(reEvaluateDagTask);
   }
 
+  @Override
   public KillDagProc meet(KillDagTask killDagTask) {
     return new KillDagProc(killDagTask);
+  }
+
+  @Override
+  public ResumeDagProc meet(ResumeDagTask resumeDagTask) {
+    return new ResumeDagProc(resumeDagTask);
   }
   //todo - overload meet method for other dag tasks
 }

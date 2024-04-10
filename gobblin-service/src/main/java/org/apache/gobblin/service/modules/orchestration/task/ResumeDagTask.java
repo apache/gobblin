@@ -15,17 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.orchestration;
+package org.apache.gobblin.service.modules.orchestration.task;
 
-import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
 
-public interface DagTaskVisitor<T> {
-  T meet(LaunchDagTask launchDagTask);
-  T meet(ReevaluateDagTask reevaluateDagTask);
-  T meet(KillDagTask killDagTask);
-  T meet(ResumeDagTask resumeDagTask);
+/**
+ * A {@link DagTask} responsible for killing running jobs.
+ */
+
+public class ResumeDagTask extends DagTask {
+  public ResumeDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
+      DagActionStore dagActionStore) {
+    super(dagAction, leaseObtainedStatus, dagActionStore);
+  }
+
+  public <T> T host(DagTaskVisitor<T> visitor) {
+    return visitor.meet(this);
+  }
 }

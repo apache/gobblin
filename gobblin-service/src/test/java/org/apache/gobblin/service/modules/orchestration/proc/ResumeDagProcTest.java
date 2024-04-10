@@ -1,0 +1,123 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.gobblin.service.modules.orchestration.proc;
+
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+
+
+public class ResumeDagProcTest {
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private ITestMetastoreDatabase testDb;
+
+  @BeforeClass
+  public void setUp() throws Exception {
+    testDb = TestMetastoreDatabaseFactory.get();
+    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
+    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
+    doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
+    doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
+  }
+
+  /*
+  This test creates a failed dag and launches a resume dag proc for it. It then verifies that the next jobs are set to run.
+   */
+  @Test
+  public void resumeDag() throws IOException, URISyntaxException {
+    long flowExecutionId = System.currentTimeMillis();
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
+    // simulate a failed dag in store
+    dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);
+    dag.getNodes().get(2).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(4).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getFailedDag(any());
+
+    ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction("fg", "flow1",
+        String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
+        null, mock(DagActionStore.class)));
+    resumeDagProc.process(this.dagManagementStateStore);
+
+    List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
+      try {
+        return DagManagerUtils.getSpecProducer(n);
+      } catch (ExecutionException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toList());
+    int expectedNumOfResumedJobs = 1; // = number of resumed nodes
+
+    long resumedJobCount = specProducers.stream()
+        .mapToLong(p -> Mockito.mockingDetails(p)
+            .getInvocations()
+            .stream()
+            .filter(a -> a.getMethod().getName().equals("addSpec"))
+            .count())
+        .sum();
+    long addedDagNodeStates = Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
+        .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count();
+
+    Assert.assertEquals(resumedJobCount, expectedNumOfResumedJobs);
+    Assert.assertEquals(addedDagNodeStates, expectedNumOfResumedJobs);
+  }
+}

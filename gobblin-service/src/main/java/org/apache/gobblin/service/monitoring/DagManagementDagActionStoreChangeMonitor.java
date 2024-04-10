@@ -63,10 +63,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         case LAUNCH :
         case REEVALUATE :
         case KILL :
+        case RESUME:
           dagManagement.addDagAction(dagAction);
           break;
         default:
-          log.warn("Received unsupported dagAction {}. Expected to be a KILL, REEVALUATE or LAUNCH", dagAction.getDagActionType());
+          log.warn("Received unsupported dagAction {}. Expected to be a RESUME, KILL, REEVALUATE or LAUNCH", dagAction.getDagActionType());
           this.unexpectedErrors.mark();
       }
     } catch (IOException e) {
