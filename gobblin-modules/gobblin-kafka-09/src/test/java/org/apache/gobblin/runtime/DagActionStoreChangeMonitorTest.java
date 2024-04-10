@@ -254,7 +254,8 @@ public class DagActionStoreChangeMonitorTest {
     DagManager mockDagManager = mock(DagManager.class);
     FlowCatalog mockFlowCatalog = mock(FlowCatalog.class);
     Orchestrator mockOrchestrator = mock(Orchestrator.class);
-    when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new SpecNotFoundException(new URI("test")));
+    // Throw an uncaught exception during startup sequence
+    when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new RuntimeException("Uncaught exception"));
     mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor("dummyTopic", monitorConfig, 5,
         true, mysqlDagActionStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
     try {
