@@ -147,7 +147,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
       try {
         handleDagAction(action, true);
       } catch (Exception e) {
-        log.error("Ran into an unexpected error processing DagActionStore changes during initialization for action {}", action, e);
+        log.error("Unexpected error initializing from DagActionStore changes, upon {}", action, e);
         this.unexpectedErrors.mark();
       }
     }
