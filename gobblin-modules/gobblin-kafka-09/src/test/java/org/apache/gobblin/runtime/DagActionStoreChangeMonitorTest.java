@@ -21,12 +21,10 @@ import java.io.IOException;
 import java.net.URI;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.Before;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
