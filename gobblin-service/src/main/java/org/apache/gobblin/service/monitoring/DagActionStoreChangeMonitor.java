@@ -144,7 +144,12 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     }
     // TODO: make this multi-threaded to add parallelism
     for (DagActionStore.DagAction action : dagActions) {
-      handleDagAction(action, true);
+      try {
+        handleDagAction(action, true);
+      } catch (Exception e) {
+        log.error("Unexpected error initializing from DagActionStore changes, upon {}", action, e);
+        this.unexpectedErrors.mark();
+      }
     }
   }
 

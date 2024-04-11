@@ -136,7 +136,7 @@ public class FlowCompilationValidationHelper {
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
-    if (jobExecutionPlanDag.isEmpty()) {
+    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
       return Optional.absent();
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
