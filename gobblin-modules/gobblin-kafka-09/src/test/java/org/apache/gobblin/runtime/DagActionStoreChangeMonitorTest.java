@@ -21,9 +21,12 @@ import java.io.IOException;
 import java.net.URI;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.junit.Before;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
@@ -38,7 +41,6 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -113,18 +115,19 @@ public class DagActionStoreChangeMonitorTest {
   }
 
   // Called at start of every test so the count of each method being called is reset to 0
-  public void setup() {
+  @BeforeMethod
+  public void setupMockMonitor() {
      mockDagActionStoreChangeMonitor = createMockDagActionStoreChangeMonitor();
      mockDagActionStoreChangeMonitor.startUpForTest();
   }
 
   @BeforeClass
-  public void setupTestDb() throws Exception {
+  public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
   }
 
   @AfterClass
-  public void cleanup() throws IOException {
+  public void tearDown() throws IOException {
     this.testDb.close();
   }
 
@@ -134,7 +137,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test
   public void testProcessMessageWithHeartbeatAndNullDagAction() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", null);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -150,7 +152,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndNullDagAction")
   public void testProcessMessageWithHeartbeatAndFlowInfo() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -164,7 +165,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndFlowInfo")
   public void testProcessMessageWithInsertLaunchType() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -179,7 +179,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertLaunchType")
   public void testProcessMessageWithInsertResumeType() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -193,7 +192,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertResumeType")
   public void testProcessMessageWithInsertKillType() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.KILL);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -208,7 +206,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertKillType")
   public void testProcessMessageWithUpdate() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.UPDATE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -222,7 +219,6 @@ public class DagActionStoreChangeMonitorTest {
    */
   @Test (dependsOnMethods = "testProcessMessageWithUpdate")
   public void testProcessMessageWithDelete() throws SpecNotFoundException {
-    setup();
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.DELETE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
@@ -231,7 +227,7 @@ public class DagActionStoreChangeMonitorTest {
     verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
   }
 
-  @Test
+  @Test (dependsOnMethods = "testProcessMessageWithDelete")
   public void testStartupSequenceHandlesFailures() throws Exception {
     Config config = ConfigBuilder.create()
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
@@ -261,6 +257,7 @@ public class DagActionStoreChangeMonitorTest {
     try {
       mockDagActionStoreChangeMonitor.setActive();
     } catch (Exception e) {
+      verify(mockFlowCatalog.getSpecs(), times(1));
       Assert.fail();
     }
   }
