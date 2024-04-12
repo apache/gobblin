@@ -116,16 +116,12 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy = GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE; // as no speculative exec
 
     SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-    List<String> fileSourcePaths = workUnits.stream()
-        .map(workUnit -> getCopyableFileSourcePathDesc(workUnit, wu.getWorkUnitPath()))
-        .collect(Collectors.toList());
-    List<String> pathsToLog = getSourcePathsToLog(fileSourcePaths, jobState);
-    log.info("WU [{}] - submitting {} workUnits for copying source files: {}{}",
+    Optional<String> optWorkUnitsDesc = getOptWorkUnitsDesc(workUnits, wu.getWorkUnitPath(), jobState);
+    log.info("WU [{}] - submitting {} workUnits{}",
         wu.getCorrelator(),
         workUnits.size(),
-        pathsToLog.size() == workUnits.size() ? "" : ("**first " + pathsToLog.size() + " only** "),
-        pathsToLog);
-    log.debug("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.get(0).toJsonString());
+        optWorkUnitsDesc.map(x -> " " + x).orElse(""));
+    log.debug("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.isEmpty() ? "<<absent>>" : workUnits.get(0).toJsonString());
 
     GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
         jobState.getJobId(), containerId, jobState, workUnits,
@@ -164,46 +160,57 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     };
   }
 
-  protected String getCopyableFileSourcePathDesc(WorkUnit workUnit, String workUnitPath) {
-    return getOptFirstCopyableFile(Lists.newArrayList(workUnit), workUnitPath)
-        .map(copyableFile -> copyableFile.getOrigin().getPath().toString())
-        .orElse(
-            "<<not a CopyableFile("
-                + getOptCopyEntityClass(workUnit, workUnitPath)
-                .map(Class::getSimpleName)
-                .orElse("<<not a CopyEntity!>>")
-                + "): '" + workUnitPath + "'"
-        );
-  }
-
-  protected Optional<CopyableFile> getOptCopyableFile(TaskState taskState) {
-    return getOptCopyableFile(taskState, "taskState '" + taskState.getTaskId() + "'");
-  }
-
-  protected Optional<CopyableFile> getOptCopyableFile(State state, String logDesc) {
-    return getOptCopyEntityClass(state, logDesc).flatMap(copyEntityClass -> {
-      log.debug("(state) {} got (copyEntity) {}", state.getClass().getName(), copyEntityClass.getName());
-      if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
-        String serialization = state.getProp(CopySource.SERIALIZED_COPYABLE_FILE);
-        if (serialization != null) {
-          return Optional.of((CopyableFile) CopyEntity.deserialize(serialization));
-        }
-      }
+  protected static Optional<String> getOptWorkUnitsDesc(List<WorkUnit> workUnits, String workUnitsPath, JobState jobState) {
+    List<String> fileSourcePaths = workUnits.stream()
+        .map(workUnit -> getOptCopyableFileSourcePathDesc(workUnit, workUnitsPath))
+        .filter(Optional::isPresent)
+        .map(Optional::get)
+        .collect(Collectors.toList());
+    if (fileSourcePaths.isEmpty()) {
       return Optional.empty();
-    });
+    } else {
+      return Optional.of(getSourcePathsToLog(fileSourcePaths, jobState)).map(pathsToLog ->
+          "for copying source files: "
+              + (pathsToLog.size() == workUnits.size() ? "" : ("**first " + pathsToLog.size() + " only** "))
+              + pathsToLog
+      );
+    }
   }
 
-  protected Optional<CopyableFile> getOptFirstCopyableFile(List<WorkUnit> workUnits, String workUnitPath) {
-    return Optional.of(workUnits).filter(wus -> wus.size() > 0).flatMap(wus ->
-      getOptCopyableFile(wus.get(0), "workUnit '" + workUnitPath + "'")
-    );
+  protected static Optional<String> getOptCopyableFileSourcePathDesc(WorkUnit workUnit, String workUnitPath) {
+    return getOptWorkUnitCopyEntityClass(workUnit, "workUnit '" + workUnitPath + "'").flatMap(copyEntityClass ->
+        getOptCopyableFile(copyEntityClass, workUnit).map(copyableFile ->
+            copyableFile.getOrigin().getPath().toString()));
   }
 
-  protected Optional<Class<?>> getOptCopyEntityClass(State state, String logDesc) {
+  protected static Optional<CopyableFile> getOptCopyableFile(TaskState taskState) {
+    return getOptTaskStateCopyEntityClass(taskState).flatMap(copyEntityClass ->
+        getOptCopyableFile(copyEntityClass, taskState));
+  }
+
+  protected static Optional<CopyableFile> getOptCopyableFile(Class<?> copyEntityClass, State state) {
+    log.debug("(state) {} got (copyEntity) {}", state.getClass().getName(), copyEntityClass.getName());
+    if (CopyableFile.class.isAssignableFrom(copyEntityClass)) {
+      String serialization = state.getProp(CopySource.SERIALIZED_COPYABLE_FILE);
+      if (serialization != null) {
+        return Optional.of((CopyableFile) CopyEntity.deserialize(serialization));
+      }
+    }
+    return Optional.empty();
+  }
+
+  protected static Optional<Class<?>> getOptWorkUnitCopyEntityClass(WorkUnit workUnit, String workUnitPath) {
+    return getOptCopyEntityClass(workUnit, "workUnit '" + workUnitPath + "'");
+  }
+
+  protected static Optional<Class<?>> getOptTaskStateCopyEntityClass(TaskState taskState) {
+    return getOptCopyEntityClass(taskState, "taskState '" + taskState.getTaskId() + "'");
+  }
+
+  protected static Optional<Class<?>> getOptCopyEntityClass(State state, String logDesc) {
     try {
       return Optional.of(CopySource.getCopyEntityClass(state));
     } catch (IOException ioe) {
-      log.warn(logDesc + " - failed getting copy entity class:", ioe);
       return Optional.empty();
     }
   }
