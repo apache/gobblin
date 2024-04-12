@@ -205,17 +205,17 @@ public class LoopingDatasetFinderSourceTest {
     List<LongWatermark> watermarks1 = new ArrayList<>();
     List<Dataset> datasets1 = new ArrayList<>();
     Assert.assertEquals(workUnits.get(0).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset1");
-    Assert.assertEquals(workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(0).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(dataset1);
 
     Assert.assertEquals(workUnits.get(1).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset2");
-    Assert.assertEquals(workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(1).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(dataset2);
 
     Assert.assertEquals(workUnits.get(2).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset3");
-    Assert.assertEquals(workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(2).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(dataset3);
 
@@ -244,12 +244,12 @@ public class LoopingDatasetFinderSourceTest {
 
     Assert.assertEquals(workUnits.size(), 3);
     Assert.assertEquals(workUnits.get(0).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset4");
-    Assert.assertEquals(workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks2.add(workUnits.get(0).getExpectedHighWatermark(LongWatermark.class));
     datasets2.add(dataset4);
 
     Assert.assertEquals(workUnits.get(1).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset5");
-    Assert.assertEquals(workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks2.add(workUnits.get(1).getExpectedHighWatermark(LongWatermark.class));
     datasets2.add(dataset5);
 
@@ -327,17 +327,17 @@ public class LoopingDatasetFinderSourceTest {
 
     Assert.assertEquals(workUnits.size(), 4);
     Assert.assertEquals(workUnits.get(0).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset1");
-    Assert.assertEquals(workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(0).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(dataset1);
 
     Assert.assertEquals(workUnits.get(1).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset2@p1");
-    Assert.assertEquals(workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(1).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(new SimpleDatasetForTesting("dataset2@p1"));
 
     Assert.assertEquals(workUnits.get(2).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset2@p2");
-    Assert.assertEquals(workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks1.add(workUnits.get(2).getExpectedHighWatermark(LongWatermark.class));
     datasets1.add(new SimpleDatasetForTesting("dataset2@p2"));
 
@@ -367,17 +367,17 @@ public class LoopingDatasetFinderSourceTest {
 
     Assert.assertEquals(workUnits.size(), 4);
     Assert.assertEquals(workUnits.get(0).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset2@p3");
-    Assert.assertEquals(workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks2.add(workUnits.get(0).getExpectedHighWatermark(LongWatermark.class));
     datasets2.add(new SimpleDatasetForTesting("dataset2@p3"));
 
     Assert.assertEquals(workUnits.get(1).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset3@p1");
-    Assert.assertEquals(workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(1).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks2.add(workUnits.get(1).getExpectedHighWatermark(LongWatermark.class));
     datasets2.add(new SimpleDatasetForTesting("dataset3@p1"));
 
     Assert.assertEquals(workUnits.get(2).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset3@p2");
-    Assert.assertEquals(workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(2).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks2.add(workUnits.get(2).getExpectedHighWatermark(LongWatermark.class));
     datasets2.add(new SimpleDatasetForTesting("dataset3@p2"));
 
@@ -404,7 +404,7 @@ public class LoopingDatasetFinderSourceTest {
 
     Assert.assertEquals(workUnits.size(), 2);
     Assert.assertEquals(workUnits.get(0).getProp(ConfigurationKeys.DATASET_URN_KEY), "dataset3@p3");
-    Assert.assertEquals(workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
+    Assert.assertEquals((long)workUnits.get(0).getLowWatermark(LongWatermark.class).getValue(), 0);
     watermarks3.add(workUnits.get(0).getExpectedHighWatermark(LongWatermark.class));
     datasets3.add(new SimpleDatasetForTesting("dataset3@p3"));
 

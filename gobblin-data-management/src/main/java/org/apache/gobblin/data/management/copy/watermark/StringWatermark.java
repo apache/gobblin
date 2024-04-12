@@ -26,7 +26,6 @@ import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 
 
 /**
@@ -34,10 +33,14 @@ import lombok.Getter;
  */
 @AllArgsConstructor
 @EqualsAndHashCode
-public class StringWatermark implements ComparableWatermark {
+public class StringWatermark implements ComparableWatermark<String> {
 
-  @Getter
   String value;
+
+  @Override
+  public String getValue(){
+    return value;
+  }
 
   @Override
   public int compareTo(ComparableWatermark other) {
