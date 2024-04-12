@@ -82,17 +82,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
-      try {
-        if (troubleshooter == null) {
-          log.warn("{} - No troubleshooter to report issues from automatic troubleshooter", correlator);
-        } else {
-          troubleshooter.refineIssues();
-          troubleshooter.logIssueSummary();
-          troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
-        }
-      } catch (Exception e) {
-        log.error(String.format("%s - Failed to report issues from automatic troubleshooter", correlator), e);
-      }
+      Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, correlator);
     }
   }
 
