@@ -552,10 +552,13 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     state.setProp(COPY_ENTITY_CLASS, copyEntity.getClass().getName());
   }
 
-  public static Class<?> getCopyEntityClass(State state)
-      throws IOException {
+  public static Class<?> getCopyEntityClass(State state) throws IOException {
+    Optional<String> optClassName = Optional.fromNullable(state.getProp(COPY_ENTITY_CLASS));
+    if (!optClassName.isPresent()) {
+      throw new IOException("property '" + COPY_ENTITY_CLASS + "' not found in state: " + state);
+    }
     try {
-      return Class.forName(state.getProp(COPY_ENTITY_CLASS));
+      return Class.forName(optClassName.get());
     } catch (ClassNotFoundException cnfe) {
       throw new IOException(cnfe);
     }
