@@ -123,9 +123,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
     this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
-    this.dagManager.setTopologySpecMap(this.specCompiler.getTopologySpecMap());
+    this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     if (dagManagementStateStore.isPresent()) {
-      ((MostlyMySqlDagManagementStateStore) dagManagementStateStore.get()).setTopologySpecMap(this.specCompiler.getTopologySpecMap());
+      ((MostlyMySqlDagManagementStateStore) dagManagementStateStore.get()).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     }
 
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
