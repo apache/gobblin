@@ -27,8 +27,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.AccessControlException;
 
-import com.google.common.annotations.VisibleForTesting;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

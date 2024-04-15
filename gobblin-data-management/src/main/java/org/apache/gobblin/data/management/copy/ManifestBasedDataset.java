@@ -26,10 +26,12 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,7 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.commit.SetPermissionCommitStep;
 
@@ -130,10 +133,12 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             copyEntities.add(copyableFile);
 
             Path fromPath = srcFs.getFileStatus(fileToCopy).isDirectory() ? fileToCopy : fileToCopy.getParent();
-
-            ancestorOwnerAndPermissions.putAll(
-                CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
-                    new Path(commonFilesParent), configuration));
+            // Avoid duplicate calculation for the same ancestor
+            if (!ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
+              ancestorOwnerAndPermissions.putAll(
+                  CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
+                      new Path(commonFilesParent), configuration));
+            }
 
             if (existOnTarget && srcFile.isFile()) {
               // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
@@ -147,9 +152,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       }
 
       // Only set permission for newly created folders on target
-      for (String parentFolder : ancestorOwnerAndPermissions.keySet()) {
-        if (targetFs.exists(new Path(parentFolder))) {
-          ancestorOwnerAndPermissions.remove(parentFolder);
+      Set<String> parentFolders = new HashSet<>(ancestorOwnerAndPermissions.keySet());
+      for (String folder : parentFolders) {
+        if (targetFs.exists(new Path(folder))) {
+          ancestorOwnerAndPermissions.remove(folder);
         }
       }
       Properties props = new Properties();
