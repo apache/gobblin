@@ -27,6 +27,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.AccessControlException;
 
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
@@ -38,6 +41,7 @@ import org.apache.gobblin.data.management.copy.OwnerAndPermission;
  */
 @Slf4j
 public class SetPermissionCommitStep implements CommitStep {
+  @Getter
   Map<String, OwnerAndPermission> pathAndPermissions;
   private final URI fsUri;
   public final boolean stopOnError;

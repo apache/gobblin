@@ -146,6 +146,12 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         }
       }
 
+      // Only set permission for newly created folders on target
+      for (String parentFolder : ancestorOwnerAndPermissions.keySet()) {
+        if (targetFs.exists(new Path(parentFolder))) {
+          ancestorOwnerAndPermissions.remove(parentFolder);
+        }
+      }
       Properties props = new Properties();
       props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
       CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
