@@ -28,6 +28,7 @@ import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -63,6 +64,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Data
 public class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  @Getter
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;
   private final EventSubmitter eventSubmitter;
