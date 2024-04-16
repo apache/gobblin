@@ -152,6 +152,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       }
 
       // Only set permission for newly created folders on target
+      // To change permissions for existing dirs, expectation is to add the folder to the manifest
       Set<String> parentFolders = new HashSet<>(ancestorOwnerAndPermissions.keySet());
       for (String folder : parentFolders) {
         if (targetFs.exists(new Path(folder))) {
