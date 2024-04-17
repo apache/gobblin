@@ -117,10 +117,10 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
 
     SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = JobStateUtils.getSharedResourcesBroker(jobState);
     Optional<String> optWorkUnitsDesc = getOptWorkUnitsDesc(workUnits, wu.getWorkUnitPath(), jobState);
-    log.info("WU [{}] - submitting {} workUnits{}",
+    log.info("WU [{}] - submitting {} workUnits {}",
         wu.getCorrelator(),
         workUnits.size(),
-        optWorkUnitsDesc.map(x -> " " + x).orElse(""));
+        optWorkUnitsDesc.orElse(""));
     log.debug("WU [{}] - (first) workUnit: {}", wu.getCorrelator(), workUnits.isEmpty() ? "<<absent>>" : workUnits.get(0).toJsonString());
 
     GobblinMultiTaskAttempt taskAttempt = GobblinMultiTaskAttempt.runWorkUnits(
@@ -167,6 +167,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
         .map(Optional::get)
         .collect(Collectors.toList());
     if (fileSourcePaths.isEmpty()) {
+      // TODO - describe WorkUnits other than `CopyableFile`
       return Optional.empty();
     } else {
       return Optional.of(getSourcePathsToLog(fileSourcePaths, jobState)).map(pathsToLog ->
@@ -178,7 +179,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
   }
 
   protected static Optional<String> getOptCopyableFileSourcePathDesc(WorkUnit workUnit, String workUnitPath) {
-    return getOptWorkUnitCopyEntityClass(workUnit, "workUnit '" + workUnitPath + "'").flatMap(copyEntityClass ->
+    return getOptWorkUnitCopyEntityClass(workUnit, workUnitPath).flatMap(copyEntityClass ->
         getOptCopyableFile(copyEntityClass, workUnit).map(copyableFile ->
             copyableFile.getOrigin().getPath().toString()));
   }
