@@ -130,12 +130,14 @@ public class FlowLaunchHandler {
       // Otherwise leaseAttemptStatus instanceof MultiActiveLeaseArbiter.NoLongerLeasingStatus & no need to do anything
   }
 
-  // Called after obtaining a lease to persist the dag action to {@link DagActionStore} and mark the lease as done
+  /* Called after obtaining a lease to persist the dag action to {@link DagActionStore} and mark the lease as done.
+  If a duplicate dag action already exists in the store, the lease is still marked as the action need only occur once. 
+   */
   private boolean persistDagAction(LeaseAttemptStatus.LeaseObtainedStatus leaseStatus) {
     if (this.dagActionStore.isPresent()) {
       try {
         DagActionStore.DagAction dagAction = leaseStatus.getDagAction();
-        this.dagActionStore.get().addFlowDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType());
+        this.dagActionStore.get().addFlowDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(), dagAction.getDagActionType(), true);
         // If the dag action has been persisted to the {@link DagActionStore} we can close the lease
         this.numFlowsSubmitted.mark();
         return this.multiActiveLeaseArbiter.recordLeaseSuccess(leaseStatus);

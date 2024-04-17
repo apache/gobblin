@@ -91,7 +91,8 @@ public interface DagActionStore {
   boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
   /**
-   * Persist the dag action in {@link DagActionStore} for durability
+   * Persist the dag action in {@link DagActionStore} for durability. Throws exception for failed insert due to a
+   * duplicate key error.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
@@ -102,7 +103,21 @@ public interface DagActionStore {
   void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
 
   /**
-   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
+   * Persist the dag action in {@link DagActionStore} for durability
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
+   * @param ignoreDuplicates boolean value used to indicate whether duplicate insertions will result in an exception
+   *                         being thrown or ignored
+   * @throws IOException
+   */
+  void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, boolean ignoreDuplicates) throws IOException;
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName and throws
+   *    * exception for a failed insert to a duplicate key error.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
    * @param flowExecutionId flow execution for the dag action
@@ -110,6 +125,18 @@ public interface DagActionStore {
    * @throws IOException
    */
   void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param dagActionType the value of the dag action
+   * @param ignoreDuplicates boolean value used to indicate whether duplicate insertions will result in an exception
+   *                         being thrown or ignored
+   * @throws IOException
+   */
+  void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType, boolean ignoreDuplicates) throws IOException;
 
   /**
    * delete the dag action from {@link DagActionStore}

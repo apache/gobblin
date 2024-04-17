@@ -53,8 +53,10 @@ public class MysqlDagActionStore implements DagActionStore {
   private String thisTableRetentionStatement;
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name = ? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?)";
 
-  protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, job_name, dag_action) "
-      + "VALUES (?, ?, ?, ?, ?)";
+  protected static final String INSERT_STATEMENT = "INSERT INTO %s "
+      + "(flow_group, flow_name, flow_execution_id, job_name, dag_action) VALUES (?, ?, ?, ?, ?)";
+  protected static final String INSERT_IGNORE_DUPLICATES_STATEMENT = "INSERT IGNORE INTO %s "
+      + "(flow_group, flow_name, flow_execution_id, job_name, dag_action) VALUES (?, ?, ?, ?, ?)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s";
@@ -127,9 +129,18 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
+  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionType dagActionType)
       throws IOException {
-    dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
+    addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);
+  }
+
+  @Override
+  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionType dagActionType, boolean ignoreDuplicates) throws IOException {
+    dbStatementExecutor.withPreparedStatement(
+        String.format(ignoreDuplicates ? INSERT_IGNORE_DUPLICATES_STATEMENT : INSERT_STATEMENT, tableName),
+        insertStatement -> {
     try {
       int i = 0;
       insertStatement.setString(++i, flowGroup);
@@ -147,7 +158,13 @@ public class MysqlDagActionStore implements DagActionStore {
   @Override
   public void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
       throws IOException {
-    addJobDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
+    addFlowDagAction(flowGroup, flowName, flowExecutionId, dagActionType, false);
+  }
+
+  @Override
+  public void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType,
+      boolean ignoreDuplicates) throws IOException {
+    addJobDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType, ignoreDuplicates);
   }
 
   @Override
