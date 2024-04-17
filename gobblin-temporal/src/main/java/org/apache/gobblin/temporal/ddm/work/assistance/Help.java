@@ -268,7 +268,6 @@ public class Help {
     }
   }
 
-
   /**
    * refine and report {@link AutomaticTroubleshooter} issues to the {@link EventSubmitter}; additionally {@link AutomaticTroubleshooter#logIssueSummary()}
    *
