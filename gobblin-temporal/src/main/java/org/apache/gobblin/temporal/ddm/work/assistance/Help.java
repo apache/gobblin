@@ -32,6 +32,7 @@ import com.google.common.cache.CacheBuilder;
 
 import com.typesafe.config.Config;
 
+import org.slf4j.Logger;
 import org.slf4j.MDC;
 
 import org.apache.hadoop.conf.Configuration;
@@ -41,8 +42,11 @@ import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
@@ -246,5 +250,33 @@ public class Help {
     MDC.put(ConfigurationKeys.FLOW_GROUP_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_GROUP_KEY, flowGroup));
     MDC.put(ConfigurationKeys.FLOW_NAME_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_NAME_KEY, flowName));
     MDC.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.format("%s:%s",ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecId));
+  }
+
+  /**
+   * refine {@link AutomaticTroubleshooter} issues then report them to the {@link EventSubmitter} and log an issues summary via `logger`;
+   * gracefully handle `null` `troubleshooter`
+   */
+  public static void finalizeTroubleshooting(AutomaticTroubleshooter troubleshooter, EventSubmitter eventSubmitter, Logger logger, String correlator) {
+    try {
+      if (troubleshooter == null) {
+        logger.warn("{} - No troubleshooter to report issues from automatic troubleshooter", correlator);
+      } else {
+        Help.reportTroubleshooterIssues(troubleshooter, eventSubmitter);
+      }
+    } catch (TroubleshooterException e) {
+      logger.error(String.format("%s - Failed to report issues from automatic troubleshooter", correlator), e);
+    }
+  }
+
+  /**
+   * refine and report {@link AutomaticTroubleshooter} issues to the {@link EventSubmitter}; additionally {@link AutomaticTroubleshooter#logIssueSummary()}
+   *
+   * ATTENTION: `troubleshooter` MUST NOT be `null`
+   */
+  public static void reportTroubleshooterIssues(AutomaticTroubleshooter troubleshooter, EventSubmitter eventSubmitter)
+      throws TroubleshooterException {
+    troubleshooter.refineIssues();
+    troubleshooter.logIssueSummary();
+    troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
   }
 }
