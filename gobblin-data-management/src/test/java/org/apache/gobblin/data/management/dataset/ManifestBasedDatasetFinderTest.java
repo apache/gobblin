@@ -93,6 +93,8 @@ public class ManifestBasedDatasetFinderTest {
       FileSet<CopyEntity> fileSet = fileSets.next();
       Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
       Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
+      SetPermissionCommitStep step = (SetPermissionCommitStep) ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 2);
       Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).getFileStatus(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).open(manifestPath);
@@ -178,6 +180,7 @@ public class ManifestBasedDatasetFinderTest {
     Mockito.when(sourceFs.getUri()).thenReturn(SRC_FS_URI);
     Mockito.when(manifestReadFs.getUri()).thenReturn(MANIFEST_READ_FS_URI);
     Mockito.when(destFs.getUri()).thenReturn(DEST_FS_URI);
+    Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
     Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
     Mockito.when(sourceFs.exists(any(Path.class))).thenReturn(true);
     Mockito.when(manifestReadFs.exists(any(Path.class))).thenReturn(true);
