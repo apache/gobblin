@@ -256,15 +256,15 @@ public class Help {
    * refine {@link AutomaticTroubleshooter} issues then report them to the {@link EventSubmitter} and log an issues summary via `logger`;
    * gracefully handle `null` `troubleshooter`
    */
-  public static void finalizeTroubleshooting(AutomaticTroubleshooter troubleshooter, EventSubmitter eventSubmitter, Logger logger, String correlator) {
+  public static void finalizeTroubleshooting(AutomaticTroubleshooter troubleshooter, EventSubmitter eventSubmitter, Logger logger, String errCorrelator) {
     try {
       if (troubleshooter == null) {
-        logger.warn("{} - No troubleshooter to report issues from automatic troubleshooter", correlator);
+        logger.warn("{} - No troubleshooter to report issues from automatic troubleshooter", errCorrelator);
       } else {
         Help.reportTroubleshooterIssues(troubleshooter, eventSubmitter);
       }
     } catch (TroubleshooterException e) {
-      logger.error(String.format("%s - Failed to report issues from automatic troubleshooter", correlator), e);
+      logger.error(String.format("%s - Failed to report issues from automatic troubleshooter", errCorrelator), e);
     }
   }
 
