@@ -41,15 +41,19 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
@@ -69,12 +73,15 @@ public class CommitActivityImpl implements CommitActivity {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     String jobName = UNDEFINED_JOB_NAME;
+    AutomaticTroubleshooter troubleshooter = null;
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
       jobName = jobState.getJobName();
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-      JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
+      troubleshooter.start();
+      JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, troubleshooter.getIssueRepository());
       // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
       Path jobIdParent = new Path(workSpec.getWorkUnitsDir()).getParent();
       Path jobOutputPath = new Path(new Path(jobIdParent, "output"), jobIdParent.getName());
@@ -97,6 +104,10 @@ public class CommitActivityImpl implements CommitActivity {
           new IOException(e),
           null
       );
+    } finally {
+      String errCorrelator = String.format("Commit [%s]", calcCommitId(workSpec));
+      EventSubmitter eventSubmitter = workSpec.getEventSubmitterContext().create();
+      Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, errCorrelator);
     }
   }
 
@@ -161,6 +172,11 @@ public class CommitActivityImpl implements CommitActivity {
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
+  }
+
+  /** @return id/correlator for this particular commit activity */
+  private static String calcCommitId(WUProcessingSpec workSpec) {
+    return new Path(workSpec.getWorkUnitsDir()).getParent().getName();
   }
 
   /**
