@@ -354,10 +354,12 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   /**
-   * Sets the {@link FsPermission}, owner, group for the path passed. It will not throw exceptions, if operations
-   * cannot be executed, will warn and continue.
+   * Sets the {@link FsPermission}, owner, group for the path passed. It uses `requirePermissionSetForSuccess` param
+   * to determine whether an exception will be thrown or only error log printed in the case of failure.
+   * @param requirePermissionSetForSuccess if true then throw exception, otherwise log error message and continue when
+   *                                       operations cannot be executed.
    */
-  public static void safeSetPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission,
+  public static void setPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission,
       boolean requirePermissionSetForSuccess) throws IOException {
 
     Path path = file.getPath();
@@ -409,7 +411,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Collections.reverse(files);
 
     for (FileStatus file : files) {
-      safeSetPathPermission(this.fs, file, ownerAndPermission, this.requirePermissionSetForSuccess);
+      setPathPermission(this.fs, file, ownerAndPermission, this.requirePermissionSetForSuccess);
     }
   }
 
