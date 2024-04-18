@@ -90,8 +90,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
-  public static final String GOBBLIN_COPY_REQUIRE_PERMISSION_SET_FOR_SUCCESS = "gobblin.copy.requirePermissionSetForSuccess";
-  public static final boolean DEFAULT_COPY_REQUIRE_PERMISSION_SET_FOR_SUCCESS = false;
+  public static final String GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL = "gobblin.copy.shouldFailWhenPermissionFail";
+  public static final boolean DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL = true;
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -110,7 +110,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   private final Configuration conf;
 
   protected final Meter copySpeedMeter;
-  protected final boolean requirePermissionSetForSuccess;
+  protected final boolean shouldFailWhenPermissionFail;
 
   protected final Optional<String> writerAttemptIdOptional;
   /**
@@ -184,7 +184,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     } else {
       this.renameOptions = Options.Rename.NONE;
     }
-    this.requirePermissionSetForSuccess = state.getPropAsBoolean(GOBBLIN_COPY_REQUIRE_PERMISSION_SET_FOR_SUCCESS, DEFAULT_COPY_REQUIRE_PERMISSION_SET_FOR_SUCCESS);
+    this.shouldFailWhenPermissionFail = state.getPropAsBoolean(GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL,
+        DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -411,7 +412,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Collections.reverse(files);
 
     for (FileStatus file : files) {
-      setPathPermission(this.fs, file, ownerAndPermission, this.requirePermissionSetForSuccess);
+      setPathPermission(this.fs, file, ownerAndPermission, this.shouldFailWhenPermissionFail);
     }
   }
 
