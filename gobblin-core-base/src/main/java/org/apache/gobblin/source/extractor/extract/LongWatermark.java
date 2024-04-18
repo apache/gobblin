@@ -32,6 +32,10 @@ import lombok.EqualsAndHashCode;
 import lombok.Setter;
 import lombok.ToString;
 
+
+/**
+ * Long based {@link ComparableWatermark} implementation.
+ */
 @ToString
 @EqualsAndHashCode
 public class LongWatermark implements ComparableWatermark<Long> {
@@ -42,6 +46,8 @@ public class LongWatermark implements ComparableWatermark<Long> {
   private long value;
 
   @Override
+  // Returns a Long object due to Java generics' requirement for object types.
+  // The underlying variable is maintained as a primitive long to optimize performance for mathematical operations.
   public Long getValue(){
     return value;
   }

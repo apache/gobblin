@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy.watermark;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 
+import lombok.Getter;
 import org.apache.gobblin.source.extractor.ComparableWatermark;
 import org.apache.gobblin.source.extractor.Watermark;
 import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
@@ -35,12 +36,8 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode
 public class StringWatermark implements ComparableWatermark<String> {
 
-  String value;
-
-  @Override
-  public String getValue(){
-    return value;
-  }
+  @Getter
+  private String value;
 
   @Override
   public int compareTo(ComparableWatermark other) {
