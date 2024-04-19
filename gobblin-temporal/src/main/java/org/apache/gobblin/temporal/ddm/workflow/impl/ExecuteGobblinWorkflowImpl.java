@@ -19,10 +19,12 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.activity.ActivityOptions;
@@ -39,6 +41,7 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -71,10 +74,11 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       GEN_WUS_ACTIVITY_OPTS);
 
   @Override
-  public int execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+  public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     EventTimer timer = timerFactory.createJobTimer();
     int numWUsGenerated = 0;
+    int numWUsProcessed = 0;
     try {
       numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       if (numWUsGenerated > 0) {
@@ -91,13 +95,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
         }
 
-        int numWUsProcessed = processWUsWorkflow.process(wuSpec);
+        numWUsProcessed = processWUsWorkflow.process(wuSpec);
         if (numWUsProcessed != numWUsGenerated) {
           log.warn("Not all work units generated were processed: {} != {}", numWUsGenerated, numWUsProcessed);
           // TODO provide more robust indication that things went wrong!  (retryable or non-retryable error??)
         }
       }
       timer.stop();
+      Map<String, Long> stats = ImmutableMap.of("foo", 6L, "bar", -2L, "baz", 99999L, "quux", 42L, "GoT", 100000L);
+      return new ExecGobblinStats(numWUsGenerated, numWUsProcessed, "one", stats);
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
       timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).stop();
@@ -108,7 +114,6 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           null
       );
     }
-    return numWUsGenerated;
   }
 
   protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow(Properties jobProps) {

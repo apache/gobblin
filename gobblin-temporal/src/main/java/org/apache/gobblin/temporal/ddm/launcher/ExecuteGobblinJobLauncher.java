@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.eventbus.EventBus;
@@ -85,8 +86,8 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter)
           .withGaaSJobProps(this.jobProps)
           .build();
-      int numWorkUnits = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
-      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", numWorkUnits);
+      ExecGobblinStats execGobblinStats = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
+      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
