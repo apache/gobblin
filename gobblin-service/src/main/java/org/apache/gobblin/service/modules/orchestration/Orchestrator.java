@@ -224,7 +224,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         );
 
         flowLaunchHandler.get().handleFlowLaunchTriggerEvent(jobProps, launchDagAction, triggerTimestampMillis, isReminderEvent,
-            flowSpec.isScheduled()); // `flowSpec.isScheduled()` ==> adopt consensus, "laundered" `DagAction::flowExecutionId`
+            flowSpec.isScheduled()); // `flowSpec.isScheduled()` ==> adopt consensus, "laundered" `flowExecutionId` as clock drift safeguard
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
