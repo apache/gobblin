@@ -131,6 +131,9 @@ public class GobblinClusterUtils {
    */
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
+    if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_ABSOLUTE_WORK_DIR)) {
+      return new Path(new Path(fs.getUri()), config.getString(GobblinClusterConfigurationKeys.CLUSTER_ABSOLUTE_WORK_DIR));
+    }
     if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
       return new Path(new Path(fs.getUri()), PathUtils.combinePaths(config.getString(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR),
           getAppWorkDirPath(applicationName, applicationId)));
@@ -253,5 +256,14 @@ public class GobblinClusterUtils {
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
         .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
         : FileSystem.get(conf);
+  }
+
+  public static FileSystem buildNewInstanceFileSystem(Config config, Configuration conf) throws IOException {
+    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
+    //Add any Hadoop-specific overrides into the Configuration object
+    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
+    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
+        .newInstance(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
+        : FileSystem.newInstance(conf);
   }
 }

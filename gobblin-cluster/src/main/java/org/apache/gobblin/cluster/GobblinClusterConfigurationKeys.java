@@ -50,6 +50,8 @@ public class GobblinClusterConfigurationKeys {
   public static final boolean DEFAULT_STANDALONE_CLUSTER_MODE = false;
   // Root working directory for Gobblin cluster
   public static final String CLUSTER_WORK_DIR = GOBBLIN_CLUSTER_PREFIX + "workDir";
+  // Root working dir without appending the application name, keeping CLUSTER_WORK_DIR property for backward compatibility
+  public static final String CLUSTER_ABSOLUTE_WORK_DIR = GOBBLIN_CLUSTER_PREFIX + "absolute.workDir";
 
   public static final String DISTRIBUTED_JOB_LAUNCHER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "distributedJobLauncherEnabled";
   public static final boolean DEFAULT_DISTRIBUTED_JOB_LAUNCHER_ENABLED = false;

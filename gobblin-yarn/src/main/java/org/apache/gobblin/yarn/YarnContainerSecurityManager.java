@@ -24,6 +24,9 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import java.io.IOException;
+import java.util.Optional;
+
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 import org.apache.hadoop.fs.FileSystem;
@@ -63,9 +66,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier) {
     this.fs = fs;
-    this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
-        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
-            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    this.tokenFilePath = getYarnTokenFilePath(config, fs);
     this.eventBus = eventBus;
     this.logCopier = logCopier;
   }
@@ -110,5 +111,20 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
       LOGGER.info("updating " + token.toString());
     }
     UserGroupInformation.getCurrentUser().addCredentials(credentials);
+  }
+
+  /**
+   * A utility method to get the location of the generated security token
+   * @param config - the configuration that contains the application name and the token file path
+   * @param fs - the Filesystem that stores the security token
+   * @return the path to the security token
+   */
+  static Path getYarnTokenFilePath(Config config, FileSystem fs) {
+    if (config.hasPath(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH_KEY)) {
+      return new Path(config.getString(GobblinYarnConfigurationKeys.TOKEN_FILE_PATH_KEY), GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    }
+    // Default to storing the token file in the home directory of the user
+    return new Path(fs.getHomeDirectory(), PathUtils.combinePaths(config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY),
+        GobblinYarnConfigurationKeys.TOKEN_FILE_NAME));
   }
 }
