@@ -95,7 +95,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final DataFileVersionStrategy dstDataFileVersionStrategy;
   protected final boolean preserveDirModTime;
   protected final boolean resyncDirOwnerAndPermission;
-  protected final boolean shouldFailWhenPermissionFail;
+  protected final boolean shouldFailWhenPermissionsFail;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -136,7 +136,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     // Default to be true to preserve the original behavior
     this.preserveDirModTime = state.getPropAsBoolean(CopyConfiguration.PRESERVE_MODTIME_FOR_DIR, true);
     this.resyncDirOwnerAndPermission = state.getPropAsBoolean(CopyConfiguration.RESYNC_DIR_OWNER_AND_PERMISSION_FOR_MANIFEST_COPY, false);
-    this.shouldFailWhenPermissionFail = state.getPropAsBoolean(FileAwareInputStreamDataWriter.GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL, FileAwareInputStreamDataWriter.DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSION_FAIL);
+    this.shouldFailWhenPermissionsFail = state.getPropAsBoolean(FileAwareInputStreamDataWriter.GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL, FileAwareInputStreamDataWriter.DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL);
   }
 
   @Override
@@ -199,7 +199,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       FileStatus dstFile = this.fs.getFileStatus(copyableFile.getDestination());
       // User specifically try to copy dir metadata, so we change the group and permissions on destination even when the dir already existed
       log.info("Setting destination directory {} owner and permission to {}", dstFile.getPath(), copyableFile.getDestinationOwnerAndPermission().getFsPermission());
-      FileAwareInputStreamDataWriter.setPathPermission(this.fs, dstFile, copyableFile.getDestinationOwnerAndPermission(), this.shouldFailWhenPermissionFail);
+      FileAwareInputStreamDataWriter.setPathPermission(this.fs, dstFile, copyableFile.getDestinationOwnerAndPermission(), this.shouldFailWhenPermissionsFail);
     }
     if (preserveDirModTime || copyableFile.getFileStatus().isFile()) {
       // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
