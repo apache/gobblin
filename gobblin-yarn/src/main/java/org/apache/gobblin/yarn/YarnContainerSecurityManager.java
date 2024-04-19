@@ -24,7 +24,6 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import java.io.IOException;
-import java.util.Optional;
 
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.LogCopier;
