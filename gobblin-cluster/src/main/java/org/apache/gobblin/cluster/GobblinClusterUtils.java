@@ -131,8 +131,8 @@ public class GobblinClusterUtils {
    */
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
-    if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_ABSOLUTE_WORK_DIR)) {
-      return new Path(new Path(fs.getUri()), config.getString(GobblinClusterConfigurationKeys.CLUSTER_ABSOLUTE_WORK_DIR));
+    if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_EXACT_WORK_DIR)) {
+      return new Path(new Path(fs.getUri()), config.getString(GobblinClusterConfigurationKeys.CLUSTER_EXACT_WORK_DIR));
     }
     if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
       return new Path(new Path(fs.getUri()), PathUtils.combinePaths(config.getString(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR),
