@@ -24,11 +24,12 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 
-/** !!!!!!!!!!*/
+/** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class ExecGobblinStats {
+  // TODO - currently demonstration only: decide upon meaningful details to provide - for example...
   @NonNull private int numWorkUnitsGenerated;
   @NonNull private int numWorkUnitsSuccessful;
   @NonNull private String runBy;
