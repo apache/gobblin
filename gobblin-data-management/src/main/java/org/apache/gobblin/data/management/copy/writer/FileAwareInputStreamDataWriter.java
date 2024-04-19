@@ -90,6 +90,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
+  public static final String GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL = "gobblin.copy.shouldFailWhenPermissionsFail";
+  public static final boolean DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL = true;
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -108,6 +110,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   private final Configuration conf;
 
   protected final Meter copySpeedMeter;
+  protected final boolean shouldFailWhenPermissionsFail;
 
   protected final Optional<String> writerAttemptIdOptional;
   /**
@@ -181,6 +184,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     } else {
       this.renameOptions = Options.Rename.NONE;
     }
+    this.shouldFailWhenPermissionsFail = state.getPropAsBoolean(GOBBLIN_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL,
+        DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL);
   }
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId)
@@ -350,10 +355,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   /**
-   * Sets the {@link FsPermission}, owner, group for the path passed. It will not throw exceptions, if operations
-   * cannot be executed, will warn and continue.
+   * Sets the {@link FsPermission}, owner, group for the path passed. It uses `requirePermissionSetForSuccess` param
+   * to determine whether an exception will be thrown or only error log printed in the case of failure.
+   * @param requirePermissionSetForSuccess if true then throw exception, otherwise log error message and continue when
+   *                                       operations cannot be executed.
    */
-  public static void safeSetPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission) {
+  public static void setPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission,
+      boolean requirePermissionSetForSuccess) throws IOException {
 
     Path path = file.getPath();
     OwnerAndPermission targetOwnerAndPermission = setOwnerExecuteBitIfDirectory(file, ownerAndPermission);
@@ -367,7 +375,12 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setPermission(path, targetOwnerAndPermission.getFsPermission());
       }
     } catch (IOException ioe) {
-      log.warn("Failed to set permission for directory " + path, ioe);
+      String permissionFailureMessage = "Failed to set permission for directory " + path;
+      if (requirePermissionSetForSuccess) {
+        throw new IOException(permissionFailureMessage, ioe);
+      } else {
+        log.error(permissionFailureMessage, ioe);
+      }
     }
 
     String owner = Strings.isNullOrEmpty(targetOwnerAndPermission.getOwner()) ? null : targetOwnerAndPermission.getOwner();
@@ -378,7 +391,12 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         fs.setOwner(path, owner, group);
       }
     } catch (IOException ioe) {
-      log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
+      String ownerGroupFailureMessage = "Failed to set owner and/or group for path " + path + " to " + owner + ":" + group;
+      if (requirePermissionSetForSuccess) {
+        throw new IOException(ownerGroupFailureMessage, ioe);
+      } else {
+        log.error(ownerGroupFailureMessage, ioe);
+      }
     }
   }
 
@@ -394,7 +412,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Collections.reverse(files);
 
     for (FileStatus file : files) {
-      safeSetPathPermission(this.fs, file, ownerAndPermission);
+      setPathPermission(this.fs, file, ownerAndPermission, this.shouldFailWhenPermissionsFail);
     }
   }
 
@@ -480,7 +498,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       try {
         this.fs.delete(this.stagingDir, true);
       } catch (IOException ioe) {
-        log.warn("Failed to delete staging path at " + this.stagingDir);
+        log.error("Failed to delete staging path at " + this.stagingDir);
       }
     }
   }
