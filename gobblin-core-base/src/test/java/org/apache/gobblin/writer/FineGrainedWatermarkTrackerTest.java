@@ -98,7 +98,7 @@ public class FineGrainedWatermarkTrackerTest {
     } else {
       Assert.assertEquals(uncommitted.size(), 1);
       CheckpointableWatermark uncommitable = uncommitted.get("default");
-      Assert.assertEquals(((LongWatermark) uncommitable.getWatermark()).getValue(), (long) holes.first());
+      Assert.assertEquals((long)((LongWatermark) uncommitable.getWatermark()).getValue(),  (long)holes.first());
     }
 
     Map<String, CheckpointableWatermark> commitables = tracker.getCommittableWatermarks();
@@ -109,9 +109,9 @@ public class FineGrainedWatermarkTrackerTest {
       Assert.assertEquals(commitables.size(), 1);
       CheckpointableWatermark commitable = commitables.get("default");
       if (holes.isEmpty()) {
-        Assert.assertEquals(((LongWatermark) commitable.getWatermark()).getValue(), maxWatermark);
+        Assert.assertEquals((long)((LongWatermark) commitable.getWatermark()).getValue(), maxWatermark);
       } else {
-        Assert.assertEquals(((LongWatermark) commitable.getWatermark()).getValue(), holes.first() - 1);
+        Assert.assertEquals((long)((LongWatermark) commitable.getWatermark()).getValue(), holes.first() - 1);
       }
     }
 

@@ -20,13 +20,13 @@ package org.apache.gobblin.data.management.copy.watermark;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 
+import lombok.Getter;
 import org.apache.gobblin.source.extractor.ComparableWatermark;
 import org.apache.gobblin.source.extractor.Watermark;
 import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 
 
 /**
@@ -34,10 +34,10 @@ import lombok.Getter;
  */
 @AllArgsConstructor
 @EqualsAndHashCode
-public class StringWatermark implements ComparableWatermark {
+public class StringWatermark implements ComparableWatermark<String> {
 
   @Getter
-  String value;
+  private String value;
 
   @Override
   public int compareTo(ComparableWatermark other) {

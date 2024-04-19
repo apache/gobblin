@@ -96,11 +96,11 @@ public class PartitionLevelWatermarkerTest {
     List<WorkUnit> workunits = Lists.newArrayList();
     watermarker.onGetWorkunitsEnd(workunits);
 
-    Assert.assertEquals(watermarker.getPreviousHighWatermark(part1).getValue(), 0l);
-    Assert.assertEquals(watermarker.getPreviousHighWatermark(table).getValue(), 0l);
+    Assert.assertEquals((long)watermarker.getPreviousHighWatermark(part1).getValue(), 0l);
+    Assert.assertEquals((long)watermarker.getPreviousHighWatermark(table).getValue(), 0l);
 
-    Assert.assertEquals(watermarker.getPreviousHighWatermark(part2).getValue(), 0l);
-    Assert.assertEquals(watermarker.getPreviousHighWatermark(table2).getValue(), 0l);
+    Assert.assertEquals((long)watermarker.getPreviousHighWatermark(part2).getValue(), 0l);
+    Assert.assertEquals((long)watermarker.getPreviousHighWatermark(table2).getValue(), 0l);
 
     Assert.assertEquals(workunits.size(), 2);
 

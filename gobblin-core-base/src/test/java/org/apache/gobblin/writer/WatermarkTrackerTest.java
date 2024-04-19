@@ -42,7 +42,7 @@ public class WatermarkTrackerTest {
     commits(watermarkTracker, "default", 0, 4, 5, 6);
 
     Assert.assertEquals(watermarkTracker.getCommittableWatermark("default").get().getSource(), "default");
-    Assert.assertEquals(((LongWatermark) watermarkTracker.getCommittableWatermark("default")
+    Assert.assertEquals((long)((LongWatermark) watermarkTracker.getCommittableWatermark("default")
         .get().getWatermark()).getValue(), 6L);
   }
 
@@ -54,10 +54,10 @@ public class WatermarkTrackerTest {
     commits(watermarkTracker, "other", 1, 3, 5, 7);
 
     Assert.assertEquals(watermarkTracker.getCommittableWatermark("default").get().getSource(), "default");
-    Assert.assertEquals(((LongWatermark) watermarkTracker.getCommittableWatermark("default")
+    Assert.assertEquals((long)((LongWatermark) watermarkTracker.getCommittableWatermark("default")
         .get().getWatermark()).getValue(), 6L);
     Assert.assertEquals(watermarkTracker.getCommittableWatermark("other").get().getSource(), "other");
-    Assert.assertEquals(((LongWatermark) watermarkTracker.getCommittableWatermark("other")
+    Assert.assertEquals((long)((LongWatermark) watermarkTracker.getCommittableWatermark("other")
         .get().getWatermark()).getValue(), 7L);
 
   }
