@@ -313,6 +313,21 @@ public class YarnService extends AbstractIdleService {
         newContainerRequest.getResource());
   }
 
+  /**
+   *  getContainerInfoGivenHelixParticipant returns the containerInfo of the given helixParticipant if it exists else
+   *  return null
+   * @param helixParticipant
+   * @return ContainerInfo
+   */
+  public ContainerInfo getContainerInfoGivenHelixParticipant(String helixParticipant) {
+    for (ContainerInfo containerInfo : this.containerMap.values()) {
+      if (containerInfo.getHelixParticipantId().equals(helixParticipant)) {
+        return containerInfo;
+      }
+    }
+    return null;
+  }
+
   protected NMClientCallbackHandler getNMClientCallbackHandler() {
     return new NMClientCallbackHandler();
   }
@@ -335,13 +350,15 @@ public class YarnService extends AbstractIdleService {
     for (Container container : containerReleaseRequest.getContainers()) {
       LOGGER.info(String.format("Releasing container %s running on %s", container.getId(), container.getNodeId()));
 
-      // Record that this container was explicitly released so that a new one is not spawned to replace it
-      // Put the container id in the releasedContainerCache before releasing it so that handleContainerCompletion()
-      // can check for the container id and skip spawning a replacement container.
-      // Note that this is the best effort since these are asynchronous operations and a container may abort concurrently
-      // with the release call. So in some cases a replacement container may have already been spawned before
-      // the container is put into the black list.
-      this.releasedContainerCache.put(container.getId(), "");
+      if(!containerReleaseRequest.isSpinUpReplacementContainers()) {
+        // Record that this container was explicitly released so that a new one is not spawned to replace it
+        // Put the container id in the releasedContainerCache before releasing it so that handleContainerCompletion()
+        // can check for the container id and skip spawning a replacement container.
+        // Note that this is the best effort since these are asynchronous operations and a container may abort concurrently
+        // with the release call. So in some cases a replacement container may have already been spawned before
+        // the container is put into the black list.
+        this.releasedContainerCache.put(container.getId(), "");
+      }
       this.amrmClientAsync.releaseAssignedContainer(container.getId());
     }
   }

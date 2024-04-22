@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.compress.utils.Sets;
 import org.apache.gobblin.stream.WorkUnitChangeEvent;
+
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
@@ -60,6 +62,7 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 
 import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX;
 
@@ -185,7 +188,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
      * If an instance is no longer idle when inspected, it will be dropped from this map.
      */
     private static final Map<String, Long> instanceIdleSince = new HashMap<>();
-
+    /**
+     * A static map that keep track of an instance which contains the task in init state and its latest beginning
+     * idle time. If an instance is no longer idle when inspected, it will be dropped from this map.
+     */
+    private static final Map<String, Long> instanceInitStateSince = new HashMap<>();
 
     @Override
     public void run() {
@@ -219,6 +226,17 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       return null;
     }
 
+
+    private String getParticipantInInitStateForHelixPartition(JobContext jobContext, int partition) {
+      if (jobContext.getPartitionState(partition).equals(TaskPartitionState.INIT)) {
+        log.info("Helix task {} is in {} state",
+            jobContext.getTaskIdForPartition(partition), jobContext.getPartitionState(partition));
+        return jobContext.getAssignedParticipant(partition);
+      }
+
+      return null;
+    }
+
     /**
      * Iterate through the workflows configured in Helix to figure out the number of required partitions
      * and request the {@link YarnService} to scale to the desired number of containers.
@@ -226,6 +244,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     @VisibleForTesting
     void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
+      Set<String> instancesInInitState = new HashSet<>();
       YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
         WorkflowContext workflowContext = taskDriver.getWorkflowContext(workFlowEntry.getKey());
@@ -259,6 +278,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
                 .map(i -> getInuseParticipantForHelixPartition(jobContext, i))
                 .filter(Objects::nonNull).collect(Collectors.toSet()));
 
+            instancesInInitState.addAll(jobContext.getPartitionSet().stream()
+                .map(i -> getParticipantInInitStateForHelixPartition(jobContext, i))
+                .filter(Objects::nonNull).collect(Collectors.toSet()));
+
+
             numPartitions = jobContext.getPartitionSet().size();
             // Job level config for helix instance tags takes precedence over other tag configurations
             if (jobConfig != null) {
@@ -286,6 +310,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       // and potentially replanner-instance.
       Set<String> allParticipants = HelixUtils.getParticipants(helixDataAccessor, HELIX_YARN_INSTANCE_NAME_PREFIX);
 
+      Set<Container> containersToRelease = new HashSet<>();
+
       // Find all joined participants not in-use for this round of inspection.
       // If idle time is beyond tolerance, mark the instance as unused by assigning timestamp as -1.
       for (String participant : allParticipants) {
@@ -299,8 +325,32 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           // Remove this instance if existed in the tracking map.
           instanceIdleSince.remove(participant);
         }
+
+        if(instancesInInitState.contains(participant)) {
+          instanceInitStateSince.putIfAbsent(participant, System.currentTimeMillis());
+          if (!isInstanceStuckInInitState(participant)) {
+            // kill the corresponding container as the helix task is stuck in INIT state for a long time
+            log.info("Instance {} is stuck in INIT state for a long time, killing the container", participant);
+            // get containerInfo of the helix participant
+            YarnService.ContainerInfo containerInfo = yarnService.getContainerInfoGivenHelixParticipant(participant);
+            if(containerInfo != null) {
+              containersToRelease.add(containerInfo.getContainer());
+              instanceInitStateSince.remove(participant);
+              inUseInstances.remove(participant);
+            } else {
+              log.warn("ContainerInfo for participant {} is not found", participant);
+            }
+          }
+        } else {
+          instanceInitStateSince.remove(participant);
+        }
       }
+
+      // release the containers which are running helix tasks which are stuck in INIT state
+      this.yarnService.getEventBus().post(new ContainerReleaseRequest(containersToRelease, true));
+
       slidingWindowReservoir.add(yarnContainerRequestBundle);
+
 
       log.debug("There are {} containers being requested in total, tag-count map {}, tag-resource map {}",
           yarnContainerRequestBundle.getTotalContainers(), yarnContainerRequestBundle.getHelixTagContainerCountMap(),
@@ -309,15 +359,27 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       this.yarnService.requestTargetNumberOfContainers(slidingWindowReservoir.getMax(), inUseInstances);
     }
 
-    @VisibleForTesting
     /**
      * Return true is the condition for tagging an instance as "unused" holds.
      * The condition, by default is that if an instance went back to
      * active (having partition running on it) within {@link #maxIdleTimeInMinutesBeforeScalingDown} minutes, we will
      * not tag that instance as "unused" and have that as the candidate for scaling down.
      */
+    @VisibleForTesting
     boolean isInstanceUnused(String participant){
       return System.currentTimeMillis() - instanceIdleSince.get(participant) >
+          TimeUnit.MINUTES.toMillis(maxIdleTimeInMinutesBeforeScalingDown);
+    }
+
+    /**
+     * Return true is the condition for tagging an instance as stuck in INIT state holds.
+     * The condition, by default is that if an instance went back to
+     * active (having partition running on it) within {@link #maxIdleTimeInMinutesBeforeScalingDown} minutes, we will
+     * not tag that instance as stuck and the container will not be scaled down.
+     */
+    @VisibleForTesting
+    boolean isInstanceStuckInInitState(String participant) {
+      return System.currentTimeMillis() - instanceInitStateSince.get(participant) >
           TimeUnit.MINUTES.toMillis(maxIdleTimeInMinutesBeforeScalingDown);
     }
   }
