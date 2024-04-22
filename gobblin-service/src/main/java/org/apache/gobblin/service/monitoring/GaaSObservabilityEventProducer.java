@@ -99,6 +99,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   private void setupMetrics(State state) {
     this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
+      log.info("Setting up Opentelemetry metrics");
       this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
           .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
           .ofLongs()
@@ -108,6 +109,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
             for (GaaSObservabilityEventExperimental event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
               int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
+              // TODO: change to debug log
+              log.info("Emitting job status metric: " + status + " with tags: " + tags.toString());
               this.jobStatusMetric.record(status, tags);
             }
             // Empty the list of events as they are all emitted at this point.

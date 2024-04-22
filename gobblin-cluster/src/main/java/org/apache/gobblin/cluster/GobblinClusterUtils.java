@@ -133,12 +133,12 @@ public class GobblinClusterUtils {
       String applicationName, String applicationId) {
     if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_EXACT_WORK_DIR)) {
       return new Path(new Path(fs.getUri()), config.getString(GobblinClusterConfigurationKeys.CLUSTER_EXACT_WORK_DIR));
-    }
-    if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
+    } else if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
       return new Path(new Path(fs.getUri()), PathUtils.combinePaths(config.getString(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR),
           getAppWorkDirPath(applicationName, applicationId)));
+    } else {
+      return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
     }
-    return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
   }
 
   /**
