@@ -41,11 +41,11 @@ public class ContainerReleaseRequest {
    * @return the IDs of the containers to release
    */
   private final Collection<Container> containers;
-  // doSpinUpReplacementContainers is used to indicate whether to replace the released containers with new ones or not
-  private final boolean doSpinUpReplacementContainers;
+  // shouldSpinUpReplacementContainers is used to indicate whether to replace the released containers with new ones or not
+  private final boolean shouldSpinUpReplacementContainers;
 
   public ContainerReleaseRequest(Collection<Container> containers) {
     this.containers = containers;
-    this.doSpinUpReplacementContainers = false;
+    this.shouldSpinUpReplacementContainers = false;
   }
 }

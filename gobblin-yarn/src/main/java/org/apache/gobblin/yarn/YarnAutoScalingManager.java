@@ -101,7 +101,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_WINDOW_SIZE = AUTO_SCALING_PREFIX + "windowSize";
 
   public final static int DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES = 10;
-  public final static int DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_STUCK_IN_INIT_STATE = 10;
+  private final static int DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_STUCK_IN_INIT_STATE = 10;
 
   private final Config config;
   private final HelixManager helixManager;
@@ -234,7 +234,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     }
 
 
-    private String getParticipantInInitStateForHelixPartition(JobContext jobContext, int partition) {
+    private String getParticipantInInitStateForHelixPartition(final JobContext jobContext, final int partition) {
       if (TaskPartitionState.INIT.equals(jobContext.getPartitionState(partition))) {
         log.info("Helix task {} is in {} state at helix participant {}",
             jobContext.getTaskIdForPartition(partition), jobContext.getPartitionState(partition),
@@ -321,7 +321,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       // and potentially replanner-instance.
       Set<String> allParticipants = HelixUtils.getParticipants(helixDataAccessor, HELIX_YARN_INSTANCE_NAME_PREFIX);
 
-      Set<Container> containersToRelease = new HashSet<>();
+      final Set<Container> containersToRelease = new HashSet<>();
 
       // Find all joined participants not in-use for this round of inspection.
       // If idle time is beyond tolerance, mark the instance as unused by assigning timestamp as -1.
@@ -392,7 +392,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
      * not tag that instance as stuck and the container will not be scaled down.
      */
     @VisibleForTesting
-    boolean isInstanceStuckInInitState(String participant) {
+    boolean isInstanceStuckInInitState(final String participant) {
       return System.currentTimeMillis() - instanceInitStateSince.get(participant) >
           TimeUnit.MINUTES.toMillis(maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState);
     }
