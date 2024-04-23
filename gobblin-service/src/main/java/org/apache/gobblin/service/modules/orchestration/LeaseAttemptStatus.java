@@ -25,13 +25,18 @@ import lombok.Getter;
 
 
 /**
- Class used to encapsulate status of lease acquisition attempts made by {@link MultiActiveLeaseArbiter} and contains
- information specific to the status that results. The {@link LeaseAttemptStatus#getDagAction} and
- {@link LeaseAttemptStatus#getMinimumLingerDurationMillis} are meant to be
- overridden and used by relevant derived classes.
+ * Hierarchy to convey the specific outcome of attempted lease acquisition via the {@link MultiActiveLeaseArbiter},
+ * with each derived type carrying outcome-specific status info.
+ *
+ * IMPL. NOTE: {@link LeaseAttemptStatus#getConsensusDagAction} and {@link LeaseAttemptStatus#getMinimumLingerDurationMillis}
+ * intended for `@Override`.
  */
 public abstract class LeaseAttemptStatus {
-  public DagActionStore.DagAction getDagAction() {
+  /**
+   * @return the {@link DagActionStore.DagAction}, which may now have an updated flowExecutionId that MUST henceforth be
+   * used; {@see MultiActiveLeaseArbiter#tryAcquireLease}
+   */
+  public DagActionStore.DagAction getConsensusDagAction() {
     return null;
   }
 
@@ -53,7 +58,7 @@ public abstract class LeaseAttemptStatus {
   */
   @Data
   public static class LeaseObtainedStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction dagAction;
+    private final DagActionStore.DagAction consensusDagAction;
     private final long leaseAcquisitionTimestamp;
     private final long minimumLingerDurationMillis;
     @Getter(AccessLevel.NONE)
@@ -63,7 +68,7 @@ public abstract class LeaseAttemptStatus {
      * @return event time in millis since epoch for the event of this lease acquisition
      */
     public long getEventTimeMillis() {
-      return Long.parseLong(dagAction.getFlowExecutionId());
+      return Long.parseLong(consensusDagAction.getFlowExecutionId());
     }
 
     /**
@@ -85,7 +90,7 @@ public abstract class LeaseAttemptStatus {
    */
   @Data
   public static class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction dagAction;
+    private final DagActionStore.DagAction consensusDagAction;
     private final long minimumLingerDurationMillis;
 
     /**
@@ -93,7 +98,7 @@ public abstract class LeaseAttemptStatus {
      * @return
      */
     public long getEventTimeMillis() {
-      return Long.parseLong(dagAction.getFlowExecutionId());
+      return Long.parseLong(consensusDagAction.getFlowExecutionId());
     }
   }
 }
