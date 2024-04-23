@@ -111,7 +111,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final double overProvisionFactor;
   private final SlidingWindowReservoir slidingFixedSizeWindow;
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
-  private static int maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState;
+  private final int maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState;
   private static final HashSet<TaskPartitionState>
       UNUSUAL_HELIX_TASK_STATES = Sets.newHashSet(TaskPartitionState.ERROR, TaskPartitionState.DROPPED, TaskPartitionState.COMPLETED, TaskPartitionState.TIMED_OUT);
 
@@ -160,7 +160,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
             this.yarnService, this.partitionsPerContainer, this.overProvisionFactor,
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
-            this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold, this.splitWorkUnitReachThreshold),
+            this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold,
+            this.splitWorkUnitReachThreshold, this.maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -189,6 +190,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int defaultContainerCores;
     private final int taskAttemptsThreshold;
     private final boolean splitWorkUnitReachThreshold;
+    private final int maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState;
 
     /**
      * A static map that keep track of an idle instance and its latest beginning idle time.
