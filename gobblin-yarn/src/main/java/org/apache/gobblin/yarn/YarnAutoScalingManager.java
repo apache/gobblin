@@ -329,8 +329,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         if(instancesInInitState.contains(participant)) {
           instanceInitStateSince.putIfAbsent(participant, System.currentTimeMillis());
           if (!isInstanceStuckInInitState(participant)) {
-            // kill the corresponding container as the helix task is stuck in INIT state for a long time
-            log.info("Instance {} is stuck in INIT state for a long time, killing the container", participant);
+            // release the corresponding container as the helix task is stuck in INIT state for a long time
+            log.info("Instance {} is stuck in INIT state for a long time, releasing the container", participant);
             // get containerInfo of the helix participant
             YarnService.ContainerInfo containerInfo = yarnService.getContainerInfoGivenHelixParticipant(participant);
             if(containerInfo != null) {
@@ -346,8 +346,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         }
       }
 
-      // release the containers which are running helix tasks which are stuck in INIT state
-      this.yarnService.getEventBus().post(new ContainerReleaseRequest(containersToRelease, true));
+      // release the containers
+      if(!containersToRelease.isEmpty()) {
+        this.yarnService.getEventBus().post(new ContainerReleaseRequest(containersToRelease, true));
+      }
 
       slidingWindowReservoir.add(yarnContainerRequestBundle);
 
