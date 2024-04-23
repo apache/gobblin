@@ -138,7 +138,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
         // TODO: if metrics configured, report them now
         log.info("WU [{} = {}] - finished commit after {}ms with state {}{}", wu.getCorrelator(), task.getTaskId(),
             taskState.getTaskDuration(), taskState.getWorkingState(),
-            taskState.getWorkingState().equals(WorkUnitState.WorkingState.SUCCESSFUL)
+            taskState.getWorkingState().equals(WorkUnitState.WorkingState.SUCCESSFUL) && taskState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)
                 ? (" to: " + taskState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR)) : "");
         log.debug("WU [{} = {}] - task state: {}", wu.getCorrelator(), task.getTaskId(),
             taskState.toJsonString(shouldUseExtendedLogging(wu)));
