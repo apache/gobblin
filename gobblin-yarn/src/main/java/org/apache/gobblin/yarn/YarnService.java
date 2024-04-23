@@ -350,7 +350,7 @@ public class YarnService extends AbstractIdleService {
     for (Container container : containerReleaseRequest.getContainers()) {
       LOGGER.info(String.format("Releasing container %s running on %s", container.getId(), container.getNodeId()));
 
-      if(!containerReleaseRequest.isSpinUpReplacementContainers()) {
+      if(!containerReleaseRequest.isDoSpinUpReplacementContainers()) {
         // Record that this container was explicitly released so that a new one is not spawned to replace it
         // Put the container id in the releasedContainerCache before releasing it so that handleContainerCompletion()
         // can check for the container id and skip spawning a replacement container.

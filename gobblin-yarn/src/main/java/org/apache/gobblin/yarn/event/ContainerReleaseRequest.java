@@ -21,6 +21,7 @@ import java.util.Collection;
 
 import org.apache.hadoop.yarn.api.records.Container;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 
@@ -31,6 +32,7 @@ import lombok.Getter;
  * Node Manager
  */
 @Getter
+@AllArgsConstructor
 public class ContainerReleaseRequest {
   /**
    * -- GETTER --
@@ -39,15 +41,11 @@ public class ContainerReleaseRequest {
    * @return the IDs of the containers to release
    */
   private final Collection<Container> containers;
-  private final boolean spinUpReplacementContainers;
+  // doSpinUpReplacementContainers is used to indicate whether to replace the released containers with new ones or not
+  private final boolean doSpinUpReplacementContainers;
 
   public ContainerReleaseRequest(Collection<Container> containers) {
     this.containers = containers;
-    this.spinUpReplacementContainers = false;
-  }
-
-  public ContainerReleaseRequest(Collection<Container> containers, boolean spinUpReplacementContainers) {
-    this.containers = containers;
-    this.spinUpReplacementContainers = spinUpReplacementContainers;
+    this.doSpinUpReplacementContainers = false;
   }
 }
