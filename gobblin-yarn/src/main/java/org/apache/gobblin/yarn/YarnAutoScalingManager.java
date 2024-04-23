@@ -328,7 +328,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
         if(instancesInInitState.contains(participant)) {
           instanceInitStateSince.putIfAbsent(participant, System.currentTimeMillis());
-          if (!isInstanceStuckInInitState(participant)) {
+          if (isInstanceStuckInInitState(participant)) {
             // release the corresponding container as the helix task is stuck in INIT state for a long time
             log.info("Instance {} is stuck in INIT state for a long time, releasing the container", participant);
             // get containerInfo of the helix participant
