@@ -51,6 +51,9 @@ public class GobblinClusterConfigurationKeys {
   // Root working directory for Gobblin cluster
   public static final String CLUSTER_WORK_DIR = GOBBLIN_CLUSTER_PREFIX + "workDir";
   // Root working dir without appending the application name, keeping CLUSTER_WORK_DIR property for backward compatibility
+  // This is used in scenarios where we want to encapsulate multiple files inside of this work dir without coupling it to the YARN application
+  // Example: Yarn security token refresh location, gobblin cluster worker directories.
+  // However for concurrent jobs need to ensure that this property is distinct for each job otherwise it can lead to folder conflicts and pre-emptive deletion of files.
   public static final String CLUSTER_EXACT_WORK_DIR = GOBBLIN_CLUSTER_PREFIX + "exact.workDir";
 
   public static final String DISTRIBUTED_JOB_LAUNCHER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "distributedJobLauncherEnabled";
