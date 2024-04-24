@@ -105,13 +105,14 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
     this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
   }
 
-  static Map<String, String> parseHttpHeaders(String headersString) {
+  protected static Map<String, String> parseHttpHeaders(String headersString) {
     try {
       ObjectMapper mapper = new ObjectMapper();
       return mapper.readValue(headersString, HashMap.class);
     } catch (Exception e) {
-      log.error("Failed to parse headers: " + headersString, e);
-      throw new RuntimeException(e);
+      String errMsg = "Failed to parse headers: " + headersString;
+      log.error(errMsg, e);
+      throw new RuntimeException(errMsg);
     }
   }
 }

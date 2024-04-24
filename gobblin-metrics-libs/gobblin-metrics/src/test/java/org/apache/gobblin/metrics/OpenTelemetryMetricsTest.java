@@ -29,7 +29,7 @@ import org.apache.gobblin.configuration.State;
 public class OpenTelemetryMetricsTest  {
 
   @Test
-  void testInitializeOpenTelemetryFailsWithoutEndpoint() {
+  public void testInitializeOpenTelemetryFailsWithoutEndpoint() {
     State opentelemetryState = new State();
     opentelemetryState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
     Assert.assertThrows(IllegalArgumentException.class, () -> {
@@ -38,21 +38,25 @@ public class OpenTelemetryMetricsTest  {
   }
 
   @Test
-  void testInitializeOpenTelemetrySucceedsWithEndpoint() {
+  public void testInitializeOpenTelemetrySucceedsWithEndpoint() {
     State opentelemetryState = new State();
     opentelemetryState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
     opentelemetryState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT, "http://localhost:4317");
-    OpenTelemetryMetrics metricsProvider = OpenTelemetryMetrics.getInstance(opentelemetryState);
-    System.out.println(metricsProvider.metricExporter.toString());
+    // Should not throw an exception
+    OpenTelemetryMetrics.getInstance(opentelemetryState);
   }
 
   @Test
-  void testHeadersParseCorrectly() {
+  public void testHeadersParseCorrectly() {
     Map<String, String> headers = OpenTelemetryMetrics.parseHttpHeaders(
         "{\"Content-Type\":\"application/x-protobuf\",\"headerTag\":\"tag1:value1,tag2:value2\"}");
     Assert.assertEquals(headers.size(), 2);
     Assert.assertEquals(headers.get("Content-Type"), "application/x-protobuf");
     Assert.assertEquals(headers.get("headerTag"), "tag1:value1,tag2:value2");
   }
-
+  @Test
+  void testHeadersParseNull() {
+    Map<String, String> headers = OpenTelemetryMetrics.parseHttpHeaders("{}");
+    Assert.assertEquals(headers.size(), 0);
+  }
 }
