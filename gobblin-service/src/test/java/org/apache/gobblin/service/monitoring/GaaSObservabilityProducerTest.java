@@ -276,8 +276,6 @@ public class GaaSObservabilityProducerTest {
     // Check common string tag
     Assert.assertEquals(datapoints.get(0).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
     Assert.assertEquals(datapoints.get(1).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
-
-
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
