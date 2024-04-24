@@ -32,6 +32,7 @@ import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -42,10 +43,12 @@ import org.apache.gobblin.util.PropertiesUtils;
  * can replace the old metrics system with tighter integrations once it's stable
  */
 
+@Slf4j
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   private static OpenTelemetryMetrics GLOBAL_INSTANCE;
   private static final Long DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS = 10000L;
+
   private OpenTelemetryMetrics(State state) {
     super(state);
   }
@@ -54,6 +57,10 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   protected MetricExporter initializeMetricExporter(State state) {
     OtlpHttpMetricExporterBuilder httpExporterBuilder = OtlpHttpMetricExporter.builder();
     httpExporterBuilder.setEndpoint(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT));
+    if (state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY)) {
+      httpExporterBuilder.addHeader(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY),
+          state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE));
+    }
     return httpExporterBuilder.build();
   }
 
@@ -67,8 +74,9 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   @Override
   protected void initialize(State state) {
-    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefix(state.getProperties(), Optional.of(
-        ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS));
+    log.info("Initializing OpenTelemetry metrics");
+    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(state.getProperties(),
+        ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX);
     AttributesBuilder attributesBuilder = Attributes.builder();
     for (String key : metricProps.stringPropertyNames()) {
       attributesBuilder.put(AttributeKey.stringKey(key), metricProps.getProperty(key));
