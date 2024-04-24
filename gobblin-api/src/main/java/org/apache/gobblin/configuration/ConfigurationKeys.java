@@ -913,9 +913,8 @@ public class ConfigurationKeys {
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "endpoint";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "header.key";
-
-  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "header.value";
+  // Headers to add to the OpenTelemetry HTTP Exporter, formatted as a JSON String
+  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADERS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "headers";
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS = METRICS_CONFIGURATIONS_PREFIX + "interval.millis";
 

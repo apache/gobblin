@@ -262,7 +262,7 @@ public class GaaSObservabilityProducerTest {
     // Check number of meters
     Assert.assertEquals(metrics.size(), 1);
     Map<String, MetricData > metricsByName = metrics.stream().collect(Collectors.toMap(metric -> metric.getName(), metricData -> metricData));
-    MetricData jobStatusMetric = metricsByName.get("gaas.observability.jobStatus");
+    MetricData jobStatusMetric = metricsByName.get("jobStatus");
     // Check the attributes of the metrics
     List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
     Assert.assertEquals(datapoints.size(), 2);
