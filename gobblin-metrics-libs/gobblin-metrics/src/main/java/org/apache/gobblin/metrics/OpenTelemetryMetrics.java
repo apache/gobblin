@@ -75,7 +75,7 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   @Override
   protected void initialize(State state) {
     log.info("Initializing OpenTelemetry metrics");
-    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(state.getProperties(),
+    Properties metricProps = PropertiesUtils.extractChildProperties(state.getProperties(),
         ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX);
     AttributesBuilder attributesBuilder = Attributes.builder();
     for (String key : metricProps.stringPropertyNames()) {

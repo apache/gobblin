@@ -29,7 +29,6 @@ import java.util.stream.Collectors;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 import io.opentelemetry.api.common.AttributeKey;
@@ -55,7 +54,6 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.util.PropertiesUtils;
 
 
 public class GaaSObservabilityProducerTest {

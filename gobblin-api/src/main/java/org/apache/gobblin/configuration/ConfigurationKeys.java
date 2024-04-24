@@ -905,24 +905,19 @@ public class ConfigurationKeys {
   public static final String METRICS_CUSTOM_BUILDERS = METRICS_CONFIGURATIONS_PREFIX + "reporting.custom.builders";
 
   // Opentelemetry based metrics reporting
-  public static final String METRICS_REPORTING_OPENTELEMETRY_ENABLED =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemtry.metrics.enabled";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_PREFIX = "metrics.reporting.opentelemetry.";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_ENABLED = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "enabled";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.configs.";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "configs.";
   public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.endpoint";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "endpoint";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.header.key";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "header.key";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.header.value";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "header.value";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS =
-      METRICS_CONFIGURATIONS_PREFIX + "reporting.opentelemetry.interval.millis";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS = METRICS_CONFIGURATIONS_PREFIX + "interval.millis";
 
   /**
    * Rest server configuration properties.
