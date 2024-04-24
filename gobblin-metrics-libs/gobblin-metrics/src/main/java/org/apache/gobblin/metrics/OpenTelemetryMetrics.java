@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.Properties;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -55,9 +56,11 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   @Override
   protected MetricExporter initializeMetricExporter(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT),
+        "OpenTelemetry endpoint must be provided");
     OtlpHttpMetricExporterBuilder httpExporterBuilder = OtlpHttpMetricExporter.builder();
     httpExporterBuilder.setEndpoint(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT));
-    if (state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY)) {
+    if (state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY) && state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE)) {
       httpExporterBuilder.addHeader(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_KEY),
           state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADER_VALUE));
     }
