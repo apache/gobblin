@@ -870,8 +870,7 @@ public class GobblinYarnAppLauncher {
    * @throws IOException
    */
   private AbstractTokenRefresher buildTokenRefreshManager() throws IOException {
-    Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
-        GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    Path tokenFilePath = YarnContainerSecurityManager.getYarnTokenFilePath(this.config, this.fs);
     String securityManagerClassName = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS);
 
     try {
@@ -892,10 +891,12 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
-    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
-    if (this.fs.exists(appWorkDir)) {
+    // Create a new filesystem as this.fs may have been closed by the Yarn Application, and FS.get() will return a cached instance of the closed FS
+    FileSystem fs = GobblinClusterUtils.createFileSystem(this.config, this.yarnConfiguration);
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, fs, this.applicationName, applicationId.toString());
+    if (fs.exists(appWorkDir)) {
       LOGGER.info("Deleting application working directory " + appWorkDir);
-      this.fs.delete(appWorkDir, true);
+      fs.delete(appWorkDir, true);
     }
   }
 
