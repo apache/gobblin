@@ -884,7 +884,8 @@ public class GobblinYarnAppLauncher {
 
   @VisibleForTesting
   void cleanUpAppWorkDirectory(ApplicationId applicationId) throws IOException {
-    FileSystem fs = GobblinClusterUtils.buildNewInstanceFileSystem(this.config, this.yarnConfiguration);
+    // Create a new filesystem as this.fs may have been closed by the Yarn Application, and FS.get() will return a cached instance of the closed FS
+    FileSystem fs = GobblinClusterUtils.createFileSystem(this.config, this.yarnConfiguration);
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, fs, this.applicationName, applicationId.toString());
     if (fs.exists(appWorkDir)) {
       LOGGER.info("Deleting application working directory " + appWorkDir);

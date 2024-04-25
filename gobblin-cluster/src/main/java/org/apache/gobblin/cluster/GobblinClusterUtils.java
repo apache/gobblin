@@ -258,7 +258,7 @@ public class GobblinClusterUtils {
         : FileSystem.get(conf);
   }
 
-  public static FileSystem buildNewInstanceFileSystem(Config config, Configuration conf) throws IOException {
+  public static FileSystem createFileSystem(Config config, Configuration conf) throws IOException {
     Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
     //Add any Hadoop-specific overrides into the Configuration object
     JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
