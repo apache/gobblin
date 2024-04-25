@@ -104,8 +104,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
           e.getClass().toString(),
-          e,
-          null
+          e
       );
     }
     return numWUsGenerated;
