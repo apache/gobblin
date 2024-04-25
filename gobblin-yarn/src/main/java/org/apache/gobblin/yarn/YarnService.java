@@ -142,6 +142,7 @@ public class YarnService extends AbstractIdleService {
   private final FileSystem fs;
 
   private final Optional<GobblinMetrics> gobblinMetrics;
+  @Getter
   private final Optional<EventSubmitter> eventSubmitter;
 
   @VisibleForTesting

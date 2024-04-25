@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.commons.compress.utils.Sets;
+
+import org.apache.gobblin.cluster.GobblinHelixConstants;
 import org.apache.gobblin.stream.WorkUnitChangeEvent;
 
 import org.apache.hadoop.yarn.api.records.Container;
@@ -346,13 +348,23 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             log.info("Instance {} has some helix partition that is stuck in INIT state for {} minutes, "
                 + "releasing the container", participant,
                 TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - instanceInitStateSince.get(participant)));
+
             // get container of the helix participant
             Container container = yarnService.getContainerInfoGivenHelixParticipant(participant);
             instanceInitStateSince.remove(participant);
+            String containerId = "";
             if(container != null) {
               containersToRelease.add(container);
+              containerId = container.getId().toString();
             } else {
               log.warn("Container information for participant {} is not found", participant);
+            }
+
+            if(this.yarnService.getEventSubmitter().isPresent()) {
+              // send GTE
+              this.yarnService.getEventSubmitter().get().submit(GobblinYarnEventConstants.EventNames.HELIX_PARTITION_STUCK_IN_INIT,
+                  GobblinHelixConstants.HELIX_INSTANCE_NAME_KEY, participant,
+                  GobblinYarnMetricTagNames.CONTAINER_ID, containerId);
             }
           }
         } else {
