@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixProperty;
@@ -39,11 +40,11 @@ import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
@@ -440,9 +441,13 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockJobContext.getPartitionState(2)).thenReturn(TaskPartitionState.INIT);
     Mockito.when(mockYarnService.getContainerInfoGivenHelixParticipant("GobblinYarnTaskRunner-2")).thenReturn(mockContainer);
     Mockito.when(mockYarnService.getEventBus()).thenReturn(mockEventBus);
+    Mockito.when(mockYarnService.getEventSubmitter()).thenReturn(Optional.absent());
     Set<Container> containers = new HashSet<>();
     containers.add(mockContainer);
     mockEventBus.post(new ContainerReleaseRequest(containers, true));
+    ContainerId mockContainerId = mock(ContainerId.class);
+    Mockito.when(mockContainer.getId()).thenReturn(mockContainerId);
+    Mockito.when(mockContainerId.toString()).thenReturn("container-1");
     HelixDataAccessor helixDataAccessor = getHelixDataAccessor(Arrays.asList("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
 
     TestYarnAutoScalingRunnable runnable = new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
