@@ -1,0 +1,40 @@
+{
+  "name": "job",
+  "namespace": "org.apache.gobblin.rest",
+  "path": "/job",
+  "schema": "org.apache.gobblin.rest.Job",
+  "doc": "A Rest.li resource for Gobblin job management.\n\ngenerated from: org.apache.gobblin.rest.JobResource",
+  "collection": {
+    "identifier": {
+      "name": "jobName",
+      "type": "string"
+    },
+    "supports": [
+      "create",
+      "get",
+      "update",
+      "delete"
+    ],
+    "methods": [
+      {
+        "method": "create",
+        "doc": "Create a Job with configuration"
+      },
+      {
+        "method": "get",
+        "doc": "get a Job with configuration"
+      },
+      {
+        "method": "update",
+        "doc": "update an existing Job with configuration"
+      },
+      {
+        "method": "delete",
+        "doc": "delete a Job with configuration"
+      }
+    ],
+    "entity": {
+      "path": "/job/{jobName}"
+    }
+  }
+}
