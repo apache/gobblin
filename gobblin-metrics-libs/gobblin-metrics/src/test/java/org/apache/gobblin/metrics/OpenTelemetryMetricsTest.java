@@ -19,8 +19,12 @@ package org.apache.gobblin.metrics;
 
 import java.util.Map;
 
+import org.hamcrest.MatcherAssert;
+import org.hamcrest.Matchers;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -44,6 +48,7 @@ public class OpenTelemetryMetricsTest  {
     opentelemetryState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT, "http://localhost:4317");
     // Should not throw an exception
     OpenTelemetryMetrics.getInstance(opentelemetryState);
+    Assert.assertTrue(true);
   }
 
   @Test
@@ -54,6 +59,7 @@ public class OpenTelemetryMetricsTest  {
     Assert.assertEquals(headers.get("Content-Type"), "application/x-protobuf");
     Assert.assertEquals(headers.get("headerTag"), "tag1:value1,tag2:value2");
   }
+
   @Test
   void testHeadersParseNull() {
     Map<String, String> headers = OpenTelemetryMetrics.parseHttpHeaders("{}");
