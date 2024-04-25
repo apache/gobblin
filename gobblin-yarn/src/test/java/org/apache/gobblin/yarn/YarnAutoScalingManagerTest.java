@@ -18,11 +18,13 @@
 package org.apache.gobblin.yarn;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixProperty;
@@ -32,18 +34,22 @@ import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskPartitionState;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.eventbus.EventBus;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -276,6 +282,7 @@ public class YarnAutoScalingManagerTest {
     assertContainerRequest(mockYarnService, 12, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
+
   /**
    * Test suppressed exception
    */
@@ -414,6 +421,42 @@ public class YarnAutoScalingManagerTest {
     Assert.assertEquals((int) helixTagContainerCountMap.get(defaultHelixTag), 3);
   }
 
+  /**
+   * Test the scenarios when an instance in cluster has any partition that is stuck in INIT state for too long
+   */
+  @Test
+  public void testInstanceStuckInINITState()  {
+    YarnService mockYarnService = mock(YarnService.class);
+    TaskDriver mockTaskDriver = mock(TaskDriver.class);
+    Container mockContainer = mock(Container.class);
+    EventBus mockEventBus = mock(EventBus.class);
+
+    WorkflowConfig mockWorkflowConfig = getWorkflowConfig(mockTaskDriver, ImmutableSet.of("job1"), TaskState.IN_PROGRESS, TargetState.START, "workflow1");
+    Mockito.when(mockTaskDriver.getWorkflows()).thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig));
+
+    // Having both partition assigned to single instance initially, in this case, GobblinYarnTaskRunner-2
+    JobContext mockJobContext = getJobContext(mockTaskDriver, ImmutableMap.of(1,"GobblinYarnTaskRunner-1", 2, "GobblinYarnTaskRunner-2"), "job1");
+    Mockito.when(mockJobContext.getPartitionState(1)).thenReturn(TaskPartitionState.RUNNING);
+    Mockito.when(mockJobContext.getPartitionState(2)).thenReturn(TaskPartitionState.INIT);
+    Mockito.when(mockYarnService.getContainerInfoGivenHelixParticipant("GobblinYarnTaskRunner-2")).thenReturn(mockContainer);
+    Mockito.when(mockYarnService.getEventBus()).thenReturn(mockEventBus);
+    Set<Container> containers = new HashSet<>();
+    containers.add(mockContainer);
+    mockEventBus.post(new ContainerReleaseRequest(containers, true));
+    HelixDataAccessor helixDataAccessor = getHelixDataAccessor(Arrays.asList("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+
+    TestYarnAutoScalingRunnable runnable = new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+        1, helixDataAccessor);
+
+
+
+    runnable.setAlwaysInINITState(true);
+    runnable.run();
+
+    assertContainerRequest(mockYarnService, 2, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+  }
+
+
   private HelixDataAccessor getHelixDataAccessor(List<String> taskRunners) {
     HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
     Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
@@ -474,6 +517,7 @@ public class YarnAutoScalingManagerTest {
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
     boolean raiseException = false;
     boolean alwaysUnused = false;
+    boolean alwaysInINITState = false;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         HelixDataAccessor helixDataAccessor) {
@@ -499,9 +543,18 @@ public class YarnAutoScalingManagerTest {
       this.alwaysUnused = alwaysUnused;
     }
 
+    void setAlwaysInINITState(boolean alwaysInINITState) {
+      this.alwaysInINITState = alwaysInINITState;
+    }
+
     @Override
     boolean isInstanceUnused(String participant) {
       return alwaysUnused || super.isInstanceUnused(participant);
+    }
+
+    @Override
+    boolean isInstanceStuckInInitState(String participant) {
+      return alwaysInINITState || super.isInstanceStuckInInitState(participant);
     }
   }
 }

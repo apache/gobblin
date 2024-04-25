@@ -314,15 +314,15 @@ public class YarnService extends AbstractIdleService {
   }
 
   /**
-   *  getContainerInfoGivenHelixParticipant returns the containerInfo of the given helixParticipant if it exists else
+   *  getContainerInfoGivenHelixParticipant returns the container of the given helixParticipant if it exists else
    *  return null
    * @param helixParticipant
-   * @return ContainerInfo
+   * @return Container
    */
-  public ContainerInfo getContainerInfoGivenHelixParticipant(final String helixParticipant) {
+  public Container getContainerInfoGivenHelixParticipant(final String helixParticipant) {
     for (ContainerInfo containerInfo : this.containerMap.values()) {
       if (containerInfo.getHelixParticipantId().equals(helixParticipant)) {
-        return containerInfo;
+        return containerInfo.getContainer();
       }
     }
     return null;

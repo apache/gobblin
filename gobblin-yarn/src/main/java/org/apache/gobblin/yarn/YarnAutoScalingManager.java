@@ -346,13 +346,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             log.info("Instance {} has some helix partition that is stuck in INIT state for {} minutes, "
                 + "releasing the container", participant,
                 TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - instanceInitStateSince.get(participant)));
-            // get containerInfo of the helix participant
-            YarnService.ContainerInfo containerInfo = yarnService.getContainerInfoGivenHelixParticipant(participant);
+            // get container of the helix participant
+            Container container = yarnService.getContainerInfoGivenHelixParticipant(participant);
             instanceInitStateSince.remove(participant);
-            if(containerInfo != null) {
-              containersToRelease.add(containerInfo.getContainer());
+            if(container != null) {
+              containersToRelease.add(container);
             } else {
-              log.warn("ContainerInfo for participant {} is not found", participant);
+              log.warn("Container information for participant {} is not found", participant);
             }
           }
         } else {
