@@ -123,7 +123,7 @@ public class DatasetUtils {
     try {
       Class<?> pathFilterClass = Class.forName(props.getProperty(PATH_FILTER_KEY));
       return (PathFilter) GobblinConstructorUtils.invokeLongestConstructor(pathFilterClass,
-          PropertiesUtils.extractPropertiesWithPrefixAfterRemovingPrefix(props, CONFIGURATION_KEY_PREFIX));
+          PropertiesUtils.extractChildProperties(props, CONFIGURATION_KEY_PREFIX));
     } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }

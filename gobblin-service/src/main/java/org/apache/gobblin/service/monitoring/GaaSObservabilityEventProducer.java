@@ -65,9 +65,8 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
-  public static final String GAAS_OBSERVABILITY_METRICS_PREFIX = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics.";
-  public static final String GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME = "gaas.observability.jobStatus";
-  public static final String GAAS_OBSERVABILITY_GROUP_NAME = GAAS_OBSERVABILITY_METRICS_PREFIX + "groupName";
+  public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
+  public static final String GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME = "jobStatus";
 
   protected MetricContext metricContext;
   protected State state;
@@ -99,17 +98,18 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   private void setupMetrics(State state) {
     this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
-      this.jobStatusMetric = this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+      this.jobStatusMetric = this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
           .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
           .ofLongs()
           .buildObserver();
-      this.opentelemetryMetrics.getMeter(state.getProp(GAAS_OBSERVABILITY_GROUP_NAME))
+      this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
           .batchCallback(() -> {
             for (GaaSObservabilityEventExperimental event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
               int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
             }
+            log.info("Submitted {} job status events", this.eventCollector.size());
             // Empty the list of events as they are all emitted at this point.
             this.eventCollector.clear();
           }, this.jobStatusMetric);
