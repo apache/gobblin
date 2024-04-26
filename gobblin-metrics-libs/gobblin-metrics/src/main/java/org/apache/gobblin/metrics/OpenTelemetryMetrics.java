@@ -102,7 +102,7 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
                 .build())
         .build();
 
-    this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
+    this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).build();
   }
 
   protected static Map<String, String> parseHttpHeaders(String headersString) {
