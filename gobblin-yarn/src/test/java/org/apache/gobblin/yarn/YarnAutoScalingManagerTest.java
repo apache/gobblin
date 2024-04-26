@@ -86,7 +86,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
     ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
@@ -117,7 +117,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
 
@@ -155,7 +155,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
 
@@ -195,7 +195,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
 
@@ -223,7 +223,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
 
@@ -247,7 +247,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable1 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.2, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable1.run();
 
@@ -260,7 +260,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable2 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             0.1, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable2.run();
 
@@ -273,7 +273,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable3 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             6.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable3.run();
 
@@ -401,7 +401,7 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false, 10);
+            defaultContainerCores, 20, false, 10, false);
 
     runnable.run();
 
@@ -528,7 +528,7 @@ public class YarnAutoScalingManagerTest {
         HelixDataAccessor helixDataAccessor) {
       super(taskDriver, yarnService, partitionsPerContainer, 1.0,
           noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-          defaultContainerCores, 20, false, 10);
+          defaultContainerCores, 20, false, 10, true);
     }
 
     @Override
