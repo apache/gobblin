@@ -45,14 +45,13 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * will fire once the previous lease owner's lease is expected to expire.
  */
 public class DagActionReminderScheduler {
-  public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
 
   @Inject
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
       throws SchedulerException {
     // Create a new Scheduler to be used solely for the DagProc reminders
-    this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
+    this.quartzScheduler = schedulerFactory.getScheduler();
   }
 
   /**
@@ -127,7 +126,7 @@ public class DagActionReminderScheduler {
     dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
     dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
     dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType().name());
 
     return JobBuilder.newJob(ReminderJob.class)
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())

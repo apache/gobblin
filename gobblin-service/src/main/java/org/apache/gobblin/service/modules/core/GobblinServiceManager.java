@@ -93,6 +93,7 @@ import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
@@ -193,6 +194,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Getter
   @VisibleForTesting
   public DagManager dagManager;
+  @Inject(optional = true)
+  private DagProcessingEngine dagProcessingEngine;
 
   @Inject(optional = true)
   protected KafkaJobStatusMonitor jobStatusMonitor;
@@ -383,6 +386,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     this.serviceLauncher.addService(dagManager);
+    this.serviceLauncher.addService(dagProcessingEngine);
 
     this.serviceLauncher.addService(databaseManager);
     this.serviceLauncher.addService(issueRepository);

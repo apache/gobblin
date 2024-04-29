@@ -20,8 +20,10 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
@@ -50,29 +52,49 @@ import org.apache.gobblin.util.ExecutorsUtils;
 @Alpha
 @Slf4j
 @Singleton
-public class DagProcessingEngine {
+@AllArgsConstructor
+public class DagProcessingEngine extends AbstractIdleService {
 
   @Getter private final Optional<DagTaskStream> dagTaskStream;
   @Getter Optional<DagManagementStateStore> dagManagementStateStore;
+  private final Config config;
+  private final Optional<DagProcFactory> dagProcFactory;
+  private ScheduledExecutorService scheduledExecutorPool;
+  private static final Integer TERMINATION_TIMEOUT = 30;
 
   @Inject
   public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream,
       Optional<DagProcFactory> dagProcFactory, Optional<DagManagementStateStore> dagManagementStateStore) {
+    this.dagTaskStream = dagTaskStream;
+    this.dagManagementStateStore = dagManagementStateStore;
+    this.config = config;
+    this.dagProcFactory = dagProcFactory;
+    log.info("DagProcessingEngine instantiated.");
+  }
+
+  @Override
+  protected void startUp() {
     Integer numThreads = ConfigUtils.getInt
         (config, ServiceConfigKeys.NUM_DAG_PROC_THREADS_KEY, ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS);
-    ScheduledExecutorService scheduledExecutorPool =
+    this.scheduledExecutorPool =
         Executors.newScheduledThreadPool(numThreads,
             ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
                 com.google.common.base.Optional.of("DagProcessingEngineThread")));
-    this.dagTaskStream = dagTaskStream;
-    this.dagManagementStateStore = dagManagementStateStore;
-
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
       DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
           dagManagementStateStore.get());
-      scheduledExecutorPool.submit(dagProcEngineThread);
+      this.scheduledExecutorPool.submit(dagProcEngineThread);
+      log.info("DagProcEngineThread " + i + " started.");
     }
+  }
+
+  @Override
+  protected void shutDown()
+      throws Exception {
+    log.info("DagProcessingEngine shutting down.");
+    this.scheduledExecutorPool.shutdown();
+    this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
   }
 
   @AllArgsConstructor
@@ -100,8 +122,6 @@ public class DagProcessingEngine {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
-        // todo mark lease success and releases it
-        //dagTaskStream.complete(dagTask);
       }
     }
   }

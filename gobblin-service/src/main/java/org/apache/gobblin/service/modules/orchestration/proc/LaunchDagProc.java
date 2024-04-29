@@ -63,7 +63,11 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     try {
       FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
-      return this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
+      Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
+      if (dag.isPresent()) {
+        dagManagementStateStore.checkpointDag(dag.get());
+      }
+      return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException e) {
       throw new RuntimeException(e);
     }

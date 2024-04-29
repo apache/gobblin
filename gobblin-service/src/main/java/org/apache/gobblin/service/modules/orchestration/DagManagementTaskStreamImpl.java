@@ -144,9 +144,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
    */
   private LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagAction dagAction)
       throws IOException, SchedulerException {
-    LeaseAttemptStatus leaseAttemptStatus;
     // TODO: need to handle reminder events and flag them
-    leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
+    LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
         .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing
