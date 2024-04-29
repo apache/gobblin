@@ -18,14 +18,12 @@
 package org.apache.gobblin.service.modules.flow;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import org.slf4j.Logger;
-
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
@@ -50,20 +48,8 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 @Alpha
 public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
-  public IdentityFlowToJobSpecCompiler(Config config) {
-    super(config, true);
-  }
-
-  public IdentityFlowToJobSpecCompiler(Config config, boolean instrumentationEnabled) {
-    super(config, Optional.<Logger>absent(), instrumentationEnabled);
-  }
-
-  public IdentityFlowToJobSpecCompiler(Config config, Optional<Logger> log) {
-    super(config, log, true);
-  }
-
-  public IdentityFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
-    super(config, log, instrumentationEnabled);
+  public IdentityFlowToJobSpecCompiler(Config config, Collection<TopologySpec> topologySpecSet) {
+    super(config, topologySpecSet);
   }
 
   @Override

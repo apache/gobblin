@@ -20,6 +20,8 @@ package org.apache.gobblin.service.modules.flow;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +36,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
@@ -57,6 +58,7 @@ import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -98,26 +100,14 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   // a map to hold aliases of data nodes, e.g. gobblin.service.datanode.aliases.map=node1-dev:node1,node1-stg:node1,node1-prod:node1
   public static final String DATA_NODE_ID_TO_ALIAS_MAP = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "datanode.aliases.map";
 
-  public MultiHopFlowCompiler(Config config) {
-    this(config, true);
-  }
-
-  public MultiHopFlowCompiler(Config config, boolean instrumentationEnabled) {
-    this(config, Optional.<Logger>absent(), instrumentationEnabled);
-  }
-
-  public MultiHopFlowCompiler(Config config, Optional<Logger> log) {
-    this(config, log, true);
-  }
-
   public MultiHopFlowCompiler(Config config, AtomicReference<FlowGraph> flowGraph) {
-    super(config, Optional.absent(), true);
+    super(config, Collections.EMPTY_SET);
     this.flowGraph = flowGraph;
     this.dataMovementAuthorizer = new NoopDataMovementAuthorizer(config);
   }
 
-  public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
-    super(config, log, instrumentationEnabled);
+  public MultiHopFlowCompiler(Config config, Collection<TopologySpec> topologySpecSet) {
+    super(config, topologySpecSet);
     try {
       this.dataNodeAliasMap = config.hasPath(DATA_NODE_ID_TO_ALIAS_MAP)
           ? Splitter.on(",").withKeyValueSeparator(":").split(config.getString(DATA_NODE_ID_TO_ALIAS_MAP))
@@ -161,7 +151,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     try {
       String flowGraphMonitorClassName = ConfigUtils.getString(this.config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY, GitFlowGraphMonitor.class.getCanonicalName());
       this.flowGraphMonitor = (FlowGraphMonitor) ConstructorUtils.invokeConstructor(Class.forName(new ClassAliasResolver<>(FlowGraphMonitor.class).resolve(
-        flowGraphMonitorClassName)), gitFlowGraphConfig, flowTemplateCatalog, this, this.topologySpecMap, this.getInitComplete(), instrumentationEnabled);
+        flowGraphMonitorClassName)), gitFlowGraphConfig, flowTemplateCatalog, this, this.topologySpecMap, this.getInitComplete(), true);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }

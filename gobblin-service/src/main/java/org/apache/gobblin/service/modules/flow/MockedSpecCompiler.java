@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.flow;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
@@ -28,6 +29,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -45,8 +47,8 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
   private static final int NUMBER_OF_JOBS = 3;
   public static final String UNCOMPILABLE_FLOW = "uncompilableFlow";
 
-  public MockedSpecCompiler(Config config) {
-    super(config);
+  public MockedSpecCompiler(Config config, Collection<TopologySpec> topologySpecSet) {
+    super(config, topologySpecSet);
   }
 
   @Override

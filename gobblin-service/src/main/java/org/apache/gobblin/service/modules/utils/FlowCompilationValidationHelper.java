@@ -43,6 +43,7 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -73,12 +74,12 @@ public class FlowCompilationValidationHelper {
 
   @Inject
   public FlowCompilationValidationHelper(Config config, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
-      UserQuotaManager userQuotaManager, FlowStatusGenerator flowStatusGenerator) {
+      UserQuotaManager userQuotaManager, FlowStatusGenerator flowStatusGenerator, TopologySpecFactory topologySpecFactory) {
     try {
       String specCompilerClassName = ConfigUtils.getString(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY,
           ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS);
       this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(
-          new ClassAliasResolver<>(SpecCompiler.class).resolve(specCompilerClassName)), config);
+          new ClassAliasResolver<>(SpecCompiler.class).resolve(specCompilerClassName)), config,  topologySpecFactory.getTopologies());
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
              ClassNotFoundException e) {
       throw new RuntimeException(e);

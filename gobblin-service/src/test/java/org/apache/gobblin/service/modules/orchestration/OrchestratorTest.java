@@ -21,6 +21,7 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -53,6 +54,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -61,6 +63,7 @@ import org.apache.gobblin.util.PathUtils;
 
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 
@@ -92,6 +95,8 @@ public class OrchestratorTest {
     cleanUpDir(FLOW_SPEC_STORE_DIR);
 
     Properties orchestratorProperties = new Properties();
+    // Create Spec to play with
+    this.topologySpec = initTopologySpec();
 
     Properties topologyProperties = new Properties();
     topologyProperties.put("specStore.fs.dir", TOPOLOGY_SPEC_STORE_DIR);
@@ -114,6 +119,8 @@ public class OrchestratorTest {
     FlowLaunchHandler mockFlowTriggerHandler = mock(FlowLaunchHandler.class);
     DagManager mockDagManager = mock(DagManager.class);
     doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
+    TopologySpecFactory mockedTopologySpecFactory = mock(TopologySpecFactory.class);
+    doReturn(Collections.singleton(this.topologySpec)).when(mockedTopologySpecFactory).getTopologies();
     Config config = ConfigBuilder.create()
         .addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY,
             MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
@@ -130,13 +137,12 @@ public class OrchestratorTest {
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
         Optional.of(mockFlowTriggerHandler), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
-        new FlowCompilationValidationHelper(config, sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockStatusGenerator));
+        new FlowCompilationValidationHelper(config, sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockStatusGenerator,
+            mockedTopologySpecFactory));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application
     this.serviceLauncher.start();
-    // Create Spec to play with
-    this.topologySpec = initTopologySpec();
     this.flowSpec = initFlowSpec();
   }
 
@@ -244,9 +250,10 @@ public class OrchestratorTest {
     }
     // Make sure TopologyCatalog is empty
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
-    // Make sure TopologyCatalog Listener is empty
-    Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 0, "SpecCompiler should not know about any Topology "
-        + "before addition");
+    Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 1, "SpecCompiler should know about any Topology "
+        + " irrespective of what is there in the topology catalog");
+    // Make sure TopologyCatalog empty
+    Assert.assertTrue(this.topologyCatalog.getSize() == 0, "Topology catalog should contain 0 Spec before addition");
 
     // Create and add Spec
     this.topologyCatalog.put(topologySpec);
@@ -262,7 +269,7 @@ public class OrchestratorTest {
     // Make sure TopologyCatalog has the added Topology
     Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
     // Make sure TopologyCatalog Listener knows about added Topology
-    Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 1, "SpecCompiler should contain 1 Spec after addition");
+    Assert.assertTrue(this.topologyCatalog.getSize() == 1, "Topology catalog should contain 1 Spec after addition");
   }
 
   @Test (dependsOnMethods = "createTopologySpec")

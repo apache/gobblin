@@ -20,6 +20,7 @@ import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -86,16 +87,11 @@ public class IdentityFlowToJobSpecCompilerTest {
     // Initialize compiler with template catalog
     Properties compilerWithTemplateCatalogProperties = new Properties();
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, TEST_TEMPLATE_CATALOG_URI);
-    this.compilerWithTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties));
-
-    // Add a topology to compiler
-    this.compilerWithTemplateCalague.onAddSpec(initTopologySpec());
+    this.compilerWithTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties),
+        Collections.singleton(initTopologySpec()));
 
     // Initialize compiler without template catalog
-    this.compilerWithoutTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(new Properties()));
-
-    // Add a topology to compiler
-    this.compilerWithoutTemplateCalague.onAddSpec(initTopologySpec());
+    this.compilerWithoutTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(new Properties()), Collections.singleton(initTopologySpec()));
   }
 
   private void setupDir(String dir) throws Exception {
