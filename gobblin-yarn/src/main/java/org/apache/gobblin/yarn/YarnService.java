@@ -316,17 +316,17 @@ public class YarnService extends AbstractIdleService {
 
   /**
    *  getContainerInfoGivenHelixParticipant returns the container of the given helixParticipant if it exists else
-   *  return null
+   *  return Optional<Container>
    * @param helixParticipant
    * @return Container
    */
-  public Container getContainerInfoGivenHelixParticipant(final String helixParticipant) {
+  public Optional<Container> getContainerInfoGivenHelixParticipant(final String helixParticipant) {
     for (ContainerInfo containerInfo : this.containerMap.values()) {
       if (containerInfo.getHelixParticipantId().equals(helixParticipant)) {
-        return containerInfo.getContainer();
+        return Optional.fromNullable(containerInfo.getContainer());
       }
     }
-    return null;
+    return Optional.absent();
   }
 
   protected NMClientCallbackHandler getNMClientCallbackHandler() {

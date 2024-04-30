@@ -88,7 +88,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
     ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
@@ -121,7 +121,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -161,7 +161,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -203,7 +203,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -233,7 +233,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -259,7 +259,7 @@ public class YarnAutoScalingManagerTest {
             1.2, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable1.run();
 
@@ -274,7 +274,7 @@ public class YarnAutoScalingManagerTest {
             0.1, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable2.run();
 
@@ -289,7 +289,7 @@ public class YarnAutoScalingManagerTest {
             6.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable3.run();
 
@@ -419,7 +419,7 @@ public class YarnAutoScalingManagerTest {
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
             defaultContainerCores, 20, false,
             10,
-            false, false);
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -457,7 +457,7 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = getJobContext(mockTaskDriver, ImmutableMap.of(1,"GobblinYarnTaskRunner-1", 2, "GobblinYarnTaskRunner-2"), "job1");
     Mockito.when(mockJobContext.getPartitionState(1)).thenReturn(TaskPartitionState.RUNNING);
     Mockito.when(mockJobContext.getPartitionState(2)).thenReturn(TaskPartitionState.INIT);
-    Mockito.when(mockYarnService.getContainerInfoGivenHelixParticipant("GobblinYarnTaskRunner-2")).thenReturn(mockContainer);
+    Mockito.when(mockYarnService.getContainerInfoGivenHelixParticipant("GobblinYarnTaskRunner-2")).thenReturn(Optional.of(mockContainer));
     Mockito.when(mockYarnService.getEventBus()).thenReturn(mockEventBus);
     Mockito.when(mockYarnService.getEventSubmitter()).thenReturn(Optional.absent());
     Set<Container> containers = new HashSet<>();
@@ -548,7 +548,9 @@ public class YarnAutoScalingManagerTest {
           noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
           defaultContainerCores, 20, false,
           10,
-          true, true);
+          true, true, new HashSet<TaskPartitionState>() {{
+            add(TaskPartitionState.INIT);
+          }});
     }
 
     @Override
@@ -578,8 +580,8 @@ public class YarnAutoScalingManagerTest {
     }
 
     @Override
-    boolean isInstanceStuckInInitState(String participant) {
-      return alwaysInINITState || super.isInstanceStuckInInitState(participant);
+    boolean isInstanceStuck(String participant) {
+      return alwaysInINITState || super.isInstanceStuck(participant);
     }
   }
 }

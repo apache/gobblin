@@ -45,6 +45,6 @@ public class GobblinYarnEventConstants {
     public static final String ERROR = "Error";
     public static final String HELIX_INSTANCE_COMPLETION = "HelixInstanceCompletion";
     public static final String SHUTDOWN_REQUEST = "ShutdownRequest";
-    public static final String HELIX_PARTITION_STUCK_IN_INIT = "HelixPartitionStuckInInit";
+    public static final String HELIX_PARTITION_STUCK = "HelixPartitionStuck";
   }
 }

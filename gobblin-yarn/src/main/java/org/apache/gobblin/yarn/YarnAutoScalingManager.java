@@ -18,10 +18,12 @@
 package org.apache.gobblin.yarn;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -76,11 +78,8 @@ import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_
 @Slf4j
 public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_PREFIX = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "autoScaling.";
-  private final String AUTO_SCALING_POLLING_INTERVAL_SECS =
-      AUTO_SCALING_PREFIX + "pollingIntervalSeconds";
+  private final String AUTO_SCALING_POLLING_INTERVAL_SECS = AUTO_SCALING_PREFIX + "pollingIntervalSeconds";
   private final String TASK_NUMBER_OF_ATTEMPTS_THRESHOLD = AUTO_SCALING_PREFIX + "taskAttemptsThreshold";
-  private final String TIME_IN_MINUTES_BEFORE_RELEASING_CONTAINER_HAVING_TASK_STUCK_IN_INIT_STATE =
-      AUTO_SCALING_PREFIX + "maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState";
   private final int DEFAULT_TASK_NUMBER_OF_ATTEMPTS_THRESHOLD = 20;
   private final String SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD = AUTO_SCALING_PREFIX + "splitWorkUnitReachThreshold";
   private final boolean DEFAULT_SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD = false;
@@ -89,25 +88,24 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
   private final int DEFAULT_AUTO_SCALING_PARTITIONS_PER_CONTAINER = 1;
   private final String AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = AUTO_SCALING_PREFIX + "overProvisionFactor";
-  private final String ENABLE_RELEASING_CONTAINER_HAVING_TASK_STUCK_IN_INIT_STATE =
-      AUTO_SCALING_PREFIX + "enableReleasingContainerHavingTaskStuckInINITState";
-  private final String ENABLE_DETECT_TASK_STUCK = AUTO_SCALING_PREFIX + "enableDetectTaskStuck";
+  private final String STUCK_TASK_CONTAINER_RELEASE_THRESHOLD_MINUTES =
+      AUTO_SCALING_PREFIX + "stuckTaskContainerReleaseThresholdMinutes";
+  private final String RELEASE_CONTAINER_IF_TASK_IS_STUCK = AUTO_SCALING_PREFIX + "releaseContainerIfTaskIsStuck";
+  private final String DETECT_IF_TASK_IS_STUCK = AUTO_SCALING_PREFIX + "detectIfTaskIsStuck";
+  private final String ENABLE_DETECTION_FOR_TASK_STATES = AUTO_SCALING_PREFIX + "enableDetectionForTaskStates";
   private final double DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = 1.0;
+  private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
+  private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
+  private final String AUTO_SCALING_WINDOW_SIZE = AUTO_SCALING_PREFIX + "windowSize";
+  public final static int DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES = 10;
+  private final static int DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_THAT_IS_STUCK = 20;
+
   // The cluster level default tags for Helix instances
   private final String defaultHelixInstanceTags;
   private final int defaultContainerMemoryMbs;
   private final int defaultContainerCores;
-
-  private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
-  private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
   private int taskAttemptsThreshold;
   private final boolean splitWorkUnitReachThreshold;
-
-  private final String AUTO_SCALING_WINDOW_SIZE = AUTO_SCALING_PREFIX + "windowSize";
-
-  public final static int DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES = 10;
-  private final static int DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_STUCK_IN_INIT_STATE = 20;
-
   private final Config config;
   private final HelixManager helixManager;
   private final ScheduledExecutorService autoScalingExecutor;
@@ -116,9 +114,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final double overProvisionFactor;
   private final SlidingWindowReservoir slidingFixedSizeWindow;
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
-  private final int maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState;
-  private final boolean enableReleasingContainerHavingTaskStuckInINITState;
-  private final boolean enableDetectTaskStuck;
+  private final int maxTimeInMinutesBeforeReleasingContainerHavingStuckTask;
+  private final boolean enableReleasingContainerHavingStuckTask;
+  private final boolean enableDetectStuckTask;
+  private final HashSet<TaskPartitionState> detectionForTaskStates;
   private static final HashSet<TaskPartitionState>
       UNUSUAL_HELIX_TASK_STATES = Sets.newHashSet(TaskPartitionState.ERROR, TaskPartitionState.DROPPED, TaskPartitionState.COMPLETED, TaskPartitionState.TIMED_OUT);
 
@@ -150,12 +149,32 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         DEFAULT_TASK_NUMBER_OF_ATTEMPTS_THRESHOLD);
     this.splitWorkUnitReachThreshold = ConfigUtils.getBoolean(this.config, SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD,
         DEFAULT_SPLIT_WORKUNIT_REACH_ATTEMPTS_THRESHOLD);
-    this.maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState = ConfigUtils.getInt(this.config,
-        TIME_IN_MINUTES_BEFORE_RELEASING_CONTAINER_HAVING_TASK_STUCK_IN_INIT_STATE,
-        DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_STUCK_IN_INIT_STATE);
-    this.enableReleasingContainerHavingTaskStuckInINITState = ConfigUtils.getBoolean(this.config,
-        ENABLE_RELEASING_CONTAINER_HAVING_TASK_STUCK_IN_INIT_STATE, false);
-    this.enableDetectTaskStuck = ConfigUtils.getBoolean(this.config, ENABLE_DETECT_TASK_STUCK, false);
+    this.maxTimeInMinutesBeforeReleasingContainerHavingStuckTask = ConfigUtils.getInt(this.config,
+        STUCK_TASK_CONTAINER_RELEASE_THRESHOLD_MINUTES,
+        DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_THAT_IS_STUCK);
+    this.enableReleasingContainerHavingStuckTask = ConfigUtils.getBoolean(this.config,
+        RELEASE_CONTAINER_IF_TASK_IS_STUCK, false);
+    this.enableDetectStuckTask = ConfigUtils.getBoolean(this.config, DETECT_IF_TASK_IS_STUCK, false);
+    this.detectionForTaskStates = getTaskStatesForWhichDetectionIsEnabled();
+  }
+
+  private HashSet<TaskPartitionState> getTaskStatesForWhichDetectionIsEnabled() {
+    HashSet<TaskPartitionState> taskStates = new HashSet<>();
+    if (this.enableDetectStuckTask) {
+      List<String> taskStatesEnabledForDetection = ConfigUtils.getStringList(this.config, ENABLE_DETECTION_FOR_TASK_STATES);
+      for (String taskState : taskStatesEnabledForDetection) {
+        try {
+          taskStates.add(TaskPartitionState.valueOf(taskState));
+        } catch (IllegalArgumentException e) {
+          log.warn("Invalid task state {} provided for detection, ignoring", taskState);
+        }
+      }
+      if (taskStatesEnabledForDetection.isEmpty()) {
+        // if config was not set, default case enable only for INIT state
+        taskStates.add(TaskPartitionState.INIT);
+      }
+    }
+    return taskStates;
   }
 
   @Override
@@ -171,8 +190,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             this.yarnService, this.partitionsPerContainer, this.overProvisionFactor,
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
             this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold,
-            this.splitWorkUnitReachThreshold, this.maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState,
-            this.enableReleasingContainerHavingTaskStuckInINITState, this.enableDetectTaskStuck),
+            this.splitWorkUnitReachThreshold, this.maxTimeInMinutesBeforeReleasingContainerHavingStuckTask,
+            this.enableReleasingContainerHavingStuckTask, this.enableDetectStuckTask, this.detectionForTaskStates),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -201,9 +220,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int defaultContainerCores;
     private final int taskAttemptsThreshold;
     private final boolean splitWorkUnitReachThreshold;
-    private final int maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState;
-    private final boolean enableReleasingContainerHavingTaskStuckInINITState;
-    private final boolean enableDetectTaskStuck;
+    private final int maxTimeInMinutesBeforeReleasingContainerHavingStuckTask;
+    private final boolean enableReleasingContainerHavingStuckTask;
+    private final boolean enableDetectStuckTask;
+    private final HashSet<TaskPartitionState> taskStates;
 
     /**
      * A static map that keep track of an idle instance and its latest beginning idle time.
@@ -211,10 +231,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
      */
     private static final Map<String, Long> instanceIdleSince = new HashMap<>();
     /**
-     * A static map that keep track of an instance which contains the task in init state and its latest beginning
-     * idle time. If an instance is no longer in INIT state when inspected, it will be dropped from this map.
+     * A static map that keep track of an instances which contains the tasks which are present in any of the configured
+     * states and its latest beginning idle time. If an instance is no longer in the given state when inspected,
+     * it will be dropped from this map.
      */
-    private static final Map<String, Long> instanceInitStateSince = new HashMap<>();
+    private static final Map<String, Long> instanceStuckSince = new HashMap<>();
 
     @Override
     public void run() {
@@ -249,8 +270,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     }
 
 
-    private String getParticipantInInitStateForHelixPartition(final JobContext jobContext, final int partition) {
-      if (TaskPartitionState.INIT.equals(jobContext.getPartitionState(partition))) {
+    private String getParticipantInGivenStateForHelixPartition(final JobContext jobContext, final int partition,
+        final HashSet<TaskPartitionState> taskStates) {
+      if (taskStates.contains(jobContext.getPartitionState(partition))) {
         log.info("Helix task {} is in {} state at helix participant {}",
             jobContext.getTaskIdForPartition(partition), jobContext.getPartitionState(partition),
             jobContext.getAssignedParticipant(partition));
@@ -267,9 +289,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     @VisibleForTesting
     void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
-      // helixInstancesContainingTaskInInitState maintains the set of helix instances/participants containing tasks
-      // in INIT state.
-      final Set<String> helixInstancesContainingTaskInInitState = new HashSet<>();
+      // helixInstancesContainingStuckTasks maintains the set of helix instances/participants containing tasks that are
+      // stuck in any of the configured states.
+      final Set<String> helixInstancesContainingStuckTasks = new HashSet<>();
 
       YarnContainerRequestBundle yarnContainerRequestBundle = new YarnContainerRequestBundle();
       for (Map.Entry<String, WorkflowConfig> workFlowEntry : taskDriver.getWorkflows().entrySet()) {
@@ -304,10 +326,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
                 .map(i -> getInuseParticipantForHelixPartition(jobContext, i))
                 .filter(Objects::nonNull).collect(Collectors.toSet()));
 
-            if (enableDetectTaskStuck) {
-              // if feature is not enabled the set helixInstancesContainingTaskInInitState will always be empty
-              helixInstancesContainingTaskInInitState.addAll(jobContext.getPartitionSet().stream()
-                  .map(helixPartition -> getParticipantInInitStateForHelixPartition(jobContext, helixPartition))
+            if (enableDetectStuckTask) {
+              // if feature is not enabled the set helixInstancesContainingStuckTasks will always be empty
+              helixInstancesContainingStuckTasks.addAll(jobContext.getPartitionSet().stream()
+                  .map(helixPartition -> getParticipantInGivenStateForHelixPartition(jobContext, helixPartition, taskStates))
                   .filter(Objects::nonNull).collect(Collectors.toSet()));
             }
 
@@ -354,37 +376,37 @@ public class YarnAutoScalingManager extends AbstractIdleService {
           instanceIdleSince.remove(participant);
         }
 
-        if(helixInstancesContainingTaskInInitState.contains(participant)) {
-          instanceInitStateSince.putIfAbsent(participant, System.currentTimeMillis());
-          if (isInstanceStuckInInitState(participant)) {
-            // release the corresponding container as the helix task is stuck in INIT state for a long time
-            log.info("Instance {} has some helix partition that is stuck in INIT state for {} minutes, "
+        if(helixInstancesContainingStuckTasks.contains(participant)) {
+          instanceStuckSince.putIfAbsent(participant, System.currentTimeMillis());
+          if (isInstanceStuck(participant)) {
+            // release the corresponding container as the helix task is stuck for a long time
+            log.info("Instance {} has some helix partition that is stuck for {} minutes, "
                 + "releasing the container enabled : {}", participant,
-                TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - instanceInitStateSince.get(participant)),
-                enableReleasingContainerHavingTaskStuckInINITState);
+                TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - instanceStuckSince.get(participant)),
+                enableReleasingContainerHavingStuckTask);
 
             // get container of the helix participant
-            Container container = yarnService.getContainerInfoGivenHelixParticipant(participant);
-            instanceInitStateSince.remove(participant);
+            Optional<Container> container = yarnService.getContainerInfoGivenHelixParticipant(participant);
+            instanceStuckSince.remove(participant);
             String containerId = "";
-            if(container != null) {
-              if (enableReleasingContainerHavingTaskStuckInINITState) {
-                containersToRelease.add(container);
+            if(container.isPresent()) {
+              if (enableReleasingContainerHavingStuckTask) {
+                containersToRelease.add(container.get());
               }
-              containerId = container.getId().toString();
+              containerId = container.get().getId().toString();
             } else {
               log.warn("Container information for participant {} is not found", participant);
             }
 
             if(this.yarnService.getEventSubmitter().isPresent()) {
               // send GTE
-              this.yarnService.getEventSubmitter().get().submit(GobblinYarnEventConstants.EventNames.HELIX_PARTITION_STUCK_IN_INIT,
+              this.yarnService.getEventSubmitter().get().submit(GobblinYarnEventConstants.EventNames.HELIX_PARTITION_STUCK,
                   GobblinHelixConstants.HELIX_INSTANCE_NAME_KEY, participant,
                   GobblinYarnMetricTagNames.CONTAINER_ID, containerId);
             }
           }
         } else {
-          instanceInitStateSince.remove(participant);
+          instanceStuckSince.remove(participant);
         }
       }
 
@@ -416,15 +438,15 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     }
 
     /**
-     * Return true is the condition for tagging an instance as stuck in INIT state holds.
-     * The condition, by default is that if an instance went back to
-     * active (having partition running on it) within {@link #maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState} minutes, we will
+     * Return true is the condition for tagging an instance as stuck.
+     * The condition, by default is that if a task running on an instance went back to any other state other than given
+     * states within {@link #maxTimeInMinutesBeforeReleasingContainerHavingStuckTask} minutes, we will
      * not tag that instance as stuck and the container will not be scaled down.
      */
     @VisibleForTesting
-    boolean isInstanceStuckInInitState(final String participant) {
-      return System.currentTimeMillis() - instanceInitStateSince.get(participant) >
-          TimeUnit.MINUTES.toMillis(maxTimeInMinutesBeforeReleasingContainerHavingTaskStuckInINITState);
+    boolean isInstanceStuck(final String participant) {
+      return System.currentTimeMillis() - instanceStuckSince.get(participant) >
+          TimeUnit.MINUTES.toMillis(maxTimeInMinutesBeforeReleasingContainerHavingStuckTask);
     }
   }
 
