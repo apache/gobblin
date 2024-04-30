@@ -86,6 +86,7 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
     log.info("Initializing OpenTelemetry metrics");
     Properties metricProps = PropertiesUtils.extractChildProperties(state.getProperties(),
         ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX);
+    // Default to empty resource because default resource still populates some values
     Resource metricsResource = Resource.empty();
     if (metricProps.isEmpty()) {
       log.warn("No OpenTelemetry metrics properties found, sending empty resource");
