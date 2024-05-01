@@ -69,8 +69,8 @@ public class IdentityFlowToJobSpecCompilerTest {
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore_" + System.currentTimeMillis();
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore_" + System.currentTimeMillis();
 
-  private IdentityFlowToJobSpecCompiler compilerWithTemplateCalague;
-  private IdentityFlowToJobSpecCompiler compilerWithoutTemplateCalague;
+  private IdentityFlowToJobSpecCompiler compilerWithTemplateCatalog;
+  private IdentityFlowToJobSpecCompiler compilerWithoutTemplateCatalog;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -87,11 +87,11 @@ public class IdentityFlowToJobSpecCompilerTest {
     // Initialize compiler with template catalog
     Properties compilerWithTemplateCatalogProperties = new Properties();
     compilerWithTemplateCatalogProperties.setProperty(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, TEST_TEMPLATE_CATALOG_URI);
-    this.compilerWithTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties),
+    this.compilerWithTemplateCatalog = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(compilerWithTemplateCatalogProperties),
         Collections.singleton(initTopologySpec()));
 
     // Initialize compiler without template catalog
-    this.compilerWithoutTemplateCalague = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(new Properties()), Collections.singleton(initTopologySpec()));
+    this.compilerWithoutTemplateCatalog = new IdentityFlowToJobSpecCompiler(ConfigUtils.propertiesToConfig(new Properties()), Collections.singleton(initTopologySpec()));
   }
 
   private void setupDir(String dir) throws Exception {
@@ -182,7 +182,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCatalog.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");
@@ -215,7 +215,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithoutTemplateCatalog.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");
@@ -249,7 +249,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, "unsupportedSource", "unsupportedSink");
 
     // Run compiler on flowSpec
-    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCatalog.compileFlow(flowSpec);
 
     // Assert pre-requisites
     Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");

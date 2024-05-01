@@ -118,7 +118,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     this.config = config;
 
     /*
-     * ETL-5996
      * For multi-tenancy, the following needs to be added:
      * 1. Change singular templateCatalog to Map<URI, JobCatalogWithTemplates> to support multiple templateCatalogs
      * 2. Pick templateCatalog from JobCatalogWithTemplates based on URI, and try to resolve JobSpec using that
