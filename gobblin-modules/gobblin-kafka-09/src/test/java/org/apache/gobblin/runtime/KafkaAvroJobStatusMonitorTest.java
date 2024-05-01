@@ -58,7 +58,7 @@ import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.GaaSObservabilityEvent;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
@@ -554,9 +554,9 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
     // Only the COMPLETE event should create a GaaSObservabilityEvent
-    List<GaaSObservabilityEventExperimental> emittedEvents = mockEventProducer.getTestEmittedEvents();
-    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
-    GaaSObservabilityEventExperimental event1 = iterator.next();
+    List<GaaSObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSObservabilityEvent event1 = iterator.next();
     Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
@@ -603,10 +603,10 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
 
     // Only the COMPLETE event should create a GaaSObservabilityEvent
-    List<GaaSObservabilityEventExperimental> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    List<GaaSObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
-    GaaSObservabilityEventExperimental event1 = iterator.next();
+    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSObservabilityEvent event1 = iterator.next();
     Assert.assertEquals(event1.getJobStatus(), JobStatus.CANCELLED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);

@@ -35,7 +35,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.DatasetMetric;
-import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.GaaSObservabilityEvent;
 import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
 import org.apache.gobblin.metrics.JobStatus;
@@ -71,7 +71,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected MetricContext metricContext;
   protected State state;
 
-  List<GaaSObservabilityEventExperimental> eventCollector = new ArrayList<>();
+  List<GaaSObservabilityEvent> eventCollector = new ArrayList<>();
   protected OpenTelemetryMetricsBase opentelemetryMetrics;
   protected ObservableLongMeasurement jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
@@ -104,7 +104,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
           .buildObserver();
       this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
           .batchCallback(() -> {
-            for (GaaSObservabilityEventExperimental event : this.eventCollector) {
+            for (GaaSObservabilityEvent event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
               int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
@@ -117,12 +117,12 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   public void emitObservabilityEvent(final State jobState) {
-    GaaSObservabilityEventExperimental event = createGaaSObservabilityEvent(jobState);
+    GaaSObservabilityEvent event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
     this.eventCollector.add(event);
   }
 
-  public Attributes getEventAttributes(GaaSObservabilityEventExperimental event) {
+  public Attributes getEventAttributes(GaaSObservabilityEvent event) {
     Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
         .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
         .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
@@ -137,14 +137,14 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
    * Emits the GaaSObservabilityEvent with the mechanism that the child class is built upon e.g. Kafka
    * @param event
    */
-  abstract protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event);
+  abstract protected void sendUnderlyingEvent(GaaSObservabilityEvent event);
 
   /**
    * Creates a GaaSObservabilityEvent which is derived from a final GaaS job pipeline state, which is combination of GTE job states in an ordered fashion
    * @param jobState
    * @return GaaSObservabilityEvent
    */
-  private GaaSObservabilityEventExperimental createGaaSObservabilityEvent(final State jobState) {
+  private GaaSObservabilityEvent createGaaSObservabilityEvent(final State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
@@ -156,7 +156,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(
        DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
 
-    GaaSObservabilityEventExperimental.Builder builder = GaaSObservabilityEventExperimental.newBuilder();
+    GaaSObservabilityEvent.Builder builder = GaaSObservabilityEvent.newBuilder();
     List<Issue> issueList = null;
     try {
       issueList = getIssuesForJob(issueRepository, jobState);

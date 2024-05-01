@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "GaaSObservabilityEventExperimental",
+  "name": "GaaSObservabilityEvent",
   "namespace": "org.apache.gobblin.metrics",
   "doc": "An experimental format for GaaS to emit events during and after a job is executed.",
   "fields": [
