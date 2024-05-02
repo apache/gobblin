@@ -66,7 +66,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
-  public static final String GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME = "jobStatus";
+  public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
 
   protected MetricContext metricContext;
   protected State state;
@@ -99,7 +99,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
       this.jobStatusMetric = this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME)
           .ofLongs()
           .buildObserver();
       this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)

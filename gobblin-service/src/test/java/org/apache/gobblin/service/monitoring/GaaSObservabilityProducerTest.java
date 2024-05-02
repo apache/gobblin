@@ -262,7 +262,7 @@ public class GaaSObservabilityProducerTest {
     // Check number of meters
     Assert.assertEquals(metrics.size(), 1);
     Map<String, MetricData > metricsByName = metrics.stream().collect(Collectors.toMap(metric -> metric.getName(), metricData -> metricData));
-    MetricData jobStatusMetric = metricsByName.get("jobStatus");
+    MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
     // Check the attributes of the metrics
     List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
     Assert.assertEquals(datapoints.size(), 2);
@@ -274,6 +274,17 @@ public class GaaSObservabilityProducerTest {
     // Check common string tag
     Assert.assertEquals(datapoints.get(0).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
     Assert.assertEquals(datapoints.get(1).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
+    datapoints.forEach(point -> {
+      if (point.getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")).equals(1L)) {
+        Assert.assertEquals(point.getValue(), 0); // Cancelled job should show up as a 0
+      } else if (point.getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")).equals(2L)) {
+        Assert.assertEquals(point.getValue(), 1L); // Completed job should show up as a 1
+      }
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("flowName")), flowName);
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("jobName")), jobName);
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("flowEdge")), "flowEdge");
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+    });
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
