@@ -106,10 +106,10 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
           .batchCallback(() -> {
             for (GaaSObservabilityEventExperimental event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
-              int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
+              int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
             }
-            log.info("Submitted {} job status events", this.eventCollector.size());
+            log.debug("Submitted {} job status events", this.eventCollector.size());
             // Empty the list of events as they are all emitted at this point.
             this.eventCollector.clear();
           }, this.jobStatusMetric);
@@ -127,7 +127,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
         .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
         .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId()).put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId()).build();
+        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId())
+        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId())
+        .build();
     return tags;
   }
 
