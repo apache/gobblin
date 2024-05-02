@@ -66,7 +66,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
-  public static final String GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME = "jobStatus";
+  public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
 
   protected MetricContext metricContext;
   protected State state;
@@ -99,17 +99,17 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
       this.jobStatusMetric = this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_STATUS_METRIC_NAME)
+          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME)
           .ofLongs()
           .buildObserver();
       this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
           .batchCallback(() -> {
             for (GaaSObservabilityEventExperimental event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
-              int status = event.getJobStatus() != JobStatus.SUCCEEDED ? 1 : 0;
+              int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
             }
-            log.info("Submitted {} job status events", this.eventCollector.size());
+            log.debug("Submitted {} job status events", this.eventCollector.size());
             // Empty the list of events as they are all emitted at this point.
             this.eventCollector.clear();
           }, this.jobStatusMetric);
@@ -127,7 +127,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
         .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
         .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId()).put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId()).build();
+        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId())
+        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId())
+        .build();
     return tags;
   }
 
