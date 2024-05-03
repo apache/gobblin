@@ -388,7 +388,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     if (configuration.isDagProcessingEngineEnabled()) {
-      this.serviceLauncher.addService((Service) dagProcessingEngine);
+      this.serviceLauncher.addService(dagProcessingEngine);
     } {
       this.serviceLauncher.addService(dagManager);
     }

@@ -82,7 +82,7 @@ public class DagManagementTaskStreamImplTest {
             false);
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
-        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore);
+        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, 0);
   }
 
   /* This tests adding and removal of dag actions from dag task stream with a launch task. It verifies that the

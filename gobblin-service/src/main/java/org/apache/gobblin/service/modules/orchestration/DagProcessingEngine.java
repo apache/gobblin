@@ -22,9 +22,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.curator.shaded.com.google.common.util.concurrent.AbstractIdleService;
-
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;

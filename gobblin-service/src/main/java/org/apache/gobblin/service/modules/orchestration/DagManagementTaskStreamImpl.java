@@ -91,7 +91,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       in {@link GobblinServiceGuiceModule} which handles all possible configurations */
       throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
     }
-    if (!this.dagActionReminderScheduler.isPresent()) {
+    if (!dagActionReminderScheduler.isPresent()) {
       throw new RuntimeException(String.format("DagProcessingEngine requires %s to be instantiated.",
           DagActionReminderScheduler.class.getSimpleName()));
     }
