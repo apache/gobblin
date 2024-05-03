@@ -101,6 +101,7 @@ public class DagProcessingEngineTest {
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
             Optional.ofNullable(dagManagementStateStore));
+    dagProcessingEngine.startAsync();
   }
 
   static class MockedDagTaskStream implements DagTaskStream {
@@ -171,6 +172,7 @@ public class DagProcessingEngineTest {
   @Test
   public void dagProcessingTest()
       throws InterruptedException, TimeoutException, IOException {
+
     // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
     // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
     // (MAX_NUM_OF_TASKS + 1) th call
