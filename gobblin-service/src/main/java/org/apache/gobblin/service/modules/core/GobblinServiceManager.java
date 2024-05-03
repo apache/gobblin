@@ -49,6 +49,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
+import com.google.common.util.concurrent.Service;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -93,6 +94,7 @@ import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
@@ -220,6 +222,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   @Inject(optional = true)
   protected DagActionStoreChangeMonitor dagActionStoreChangeMonitor;
+
+  @Inject(optional = true)
+  protected DagProcessingEngine dagProcessingEngine;
 
   @Inject
   protected GobblinServiceManager(GobblinServiceConfiguration configuration) throws Exception {
@@ -382,7 +387,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       }
     }
 
-    this.serviceLauncher.addService(dagManager);
+    if (configuration.isDagProcessingEngineEnabled()) {
+      this.serviceLauncher.addService((Service) dagProcessingEngine);
+    } {
+      this.serviceLauncher.addService(dagManager);
+    }
 
     this.serviceLauncher.addService(databaseManager);
     this.serviceLauncher.addService(issueRepository);

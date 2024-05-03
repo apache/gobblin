@@ -20,6 +20,9 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.curator.shaded.com.google.common.util.concurrent.AbstractIdleService;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
@@ -47,32 +50,58 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore)}
  */
 
+@AllArgsConstructor
 @Alpha
 @Slf4j
 @Singleton
-public class DagProcessingEngine {
+public class DagProcessingEngine extends AbstractIdleService {
 
   @Getter private final Optional<DagTaskStream> dagTaskStream;
   @Getter Optional<DagManagementStateStore> dagManagementStateStore;
+  private final Config config;
+  private final Optional<DagProcFactory> dagProcFactory;
+  private ScheduledExecutorService scheduledExecutorPool;
+  private static final Integer TERMINATION_TIMEOUT = 30;
 
   @Inject
   public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream,
       Optional<DagProcFactory> dagProcFactory, Optional<DagManagementStateStore> dagManagementStateStore) {
+    this.config = config;
+    this.dagProcFactory = dagProcFactory;
+    this.dagTaskStream = dagTaskStream;
+    this.dagManagementStateStore = dagManagementStateStore;
+    if (!dagTaskStream.isPresent() || !dagProcFactory.isPresent() || !dagManagementStateStore.isPresent()) {
+      throw new RuntimeException(String.format("DagProcessingEngine cannot be initialized without all of the following"
+              + "classes present. DagTaskStream is %s, DagProcFactory is %s, DagManagementStateStore is %s",
+          this.dagTaskStream.isPresent() ? "present" : "MISSING",
+          this.dagProcFactory.isPresent() ? "present" : "MISSING",
+          this.dagManagementStateStore.isPresent() ? "present" : "MISSING"));
+    }
+    log.info("DagProcessingEngine initialized.");
+  }
+
+  @Override
+  protected void startUp() {
     Integer numThreads = ConfigUtils.getInt
         (config, ServiceConfigKeys.NUM_DAG_PROC_THREADS_KEY, ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS);
-    ScheduledExecutorService scheduledExecutorPool =
+    this.scheduledExecutorPool =
         Executors.newScheduledThreadPool(numThreads,
             ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
                 com.google.common.base.Optional.of("DagProcessingEngineThread")));
-    this.dagTaskStream = dagTaskStream;
-    this.dagManagementStateStore = dagManagementStateStore;
-
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
       DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
-          dagManagementStateStore.get());
-      scheduledExecutorPool.submit(dagProcEngineThread);
+          dagManagementStateStore.get(), i);
+      this.scheduledExecutorPool.submit(dagProcEngineThread);
     }
+  }
+
+  @Override
+  protected void shutDown()
+      throws Exception {
+    log.info("DagProcessingEngine shutting down.");
+    this.scheduledExecutorPool.shutdown();
+    this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
   }
 
   @AllArgsConstructor
@@ -81,10 +110,12 @@ public class DagProcessingEngine {
     private DagTaskStream dagTaskStream;
     private DagProcFactory dagProcFactory;
     private DagManagementStateStore dagManagementStateStore;
+    private final int threadID;
 
     @Override
     public void run() {
       while (true) {
+        log.info("Starting DagProcEngineThread to process dag tasks. Thread id: {}", threadID);
         DagTask dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {
           //todo - add a metrics to count the times dagTask was null
@@ -100,8 +131,6 @@ public class DagProcessingEngine {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
-        // todo mark lease success and releases it
-        //dagTaskStream.complete(dagTask);
       }
     }
   }
