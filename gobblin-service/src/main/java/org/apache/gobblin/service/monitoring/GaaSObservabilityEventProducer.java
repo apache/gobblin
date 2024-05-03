@@ -51,6 +51,7 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -128,7 +129,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
         .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
         .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, event.getExecutorId())
-        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowGraphEdgeId())
+        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, event.getFlowEdgeId())
         .build();
     return tags;
   }
@@ -150,6 +151,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
+    String edgeName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "");
+    String[] edgeNameParts = edgeName.split(BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR);
+
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
         GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
@@ -168,26 +172,29 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
       }
     }
     JobStatus status = convertExecutionStatusTojobState(jobState, ExecutionStatus.valueOf(jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
-    builder.setTimestamp(System.currentTimeMillis())
+    builder.setEventTimestamp(System.currentTimeMillis())
         .setFlowName(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
         .setFlowGroup(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
-        .setFlowGraphEdgeId(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
         .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
-        .setLastFlowModificationTime(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, 0))
+        .setLastFlowModificationTimestamp(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, 0))
         .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
         .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
         .setExecutorId(jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
-        .setJobStartTime(jobStartTime)
-        .setJobEndTime(jobEndTime)
-        .setJobOrchestratedTime(jobOrchestratedTime)
-        .setJobPlanningPhaseStartTime(jobPlanningPhaseStartTime)
-        .setJobPlanningPhaseEndTime(jobPlanningPhaseEndTime)
+        .setJobStartTimestamp(jobStartTime)
+        .setJobEndTimestamp(jobEndTime)
+        .setJobOrchestratedTimestamp(jobOrchestratedTime)
+        .setJobPlanningStartTimestamp(jobPlanningPhaseStartTime)
+        .setJobPlanningEndTimestamp(jobPlanningPhaseEndTime)
         .setIssues(issueList)
         .setJobStatus(status)
-        .setExecutionUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
-        .setDatasetsWritten(datasetMetrics)
+        .setEffectiveUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
+        .setDatasetsMetrics(datasetMetrics)
         .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
-        .setJobProperties(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, null));
+        .setJobProperties(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, null))
+        .setSourceNode(edgeNameParts.length >= 3 ? edgeNameParts[0] : "")
+        .setDestinationNode(edgeNameParts.length >= 3 ? edgeNameParts[1] : "")
+        .setFlowEdgeId(edgeNameParts.length >= 3 ? edgeNameParts[2] : edgeName)
+        .setExecutorUrn(null); //TODO: Fill with information from job execution
     return builder.build();
   }
 

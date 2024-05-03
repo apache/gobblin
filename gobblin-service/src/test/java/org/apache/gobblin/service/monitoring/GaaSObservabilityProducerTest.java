@@ -85,7 +85,7 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowExecutionId);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "sourceNode_destNode_flowEdge");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(AzkabanProjectConfig.USER_TO_PROXY, "azkabanUser");
     gteEventMetadata.put(TimingEvent.METADATA_MESSAGE, "hostName");
@@ -112,22 +112,24 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event.getExecutorUrl(), "hostName");
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowGraphEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getSourceNode(), "sourceNode");
+    Assert.assertEquals(event.getDestinationNode(), "destNode");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
-    Assert.assertEquals(event.getExecutionUserUrn(), "azkabanUser");
-    Assert.assertEquals(event.getJobOrchestratedTime(), Long.valueOf(1));
-    Assert.assertEquals(event.getLastFlowModificationTime(), Long.valueOf(20));
-    Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
-    Assert.assertEquals(event.getJobEndTime(), Long.valueOf(100));
-    Assert.assertEquals(event.getDatasetsWritten().size(), 2);
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
+    Assert.assertEquals(event.getEffectiveUserUrn(), "azkabanUser");
+    Assert.assertEquals(event.getJobOrchestratedTimestamp(), Long.valueOf(1));
+    Assert.assertEquals(event.getLastFlowModificationTimestamp(), Long.valueOf(20));
+    Assert.assertEquals(event.getJobStartTimestamp(), Long.valueOf(20));
+    Assert.assertEquals(event.getJobEndTimestamp(), Long.valueOf(100));
+    Assert.assertEquals(event.getDatasetsMetrics().size(), 2);
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
     Assert.assertEquals(event.getJobProperties(), "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
     Assert.assertEquals(event.getGaasId(), "testCluster");
     AvroSerializer<GaaSObservabilityEvent> serializer = new AvroBinarySerializer<>(
@@ -172,11 +174,11 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getFlowExecutionId(), Long.valueOf(flowExecutionId));
     Assert.assertEquals(event.getJobStatus(), JobStatus.CANCELLED);
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowGraphEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
-    Assert.assertEquals(event.getJobOrchestratedTime(), null);
-    Assert.assertEquals(event.getJobStartTime(), null);
-    Assert.assertEquals(event.getExecutionUserUrn(), null);
+    Assert.assertEquals(event.getJobOrchestratedTimestamp(), null);
+    Assert.assertEquals(event.getJobStartTimestamp(), null);
+    Assert.assertEquals(event.getEffectiveUserUrn(), null);
     Assert.assertEquals(event.getExecutorUrl(), null);
 
     AvroSerializer<GaaSObservabilityEvent> serializer = new AvroBinarySerializer<>(

@@ -560,8 +560,8 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
-    Assert.assertEquals(event1.getJobPlanningPhaseStartTime(), Long.valueOf(2));
-    Assert.assertEquals(event1.getJobPlanningPhaseEndTime(), Long.valueOf(3));
+    Assert.assertEquals(event1.getJobPlanningStartTimestamp(), Long.valueOf(2));
+    Assert.assertEquals(event1.getJobPlanningEndTimestamp(), Long.valueOf(3));
     jobStatusMonitor.shutDown();
   }
 
