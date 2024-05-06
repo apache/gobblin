@@ -49,7 +49,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
-import com.google.common.util.concurrent.Service;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
