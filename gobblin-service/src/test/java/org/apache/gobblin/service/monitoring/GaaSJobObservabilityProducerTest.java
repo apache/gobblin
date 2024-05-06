@@ -118,7 +118,7 @@ public class GaaSJobObservabilityProducerTest {
     Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event.getExecutorUrl(), "hostName");
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowEdgeId(), "sourceNode_destinationNode_flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
     Assert.assertEquals(event.getSourceNode(), "sourceNode");
     Assert.assertEquals(event.getDestinationNode(), "destinationNode");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");

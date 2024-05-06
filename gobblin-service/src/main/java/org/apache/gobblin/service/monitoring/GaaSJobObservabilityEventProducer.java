@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.codahale.metrics.MetricRegistry;
 import com.google.gson.reflect.TypeToken;
 
@@ -52,6 +54,7 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -159,6 +162,12 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       log.error("Could not deserialize job properties while creating GaaSJobObservabilityEvent due to ", e);
     }
 
+    String fullFlowEdge = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "");
+    // Parse the flow edge from edge id that is stored in format sourceNode_destinationNode_flowEdgeId
+    String edgeId = StringUtils.substringAfter(
+        StringUtils.substringAfter(fullFlowEdge, jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "")),
+        BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR);
+
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
         GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
@@ -198,7 +207,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
         .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.newBuilder().create().toJson(jobProperties))
         .setSourceNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
         .setDestinationNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
-        .setFlowEdgeId(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
+        .setFlowEdgeId(!edgeId.isEmpty() ? edgeId : fullFlowEdge)
         .setExecutorUrn(null); //TODO: Fill with information from job execution
     return builder.build();
   }
