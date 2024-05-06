@@ -57,7 +57,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
-public class GaaSObservabilityProducerTest {
+public class GaaSJobObservabilityProducerTest {
 
   private MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
 
@@ -144,6 +144,7 @@ public class GaaSObservabilityProducerTest {
     serializer.serializeRecord(event);
   }
 
+  @Test
   public void testCreateGaaSObservabilityEventWithPartialMetadata() throws Exception {
     String flowGroup = "testFlowGroup2";
     String flowName = "testFlowName2";
@@ -192,6 +193,7 @@ public class GaaSObservabilityProducerTest {
     serializer.serializeRecord(event);
   }
 
+  @Test
   public void testEnableMetrics() throws Exception {
     String flowGroup = "testFlowGroup2";
     String flowName = "testFlowName2";

@@ -62,12 +62,12 @@ import org.apache.gobblin.util.PropertiesUtils;
  * This is an abstract class, we need a sub system like Kakfa, which support at least once delivery, to emit the event
  */
 @Slf4j
-public abstract class GaaSObservabilityEventProducer implements Closeable {
-  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSObservabilityEventProducer.";
-  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
+public abstract class GaaSJobObservabilityEventProducer implements Closeable {
+  public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
+  public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
-  public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
-  public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
+  public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
+  public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
 
   protected MetricContext metricContext;
@@ -80,7 +80,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected boolean instrumentationEnabled;
   ContextAwareMeter getIssuesFailedMeter;
 
-  public GaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+  public GaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     this.state = state;
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;

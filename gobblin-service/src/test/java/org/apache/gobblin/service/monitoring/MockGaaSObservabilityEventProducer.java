@@ -29,10 +29,10 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
- * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
+ * An extension of GaaSJobObservabilityEventProducer which creates the events and stores them in a list
  * Tests can use a getter to fetch a read-only version of the events that were emitted
  */
-public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+public class MockGaaSObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
   private List<GaaSJobObservabilityEvent> emittedEvents = new ArrayList<>();
 
   public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
