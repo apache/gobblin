@@ -112,7 +112,7 @@
         "null",
         "string"
       ],
-      "doc": "User URN (if applicable) that runs the underlying Gobblin job e.g. Hadoop headless account",
+      "doc": "User URN (if applicable) that runs the underlying Gobblin job",
       "compliance": "NONE"
     },
     {

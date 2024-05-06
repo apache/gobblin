@@ -124,7 +124,7 @@
         "null",
         "string"
       ],
-      "doc": "User URN (if applicable) whose identity was used to run the underlying Gobblin job",
+      "doc": "User URN (if applicable) whose identity was used to run the underlying Gobblin job e.g. myGroup",
       "compliance": "NONE"
     },
     {
@@ -139,7 +139,7 @@
     {
       "name": "executorId",
       "type": "string",
-      "doc": "The ID of the spec executor that ran or would have ran the job",
+      "doc": "The ID of the spec executor that ran or would have run the job",
       "compliance": "NONE"
     },
     {

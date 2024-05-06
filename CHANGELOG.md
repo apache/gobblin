@@ -32,7 +32,7 @@ GOBBLIN 0.17.0
 * [GOBBLIN-1809] Add new lookback version finder for use with iceberg retention 
 * [GOBBLIN-1808] Bump Guava version from 15.0 to 20.0 
 * [GOBBLIN-1807] Replaced conjars.org with conjars.wensel.net 
-* [GOBBLIN-1806] Submit dataset summary event post commit and integrate them into GaaSJobObservabilityEvent 
+* [GOBBLIN-1806] Submit dataset summary event post commit and integrate them into GaaSObservabilityEvent 
 * [GOBBLIN-1805] Check watermark for the most recent hour for quiet topics 
 * [GOBBLIN-1804] Merge similar logic between FlowConfig{,V2}ResourceLocalHandler.update into single base class impl. 
 * [GOBBLIN-1804] Reject flow config updates that would fail compilation by returning service error 
@@ -63,7 +63,7 @@ GOBBLIN 0.17.0
 * [GOBBLIN-1775] Make GMIP Hive metadatawriter gracefully fail 
 * [GOBBLIN-1774] Util for detecting non optional uniontype columns based on Hive Table metadata 
 * [GOBBLIN-1771] Clean up logs for dataset commit and file cleanup 
-* [GOBBLIN-1770] Allow null values for fields in GaaSJobObservabilityEvent.Issue fields which are optional 
+* [GOBBLIN-1770] Allow null values for fields in GaaSObservabilityEvent.Issue fields which are optional 
 * [GOBBLIN-1769] Change a noisy log that indicates that the queue capacity is almost full
 * [GOBBLIN-1768] Fix constructor in KafkaJobStatusMonitorFactory so that it can be injected
 * [GOBBLIN-1767] Update references to deprecated Mysql connector/j driver to new name 
