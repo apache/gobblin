@@ -58,7 +58,7 @@ import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.GaaSObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.MetricContext;
@@ -553,10 +553,10 @@ public class KafkaAvroJobStatusMonitorTest {
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
-    // Only the COMPLETE event should create a GaaSObservabilityEvent
-    List<GaaSObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
-    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSObservabilityEvent event1 = iterator.next();
+    // Only the COMPLETE event should create a GaaSJobObservabilityEvent
+    List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event1 = iterator.next();
     Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
@@ -602,11 +602,11 @@ public class KafkaAvroJobStatusMonitorTest {
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
 
-    // Only the COMPLETE event should create a GaaSObservabilityEvent
-    List<GaaSObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
+    // Only the COMPLETE event should create a GaaSJobObservabilityEvent
+    List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedEvents();
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSObservabilityEvent event1 = iterator.next();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event1 = iterator.next();
     Assert.assertEquals(event1.getJobStatus(), JobStatus.CANCELLED);
     Assert.assertEquals(event1.getFlowName(), this.flowName);
     Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);

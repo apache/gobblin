@@ -37,7 +37,7 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
@@ -100,11 +100,11 @@ public class GaaSObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSObservabilityEvent event = iterator.next();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event = iterator.next();
     Assert.assertEquals(event.getFlowGroup(), flowGroup);
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getJobName(), jobName);
@@ -132,8 +132,8 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getDatasetsMetrics().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
     Assert.assertEquals(event.getJobProperties(), "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
     Assert.assertEquals(event.getGaasId(), "testCluster");
-    AvroSerializer<GaaSObservabilityEvent> serializer = new AvroBinarySerializer<>(
-        GaaSObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
+    AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
+        GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
   }
@@ -163,11 +163,11 @@ public class GaaSObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSObservabilityEvent event = iterator.next();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event = iterator.next();
     Assert.assertEquals(event.getFlowGroup(), flowGroup);
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getJobName(), jobName);
@@ -181,8 +181,8 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getEffectiveUserUrn(), null);
     Assert.assertEquals(event.getExecutorUrl(), null);
 
-    AvroSerializer<GaaSObservabilityEvent> serializer = new AvroBinarySerializer<>(
-        GaaSObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
+    AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
+        GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
   }

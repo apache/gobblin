@@ -2,7 +2,7 @@
   "type": "record",
   "name": "GaaSObservabilityEventExperimental",
   "namespace": "org.apache.gobblin.metrics",
-  "doc": "An experimental format for GaaS to emit events during and after a job is executed.",
+  "doc": "The deprecated format for GaaS to emit events during and after a job is executed.",
   "fields": [
     {
       "name": "timestamp",
@@ -112,7 +112,7 @@
         "null",
         "string"
       ],
-      "doc": "User URN (if applicable) that runs the underlying Gobblin job",
+      "doc": "User URN (if applicable) that runs the underlying Gobblin job e.g. Hadoop headless account",
       "compliance": "NONE"
     },
     {
@@ -127,7 +127,7 @@
     {
       "name": "executorId",
       "type": "string",
-      "doc": "The ID of the spec executor that ran or would have ran the job",
+      "doc": "The ID of the spec executor that ran or would have run the job",
       "compliance": "NONE"
     },
     {

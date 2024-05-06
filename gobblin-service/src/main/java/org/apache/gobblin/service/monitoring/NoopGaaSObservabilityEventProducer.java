@@ -18,7 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
@@ -40,5 +40,5 @@ public class NoopGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
   public void emitObservabilityEvent(State jobState) {}
 
   @Override
-  protected void sendUnderlyingEvent(GaaSObservabilityEvent event) {}
+  protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event) {}
 }

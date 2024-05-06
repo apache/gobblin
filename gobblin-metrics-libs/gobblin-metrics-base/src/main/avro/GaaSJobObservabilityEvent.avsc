@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "GaaSObservabilityEvent",
+  "name": "GaaSJobObservabilityEvent",
   "namespace": "org.apache.gobblin.metrics",
   "doc": "An event schema for GaaS to emit during and after a job is executed.",
   "fields": [

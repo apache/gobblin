@@ -19,9 +19,11 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.StringReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import com.codahale.metrics.MetricRegistry;
@@ -35,7 +37,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.DatasetMetric;
-import org.apache.gobblin.metrics.GaaSObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
 import org.apache.gobblin.metrics.JobStatus;
@@ -72,7 +75,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   protected MetricContext metricContext;
   protected State state;
 
-  List<GaaSObservabilityEvent> eventCollector = new ArrayList<>();
+  List<GaaSJobObservabilityEvent> eventCollector = new ArrayList<>();
   protected OpenTelemetryMetricsBase opentelemetryMetrics;
   protected ObservableLongMeasurement jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
@@ -105,7 +108,7 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
           .buildObserver();
       this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
           .batchCallback(() -> {
-            for (GaaSObservabilityEvent event : this.eventCollector) {
+            for (GaaSJobObservabilityEvent event : this.eventCollector) {
               Attributes tags = getEventAttributes(event);
               int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
               this.jobStatusMetric.record(status, tags);
@@ -118,12 +121,12 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   public void emitObservabilityEvent(final State jobState) {
-    GaaSObservabilityEvent event = createGaaSObservabilityEvent(jobState);
+    GaaSJobObservabilityEvent event = createGaaSObservabilityEvent(jobState);
     sendUnderlyingEvent(event);
     this.eventCollector.add(event);
   }
 
-  public Attributes getEventAttributes(GaaSObservabilityEvent event) {
+  public Attributes getEventAttributes(GaaSJobObservabilityEvent event) {
     Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, event.getFlowName())
         .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, event.getFlowGroup())
         .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, event.getJobName())
@@ -135,38 +138,41 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
   }
 
   /**
-   * Emits the GaaSObservabilityEvent with the mechanism that the child class is built upon e.g. Kafka
+   * Emits the GaaSJobObservabilityEvent with the mechanism that the child class is built upon e.g. Kafka
    * @param event
    */
-  abstract protected void sendUnderlyingEvent(GaaSObservabilityEvent event);
+  abstract protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event);
 
   /**
-   * Creates a GaaSObservabilityEvent which is derived from a final GaaS job pipeline state, which is combination of GTE job states in an ordered fashion
+   * Creates a GaaSJobObservabilityEvent which is derived from a final GaaS job pipeline state, which is combination of GTE job states in an ordered fashion
    * @param jobState
-   * @return GaaSObservabilityEvent
+   * @return GaaSJobObservabilityEvent
    */
-  private GaaSObservabilityEvent createGaaSObservabilityEvent(final State jobState) {
+  private GaaSJobObservabilityEvent createGaaSObservabilityEvent(final State jobState) {
     Long jobStartTime = jobState.contains(TimingEvent.JOB_START_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_START_TIME) : null;
     Long jobEndTime = jobState.contains(TimingEvent.JOB_END_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_END_TIME) : null;
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
-    String edgeName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "");
-    String[] edgeNameParts = edgeName.split(BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR);
-
+    Properties jobProps = new Properties();
+    try {
+      jobProps.load(new StringReader(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY)));
+    } catch (IOException e) {
+      log.error("Could not parse job properties for source and destination node while creating GaaSJobObservabilityEvent due to ", e);
+    }
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
         GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
     List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(
        DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
 
-    GaaSObservabilityEvent.Builder builder = GaaSObservabilityEvent.newBuilder();
+    GaaSJobObservabilityEvent.Builder builder = GaaSJobObservabilityEvent.newBuilder();
     List<Issue> issueList = null;
     try {
       issueList = getIssuesForJob(issueRepository, jobState);
     } catch (Exception e) {
       // If issues cannot be fetched, increment metric but continue to try to emit the event
-      log.error("Could not fetch issues while creating GaaSObservabilityEvent due to ", e);
+      log.error("Could not fetch issues while creating GaaSJobObservabilityEvent due to ", e);
       if (this.instrumentationEnabled) {
         this.getIssuesFailedMeter.mark();
       }
@@ -191,9 +197,9 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setDatasetsMetrics(datasetMetrics)
         .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
         .setJobProperties(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, null))
-        .setSourceNode(edgeNameParts.length >= 3 ? edgeNameParts[0] : "")
-        .setDestinationNode(edgeNameParts.length >= 3 ? edgeNameParts[1] : "")
-        .setFlowEdgeId(edgeNameParts.length >= 3 ? edgeNameParts[2] : edgeName)
+        .setSourceNode(jobProps.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
+        .setDestinationNode(jobProps.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
+        .setFlowEdgeId(this.state.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
         .setExecutorUrn(null); //TODO: Fill with information from job execution
     return builder.build();
   }

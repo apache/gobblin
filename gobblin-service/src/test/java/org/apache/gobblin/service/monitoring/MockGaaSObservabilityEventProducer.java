@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEvent;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
@@ -33,7 +33,7 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
  * Tests can use a getter to fetch a read-only version of the events that were emitted
  */
 public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
-  private List<GaaSObservabilityEvent> emittedEvents = new ArrayList<>();
+  private List<GaaSJobObservabilityEvent> emittedEvents = new ArrayList<>();
 
   public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     super(state, issueRepository, instrumentationEnabled);
@@ -44,7 +44,7 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
     return InMemoryOpenTelemetryMetrics.getInstance(state);
   }
   @Override
-  protected void sendUnderlyingEvent(GaaSObservabilityEvent event) {
+  protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event) {
     emittedEvents.add(event);
   }
 
@@ -53,7 +53,7 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
    * This should only be used as a read-only object for emitted GaaSObservabilityEvents
    * @return list of events that would have been emitted
    */
-  public List<GaaSObservabilityEvent> getTestEmittedEvents() {
+  public List<GaaSJobObservabilityEvent> getTestEmittedEvents() {
     return Collections.unmodifiableList(this.emittedEvents);
   }
 
