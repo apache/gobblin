@@ -45,6 +45,7 @@ import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TargetState;
+import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskPartitionState;
 import org.apache.helix.task.TaskState;
@@ -163,7 +164,12 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       List<String> taskStatesEnabledForDetection = ConfigUtils.getStringList(this.config, ENABLE_DETECTION_FOR_TASK_STATES);
       for (String taskState : taskStatesEnabledForDetection) {
         try {
-          taskStates.add(TaskPartitionState.valueOf(taskState));
+          TaskPartitionState helixTaskState = TaskPartitionState.valueOf(taskState);
+          if(helixTaskState == TaskPartitionState.RUNNING) {
+            log.warn("Running state is not allowed for detection as it is not a stuck state, ignoring");
+            continue;
+          }
+          taskStates.add(helixTaskState);
         } catch (IllegalArgumentException e) {
           log.warn("Invalid task state {} provided for detection, ignoring", taskState);
         }
@@ -173,6 +179,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         taskStates.add(TaskPartitionState.INIT);
       }
     }
+    log.info("Detection of task being stuck is enabled on following task states {}", taskStates);
     return taskStates;
   }
 
@@ -230,9 +237,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
      */
     private static final Map<String, Long> instanceIdleSince = new HashMap<>();
     /**
-     * A static map that keep track of an instances which contains the tasks which are present in any of the configured
-     * states and its latest beginning idle time. If an instance is no longer in the given state when inspected,
-     * it will be dropped from this map.
+     * A static nested map that keep track of an instances which contains the tasks which are present in any of the
+     * configured states along with its latest beginning idle time in any of those states. If an instance is no longer
+     * in the given states when inspected, it will be dropped from this map.
      */
     private static final Map<String, Long> instanceStuckSince = new HashMap<>();
 
