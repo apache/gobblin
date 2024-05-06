@@ -19,7 +19,6 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.StringReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +37,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.DatasetMetric;
 import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
-import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
 import org.apache.gobblin.metrics.JobStatus;
@@ -54,9 +52,9 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -154,12 +152,13 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
-    Properties jobProps = new Properties();
+    Properties jobProperties = new Properties();
     try {
-      jobProps.load(new StringReader(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY)));
+      jobProperties = PropertiesUtils.deserialize(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, ""));
     } catch (IOException e) {
-      log.error("Could not parse job properties for source and destination node while creating GaaSJobObservabilityEvent due to ", e);
+      log.error("Could not deserialize job properties while creating GaaSJobObservabilityEvent due to ", e);
     }
+
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
         GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
@@ -196,10 +195,10 @@ public abstract class GaaSObservabilityEventProducer implements Closeable {
         .setEffectiveUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
         .setDatasetsMetrics(datasetMetrics)
         .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
-        .setJobProperties(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, null))
-        .setSourceNode(jobProps.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
-        .setDestinationNode(jobProps.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
-        .setFlowEdgeId(this.state.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
+        .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.newBuilder().create().toJson(jobProperties))
+        .setSourceNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
+        .setDestinationNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
+        .setFlowEdgeId(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, ""))
         .setExecutorUrn(null); //TODO: Fill with information from job execution
     return builder.build();
   }

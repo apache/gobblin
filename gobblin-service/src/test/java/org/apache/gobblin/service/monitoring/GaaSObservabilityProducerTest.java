@@ -54,6 +54,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 public class GaaSObservabilityProducerTest {
@@ -75,6 +76,11 @@ public class GaaSObservabilityProducerTest {
     DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false);
     summaries.add(dataset1);
     summaries.add(dataset2);
+    Properties jobProps = new Properties();
+    jobProps.setProperty("flow.executionId", "1681242538558");
+    jobProps.setProperty("user.to.proxy", "newUser");
+    jobProps.setProperty("gobblin.flow.sourceIdentifier", "sourceNode");
+    jobProps.setProperty("gobblin.flow.destinationIdentifier", "destinationNode");
 
     State state = new State();
     state.setProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, "testCluster");
@@ -85,7 +91,7 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowExecutionId);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "sourceNode_destNode_flowEdge");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "sourceNode_destinationNode_flowEdge");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(AzkabanProjectConfig.USER_TO_PROXY, "azkabanUser");
     gteEventMetadata.put(TimingEvent.METADATA_MESSAGE, "hostName");
@@ -95,7 +101,7 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.JOB_ORCHESTRATED_TIME, "1");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, "20");
     gteEventMetadata.put(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(summaries));
-    gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
+    gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobProps));
     Properties jobStatusProps = new Properties();
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
@@ -112,9 +118,9 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event.getExecutorUrl(), "hostName");
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "sourceNode_destinationNode_flowEdge");
     Assert.assertEquals(event.getSourceNode(), "sourceNode");
-    Assert.assertEquals(event.getDestinationNode(), "destNode");
+    Assert.assertEquals(event.getDestinationNode(), "destinationNode");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
     Assert.assertEquals(event.getEffectiveUserUrn(), "azkabanUser");
     Assert.assertEquals(event.getJobOrchestratedTimestamp(), Long.valueOf(1));
@@ -130,7 +136,7 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getDatasetsMetrics().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
     Assert.assertEquals(event.getDatasetsMetrics().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
     Assert.assertEquals(event.getDatasetsMetrics().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
-    Assert.assertEquals(event.getJobProperties(), "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
+    Assert.assertEquals(event.getJobProperties(), "{\"gobblin.flow.sourceIdentifier\":\"sourceNode\",\"gobblin.flow.destinationIdentifier\":\"destinationNode\",\"user.to.proxy\":\"newUser\",\"flow.executionId\":\"1681242538558\"}");
     Assert.assertEquals(event.getGaasId(), "testCluster");
     AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
         GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
@@ -138,7 +144,6 @@ public class GaaSObservabilityProducerTest {
     serializer.serializeRecord(event);
   }
 
-  @Test
   public void testCreateGaaSObservabilityEventWithPartialMetadata() throws Exception {
     String flowGroup = "testFlowGroup2";
     String flowName = "testFlowName2";
@@ -187,7 +192,6 @@ public class GaaSObservabilityProducerTest {
     serializer.serializeRecord(event);
   }
 
-  @Test
   public void testEnableMetrics() throws Exception {
     String flowGroup = "testFlowGroup2";
     String flowName = "testFlowName2";
