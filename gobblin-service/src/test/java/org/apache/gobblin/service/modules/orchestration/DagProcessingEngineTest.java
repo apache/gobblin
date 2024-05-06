@@ -91,16 +91,17 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.empty(), false);
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false);
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
-            dagManagementStateStore);
+            dagManagementStateStore, 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
             Optional.ofNullable(dagManagementStateStore));
+    dagProcessingEngine.startAsync();
   }
 
   static class MockedDagTaskStream implements DagTaskStream {
@@ -171,6 +172,7 @@ public class DagProcessingEngineTest {
   @Test
   public void dagProcessingTest()
       throws InterruptedException, TimeoutException, IOException {
+
     // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
     // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
     // (MAX_NUM_OF_TASKS + 1) th call
@@ -178,7 +180,8 @@ public class DagProcessingEngineTest {
     int expectedExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_FREQUENCY;
 
     AssertWithBackoff.assertTrue(input -> Mockito.mockingDetails(this.dagTaskStream).getInvocations().size() == expectedNumOfInvocations,
-        10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times",
+        10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times. "
+            + "Actual number of invocations " + Mockito.mockingDetails(this.dagTaskStream).getInvocations().size(),
         log, 1, 1000L);
 
     Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);

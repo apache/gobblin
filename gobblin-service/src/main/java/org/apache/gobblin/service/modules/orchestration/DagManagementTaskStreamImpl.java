@@ -58,7 +58,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * indication the lease has been completed
  * ({@link LeaseAttemptStatus}) then the {@link MultiActiveLeaseArbiter#tryAcquireLease} method will set a reminder for
  * the flow action using {@link DagActionReminderScheduler} to reattempt the lease after the current leaseholder's grant
- * would have expired.
+ * would have expired. The {@link DagActionReminderScheduler} is used in the non multi-active execution configuration as
+ * well to utilize reminders for a single {@link DagManagementTaskStreamImpl} case as well.
  * Note that if multi-active execution is NOT enabled, then all flow action events are selected by
  * {@link DagManagementTaskStreamImpl#next()} by virtue of having no other contenders for the lease at the time
  * {@link MultiActiveLeaseArbiter#tryAcquireLease} is called.
@@ -90,16 +91,16 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       in {@link GobblinServiceGuiceModule} which handles all possible configurations */
       throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
     }
+    if (!dagActionReminderScheduler.isPresent()) {
+      throw new RuntimeException(String.format("DagProcessingEngine requires %s to be instantiated.",
+          DagActionReminderScheduler.class.getSimpleName()));
+    }
     this.dagActionStore = dagActionStore;
     this.dagActionProcessingLeaseArbiter = dagActionProcessingLeaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
-    if (this.isMultiActiveExecutionEnabled && !this.dagActionReminderScheduler.isPresent()) {
-      throw new RuntimeException(String.format("Multi-active execution enabled but required "
-          + "instance %s is absent.", DagActionReminderScheduler.class.getSimpleName()));
-    }
   }
 
   @Override
@@ -144,9 +145,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
    */
   private LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagAction dagAction)
       throws IOException, SchedulerException {
-    LeaseAttemptStatus leaseAttemptStatus;
     // TODO: need to handle reminder events and flag them
-    leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
+    LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
         .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing

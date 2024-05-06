@@ -51,8 +51,8 @@ public class DagActionReminderScheduler {
   @Inject
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
       throws SchedulerException {
-    // Create a new Scheduler to be used solely for the DagProc reminders
-    this.quartzScheduler = schedulerFactory.getScheduler(DAG_ACTION_REMINDER_SCHEDULER_KEY);
+    // Creates a new Scheduler to be used solely for the DagProc reminders
+    this.quartzScheduler = schedulerFactory.getScheduler();
   }
 
   /**
@@ -91,8 +91,7 @@ public class DagActionReminderScheduler {
       String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
       String flowId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-      DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(
-          jobDataMap.getString(FLOW_ACTION_TYPE_KEY));
+      DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
 
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
           + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");

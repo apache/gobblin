@@ -25,6 +25,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 
 import lombok.Data;
@@ -62,6 +63,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 @Data
+@Singleton
 public class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
   @Getter
