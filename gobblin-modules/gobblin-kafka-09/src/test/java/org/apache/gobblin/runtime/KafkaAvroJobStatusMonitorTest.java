@@ -143,7 +143,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-      new org.apache.gobblin.service.monitoring.NoopGaaSJobObservabilityEventProducer());
+      new NoopGaaSJobObservabilityEventProducer());
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
@@ -537,7 +537,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
-    org.apache.gobblin.service.monitoring.MockGaaSJobObservabilityEventProducer mockEventProducer = new org.apache.gobblin.service.monitoring.MockGaaSJobObservabilityEventProducer(
+    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(
         ConfigUtils.configToState(ConfigFactory.empty()), issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
         mockEventProducer);
