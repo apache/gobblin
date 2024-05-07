@@ -66,7 +66,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   private Meter messageParseFailures;
 
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
       throws IOException, ReflectiveOperationException {
     super(topic, config, numThreads,  jobIssueEventHandler, observabilityEventProducer, dagActionStore);
 

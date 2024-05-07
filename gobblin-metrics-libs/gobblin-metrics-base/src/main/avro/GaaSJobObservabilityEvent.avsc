@@ -1,13 +1,13 @@
 {
   "type": "record",
-  "name": "GaaSObservabilityEventExperimental",
+  "name": "GaaSJobObservabilityEvent",
   "namespace": "org.apache.gobblin.metrics",
-  "doc": "The deprecated format for GaaS to emit events during and after a job is executed.",
+  "doc": "An event schema for GaaS to emit during and after a job is executed.",
   "fields": [
     {
-      "name": "timestamp",
+      "name": "eventTimestamp",
       "type": "long",
-      "doc": "Time at which event was created in millis"
+      "doc": "Time at which event was created in milliseconds from Unix Epoch"
     },
     {
       "name": "flowGroup",
@@ -28,14 +28,26 @@
       "compliance": "NONE"
     },
     {
-      "name": "lastFlowModificationTime",
+      "name": "lastFlowModificationTimestamp",
       "type": "long",
       "doc": "Timestamp in millis since Epoch when the flow config was last modified"
     },
     {
-      "name": "flowGraphEdgeId",
+      "name": "sourceNode",
       "type": "string",
-      "doc": "Flow edge id, in format <src_node>_<dest_node>_<edge_id>",
+      "doc": "Source node for the flow edge",
+      "compliance": "NONE"
+    },
+    {
+      "name": "destinationNode",
+      "type": "string",
+      "doc": "Destination node for the flow edge",
+      "compliance": "NONE"
+    },
+    {
+      "name": "flowEdgeId",
+      "type": "string",
+      "doc": "Flow edge id, excluding the sourceNode and destinationNode",
       "compliance": "NONE"
     },
     {
@@ -61,7 +73,7 @@
       }
     },
     {
-      "name": "jobOrchestratedTime",
+      "name": "jobOrchestratedTimestamp",
       "type": [
         "null",
         "long"
@@ -69,7 +81,7 @@
       "doc": "Timestamp when the job was successfully sent to the job executor, null if it was unable to be sent."
     },
     {
-      "name": "jobStartTime",
+      "name": "jobStartTimestamp",
       "type": [
         "null",
         "long"
@@ -78,7 +90,7 @@
       "compliance": "NONE"
     },
     {
-      "name": "jobEndTime",
+      "name": "jobEndTimestamp",
       "type": [
         "null",
         "long"
@@ -87,7 +99,7 @@
       "compliance": "NONE"
     },
     {
-      "name": "jobPlanningPhaseStartTime",
+      "name": "jobPlanningStartTimestamp",
       "type": [
         "null",
         "long"
@@ -97,7 +109,7 @@
       "default": null
     },
     {
-      "name": "jobPlanningPhaseEndTime",
+      "name": "jobPlanningEndTimestamp",
       "type": [
         "null",
         "long"
@@ -107,12 +119,12 @@
       "default": null
     },
     {
-      "name": "executionUserUrn",
+      "name": "effectiveUserUrn",
       "type": [
         "null",
         "string"
       ],
-      "doc": "User URN (if applicable) that runs the underlying Gobblin job",
+      "doc": "User URN (if applicable) whose identity was used to run the underlying Gobblin job e.g. myGroup",
       "compliance": "NONE"
     },
     {
@@ -131,13 +143,22 @@
       "compliance": "NONE"
     },
     {
+      "name": "executorUrn",
+      "type":  [
+        "null",
+        "string"
+      ],
+      "doc": "Unique URN of the execution across platforms that describes the relevant ids for each job on each platform e.g. urn:apache:gobblin:exec:azkaban:92937153:temporal:NestingExecWorkUnits_1714593600113",
+      "compliance": "NONE"
+    },
+    {
       "name": "gaasId",
       "type": [
         "null",
         "string"
       ],
       "default": null,
-      "doc": "The instance of GaaS that is sending the event (if multiple GaaS instances are running)"
+      "doc": "The deployment ID of GaaS that is sending the event (if multiple GaaS instances are running)"
     },
     {
       "name":"jobProperties",
@@ -162,7 +183,7 @@
               {
                 "name": "timestamp",
                 "type": "long",
-                "doc": "Time when the issue occurred"
+                "doc": "Milliseconds from UNIX epoch when the issue occurred"
               },
               {
                 "name": "severity",
@@ -208,7 +229,7 @@
       ]
     },
     {
-      "name": "datasetsWritten",
+      "name": "datasetsMetrics",
       "type": [
         "null",
         {
@@ -221,7 +242,7 @@
               {
                 "name": "datasetUrn",
                 "type": "string",
-                "doc": "URN of the dataset"
+                "doc": "URN of the dataset, empty string for unnamed datasets"
               },
               {
                 "name": "bytesWritten",
@@ -236,7 +257,7 @@
               {
                 "name": "successfullyCommitted",
                 "type": "boolean",
-                "doc": "Whether the dataset was successfully committed by Gobblin and fully successful, useful when users configure pipelines to allow for partial failures or non-atomic writes"
+                "doc": "Whether the dataset was successfully committed by Gobblin and fully successful, versus when users configure partial failures or non-atomic writes"
               }
             ]
           }
@@ -246,4 +267,5 @@
     }
   ]
 }
+
 
