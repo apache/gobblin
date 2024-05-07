@@ -26,13 +26,13 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
  * The default producer for emitting GaaS Observability Events in the KafkaJobStatusMonitor
  * This class does no work and will not create or emit any events
  */
-public class NoopGaaSObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
+public class NoopGaaSJobObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
 
-  public NoopGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+  public NoopGaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     super(state, issueRepository, instrumentationEnabled);
   }
 
-  public NoopGaaSObservabilityEventProducer() {
+  public NoopGaaSJobObservabilityEventProducer() {
     super(null, null, false);
   }
 

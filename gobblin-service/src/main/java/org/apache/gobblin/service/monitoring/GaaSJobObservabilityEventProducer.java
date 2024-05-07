@@ -62,13 +62,13 @@ import org.apache.gobblin.util.PropertiesUtils;
 
 /**
  * A class embedded within GaaS running in the JobStatusMonitor which emits GaaSObservabilityEvents after each job in a flow
- * This is an abstract class, we need a sub system like Kakfa, which support at least once delivery, to emit the event
+ * This is an abstract class, we need a sub system like Kafka, which support at least once delivery, to emit the event
  */
 @Slf4j
 public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
-  public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSObservabilityEventProducer.class.getName();
+  public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSJobObservabilityEventProducer.class.getName();
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
@@ -155,11 +155,13 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     Long jobOrchestratedTime = jobState.contains(TimingEvent.JOB_ORCHESTRATED_TIME) ? jobState.getPropAsLong(TimingEvent.JOB_ORCHESTRATED_TIME) : null;
     Long jobPlanningPhaseStartTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_START_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_START_TIME) : null;
     Long jobPlanningPhaseEndTime = jobState.contains(TimingEvent.WORKUNIT_PLAN_END_TIME) ? jobState.getPropAsLong(TimingEvent.WORKUNIT_PLAN_END_TIME) : null;
+    String flowGroup = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+    String flowName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
     Properties jobProperties = new Properties();
     try {
       jobProperties = PropertiesUtils.deserialize(jobState.getProp(JobExecutionPlan.JOB_PROPS_KEY, ""));
     } catch (IOException e) {
-      log.error("Could not deserialize job properties while creating GaaSJobObservabilityEvent due to ", e);
+      log.error("Could not deserialize job properties for flowGroup {} flowName {} while creating GaaSJobObservabilityEvent due to ", flowGroup, flowName, e);
     }
 
     String fullFlowEdge = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "");
@@ -187,8 +189,8 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     }
     JobStatus status = convertExecutionStatusTojobState(jobState, ExecutionStatus.valueOf(jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
     builder.setEventTimestamp(System.currentTimeMillis())
-        .setFlowName(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
-        .setFlowGroup(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
+        .setFlowName(flowName)
+        .setFlowGroup(flowGroup)
         .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
         .setLastFlowModificationTimestamp(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, 0))
         .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
