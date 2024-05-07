@@ -19,15 +19,13 @@ package org.apache.gobblin.service.modules.flow;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +46,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -58,12 +57,14 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 // Provide base implementation for constructing multi-hops route.
@@ -73,8 +74,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   // Since {@link SpecCompiler} is an {@link SpecCatalogListener}, it is expected that any Spec change should be reflected
   // to these data structures.
   @Getter
-  @Setter
-  protected final Map<URI, TopologySpec> topologySpecMap;
+  protected final Map<URI, TopologySpec> topologySpecMap = Maps.newConcurrentMap();
 
   protected final Config config;
   protected final Logger log;
@@ -97,35 +97,13 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
   private Optional<UserQuotaManager> userQuotaManager;
 
-  public BaseFlowToJobSpecCompiler(Config config){
-    this(config,true);
-  }
-
-  public BaseFlowToJobSpecCompiler(Config config, boolean instrumentationEnabled){
-    this(config, Optional.<Logger>absent(),  true);
-  }
-
-  public BaseFlowToJobSpecCompiler(Config config, Optional<Logger> log){
-    this(config, log,true);
-  }
-
-  public BaseFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled){
-    this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    if (instrumentationEnabled) {
-      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
-      this.flowCompilationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_SUCCESSFUL_METER));
-      this.flowCompilationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_FAILED_METER));
-      this.flowCompilationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_COMPILATION_TIMER));
-      this.dataAuthorizationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.DATA_AUTHORIZATION_TIMER));
-    }
-    else {
-      this.metricContext = null;
-      this.flowCompilationSuccessFulMeter = Optional.absent();
-      this.flowCompilationFailedMeter = Optional.absent();
-      this.flowCompilationTimer = Optional.absent();
-      this.dataAuthorizationTimer = Optional.absent();
-    }
-
+  public BaseFlowToJobSpecCompiler(Config config, Collection<TopologySpec> topologySpecSet){
+    this.log = LoggerFactory.getLogger(getClass());
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
+    this.flowCompilationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_SUCCESSFUL_METER));
+    this.flowCompilationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_FAILED_METER));
+    this.flowCompilationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_COMPILATION_TIMER));
+    this.dataAuthorizationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.DATA_AUTHORIZATION_TIMER));
     this.warmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
     if (this.warmStandbyEnabled) {
       userQuotaManager = Optional.of(GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
@@ -134,11 +112,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       userQuotaManager = Optional.absent();
     }
 
-    this.topologySpecMap = Maps.newConcurrentMap();
+    topologySpecSet.forEach(this::onAddTopologySpec);
+
+
     this.config = config;
 
-    /***
-     * ETL-5996
+    /*
      * For multi-tenancy, the following needs to be added:
      * 1. Change singular templateCatalog to Map<URI, JobCatalogWithTemplates> to support multiple templateCatalogs
      * 2. Pick templateCatalog from JobCatalogWithTemplates based on URI, and try to resolve JobSpec using that
@@ -219,8 +198,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof FlowSpec) {
       return onAddFlowSpec((FlowSpec) addedSpec);
-    } else if (addedSpec instanceof TopologySpec) {
-      return onAddTopologySpec( (TopologySpec) addedSpec);
     }
     return new AddSpecResponse(null);
   }
