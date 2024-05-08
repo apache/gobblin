@@ -19,6 +19,8 @@ package org.apache.gobblin.temporal.ddm.activity;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
+
+import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 
 
@@ -32,5 +34,5 @@ public interface CommitActivity {
    * @return number of workunits committed
    */
   @ActivityMethod
-  int commit(WUProcessingSpec workSpec);
+  CommitGobblinStats commit(WUProcessingSpec workSpec);
 }

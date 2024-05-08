@@ -15,31 +15,21 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime;
+package org.apache.gobblin.temporal.ddm.work;
+
+import java.util.List;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.metrics.DatasetMetric;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 
 
-/**
- * A class returned by {@link org.apache.gobblin.runtime.SafeDatasetCommit} to provide metrics for the dataset
- * that can be reported as a single event in the commit phase.
- */
 @Data
-public class DatasetTaskSummary {
-  private final String datasetUrn;
-  private final long recordsWritten;
-  private final long bytesWritten;
-  private final boolean successfullyCommitted;
-
-  /**
-   * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
-   */
-  public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
-    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted());
-  }
+@NoArgsConstructor
+@RequiredArgsConstructor
+public class CommitGobblinStats {
+  @NonNull private List<DatasetTaskSummary> datasetTaskSummaries;
 }

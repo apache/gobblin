@@ -24,9 +24,14 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
+import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 
 
 @Slf4j
@@ -47,7 +52,12 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   private final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ACTIVITY_OPTS);
 
   @Override
-  public int commit(WUProcessingSpec workSpec) {
-    return activityStub.commit(workSpec);
+  public CommitGobblinStats commit(WUProcessingSpec workSpec) {
+    CommitGobblinStats commitGobblinStats = activityStub.commit(workSpec);
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
+    TemporalEventTimer eventTimer = timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY);
+    eventTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(commitGobblinStats.getDatasetTaskSummaries()));
+    eventTimer.stop();
+    return commitGobblinStats;
   }
 }
