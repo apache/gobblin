@@ -98,6 +98,7 @@ public class OrchestratorTest {
 
   @BeforeClass
   public void setUpClass() throws Exception {
+    // PERF: when within `@{Before,After}Class` the 7 current tests take only 33s; when `@{Before,After}Method` `.get()`s a per-test DB, the same take 1m49s!
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
   }
 
@@ -132,7 +133,7 @@ public class OrchestratorTest {
     Config config = ConfigBuilder.create()
         .addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY,
             MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), this.testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE).build();
@@ -169,8 +170,8 @@ public class OrchestratorTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDownClass() throws Exception {
-    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     if (this.testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       this.testMetastoreDatabase.close();
     }
   }
