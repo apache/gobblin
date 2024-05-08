@@ -41,6 +41,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -85,9 +86,10 @@ public class OrchestratorTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
-
+  private static ITestMetastoreDatabase testDb;
   @BeforeClass
   public void setup() throws Exception {
+    testDb = TestMetastoreDatabaseFactory.get();
     cleanUpDir(TOPOLOGY_SPEC_STORE_DIR);
     cleanUpDir(FLOW_SPEC_STORE_DIR);
 
@@ -117,7 +119,7 @@ public class OrchestratorTest {
     Config config = ConfigBuilder.create()
         .addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY,
             MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), TestMetastoreDatabaseFactory.get().getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testDb.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE).build();
@@ -227,6 +229,10 @@ public class OrchestratorTest {
     File specStoreDir = new File(SPEC_STORE_PARENT_DIR);
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
+    }
+
+    if (testDb != null) {
+      testDb.close();
     }
   }
 

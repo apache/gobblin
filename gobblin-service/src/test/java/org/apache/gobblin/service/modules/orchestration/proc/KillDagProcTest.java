@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -34,6 +35,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -62,13 +64,22 @@ import static org.mockito.Mockito.spy;
 
 public class KillDagProcTest {
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
-    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(TestMetastoreDatabaseFactory.get()));
+    testDb = TestMetastoreDatabaseFactory.get();
+    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
     doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
     doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 
   @Test

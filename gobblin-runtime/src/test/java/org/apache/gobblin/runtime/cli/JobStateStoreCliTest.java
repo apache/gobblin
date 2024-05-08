@@ -21,6 +21,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
 import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.gobblin.config.ConfigBuilder;
@@ -36,9 +41,6 @@ import org.apache.gobblin.runtime.MysqlDatasetStateStore;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 @Test(groups = { "gobblin.runtime" })
@@ -174,4 +176,10 @@ public class JobStateStoreCliTest {
     Assert.assertNull(jobState);
   }
 
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (this.testMetastoreDatabase != null) {
+      this.testMetastoreDatabase.close();
+    }
+  }
 }

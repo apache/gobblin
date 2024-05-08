@@ -30,6 +30,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -64,6 +65,7 @@ public class MysqlSpecStoreTest {
   private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
   private final URI uri4 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg4").setFlowGroup("fn4"));
   private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
+  private static ITestMetastoreDatabase testDb;
 
   public MysqlSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -71,7 +73,7 @@ public class MysqlSpecStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
@@ -128,6 +130,13 @@ public class MysqlSpecStoreTest {
         .withDescription("Test flow spec 4")
         .withVersion("Test version 4")
         .build();
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 
   @Test(expectedExceptions = IOException.class)

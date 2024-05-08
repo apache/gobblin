@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -61,11 +62,20 @@ public class MostlyMySqlDagManagementStateStoreTest {
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "quotas";
+  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    this.dagManagementStateStore = getDummyDMSS(TestMetastoreDatabaseFactory.get());
+    testDb = TestMetastoreDatabaseFactory.get();
+    this.dagManagementStateStore = getDummyDMSS(testDb);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 
   @Test

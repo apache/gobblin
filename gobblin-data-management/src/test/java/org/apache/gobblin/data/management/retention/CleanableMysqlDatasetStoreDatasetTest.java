@@ -23,6 +23,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -106,6 +107,13 @@ public class CleanableMysqlDatasetStoreDatasetTest {
     this.dbDatasetStateStore.delete(TEST_JOB_NAME1);
     this.dbJobStateStore.delete(TEST_JOB_NAME2);
     this.dbDatasetStateStore.delete(TEST_JOB_NAME2);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
   }
 
   /**

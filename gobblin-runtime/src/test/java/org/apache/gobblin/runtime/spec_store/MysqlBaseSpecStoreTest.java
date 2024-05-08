@@ -17,26 +17,30 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import com.google.common.collect.Iterators;
-import com.typesafe.config.Config;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.collect.Iterators;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 public class MysqlBaseSpecStoreTest {
@@ -48,6 +52,7 @@ public class MysqlBaseSpecStoreTest {
   private final URI uri1 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "1");
   private final URI uri2 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "2");
   private TopologySpec topoSpec1, topoSpec2;
+  private static ITestMetastoreDatabase testDb;
 
   public MysqlBaseSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -55,7 +60,7 @@ public class MysqlBaseSpecStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    testDb = TestMetastoreDatabaseFactory.get();
 
     // prefix keys to demonstrate disambiguation mechanism used to side-step intentially-sabatoged non-prefixed, 'fallback'
     Config config = ConfigBuilder.create()
@@ -84,6 +89,13 @@ public class MysqlBaseSpecStoreTest {
         .withVersion("Test version 2")
         .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execB")))
         .build();
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 
   @Test(expectedExceptions = UnsupportedOperationException.class)

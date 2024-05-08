@@ -102,6 +102,7 @@ public class GobblinServiceHATest {
   private TestingServer testingZKServer;
 
   private MySQLContainer mysql;
+  private static ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -122,7 +123,7 @@ public class GobblinServiceHATest {
     HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
 
 
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Properties commonServiceCoreProperties = new Properties();
 
@@ -199,8 +200,11 @@ public class GobblinServiceHATest {
     }
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void cleanUp() throws Exception {
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
     // Shutdown Node 1
     try {
       logger.info("+++++++++++++++++++ start shutdown noad1");
