@@ -109,6 +109,7 @@ public class GobblinServiceRedirectTest {
   private Properties node2ServiceCoreProperties;
 
   private MySQLContainer mysql;
+  private static ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -123,7 +124,7 @@ public class GobblinServiceRedirectTest {
     logger.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
     HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
 
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Properties commonServiceCoreProperties = new Properties();
 
@@ -223,6 +224,9 @@ public class GobblinServiceRedirectTest {
     }
 
     mysql.stop();
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
   }
 
   @Test

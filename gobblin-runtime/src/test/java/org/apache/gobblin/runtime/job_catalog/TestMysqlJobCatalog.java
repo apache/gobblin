@@ -17,10 +17,18 @@
 
 package org.apache.gobblin.runtime.job_catalog;
 
-import com.google.common.base.Predicates;
-import com.typesafe.config.Config;
 import java.net.URI;
 import java.util.concurrent.TimeUnit;
+
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Predicates;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
@@ -30,10 +38,6 @@ import org.apache.gobblin.metrics.test.MetricsAssert;
 import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobCatalogListener;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 
 /** Verify {@link MysqlJobCatalog} [modeled on {@link TestInMemoryJobCatalog}] */
@@ -43,11 +47,12 @@ public class TestMysqlJobCatalog {
   private static final String TABLE = "job_catalog";
 
   private MysqlJobCatalog cat;
+  private static ITestMetastoreDatabase testDb;
 
   /** create a new DB/`JobCatalog` for each test, so they're completely independent */
   @BeforeMethod
   public void setUp() throws Exception {
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.METRICS_ENABLED_KEY, "true")
@@ -208,5 +213,12 @@ public class TestMysqlJobCatalog {
 
     cat.stopAsync();
     cat.awaitTerminated(1, TimeUnit.SECONDS);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 }

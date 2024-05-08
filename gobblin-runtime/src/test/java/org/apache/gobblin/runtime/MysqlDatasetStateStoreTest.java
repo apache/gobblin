@@ -332,5 +332,8 @@ public class MysqlDatasetStateStoreTest {
   public void tearDown() throws IOException {
     dbJobStateStore.delete(TEST_JOB_NAME);
     dbDatasetStateStore.delete(TEST_JOB_NAME);
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
   }
 }

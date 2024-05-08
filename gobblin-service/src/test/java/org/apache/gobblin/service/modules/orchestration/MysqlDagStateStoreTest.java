@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -54,23 +55,27 @@ public class MysqlDagStateStoreTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
+  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
-
-
+    testDb = TestMetastoreDatabaseFactory.get();
     ConfigBuilder configBuilder = ConfigBuilder.create();
-
     // Constructing TopologySpecMap.
     this.topologySpecMap = new HashMap<>();
     String specExecInstance = "mySpecExecutor";
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     this.topologySpecMap.put(specExecURI, topologySpec);
-
     this._dagStateStore = new TestMysqlDagStateStore(configBuilder.build(), this.topologySpecMap);
   }
 
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (testDb != null) {
+      testDb.close();
+    }
+  }
 
   @Test
   public void testWriteCheckpointAndGet() throws Exception{
@@ -164,8 +169,7 @@ public class MysqlDagStateStoreTest {
     protected StateStore<State> createStateStore(Config config) {
       try {
         // Setting up mock DB
-        ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-        String jdbcUrl = testMetastoreDatabase.getJdbcUrl();
+        String jdbcUrl = MysqlDagStateStoreTest.testDb.getJdbcUrl();
         HikariDataSource dataSource = new HikariDataSource();
 
         dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);

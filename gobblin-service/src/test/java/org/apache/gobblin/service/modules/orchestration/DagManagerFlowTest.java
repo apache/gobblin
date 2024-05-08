@@ -26,8 +26,6 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -47,10 +45,12 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
@@ -74,12 +74,13 @@ public class DagManagerFlowTest {
   private static final String flowExecutionId = "12345677";
   private static final String flowExecutionId_2 = "12345678";
   private DagActionStore dagActionStore;
+  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.put(DagManager.JOB_STATUS_POLLING_INTERVAL_KEY, 1);
-    ITestMetastoreDatabase testDb = TestMetastoreDatabaseFactory.get();
+    testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
@@ -102,6 +103,9 @@ public class DagManagerFlowTest {
   public void cleanUp() throws Exception {
     dagManager.setActive(false);
     Assert.assertEquals(dagManager.getHouseKeepingThreadPool().isShutdown(), true);
+    if (testDb != null) {
+      testDb.close();
+    }
   }
 
   @Test
