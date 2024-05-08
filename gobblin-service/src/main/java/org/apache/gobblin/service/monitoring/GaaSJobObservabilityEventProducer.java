@@ -206,7 +206,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
         .setEffectiveUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
         .setDatasetsMetrics(datasetMetrics)
         .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
-        .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.newBuilder().create().toJson(jobProperties))
+        .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.toJson(jobProperties))
         .setSourceNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
         .setDestinationNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
         .setFlowEdgeId(!edgeId.isEmpty() ? edgeId : fullFlowEdge)
