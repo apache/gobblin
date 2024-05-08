@@ -537,8 +537,8 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
-    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(
-        ConfigUtils.configToState(ConfigFactory.empty()), issueRepository, false);
+    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
+        issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
         mockEventProducer);
     jobStatusMonitor.buildMetricsContextAndMetrics();
@@ -584,8 +584,8 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
-    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(
-        ConfigUtils.configToState(ConfigFactory.empty()), issueRepository, false);
+    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
+        issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
         mockEventProducer);
     jobStatusMonitor.buildMetricsContextAndMetrics();
