@@ -238,7 +238,6 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(SharedFlowMetricsSingleton.class);
     binder.bind(FlowCompilationValidationHelper.class);
 
-    OptionalBinder.newOptionalBinder(binder, TopologyCatalog.class);
     binder.bind(TopologyCatalog.class);
 
     if (serviceConfig.isTopologySpecFactoryEnabled()) {

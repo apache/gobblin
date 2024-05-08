@@ -117,7 +117,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
-  private static volatile GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
+  @Setter private static volatile GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -265,7 +265,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   *
+   * If {@link GobblinServiceManager} is created using guice, user should set {@link GobblinServiceManager#GOBBLIN_SERVICE_GUICE_MODULE}
+   * for this method to work.
    * @param classToGet
    * @return a new object if the class type is not marked with @Singleton, otherwise the same instance of the class
    * @param <T>
@@ -339,7 +340,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         // TODO: surround by try/catch to disconnect from Helix and fail the leader transition if DagManager is not
         // transitioned properly
         //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
-        if (this.topologyCatalog.getInitComplete().getCount() == 0) {
+        if (!this.configuration.isDagProcessingEngineEnabled() && this.topologyCatalog.getInitComplete().getCount() == 0) {
           this.dagManager.setActive(true);
           this.eventBus.register(this.dagManager);
         }
@@ -530,7 +531,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.orchestrator.getSpecCompiler().setActive(true);
 
     //Activate the DagManager service, after the topologyCatalog has been initialized.
-    if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
+    if (!this.configuration.isDagProcessingEngineEnabled() && (!this.helixManager.isPresent() || this.helixManager.get().isLeader())){
       this.dagManager.setActive(true);
       this.eventBus.register(this.dagManager);
     }

@@ -277,9 +277,9 @@ public class GobblinServiceManagerTest {
    */
   @Test
   public void testGetClass() {
-    Assert.assertTrue(this.gobblinServiceManager.getClass(FlowCompilationValidationHelper.class) instanceof FlowCompilationValidationHelper);
+    Assert.assertTrue(GobblinServiceManager.getClass(FlowCompilationValidationHelper.class) instanceof FlowCompilationValidationHelper);
     // Optionally bound config
-    Assert.assertTrue(this.gobblinServiceManager.getClass(FlowCatalog.class) instanceof FlowCatalog);
+    Assert.assertTrue(GobblinServiceManager.getClass(FlowCatalog.class) instanceof FlowCatalog);
   }
 
   /**
