@@ -132,6 +132,14 @@ public class JobStateStoreCliTest {
         jobState);
   }
 
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    if (this.testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testMetastoreDatabase.close();
+    }
+  }
+
   @Test
   public void testClBulkDelete() throws Exception {
     String deleteFileText = TEST_JOB_NAME +"\n" + TEST_JOB_NAME2;
@@ -174,12 +182,5 @@ public class JobStateStoreCliTest {
         TEST_JOB_ID);
 
     Assert.assertNull(jobState);
-  }
-
-  @AfterClass(alwaysRun = true)
-  public void tearDown() throws Exception {
-    if (this.testMetastoreDatabase != null) {
-      this.testMetastoreDatabase.close();
-    }
   }
 }

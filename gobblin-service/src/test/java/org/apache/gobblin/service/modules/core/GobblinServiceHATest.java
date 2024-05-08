@@ -101,8 +101,8 @@ public class GobblinServiceHATest {
 
   private TestingServer testingZKServer;
 
+  private ITestMetastoreDatabase testMetastoreDatabase;
   private MySQLContainer mysql;
-  private static ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -121,7 +121,6 @@ public class GobblinServiceHATest {
     this.testingZKServer = new TestingServer(-1);
     logger.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
     HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
-
 
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
@@ -202,9 +201,6 @@ public class GobblinServiceHATest {
 
   @AfterClass(alwaysRun = true)
   public void cleanUp() throws Exception {
-    if (testMetastoreDatabase != null) {
-      testMetastoreDatabase.close();
-    }
     // Shutdown Node 1
     try {
       logger.info("+++++++++++++++++++ start shutdown noad1");
@@ -255,6 +251,8 @@ public class GobblinServiceHATest {
     cleanUpDir(COMMON_SPEC_STORE_PARENT_DIR);
 
     mysql.stop();
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    testMetastoreDatabase.close();
   }
 
   @Test

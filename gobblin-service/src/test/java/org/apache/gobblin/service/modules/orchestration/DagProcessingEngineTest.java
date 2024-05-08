@@ -59,16 +59,16 @@ public class DagProcessingEngineTest {
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
-  static ITestMetastoreDatabase testMetastoreDatabase;
+  private ITestMetastoreDatabase testMetastoreDatabase;
   static DagActionStore dagActionStore;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-     dagActionStore = mock(DagActionStore.class);
-     doReturn(true).when(dagActionStore).deleteDagAction(any());
+    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    dagActionStore = mock(DagActionStore.class);
+    doReturn(true).when(dagActionStore).deleteDagAction(any());
     leaseObtainedStatus = mock(LeaseAttemptStatus.LeaseObtainedStatus.class);
     doReturn(true).when(leaseObtainedStatus).completeLease();
 
@@ -102,6 +102,12 @@ public class DagProcessingEngineTest {
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
             Optional.ofNullable(dagManagementStateStore));
     dagProcessingEngine.startAsync();
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    testMetastoreDatabase.close();
   }
 
   static class MockedDagTaskStream implements DagTaskStream {
@@ -185,10 +191,5 @@ public class DagProcessingEngineTest {
         log, 1, 1000L);
 
     Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
-  }
-
-  @AfterClass
-  public void tearDown() throws IOException {
-    testMetastoreDatabase.close();
   }
 }

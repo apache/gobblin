@@ -112,6 +112,7 @@ public class CleanableMysqlDatasetStoreDatasetTest {
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
     if (testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       testMetastoreDatabase.close();
     }
   }

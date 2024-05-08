@@ -328,11 +328,12 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertNull(datasetState);
   }
 
-  @AfterClass
-  public void tearDown() throws IOException {
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
     dbJobStateStore.delete(TEST_JOB_NAME);
     dbDatasetStateStore.delete(TEST_JOB_NAME);
     if (testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       testMetastoreDatabase.close();
     }
   }

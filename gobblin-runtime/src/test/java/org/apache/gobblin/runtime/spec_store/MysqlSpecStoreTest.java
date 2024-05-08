@@ -58,6 +58,7 @@ public class MysqlSpecStoreTest {
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "spec_store";
 
+  private ITestMetastoreDatabase testDb;
   private MysqlSpecStore specStore;
   private MysqlSpecStore oldSpecStore;
   private final URI uri1 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg1").setFlowGroup("fn1"));
@@ -65,7 +66,6 @@ public class MysqlSpecStoreTest {
   private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
   private final URI uri4 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg4").setFlowGroup("fn4"));
   private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
-  private static ITestMetastoreDatabase testDb;
 
   public MysqlSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -73,10 +73,10 @@ public class MysqlSpecStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
+    this.testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
@@ -134,8 +134,9 @@ public class MysqlSpecStoreTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    if (testDb != null) {
-      testDb.close();
+    if (this.testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testDb.close();
     }
   }
 

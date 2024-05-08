@@ -73,17 +73,17 @@ public class DagManagerFlowTest {
   private static final String flowName = "testFlowName";
   private static final String flowExecutionId = "12345677";
   private static final String flowExecutionId_2 = "12345678";
+  private ITestMetastoreDatabase testDb;
   private DagActionStore dagActionStore;
-  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     Properties props = new Properties();
     props.put(DagManager.JOB_STATUS_POLLING_INTERVAL_KEY, 1);
-    testDb = TestMetastoreDatabaseFactory.get();
+    this.testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
@@ -99,11 +99,12 @@ public class DagManagerFlowTest {
     Thread.sleep(30000);
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void cleanUp() throws Exception {
     dagManager.setActive(false);
     Assert.assertEquals(dagManager.getHouseKeepingThreadPool().isShutdown(), true);
     if (testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       testDb.close();
     }
   }

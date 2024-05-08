@@ -50,7 +50,7 @@ public class DagManagementTaskStreamImplTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
-  static ITestMetastoreDatabase testMetastoreDatabase;
+  private ITestMetastoreDatabase testMetastoreDatabase;
   DagProcessingEngine.DagProcEngineThread dagProcEngineThread;
   DagManagementTaskStreamImpl dagManagementTaskStream;
   DagProcFactory dagProcFactory;
@@ -58,11 +58,11 @@ public class DagManagementTaskStreamImplTest {
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     ConfigBuilder configBuilder = ConfigBuilder.create();
     configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), this.testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
@@ -83,6 +83,12 @@ public class DagManagementTaskStreamImplTest {
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, 0);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    this.testMetastoreDatabase.close();
   }
 
   /* This tests adding and removal of dag actions from dag task stream with a launch task. It verifies that the
@@ -110,10 +116,5 @@ public class DagManagementTaskStreamImplTest {
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);
     Assert.assertNotNull(dagProc);
-  }
-
-  @AfterClass
-  public void tearDown() throws IOException {
-    testMetastoreDatabase.close();
   }
 }

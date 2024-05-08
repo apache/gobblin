@@ -61,12 +61,12 @@ public class MysqlMultiActiveLeaseArbiterTest {
       new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final long eventTimeMillis = System.currentTimeMillis();
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
+  private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
   private String formattedAcquireLeaseIfMatchingAllStatement =
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT, TABLE);
   private String formattedAcquireLeaseIfFinishedStatement =
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, TABLE);
-  ITestMetastoreDatabase testDb;
 
   // The setup functionality verifies that the initialization of the tables is done correctly and verifies any SQL
   // syntax errors.
@@ -77,7 +77,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
         .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY, LINGER)
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
@@ -85,6 +85,12 @@ public class MysqlMultiActiveLeaseArbiterTest {
         .build();
 
     this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(config);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    this.testDb.close();
   }
 
   /*
@@ -353,10 +359,5 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
-  }
-
-  @AfterClass
-  public void tearDown() throws IOException {
-    this.testDb.close();
   }
 }

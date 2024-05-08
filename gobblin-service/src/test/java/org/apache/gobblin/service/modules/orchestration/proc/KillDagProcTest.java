@@ -64,12 +64,12 @@ import static org.mockito.Mockito.spy;
 
 public class KillDagProcTest {
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
-  private static ITestMetastoreDatabase testDb;
+  private ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
-    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
+    this.testDb = TestMetastoreDatabaseFactory.get();
+    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
     doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
     doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
@@ -77,8 +77,9 @@ public class KillDagProcTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    if (testDb != null) {
-      testDb.close();
+    if (this.testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testDb.close();
     }
   }
 

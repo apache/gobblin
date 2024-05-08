@@ -24,6 +24,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Predicates;
@@ -46,23 +47,35 @@ public class TestMysqlJobCatalog {
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "job_catalog";
 
+  private ITestMetastoreDatabase testDb;
   private MysqlJobCatalog cat;
-  private static ITestMetastoreDatabase testDb;
+
+  @BeforeClass
+  public void setUpClass() throws Exception {
+    // PERF: when within `@{Before,After}Class` the 2 current tests take only 24s; when `@{Before,After}Method` `.get()`s a per-test DB, the same take 38s
+    this.testDb = TestMetastoreDatabaseFactory.get();
+  }
 
   /** create a new DB/`JobCatalog` for each test, so they're completely independent */
   @BeforeMethod
   public void setUp() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
-
     Config config = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.METRICS_ENABLED_KEY, "true")
-        .addPrimitive(MysqlJobCatalog.DB_CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(MysqlJobCatalog.DB_CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive(MysqlJobCatalog.DB_CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(MysqlJobCatalog.DB_CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(MysqlJobCatalog.DB_CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
     this.cat = new MysqlJobCatalog(config);
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDownClass() throws Exception {
+    if (this.testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testDb.close();
+    }
   }
 
   @Test
@@ -213,12 +226,5 @@ public class TestMysqlJobCatalog {
 
     cat.stopAsync();
     cat.awaitTerminated(1, TimeUnit.SECONDS);
-  }
-
-  @AfterClass(alwaysRun = true)
-  public void tearDown() throws Exception {
-    if (testDb != null) {
-      testDb.close();
-    }
   }
 }

@@ -57,24 +57,25 @@ import static org.mockito.Mockito.mock;
  */
 public class MostlyMySqlDagManagementStateStoreTest {
 
+  private ITestMetastoreDatabase testDb;
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "quotas";
-  private static ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
-    testDb = TestMetastoreDatabaseFactory.get();
-    this.dagManagementStateStore = getDummyDMSS(testDb);
+    this.testDb = TestMetastoreDatabaseFactory.get();
+    this.dagManagementStateStore = getDummyDMSS(this.testDb);
   }
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    if (testDb != null) {
-      testDb.close();
+    if (this.testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testDb.close();
     }
   }
 

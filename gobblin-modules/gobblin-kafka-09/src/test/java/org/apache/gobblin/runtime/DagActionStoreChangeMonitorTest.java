@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.IOException;
 import java.net.URI;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -124,8 +123,9 @@ public class DagActionStoreChangeMonitorTest {
     this.testDb = TestMetastoreDatabaseFactory.get();
   }
 
-  @AfterClass
-  public void tearDown() throws IOException {
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testDb.close();
   }
 
