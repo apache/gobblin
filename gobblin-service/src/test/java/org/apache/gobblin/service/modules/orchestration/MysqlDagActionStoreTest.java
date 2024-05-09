@@ -45,15 +45,14 @@ public class MysqlDagActionStoreTest {
   private static final String flowExecutionId = "12345677";
   private static final String flowExecutionId_2 = "12345678";
   private static final String flowExecutionId_3 = "12345679";
-  private MysqlDagActionStore mysqlDagActionStore;
-
   private ITestMetastoreDatabase testDb;
+  private MysqlDagActionStore mysqlDagActionStore;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
     Config config = ConfigBuilder.create()
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
@@ -62,8 +61,9 @@ public class MysqlDagActionStoreTest {
     this.mysqlDagActionStore = new MysqlDagActionStore(config);
   }
 
-  @AfterClass
+  @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testDb.close();
   }
 

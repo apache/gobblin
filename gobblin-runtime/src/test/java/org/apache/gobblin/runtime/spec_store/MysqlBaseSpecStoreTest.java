@@ -48,11 +48,11 @@ public class MysqlBaseSpecStoreTest {
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "base_spec_store";
 
+  private ITestMetastoreDatabase testDb;
   private MysqlBaseSpecStore specStore;
   private final URI uri1 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "1");
   private final URI uri2 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "2");
   private TopologySpec topoSpec1, topoSpec2;
-  private static ITestMetastoreDatabase testDb;
 
   public MysqlBaseSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -60,11 +60,11 @@ public class MysqlBaseSpecStoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
+    this.testDb = TestMetastoreDatabaseFactory.get();
 
     // prefix keys to demonstrate disambiguation mechanism used to side-step intentially-sabatoged non-prefixed, 'fallback'
     Config config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, " SABATOGE! !" + testDb.getJdbcUrl())
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, " SABATOGE! !" + this.testDb.getJdbcUrl())
         .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
         .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(MysqlBaseSpecStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
@@ -93,8 +93,9 @@ public class MysqlBaseSpecStoreTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    if (testDb != null) {
-      testDb.close();
+    if (this.testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testDb.close();
     }
   }
 

@@ -73,6 +73,7 @@ public class MysqlDagStateStoreTest {
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
     if (testDb != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       testDb.close();
     }
   }

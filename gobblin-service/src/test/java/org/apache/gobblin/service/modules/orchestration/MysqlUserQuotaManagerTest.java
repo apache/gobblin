@@ -38,16 +38,16 @@ public class MysqlUserQuotaManagerTest {
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "quotas";
   private static final String PROXY_USER = "abora";
+  private ITestMetastoreDatabase testDb;
   private MysqlUserQuotaManager quotaManager;
   public static int INCREMENTS = 1000;
-  ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
+    this.testDb = TestMetastoreDatabaseFactory.get();
 
     Config config = ConfigBuilder.create()
-        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.CONFIG_PREFIX + '.' + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
@@ -55,6 +55,13 @@ public class MysqlUserQuotaManagerTest {
 
     this.quotaManager = new MysqlUserQuotaManager(config);
   }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws IOException {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    this.testDb.close();
+  }
+
   @Test
   public void testRunningDagStore() throws Exception {
     String dagId = DagManagerUtils.generateDagId(DagManagerTest.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
@@ -167,10 +174,5 @@ public class MysqlUserQuotaManagerTest {
     thread5.join();
     thread6.join();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), -1);
-  }
-
-  @AfterClass(alwaysRun = true)
-  public void tearDown() throws IOException {
-    testDb.close();
   }
 }

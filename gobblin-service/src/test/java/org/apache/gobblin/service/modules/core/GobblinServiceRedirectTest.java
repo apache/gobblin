@@ -108,8 +108,8 @@ public class GobblinServiceRedirectTest {
   private Properties node1ServiceCoreProperties;
   private Properties node2ServiceCoreProperties;
 
+  private ITestMetastoreDatabase testMetastoreDatabase;
   private MySQLContainer mysql;
-  private static ITestMetastoreDatabase testMetastoreDatabase;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -124,7 +124,7 @@ public class GobblinServiceRedirectTest {
     logger.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
     HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
 
-    testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Properties commonServiceCoreProperties = new Properties();
 
@@ -224,8 +224,9 @@ public class GobblinServiceRedirectTest {
     }
 
     mysql.stop();
-    if (testMetastoreDatabase != null) {
-      testMetastoreDatabase.close();
+    if (this.testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testMetastoreDatabase.close();
     }
   }
 

@@ -26,6 +26,9 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.ConfigFactory;
@@ -61,18 +64,36 @@ public class ReevaluateDagProcTest {
   private final long flowExecutionId = System.currentTimeMillis();
   private final String flowGroup = "fg";
 
-  void mockDMSS(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
+  private ITestMetastoreDatabase testMetastoreDatabase;
+  private DagManagementStateStore dagManagementStateStore;
+
+  @BeforeClass
+  public void setUpClass() throws Exception {
+    this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+  }
+
+  @BeforeMethod
+  public void setUp() throws Exception {
+    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    mockDMSSCommonBehavior(dagManagementStateStore);
+  }
+
+  private void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
     doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
     doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(dagManagementStateStore).addDagNodeState(any(), any());
+    doNothing().when(dagManagementStateStore).deleteDagNodeState(any(), any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDownClass() throws Exception {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    this.testMetastoreDatabase.close();
   }
 
   @Test
   public void testOneNextJobToRun() throws Exception {
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-    DagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
-    mockDMSS(dagManagementStateStore);
     String flowName = "fn";
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         2, "user5", ConfigFactory.empty()
@@ -93,7 +114,6 @@ public class ReevaluateDagProcTest {
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
-    doNothing().when(dagManagementStateStore).deleteDagNodeState(any(), any());
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
@@ -114,16 +134,11 @@ public class ReevaluateDagProcTest {
     // current job's state is deleted
     Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count(), 1);
-
-    testMetastoreDatabase.close();
   }
 
   // test when there does not exist a next job in the dag when the current job's reevaluate dag action is processed
   @Test
   public void testNoNextJobToRun() throws Exception {
-    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-    DagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
-    mockDMSS(dagManagementStateStore);
     String flowName = "fn2";
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty()
@@ -138,7 +153,6 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
-    doNothing().when(dagManagementStateStore).deleteDagNodeState(any(), any());
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
       try {
@@ -171,7 +185,5 @@ public class ReevaluateDagProcTest {
     // dag is deleted because the only job in the dag is completed
     Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDag")).count(), 1);
-
-    testMetastoreDatabase.close();
   }
 }

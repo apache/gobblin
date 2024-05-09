@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -189,8 +190,12 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     this.dbJobStateStore.delete(KafkaJobStatusMonitor.jobStatusStoreName(FLOW_GROUP, FLOW_NAME));
   }
 
+  @AfterClass(alwaysRun = true)
   @Override
   public void tearDown() throws Exception {
-    this.testMetastoreDatabase.close();
+    if (this.testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testMetastoreDatabase.close();
+    }
   }
 }

@@ -62,8 +62,8 @@ import static org.mockito.Mockito.spy;
 
 
 public class LaunchDagProcTest {
-  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testMetastoreDatabase;
+  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -72,6 +72,12 @@ public class LaunchDagProcTest {
     doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
     doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
     doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDown() throws Exception {
+    // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    this.testMetastoreDatabase.close();
   }
 
   @Test
@@ -91,11 +97,6 @@ public class LaunchDagProcTest {
     Assert.assertEquals(expectedNumOfSavingDagNodeStates,
         Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
-  }
-
-  @AfterClass
-  public void tearDown() throws Exception {
-    this.testMetastoreDatabase.close();
   }
 
   // This creates a dag like this
