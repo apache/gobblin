@@ -335,9 +335,10 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     @Override
     public void run() {
       log.info("Starting queue processing.. " + Thread.currentThread().getName());
+      KafkaConsumerRecord record = null;
       try {
         while (true) {
-          KafkaConsumerRecord record = queue.take();
+          record = queue.take();
           messagesRead.inc();
           HighLevelConsumer.this.processMessage((DecodeableKafkaRecord)record);
           recordsProcessed.incrementAndGet();
@@ -349,9 +350,11 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
           }
         }
       } catch (InterruptedException e) {
-        log.warn("Encountered exception while processing queue ", e);
+        log.warn("Thread interrupted while processing queue ", e);
         // TODO: evaluate whether we should interrupt the thread or continue processing
         Thread.currentThread().interrupt();
+      } catch (Exception e) {
+        log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);
       }
     }
   }

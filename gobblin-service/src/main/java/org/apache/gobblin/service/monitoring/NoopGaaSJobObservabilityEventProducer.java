@@ -18,7 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
@@ -26,13 +26,13 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
  * The default producer for emitting GaaS Observability Events in the KafkaJobStatusMonitor
  * This class does no work and will not create or emit any events
  */
-public class NoopGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
+public class NoopGaaSJobObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
 
-  public NoopGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+  public NoopGaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     super(state, issueRepository, instrumentationEnabled);
   }
 
-  public NoopGaaSObservabilityEventProducer() {
+  public NoopGaaSJobObservabilityEventProducer() {
     super(null, null, false);
   }
 
@@ -40,5 +40,5 @@ public class NoopGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
   public void emitObservabilityEvent(State jobState) {}
 
   @Override
-  protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {}
+  protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event) {}
 }

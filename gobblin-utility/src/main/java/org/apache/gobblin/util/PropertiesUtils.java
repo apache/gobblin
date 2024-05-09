@@ -157,7 +157,7 @@ public class PropertiesUtils {
    * @param prefix of keys to be extracted
    * @return a {@link Properties} instance
    */
-  public static Properties extractPropertiesWithPrefixAfterRemovingPrefix(Properties properties, String prefix) {
+  public static Properties extractChildProperties(Properties properties, String prefix) {
     Preconditions.checkNotNull(properties);
     Preconditions.checkNotNull(prefix);
 

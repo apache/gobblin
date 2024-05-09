@@ -114,10 +114,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
       return;
     }
 
-    if (isActive) {
-      this.isActive = true;
-      super.startUp();
-    }
+    this.isActive = true;
+    super.startUp();
   }
 
   @Override

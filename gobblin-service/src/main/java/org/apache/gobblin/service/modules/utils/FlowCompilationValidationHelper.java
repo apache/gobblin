@@ -25,9 +25,11 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -61,8 +63,10 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 @Data
+@Singleton
 public class FlowCompilationValidationHelper {
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
+  @Getter
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;
   private final EventSubmitter eventSubmitter;
@@ -136,7 +140,7 @@ public class FlowCompilationValidationHelper {
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
-    if (jobExecutionPlanDag.isEmpty()) {
+    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
       return Optional.absent();
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);

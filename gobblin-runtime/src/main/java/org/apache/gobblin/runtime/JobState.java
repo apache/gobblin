@@ -392,16 +392,21 @@ public class JobState extends SourceState implements JobProgress {
    * @return a {@link Map} from dataset URNs to {@link DatasetState}s representing the dataset states
    */
   public Map<String, DatasetState> createDatasetStatesByUrns() {
+    return calculateDatasetStatesByUrns(this.taskStates.values(), this.skippedTaskStates.values());
+  }
+
+  /** {@see JobState#createDatasetStatesByUrns} */
+  public Map<String, DatasetState> calculateDatasetStatesByUrns(Collection<TaskState> allTaskStates, Collection<TaskState> allSkippedTaskStates) {
     Map<String, DatasetState> datasetStatesByUrns = Maps.newHashMap();
 
-    for (TaskState taskState : this.taskStates.values()) {
+    for (TaskState taskState : allTaskStates) {
       String datasetUrn = createDatasetUrn(datasetStatesByUrns, taskState);
 
       datasetStatesByUrns.get(datasetUrn).incrementTaskCount();
       datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
     }
 
-    for (TaskState taskState : this.skippedTaskStates.values()) {
+    for (TaskState taskState : allSkippedTaskStates) {
       String datasetUrn = createDatasetUrn(datasetStatesByUrns, taskState);
       datasetStatesByUrns.get(datasetUrn).addSkippedTaskState(taskState);
     }

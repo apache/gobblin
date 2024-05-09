@@ -20,6 +20,9 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
@@ -36,10 +39,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -72,21 +78,25 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       GEN_WUS_ACTIVITY_OPTS);
 
   @Override
-  public int execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+  public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     EventTimer timer = timerFactory.createJobTimer();
     try {
       int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
+      int numWUsProcessed = 0;
+      CommitGobblinStats commitStats = new CommitGobblinStats();
       if (numWUsGenerated > 0) {
         WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
-        int numWUsProcessed = processWUsWorkflow.process(wuSpec);
+        commitStats = processWUsWorkflow.process(wuSpec);
+        numWUsProcessed = commitStats.getNumProcessedTasks();
         if (numWUsProcessed != numWUsGenerated) {
           throw new IOException(String.format("Not all work units generated were processed: %d != %d", numWUsGenerated, numWUsProcessed));
         }
       }
       timer.stop();
-      return numWUsGenerated;
+      return new ExecGobblinStats(numWUsGenerated, numWUsProcessed, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
+          convertDatasetTaskSummariesToMap(commitStats.getDatasetTaskSummaries()));
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
       timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).stop();
@@ -120,5 +130,11 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
     }
     return wuSpec;
+  }
+
+  private Map<String, DatasetTaskSummary> convertDatasetTaskSummariesToMap(List<DatasetTaskSummary> datasetTaskSummaries) {
+    Map<String, DatasetTaskSummary> datasetTaskSummaryMap = new HashMap<>();
+    datasetTaskSummaries.forEach(datasetTaskSummary -> datasetTaskSummaryMap.put(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary));
+    return datasetTaskSummaryMap;
   }
 }

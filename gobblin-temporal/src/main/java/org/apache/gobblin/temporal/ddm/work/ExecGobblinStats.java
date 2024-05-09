@@ -15,20 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.workflow;
+package org.apache.gobblin.temporal.ddm.work;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import java.util.Map;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 
 
-/** Temporal workflow for executing {@link WorkUnit}s to fulfill the work they specify. */
-@WorkflowInterface
-public interface ProcessWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
-  @WorkflowMethod
-  CommitGobblinStats process(WUProcessingSpec wuSpec);
+/** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
+@Data
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+@RequiredArgsConstructor
+public class ExecGobblinStats {
+  // TODO - currently demonstration only: decide upon meaningful details to provide - for example...
+  @NonNull private int numWorkUnitsGenerated;
+  @NonNull private int numWorkUnitsSuccessful;
+  @NonNull private String runBy;
+  @NonNull private Map<String, DatasetTaskSummary> stats;
 }

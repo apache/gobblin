@@ -46,6 +46,10 @@ public interface DagActionStore {
     final String jobName;
     final DagActionType dagActionType;
 
+    public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
+      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
+    }
+
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
     }
@@ -90,6 +94,16 @@ public interface DagActionStore {
    */
   boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
+  /** Persist the {@link DagAction} in {@link DagActionStore} for durability */
+  default void addDagAction(DagAction dagAction) throws IOException {
+    addJobDagAction(
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        dagAction.getFlowExecutionId(),
+        dagAction.getJobName(),
+        dagAction.getDagActionType());
+  }
+
   /**
    * Persist the dag action in {@link DagActionStore} for durability
    * @param flowGroup flow group for the dag action
@@ -109,11 +123,13 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException;
+  default void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException {
+    addDagAction(DagAction.forFlow(flowGroup, flowName, flowExecutionId, dagActionType));
+  }
 
   /**
    * delete the dag action from {@link DagActionStore}
-   * @param DagAction containing all information needed to identify dag and specific action value
+   * @param dagAction containing all information needed to identify dag and specific action value
    * @throws IOException
    * @return true if we successfully delete one record, return false if the record does not exist
    */

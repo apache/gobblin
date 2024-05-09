@@ -145,12 +145,6 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType)
-      throws IOException {
-    addJobDagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
-  }
-
-  @Override
   public boolean deleteDagAction(DagAction dagAction) throws IOException {
     return dbStatementExecutor.withPreparedStatement(String.format(DELETE_STATEMENT, tableName), deleteStatement -> {
     try {

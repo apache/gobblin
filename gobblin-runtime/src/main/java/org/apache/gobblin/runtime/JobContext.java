@@ -544,8 +544,7 @@ public class JobContext implements Closeable {
    * or {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to true.
    */
   public static boolean shouldCommitDataInJob(State state) {
-    boolean jobCommitPolicyIsFull =
-        JobCommitPolicy.getCommitPolicy(state.getProperties()) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
+    boolean jobCommitPolicyIsFull = JobCommitPolicy.getCommitPolicy(state) == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS;
     boolean publishDataAtJobLevel = state.getPropAsBoolean(ConfigurationKeys.PUBLISH_DATA_AT_JOB_LEVEL,
         ConfigurationKeys.DEFAULT_PUBLISH_DATA_AT_JOB_LEVEL);
     boolean jobDataPublisherSpecified =

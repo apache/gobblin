@@ -103,7 +103,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <=
         firstObtainedStatus.getLeaseAcquisitionTimestamp());
-    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
+    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(firstObtainedStatus.getEventTimeMillis()),
             jobName, DagActionStore.DagActionType.LAUNCH)));
 
@@ -340,7 +340,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     LeaseAttemptStatus.LeaseObtainedStatus firstObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
-    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
+    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
@@ -351,7 +351,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     LeaseAttemptStatus.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
-    Assert.assertTrue(firstObtainedStatus.getDagAction().equals(
+    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
   }
 

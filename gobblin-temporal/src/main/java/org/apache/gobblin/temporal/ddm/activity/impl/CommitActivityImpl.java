@@ -17,15 +17,8 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
-import com.google.common.base.Function;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +31,17 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
+
+import com.google.api.client.util.Lists;
+import com.google.common.base.Function;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import io.temporal.failure.ApplicationFailure;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
@@ -46,28 +50,25 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.GobblinEventBuilder;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
-import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
-import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 @Slf4j
 public class CommitActivityImpl implements CommitActivity {
@@ -80,38 +81,40 @@ public class CommitActivityImpl implements CommitActivity {
   public CommitGobblinStats commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
-    Optional<String> jobNameOpt = Optional.empty();
+    Optional<String> optJobName = Optional.empty();
+    AutomaticTroubleshooter troubleshooter = null;
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
       JobState jobState = Help.loadJobState(workSpec, fs);
-      jobNameOpt = Optional.ofNullable(jobState.getJobName());
+      optJobName = Optional.ofNullable(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-      JobContext globalGobblinContext = new JobContext(jobState.getProperties(), log, instanceBroker, null);
-      // TODO: Task state dir is a stub with the assumption it is always colocated with the workunits dir (as in the case of MR which generates workunits)
-      Path jobIdParent = new Path(workSpec.getWorkUnitsDir()).getParent();
-      Path jobOutputPath = new Path(new Path(jobIdParent, "output"), jobIdParent.getName());
-      log.info("Output path at: " + jobOutputPath + " with fs at " + fs.getUri());
-      StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
-      Optional<Queue<TaskState>> taskStateQueueOpt =
-              TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobOutputPath.getName(), numDeserializationThreads);
-      if (!taskStateQueueOpt.isPresent()) {
-        log.error("No task states found at " + jobOutputPath);
-        return new CommitGobblinStats(new ArrayList<>());
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
+      troubleshooter.start();
+      List<TaskState> taskStates = loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
+      if (taskStates.isEmpty()) {
+        return new CommitGobblinStats(Lists.newArrayList(), 0);
       }
-      Queue<TaskState> taskStateQueue = taskStateQueueOpt.get();
-      Map<String, JobState.DatasetState> datasetStatesByUrns = createDatasetStatesByUrns(ImmutableList.copyOf(taskStateQueue));
-      commitTaskStates(jobState, datasetStatesByUrns, globalGobblinContext, jobNameOpt);
+
+      JobContext jobContext = new JobContext(jobState.getProperties(), log, instanceBroker, troubleshooter.getIssueRepository());
+      Map<String, JobState.DatasetState> datasetStatesByUrns = jobState.calculateDatasetStatesByUrns(ImmutableList.copyOf(taskStates), Lists.newArrayList());
+      TaskState firstTaskState = taskStates.get(0);
+      log.info("TaskState (commit) [{}] (**first of {}**): {}", firstTaskState.getTaskId(), taskStates.size(), firstTaskState.toJsonString(true));
+      commitTaskStates(jobState, datasetStatesByUrns, jobContext);
+
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
-      List<DatasetTaskSummary> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, globalGobblinContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
-      return new CommitGobblinStats(datasetTaskSummaries);
+      List<DatasetTaskSummary> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
+      return new CommitGobblinStats(datasetTaskSummaries, taskStates.size());
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
-          String.format("Failed to commit dataset state for some dataset(s) of job %s", jobNameOpt.orElse(UNDEFINED_JOB_NAME)),
+          String.format("Failed to commit dataset state for some dataset(s) of job %s", optJobName.orElse(UNDEFINED_JOB_NAME)),
           IOException.class.toString(),
-          new IOException(e),
-          null
+          new IOException(e)
       );
+    } finally {
+      String errCorrelator = String.format("Commit [%s]", calcCommitId(workSpec));
+      EventSubmitter eventSubmitter = workSpec.getEventSubmitterContext().create();
+      Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, errCorrelator);
     }
   }
 
@@ -122,8 +125,7 @@ public class CommitActivityImpl implements CommitActivity {
    * @param jobContext
    * @throws IOException
    */
-  private void commitTaskStates(State jobState, Map<String, JobState.DatasetState> datasetStatesByUrns,
-      JobContext jobContext, Optional<String> jobNameOpt) throws IOException {
+  private void commitTaskStates(JobState jobState, Map<String, JobState.DatasetState> datasetStatesByUrns, JobContext jobContext) throws IOException {
     final boolean shouldCommitDataInJob = JobContext.shouldCommitDataInJob(jobState);
     final DeliverySemantics deliverySemantics = DeliverySemantics.AT_LEAST_ONCE;
     //TODO: Make this configurable
@@ -152,7 +154,7 @@ public class CommitActivityImpl implements CommitActivity {
               }).iterator(), numCommitThreads,
           // TODO: Rewrite executorUtils to use java util optional
           ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log), com.google.common.base.Optional.of("Commit-thread-%d")))
-          .executeAndGetResults();
+              .executeAndGetResults();
 
       IteratorExecutor.logFailures(result, null, 10);
 
@@ -167,30 +169,35 @@ public class CommitActivityImpl implements CommitActivity {
         throw new IOException("Failed to commit dataset state for " + allFailedDatasets);
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
-        // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
-        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobNameOpt.orElse(UNDEFINED_JOB_NAME));
+        String jobName = jobState.getProp(ConfigurationKeys.JOB_NAME_KEY, UNDEFINED_JOB_NAME);
+        throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
   }
 
-  /**
-   * Organize task states by dataset urns.
-   * @param taskStates
-   * @return A map of dataset urns to dataset task states.
-   */
-  public static Map<String, JobState.DatasetState> createDatasetStatesByUrns(Collection<TaskState> taskStates) {
-    Map<String, JobState.DatasetState> datasetStatesByUrns = Maps.newHashMap();
-
-    //TODO: handle skipped tasks?
-    for (TaskState taskState : taskStates) {
-      String datasetUrn = createDatasetUrn(datasetStatesByUrns, taskState);
-      datasetStatesByUrns.get(datasetUrn).incrementTaskCount();
-      datasetStatesByUrns.get(datasetUrn).addTaskState(taskState);
-    }
-
-    return datasetStatesByUrns;
+  /** @return {@link TaskState}s loaded from the {@link StateStore<TaskState>} indicated by the {@link WUProcessingSpec} and {@link FileSystem} */
+  private List<TaskState> loadTaskStates(WUProcessingSpec workSpec, FileSystem fs, JobState jobState, int numThreads) throws IOException {
+    // TODO - decide whether to replace this method by adapting TaskStateCollectorService::collectOutputTaskStates (whence much of this code was drawn)
+    StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
+    // NOTE: TaskState dir is assumed to be a sibling to the workunits dir (following conventions of `MRJobLauncher`)
+    String jobIdPathName = new Path(workSpec.getWorkUnitsDir()).getParent().getName();
+    log.info("TaskStateStore path (name component): '{}' (fs: '{}')", jobIdPathName, fs.getUri());
+    Optional<Queue<TaskState>> taskStateQueueOpt = TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobIdPathName, numThreads);
+    return taskStateQueueOpt.map(taskStateQueue ->
+        taskStateQueue.stream().peek(taskState ->
+                // CRITICAL: although some `WorkUnit`s, like those created by `CopySource::FileSetWorkUnitGenerator` for each `CopyEntity`
+                // already themselves contain every prop of their `JobState`, not all do.
+                // `TaskState extends WorkUnit` serialization will include its constituent `WorkUnit`, but not the constituent `JobState`.
+                // given some `JobState` props may be essential for commit/publish, deserialization must re-associate each `TaskState` w/ `JobState`
+                taskState.setJobState(jobState)
+                // TODO - decide whether something akin necessary to streamline cumulative in-memory size of all issues: consumeTaskIssues(taskState);
+            ).collect(Collectors.toList())
+    ).orElseGet(() -> {
+      log.error("TaskStateStore successfully opened, but no task states found under (name) '{}'", jobIdPathName);
+      return Lists.newArrayList();
+    });
   }
 
   public List<DatasetTaskSummary> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
@@ -222,13 +229,8 @@ public class CommitActivityImpl implements CommitActivity {
     return datasetTaskSummaries;
   }
 
-  private static String createDatasetUrn(Map<String, JobState.DatasetState> datasetStatesByUrns, TaskState taskState) {
-    String datasetUrn = taskState.getProp(ConfigurationKeys.DATASET_URN_KEY, ConfigurationKeys.DEFAULT_DATASET_URN);
-    if (!datasetStatesByUrns.containsKey(datasetUrn)) {
-      JobState.DatasetState datasetState = new JobState.DatasetState();
-      datasetState.setDatasetUrn(datasetUrn);
-      datasetStatesByUrns.put(datasetUrn, datasetState);
-    }
-    return datasetUrn;
+  /** @return id/correlator for this particular commit activity */
+  private static String calcCommitId(WUProcessingSpec workSpec) {
+    return new Path(workSpec.getWorkUnitsDir()).getParent().getName();
   }
 }

@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +68,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -105,38 +102,26 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private UserQuotaManager quotaManager;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  private Optional<FlowLaunchHandler> flowTriggerDecorator;
+  private Optional<FlowLaunchHandler> flowLaunchHandler;
   private Optional<FlowCatalog> flowCatalog;
   @Getter
   private final SharedFlowMetricsSingleton sharedFlowMetricsSingleton;
 
   @Inject
   public Orchestrator(Config config, TopologyCatalog topologyCatalog, DagManager dagManager,
-      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowLaunchHandler> flowTriggerDecorator,
+      Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowLaunchHandler> flowLaunchHandler,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
       Optional<DagManagementStateStore> dagManagementStateStore,
       FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    ClassAliasResolver<SpecCompiler> aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
     this.flowStatusGenerator = flowStatusGenerator;
-    this.flowTriggerDecorator = flowTriggerDecorator;
+    this.flowLaunchHandler = flowLaunchHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
-    try {
-      String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
-      if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
-        specCompilerClassName = config.getString(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY);
-      }
-      _log.info("Using specCompiler class name/alias " + specCompilerClassName);
-
-      this.specCompiler = (SpecCompiler) ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(specCompilerClassName)), config);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
-             ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-
+    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+    this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     if (dagManagementStateStore.isPresent()) {
@@ -155,7 +140,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     quotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
         ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER),
         config);
-    this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
   @VisibleForTesting
@@ -229,24 +213,24 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
 
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
-      String flowExecutionId = String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec));
+      // only compile and pass directly to `DagManager` when multi-active NOT enabled; otherwise recompilation to occur later,
+      // once `DagActionStoreChangeMonitor` subsequently delegates this `DagActionType.LAUNCH`
+      if (flowLaunchHandler.isPresent()) {
+        DagActionStore.DagAction launchDagAction = DagActionStore.DagAction.forFlow(
+            flowGroup,
+            flowName,
+            String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec)),
+            DagActionStore.DagActionType.LAUNCH
+        );
 
-
-      DagActionStore.DagAction launchDagAction =
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, DagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH);
-
-      // If multi-active scheduler is enabled do not pass onto DagManager, otherwise scheduler forwards it directly
-      // Skip flow compilation as well, since we recompile after receiving event from DagActionStoreChangeMonitor later
-      if (flowTriggerDecorator.isPresent()) {
-
-        // Adopt consensus flowExecutionId for scheduled flows
-        flowTriggerDecorator.get().handleFlowLaunchTriggerEvent(jobProps, launchDagAction, triggerTimestampMillis, isReminderEvent,
+        // `flowSpec.isScheduled()` ==> adopt consensus `flowExecutionId` as clock drift safeguard, yet w/o disrupting API-layer's ad hoc ID assignment
+        flowLaunchHandler.get().handleFlowLaunchTriggerEvent(jobProps, launchDagAction, triggerTimestampMillis, isReminderEvent,
             flowSpec.isScheduled());
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
+        Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
         Optional<Dag<JobExecutionPlan>> compiledDagOptional =
             this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
                 flowName, flowMetadata);

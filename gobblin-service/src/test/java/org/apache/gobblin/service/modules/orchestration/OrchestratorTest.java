@@ -53,6 +53,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
@@ -124,10 +125,12 @@ public class OrchestratorTest {
     MostlyMySqlDagManagementStateStore dagManagementStateStore =
         new MostlyMySqlDagManagementStateStore(config, null, null, null);
 
+    SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
+
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
-        Optional.of(mockFlowTriggerHandler), new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(
-            orchestratorProperties)), Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore), null);
+        Optional.of(mockFlowTriggerHandler), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
+        new FlowCompilationValidationHelper(config, sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockStatusGenerator));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
     // Start application

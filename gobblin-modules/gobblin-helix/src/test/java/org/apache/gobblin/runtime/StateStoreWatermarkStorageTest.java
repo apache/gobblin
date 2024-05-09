@@ -68,7 +68,7 @@ public class StateStoreWatermarkStorageTest {
         ImmutableList.of("source"));
 
     Assert.assertEquals(watermarkMap.size(), 1);
-    Assert.assertEquals(((LongWatermark) watermarkMap.get("source").getWatermark()).getValue(), startTime);
+    Assert.assertEquals((long)((LongWatermark) watermarkMap.get("source").getWatermark()).getValue(), startTime);
   }
 
   @AfterClass

@@ -212,10 +212,7 @@ public class GobblinServiceGuiceModule implements Module {
               annotatedWith(Names.named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME))
           .toProvider(
               DagActionProcessingMultiActiveLeaseArbiterFactory.class);
-      // Multi-active execution is only compatible with dagProcessingEngine configuration
-      if (serviceConfig.isMultiActiveExecutionEnabled()) {
-        binder.bind(DagActionReminderScheduler.class);
-      }
+      binder.bind(DagActionReminderScheduler.class);
 
       binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
       binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);

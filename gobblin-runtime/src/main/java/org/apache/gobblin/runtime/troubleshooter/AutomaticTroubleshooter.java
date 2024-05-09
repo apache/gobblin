@@ -44,7 +44,7 @@ public interface AutomaticTroubleshooter {
    * Those events can be consumed by upstream and analytical systems.
    *
    * Can be disabled with
-   * {@link org.apache.gobblin.configuration.ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING}.
+   * {@link org.apache.gobblin.configuration.ConfigurationKeys#TROUBLESHOOTER_DISABLE_EVENT_REPORTING}.
    * */
   void reportJobIssuesAsEvents(EventSubmitter eventSubmitter)
       throws TroubleshooterException;

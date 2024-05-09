@@ -22,20 +22,20 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 
 /**
- * An extension of GaaSObservabilityEventProducer which creates the events and stores them in a list
+ * An extension of GaaSJobObservabilityEventProducer which creates the events and stores them in a list
  * Tests can use a getter to fetch a read-only version of the events that were emitted
  */
-public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventProducer {
-  private List<GaaSObservabilityEventExperimental> emittedEvents = new ArrayList<>();
+public class MockGaaSJobObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
+  private List<GaaSJobObservabilityEvent> emittedEvents = new ArrayList<>();
 
-  public MockGaaSObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
+  public MockGaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     super(state, issueRepository, instrumentationEnabled);
   }
 
@@ -44,7 +44,7 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
     return InMemoryOpenTelemetryMetrics.getInstance(state);
   }
   @Override
-  protected void sendUnderlyingEvent(GaaSObservabilityEventExperimental event) {
+  protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event) {
     emittedEvents.add(event);
   }
 
@@ -53,7 +53,7 @@ public class MockGaaSObservabilityEventProducer extends GaaSObservabilityEventPr
    * This should only be used as a read-only object for emitted GaaSObservabilityEvents
    * @return list of events that would have been emitted
    */
-  public List<GaaSObservabilityEventExperimental> getTestEmittedEvents() {
+  public List<GaaSJobObservabilityEvent> getTestEmittedEvents() {
     return Collections.unmodifiableList(this.emittedEvents);
   }
 

@@ -37,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.ack.Ackable;
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContextUtils;
 import org.apache.gobblin.publisher.DataPublisher;
@@ -52,6 +53,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.LastWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkStorage;
 import org.apache.gobblin.writer.WatermarkTracker;
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -87,6 +89,16 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
 
   public static final String WATERMARK_COMMIT_TIME_METRIC = "state.store.metrics.watermarkCommitTime";
   public static final String COMMIT_STEP_METRIC_PREFIX = "commit.step.";
+  /**
+   * this property is used to append task attempt id with timestamp to the output directory on startup.
+   * The purpose of this change is to make sure each task writes to a unique directory. In case corrupted files from
+   * previous run generated, next run will start from a new path and will not pick those corrupted files. <br><br>
+   *
+   * NOTE: This feature must be executed before the publisher is initialized for publisher to use the same path.
+   * If this assumption is violated, then this feature will have nondeterministic behavior w.r.t. data loss.
+   */
+  public static final String ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID =
+      "flush.extractor.enableUniqueWriterOutputDirWithTaskAttemptId";
 
   @Getter
   protected Map<String, CheckpointableWatermark> lastCommittedWatermarks;
@@ -126,9 +138,27 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
     preCommitSteps.stream().map(commitStep -> new AtomicLong(0L)).forEach(this.preCommitStepTimes::add);
     postCommitSteps.stream().map(commitStep -> new AtomicLong(0L)).forEach(this.postCommitStepTimes::add);
 
+    if (ConfigUtils.getBoolean(config, ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID, false)) {
+      setUniqueTaskOutputPathWithTaskAttemptId(this.workUnitState);
+    }
+
     initFlushPublisher();
     MetricContextUtils.registerGauge(this.getMetricContext(), WATERMARK_COMMIT_TIME_METRIC, this.watermarkCommitTime);
     initCommitStepMetrics(this.preCommitSteps, this.postCommitSteps);
+  }
+
+  private void setUniqueTaskOutputPathWithTaskAttemptId(WorkUnitState workUnitState) {
+    Preconditions.checkArgument(this.workUnitState.contains(ConfigurationKeys.TASK_ATTEMPT_ID_KEY),
+        String.format("Unable to updateTaskOutputPath, work unit state must contain %s because %s is enabled",
+            ConfigurationKeys.TASK_ATTEMPT_ID_KEY, ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID));
+    Preconditions.checkArgument(this.workUnitState.contains(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        String.format("Unable to updateTaskOutputPath, work unit state must contain %s because %s is enabled",
+            ConfigurationKeys.WRITER_OUTPUT_DIR, ENABLE_UNIQUE_WRITER_OUTPUT_DIR_WITH_TASK_ATTEMPT_ID));
+    String taskAttemptId = workUnitState.getProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY);
+    String writerOutputDirWithTaskAttemptId =
+            new Path(this.workUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+                taskAttemptId + "_" + System.currentTimeMillis()).toString();
+    this.workUnitState.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, writerOutputDirWithTaskAttemptId);
   }
 
   private void initCommitStepMetrics(List<String>... commitStepLists) {

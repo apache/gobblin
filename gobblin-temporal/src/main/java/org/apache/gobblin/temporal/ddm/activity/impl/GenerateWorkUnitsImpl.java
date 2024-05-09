@@ -34,16 +34,21 @@ import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
+import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -65,6 +70,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     // jobState.setBroker(jobBroker);
     // jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
 
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    troubleshooter.start();
     try (Closer closer = Closer.create()) {
       // before embarking on (potentially expensive) WU creation, first pre-check that the FS is available
       FileSystem fs = JobStateUtils.openFileSystem(jobState);
@@ -85,7 +92,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       log.error(errMsg, ioe);
       throw ApplicationFailure.newFailureWithCause(errMsg, "Failure: generating/writing workunits", ioe);
     } finally {
-      // TODO: implement Troubleshooter integration!
+      EventSubmitter eventSubmitter = eventSubmitterContext.create();
+      Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, jobState.getJobId());
     }
   }
 

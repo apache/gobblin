@@ -32,4 +32,5 @@ import org.apache.gobblin.runtime.DatasetTaskSummary;
 @RequiredArgsConstructor
 public class CommitGobblinStats {
   @NonNull private List<DatasetTaskSummary> datasetTaskSummaries;
+  @NonNull private int numProcessedTasks;
 }

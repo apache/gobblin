@@ -72,7 +72,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class BaseFlowGraphHelper {
   private static final int NODE_FILE_DEPTH = 3;
   private static final int EDGE_FILE_DEPTH = 4;
-  private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
+  public static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
 
   final String baseDirectory;
   private final Config emptyConfig = ConfigFactory.empty();

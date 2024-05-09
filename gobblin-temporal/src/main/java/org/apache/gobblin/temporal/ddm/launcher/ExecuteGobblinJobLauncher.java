@@ -34,6 +34,7 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
+import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
@@ -85,8 +86,8 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter)
           .withGaaSJobProps(this.jobProps)
           .build();
-      int numWorkUnits = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
-      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", numWorkUnits);
+      ExecGobblinStats execGobblinStats = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
+      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats.getNumWorkUnitsSuccessful());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

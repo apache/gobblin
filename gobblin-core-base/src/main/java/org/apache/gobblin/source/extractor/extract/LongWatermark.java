@@ -29,19 +29,28 @@ import org.apache.gobblin.source.extractor.ComparableWatermark;
 import org.apache.gobblin.source.extractor.Watermark;
 
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
+
+/**
+ * Long based {@link ComparableWatermark} implementation.
+ */
 @ToString
 @EqualsAndHashCode
-public class LongWatermark implements ComparableWatermark {
+public class LongWatermark implements ComparableWatermark<Long> {
 
   private static final Gson GSON = new Gson();
 
-  @Getter
   @Setter
   private long value;
+
+  @Override
+  // Returns a Long object due to Java generics' requirement for object types.
+  // The underlying variable is maintained as a primitive long to optimize performance for mathematical operations.
+  public Long getValue(){
+    return value;
+  }
 
   public LongWatermark(long value) {
     this.value = value;

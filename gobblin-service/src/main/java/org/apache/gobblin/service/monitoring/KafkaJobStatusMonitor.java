@@ -115,12 +115,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private final JobIssueEventHandler jobIssueEventHandler;
   private final Retryer<Void> persistJobStatusRetryer;
-  private final GaaSObservabilityEventProducer eventProducer;
+  private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagActionStore dagActionStore;
   private final boolean dagProcEngineEnabled;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());

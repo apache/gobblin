@@ -18,9 +18,12 @@
 package org.apache.gobblin.metrics;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
-import com.google.common.base.Optional;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -32,6 +35,7 @@ import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -40,20 +44,32 @@ import org.apache.gobblin.util.PropertiesUtils;
  * A metrics reporter wrapper that uses the OpenTelemetry standard to emit metrics
  * Currently separated from the legacy codehale metrics as we need to maintain backwards compatibility, but eventually
  * can replace the old metrics system with tighter integrations once it's stable
+ * Defaults to using the HTTP exporter where it expects an endpoint and optional headers in JSON string format
  */
 
+@Slf4j
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   private static OpenTelemetryMetrics GLOBAL_INSTANCE;
   private static final Long DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS = 10000L;
+
   private OpenTelemetryMetrics(State state) {
     super(state);
   }
 
   @Override
   protected MetricExporter initializeMetricExporter(State state) {
+    Preconditions.checkArgument(state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT),
+        "OpenTelemetry endpoint must be provided");
     OtlpHttpMetricExporterBuilder httpExporterBuilder = OtlpHttpMetricExporter.builder();
     httpExporterBuilder.setEndpoint(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT));
+
+    if (state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADERS)) {
+      Map<String, String> headers = parseHttpHeaders(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HEADERS));
+      for (Map.Entry<String, String> header : headers.entrySet()) {
+        httpExporterBuilder.addHeader(header.getKey(), header.getValue());
+      }
+    }
     return httpExporterBuilder.build();
   }
 
@@ -67,14 +83,20 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   @Override
   protected void initialize(State state) {
-    Properties metricProps = PropertiesUtils.extractPropertiesWithPrefix(state.getProperties(), Optional.of(
-        ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS));
-    AttributesBuilder attributesBuilder = Attributes.builder();
-    for (String key : metricProps.stringPropertyNames()) {
-      attributesBuilder.put(AttributeKey.stringKey(key), metricProps.getProperty(key));
+    log.info("Initializing OpenTelemetry metrics");
+    Properties metricProps = PropertiesUtils.extractChildProperties(state.getProperties(),
+        ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX);
+    // Default to empty resource because default resource still populates some values
+    Resource metricsResource = Resource.empty();
+    if (metricProps.isEmpty()) {
+      log.warn("No OpenTelemetry metrics properties found, sending empty resource");
+    } else {
+      AttributesBuilder attributesBuilder = Attributes.builder();
+      for (String key : metricProps.stringPropertyNames()) {
+        attributesBuilder.put(AttributeKey.stringKey(key), metricProps.getProperty(key));
+      }
+      metricsResource = Resource.getDefault().merge(Resource.create(attributesBuilder.build()));
     }
-    Resource metricsResource = Resource.getDefault().merge(Resource.create(attributesBuilder.build()));
-
     SdkMeterProvider meterProvider = SdkMeterProvider.builder()
         .setResource(metricsResource)
         .registerMetricReader(
@@ -85,6 +107,17 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
                 .build())
         .build();
 
-    this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).buildAndRegisterGlobal();
+    this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).build();
+  }
+
+  protected static Map<String, String> parseHttpHeaders(String headersString) {
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      return mapper.readValue(headersString, HashMap.class);
+    } catch (Exception e) {
+      String errMsg = "Failed to parse headers: " + headersString;
+      log.error(errMsg, e);
+      throw new RuntimeException(errMsg);
+    }
   }
 }

@@ -37,7 +37,7 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GaaSObservabilityEventExperimental;
+import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
@@ -54,9 +54,10 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
-public class GaaSObservabilityProducerTest {
+public class GaaSJobObservabilityProducerTest {
 
   private MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
 
@@ -75,17 +76,22 @@ public class GaaSObservabilityProducerTest {
     DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false);
     summaries.add(dataset1);
     summaries.add(dataset2);
+    Properties jobProps = new Properties();
+    jobProps.setProperty("flow.executionId", "1681242538558");
+    jobProps.setProperty("user.to.proxy", "newUser");
+    jobProps.setProperty("gobblin.flow.sourceIdentifier", "sourceNode");
+    jobProps.setProperty("gobblin.flow.destinationIdentifier", "destinationNode");
 
     State state = new State();
     state.setProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, "testCluster");
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(state, this.issueRepository, false);
+    MockGaaSJobObservabilityEventProducer producer = new MockGaaSJobObservabilityEventProducer(state, this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowExecutionId);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "sourceNode_destinationNode_flowEdge");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(AzkabanProjectConfig.USER_TO_PROXY, "azkabanUser");
     gteEventMetadata.put(TimingEvent.METADATA_MESSAGE, "hostName");
@@ -95,16 +101,16 @@ public class GaaSObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.JOB_ORCHESTRATED_TIME, "1");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, "20");
     gteEventMetadata.put(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(summaries));
-    gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
+    gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobProps));
     Properties jobStatusProps = new Properties();
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSObservabilityEventExperimental> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
-    GaaSObservabilityEventExperimental event = iterator.next();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event = iterator.next();
     Assert.assertEquals(event.getFlowGroup(), flowGroup);
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getJobName(), jobName);
@@ -112,26 +118,28 @@ public class GaaSObservabilityProducerTest {
     Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
     Assert.assertEquals(event.getExecutorUrl(), "hostName");
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowGraphEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getSourceNode(), "sourceNode");
+    Assert.assertEquals(event.getDestinationNode(), "destinationNode");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
-    Assert.assertEquals(event.getExecutionUserUrn(), "azkabanUser");
-    Assert.assertEquals(event.getJobOrchestratedTime(), Long.valueOf(1));
-    Assert.assertEquals(event.getLastFlowModificationTime(), Long.valueOf(20));
-    Assert.assertEquals(event.getJobStartTime(), Long.valueOf(20));
-    Assert.assertEquals(event.getJobEndTime(), Long.valueOf(100));
-    Assert.assertEquals(event.getDatasetsWritten().size(), 2);
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
-    Assert.assertEquals(event.getDatasetsWritten().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
-    Assert.assertEquals(event.getJobProperties(), "{\"flow\":{\"executionId\":1681242538558},\"user\":{\"to\":{\"proxy\":\"newUser\"}}}");
+    Assert.assertEquals(event.getEffectiveUserUrn(), "azkabanUser");
+    Assert.assertEquals(event.getJobOrchestratedTimestamp(), Long.valueOf(1));
+    Assert.assertEquals(event.getLastFlowModificationTimestamp(), Long.valueOf(20));
+    Assert.assertEquals(event.getJobStartTimestamp(), Long.valueOf(20));
+    Assert.assertEquals(event.getJobEndTimestamp(), Long.valueOf(100));
+    Assert.assertEquals(event.getDatasetsMetrics().size(), 2);
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getDatasetUrn(), dataset1.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getEntitiesWritten(), Long.valueOf(dataset1.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getBytesWritten(), Long.valueOf(dataset1.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(0).getSuccessfullyCommitted(), Boolean.valueOf(dataset1.isSuccessfullyCommitted()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getDatasetUrn(), dataset2.getDatasetUrn());
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getEntitiesWritten(), Long.valueOf(dataset2.getRecordsWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getBytesWritten(), Long.valueOf(dataset2.getBytesWritten()));
+    Assert.assertEquals(event.getDatasetsMetrics().get(1).getSuccessfullyCommitted(), Boolean.valueOf(dataset2.isSuccessfullyCommitted()));
+    Assert.assertEquals(event.getJobProperties(), "{\"gobblin.flow.sourceIdentifier\":\"sourceNode\",\"gobblin.flow.destinationIdentifier\":\"destinationNode\",\"user.to.proxy\":\"newUser\",\"flow.executionId\":\"1681242538558\"}");
     Assert.assertEquals(event.getGaasId(), "testCluster");
-    AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
-        GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
+    AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
+        GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
   }
@@ -146,7 +154,8 @@ public class GaaSObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(new State(), this.issueRepository, false);
+    MockGaaSJobObservabilityEventProducer
+        producer = new MockGaaSJobObservabilityEventProducer(new State(), this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -161,26 +170,26 @@ public class GaaSObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSObservabilityEventExperimental> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
-    Iterator<GaaSObservabilityEventExperimental> iterator = emittedEvents.iterator();
-    GaaSObservabilityEventExperimental event = iterator.next();
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event = iterator.next();
     Assert.assertEquals(event.getFlowGroup(), flowGroup);
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getJobName(), jobName);
     Assert.assertEquals(event.getFlowExecutionId(), Long.valueOf(flowExecutionId));
     Assert.assertEquals(event.getJobStatus(), JobStatus.CANCELLED);
     Assert.assertEquals(event.getIssues().size(), 1);
-    Assert.assertEquals(event.getFlowGraphEdgeId(), "flowEdge");
+    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
     Assert.assertEquals(event.getExecutorId(), "specExecutor");
-    Assert.assertEquals(event.getJobOrchestratedTime(), null);
-    Assert.assertEquals(event.getJobStartTime(), null);
-    Assert.assertEquals(event.getExecutionUserUrn(), null);
+    Assert.assertEquals(event.getJobOrchestratedTimestamp(), null);
+    Assert.assertEquals(event.getJobStartTimestamp(), null);
+    Assert.assertEquals(event.getEffectiveUserUrn(), null);
     Assert.assertEquals(event.getExecutorUrl(), null);
 
-    AvroSerializer<GaaSObservabilityEventExperimental> serializer = new AvroBinarySerializer<>(
-        GaaSObservabilityEventExperimental.SCHEMA$, new NoopSchemaVersionWriter()
+    AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
+        GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
   }
@@ -199,7 +208,8 @@ public class GaaSObservabilityProducerTest {
     producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
     producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT, "http://localhost:5000");
 
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(producerState, this.issueRepository, true);
+    MockGaaSJobObservabilityEventProducer
+        producer = new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true);
 
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
@@ -231,7 +241,8 @@ public class GaaSObservabilityProducerTest {
     State producerState = new State();
     producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
 
-    MockGaaSObservabilityEventProducer producer = new MockGaaSObservabilityEventProducer(producerState, this.issueRepository, true);
+    MockGaaSJobObservabilityEventProducer
+        producer = new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -262,7 +273,7 @@ public class GaaSObservabilityProducerTest {
     // Check number of meters
     Assert.assertEquals(metrics.size(), 1);
     Map<String, MetricData > metricsByName = metrics.stream().collect(Collectors.toMap(metric -> metric.getName(), metricData -> metricData));
-    MetricData jobStatusMetric = metricsByName.get("gaas.observability.jobStatus");
+    MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
     // Check the attributes of the metrics
     List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
     Assert.assertEquals(datapoints.size(), 2);
@@ -274,6 +285,17 @@ public class GaaSObservabilityProducerTest {
     // Check common string tag
     Assert.assertEquals(datapoints.get(0).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
     Assert.assertEquals(datapoints.get(1).getAttributes().asMap().get(AttributeKey.stringKey("flowGroup")), flowGroup);
+    datapoints.forEach(point -> {
+      if (point.getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")).equals(1L)) {
+        Assert.assertEquals(point.getValue(), 0); // Cancelled job should show up as a 0
+      } else if (point.getAttributes().asMap().get(AttributeKey.longKey("flowExecutionId")).equals(2L)) {
+        Assert.assertEquals(point.getValue(), 1L); // Completed job should show up as a 1
+      }
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("flowName")), flowName);
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("jobName")), jobName);
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("flowEdge")), "flowEdge");
+      Assert.assertEquals(point.getAttributes().asMap().get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+    });
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
