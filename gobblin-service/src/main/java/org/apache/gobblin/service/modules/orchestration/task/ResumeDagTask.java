@@ -23,9 +23,8 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
 
 /**
- * A {@link DagTask} responsible for killing running jobs.
+ * A {@link DagTask} responsible for resuming previously failed or killed dags.
  */
-
 public class ResumeDagTask extends DagTask {
   public ResumeDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagActionStore dagActionStore) {

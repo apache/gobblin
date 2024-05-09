@@ -84,8 +84,11 @@ public class ResumeDagProcTest {
   @Test
   public void resumeDag() throws IOException, URISyntaxException {
     long flowExecutionId = System.currentTimeMillis();
+    String flowGroup = "fg";
+    String flowName = "fn";
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
-        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
+        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
     // simulate a failed dag in store
     dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);
@@ -93,7 +96,7 @@ public class ResumeDagProcTest {
     dag.getNodes().get(4).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getFailedDag(any());
 
-    ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction("fg", "flow1",
+    ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
         null, mock(DagActionStore.class)));
     resumeDagProc.process(this.dagManagementStateStore);
@@ -114,10 +117,8 @@ public class ResumeDagProcTest {
             .filter(a -> a.getMethod().getName().equals("addSpec"))
             .count())
         .sum();
-    long addedDagNodeStates = Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
-        .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count();
 
     Assert.assertEquals(resumedJobCount, expectedNumOfResumedJobs);
-    Assert.assertEquals(addedDagNodeStates, expectedNumOfResumedJobs);
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
   }
 }

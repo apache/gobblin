@@ -41,7 +41,7 @@ import static org.apache.gobblin.service.ExecutionStatus.PENDING_RESUME;
 
 
 /**
- * An implementation for {@link DagProc} that resumes a dag and submits the job that failed/killed previously.
+ * An implementation for {@link DagProc} that resumes a dag and submits the job that previously failed or was killed.
  */
 @Slf4j
 public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
@@ -82,12 +82,14 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
         Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), node.getValue());
         eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING_RESUME).stop(jobMetadata);
       }
-      // Set flowStartTime so that flow SLA will be based on current time instead of original flow
+      // Set flowStartTime so that flow start deadline and flow completion deadline will be based on current time instead of original flow
       node.getValue().setFlowStartTime(flowResumeTime);
     }
 
+    // these two statements effectively move the dag from failed dag store to (running) dag store
     dagManagementStateStore.checkpointDag(dag.get());
     dagManagementStateStore.deleteFailedDag(dag.get());
+
     resumeDag(dagManagementStateStore, dag.get());
   }
 
