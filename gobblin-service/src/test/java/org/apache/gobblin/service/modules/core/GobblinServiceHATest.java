@@ -250,7 +250,12 @@ public class GobblinServiceHATest {
 
     cleanUpDir(COMMON_SPEC_STORE_PARENT_DIR);
 
-    mysql.stop();
+    try {
+      mysql.stop();
+    } catch (Exception e) {
+      logger.warn("Could not completely stop Mysql");
+    }
+
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     testMetastoreDatabase.close();
   }
