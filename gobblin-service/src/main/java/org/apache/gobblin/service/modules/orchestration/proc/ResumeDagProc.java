@@ -86,7 +86,8 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       node.getValue().setFlowStartTime(flowResumeTime);
     }
 
-    // these two statements effectively move the dag from failed dag store to (running) dag store
+    // these two statements effectively move the dag from failed dag store to (running) dag store.
+    // to prevent loss in the unlikely event of failure between the two, we add first.
     dagManagementStateStore.checkpointDag(dag.get());
     dagManagementStateStore.deleteFailedDag(dag.get());
 

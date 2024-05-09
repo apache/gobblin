@@ -83,7 +83,7 @@ public class ResumeDagProcTest {
    */
   @Test
   public void resumeDag() throws IOException, URISyntaxException {
-    long flowExecutionId = System.currentTimeMillis();
+    long flowExecutionId = 12345L;
     String flowGroup = "fg";
     String flowName = "fn";
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
