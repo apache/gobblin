@@ -43,6 +43,7 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -167,6 +168,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case KILL:
         return new KillDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+      case RESUME:
+        return new ResumeDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       default:
         throw new UnsupportedOperationException(dagActionType + " not yet implemented");
     }
