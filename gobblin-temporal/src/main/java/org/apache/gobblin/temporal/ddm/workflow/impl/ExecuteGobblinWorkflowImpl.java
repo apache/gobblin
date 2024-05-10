@@ -96,10 +96,10 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       }
       timer.stop();
       return new ExecGobblinStats(numWUsGenerated, numWUsProcessed, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
-          convertDatasetTaskSummariesToMap(commitStats.getDatasetTaskSummaries()));
+          ExecGobblinStats.fromDatasetTaskSummary(commitStats.getDatasetTaskSummaries()));
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
-      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).stop();
+      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit();
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
           e.getClass().getName(),
@@ -130,11 +130,5 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
     }
     return wuSpec;
-  }
-
-  private Map<String, DatasetTaskSummary> convertDatasetTaskSummariesToMap(List<DatasetTaskSummary> datasetTaskSummaries) {
-    Map<String, DatasetTaskSummary> datasetTaskSummaryMap = new HashMap<>();
-    datasetTaskSummaries.forEach(datasetTaskSummary -> datasetTaskSummaryMap.put(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary));
-    return datasetTaskSummaryMap;
   }
 }

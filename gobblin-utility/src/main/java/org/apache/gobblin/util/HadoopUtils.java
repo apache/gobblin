@@ -229,6 +229,7 @@ public class HadoopUtils {
    * src is a directory then {@link File#renameTo} is called directly to avoid a directory rename race condition where
    * {@link org.apache.hadoop.fs.RawLocalFileSystem#rename} copies the conflicting src directory into dst resulting in
    * an extra nested level, such as /root/a/b/c/e/e where e is repeated.
+   *
    * @param fs the {@link FileSystem} where the src {@link Path} exists
    * @param src the source {@link Path} which will be renamed
    * @param dst the {@link Path} to rename to

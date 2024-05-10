@@ -55,9 +55,9 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   public CommitGobblinStats commit(WUProcessingSpec workSpec) {
     CommitGobblinStats commitGobblinStats = activityStub.commit(workSpec);
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
-    TemporalEventTimer eventTimer = timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY);
-    eventTimer.addMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(commitGobblinStats.getDatasetTaskSummaries()));
-    eventTimer.stop();
+    timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
+        .withMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(commitGobblinStats.getDatasetTaskSummaries()))
+        .submit();
     return commitGobblinStats;
   }
 }

@@ -45,7 +45,7 @@ public interface EventTimer extends Closeable {
    * @param key
    * @param metadata
    */
-  void addMetadata(String key, String metadata);
+  EventTimer withMetadata(String key, String metadata);
 
   /**
    * Stops the timer and execute any post-processing (e.g. event submission)
