@@ -19,8 +19,10 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -100,9 +102,17 @@ public class ResumeDagProcTest {
     resumeDagProc.process(this.dagManagementStateStore);
 
     SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(1));
+    List<SpecProducer<Spec>> otherSpecProducers = dag.getNodes().stream().map(node -> {
+      try {
+        return DagManagerUtils.getSpecProducer(node);
+      } catch (ExecutionException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }).filter(sp -> specProducer != sp).collect(Collectors.toList());
     int expectedNumOfResumedJobs = 1; // = number of resumed nodes
 
     Mockito.verify(specProducer, Mockito.times(expectedNumOfResumedJobs)).addSpec(any());
     Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
+    otherSpecProducers.forEach(sp -> Mockito.verify(sp, Mockito.times(0)).addSpec(any()));
   }
 }
