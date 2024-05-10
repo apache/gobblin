@@ -60,9 +60,9 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     try {
       // todo - add actions for other other type of dag actions
       switch (dagAction.getDagActionType()) {
+        case KILL :
         case LAUNCH :
         case REEVALUATE :
-        case KILL :
         case RESUME:
           dagManagement.addDagAction(dagAction);
           break;

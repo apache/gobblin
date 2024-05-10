@@ -19,13 +19,10 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -82,7 +79,8 @@ public class ResumeDagProcTest {
   This test creates a failed dag and launches a resume dag proc for it. It then verifies that the next jobs are set to run.
    */
   @Test
-  public void resumeDag() throws IOException, URISyntaxException {
+  public void resumeDag()
+      throws IOException, URISyntaxException, ExecutionException, InterruptedException {
     long flowExecutionId = 12345L;
     String flowGroup = "fg";
     String flowName = "fn";
@@ -101,24 +99,10 @@ public class ResumeDagProcTest {
         null, mock(DagActionStore.class)));
     resumeDagProc.process(this.dagManagementStateStore);
 
-    List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
-      try {
-        return DagManagerUtils.getSpecProducer(n);
-      } catch (ExecutionException | InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }).collect(Collectors.toList());
+    SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(1));
     int expectedNumOfResumedJobs = 1; // = number of resumed nodes
 
-    long resumedJobCount = specProducers.stream()
-        .mapToLong(p -> Mockito.mockingDetails(p)
-            .getInvocations()
-            .stream()
-            .filter(a -> a.getMethod().getName().equals("addSpec"))
-            .count())
-        .sum();
-
-    Assert.assertEquals(resumedJobCount, expectedNumOfResumedJobs);
+    Mockito.verify(specProducer, Mockito.times(expectedNumOfResumedJobs)).addSpec(any());
     Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
   }
 }

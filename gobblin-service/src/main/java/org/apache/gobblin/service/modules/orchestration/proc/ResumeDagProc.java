@@ -57,11 +57,11 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> failedDag)
       throws IOException {
     log.info("Request to resume dag {}", getDagId());
 
-    if (!dag.isPresent()) {
+    if (!failedDag.isPresent()) {
       // todo - add a metric here
       log.error("Dag " + dagId + " was not found in dag state store");
       return;
@@ -70,9 +70,9 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     long flowResumeTime = System.currentTimeMillis();
 
     // Set the flow and its failed or cancelled nodes to PENDING_RESUME so that the flow will be resumed from the point before it failed
-    DagManagerUtils.emitFlowEvent(eventSubmitter, dag.get(), TimingEvent.FlowTimings.FLOW_PENDING_RESUME);
+    DagManagerUtils.emitFlowEvent(eventSubmitter, failedDag.get(), TimingEvent.FlowTimings.FLOW_PENDING_RESUME);
 
-    for (Dag.DagNode<JobExecutionPlan> node : dag.get().getNodes()) {
+    for (Dag.DagNode<JobExecutionPlan> node : failedDag.get().getNodes()) {
       ExecutionStatus executionStatus = node.getValue().getExecutionStatus();
       if (executionStatus.equals(FAILED) || executionStatus.equals(CANCELLED)) {
         node.getValue().setExecutionStatus(PENDING_RESUME);
@@ -88,10 +88,11 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
     // these two statements effectively move the dag from failed dag store to (running) dag store.
     // to prevent loss in the unlikely event of failure between the two, we add first.
-    dagManagementStateStore.checkpointDag(dag.get());
-    dagManagementStateStore.deleteFailedDag(dag.get());
+    dagManagementStateStore.checkpointDag(failedDag.get());
+    // if it fails here, it will check point the failed dag in the (running) dag store again, which is idempotent
+    dagManagementStateStore.deleteFailedDag(failedDag.get());
 
-    resumeDag(dagManagementStateStore, dag.get());
+    resumeDag(dagManagementStateStore, failedDag.get());
   }
 
   private void resumeDag(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
