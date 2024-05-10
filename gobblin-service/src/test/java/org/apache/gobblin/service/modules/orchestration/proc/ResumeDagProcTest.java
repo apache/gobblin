@@ -113,6 +113,6 @@ public class ResumeDagProcTest {
 
     Mockito.verify(specProducer, Mockito.times(expectedNumOfResumedJobs)).addSpec(any());
     Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
-    otherSpecProducers.forEach(sp -> Mockito.verify(sp, Mockito.times(0)).addSpec(any()));
+    otherSpecProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
   }
 }
