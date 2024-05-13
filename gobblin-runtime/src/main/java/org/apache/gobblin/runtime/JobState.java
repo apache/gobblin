@@ -758,7 +758,6 @@ public class JobState extends SourceState implements JobProgress {
    */
   public static class DatasetState extends JobState {
 
-    int successfulTasks = 0;
     // For serialization/deserialization
     public DatasetState() {
       super();

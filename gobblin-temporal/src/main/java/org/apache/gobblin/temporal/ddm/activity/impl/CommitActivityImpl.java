@@ -169,6 +169,7 @@ public class CommitActivityImpl implements CommitActivity {
         throw new IOException("Failed to commit dataset state for " + allFailedDatasets);
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
+        // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
         String jobName = jobState.getProp(ConfigurationKeys.JOB_NAME_KEY, UNDEFINED_JOB_NAME);
         throw new IOException("Failed to commit dataset state for some dataset(s) of job " + jobName);
       }
@@ -200,7 +201,7 @@ public class CommitActivityImpl implements CommitActivity {
     });
   }
 
-  public Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
+  private Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
     Map<String, DatasetStats> datasetTaskStats = new HashMap<>();
     // Only process successful datasets unless configuration to process failed datasets is set
     for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
