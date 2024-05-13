@@ -17,12 +17,8 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
@@ -39,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
@@ -83,20 +78,16 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     EventTimer timer = timerFactory.createJobTimer();
     try {
       int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
-      int numWUsProcessed = 0;
+      int numWUsCommitted = 0;
       CommitGobblinStats commitStats = new CommitGobblinStats();
       if (numWUsGenerated > 0) {
         WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
         commitStats = processWUsWorkflow.process(wuSpec);
-        numWUsProcessed = commitStats.getNumProcessedTasks();
-        if (numWUsProcessed != numWUsGenerated) {
-          throw new IOException(String.format("Not all work units generated were processed: %d != %d", numWUsGenerated, numWUsProcessed));
-        }
+        numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
       timer.stop();
-      return new ExecGobblinStats(numWUsGenerated, numWUsProcessed, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
-          ExecGobblinStats.fromDatasetTaskSummary(commitStats.getDatasetTaskSummaries()));
+      return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY), commitStats.getDatasetStats());
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
       timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit();

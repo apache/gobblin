@@ -17,20 +17,17 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.List;
+import java.util.Map;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.runtime.DatasetTaskSummary;
-
-
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
 public class CommitGobblinStats {
-  @NonNull private List<DatasetTaskSummary> datasetTaskSummaries;
-  @NonNull private int numProcessedTasks;
+  @NonNull private Map<String, DatasetStats> datasetStats;
+  @NonNull private int numCommittedWorkUnits;
 }

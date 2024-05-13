@@ -17,35 +17,20 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.runtime.DatasetTaskSummary;
-
-
 /** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class ExecGobblinStats {
-  // TODO - currently demonstration only: decide upon meaningful details to provide - for example...
   @NonNull private int numWorkUnits;
-  @NonNull private int numSuccessful;
+  @NonNull private int numCommitted;
   @NonNull private String user;
   @NonNull private Map<String, DatasetStats> stats;
-
-  public static Map<String, DatasetStats> fromDatasetTaskSummary(List<DatasetTaskSummary> datasetTaskSummaries) {
-    Map<String, DatasetStats> datasetStatsMap = new HashMap<>();
-    for (DatasetTaskSummary datasetTaskSummary : datasetTaskSummaries) {
-      datasetStatsMap.put(datasetTaskSummary.getDatasetUrn(),
-          new DatasetStats(datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.isSuccessfullyCommitted()));
-    }
-    return datasetStatsMap;
-  }
 }
 

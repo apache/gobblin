@@ -16,7 +16,7 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Optional;
 
 import com.typesafe.config.ConfigFactory;
@@ -67,13 +67,13 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     if (workunitsProcessed > 0) {
       CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
       CommitGobblinStats result = commitWorkflow.commit(workSpec);
-      if (result.getNumProcessedTasks() == 0) {
+      if (result.getNumCommittedWorkUnits() == 0) {
         log.warn("No work units committed at the job level. They could have been committed at the task level.");
       }
       return result;
     } else {
       log.error("No work units processed, so no commit attempted.");
-      return new CommitGobblinStats(new ArrayList<>(), 0);
+      return new CommitGobblinStats(new HashMap<>(), 0);
     }
   }
 

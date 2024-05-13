@@ -18,7 +18,7 @@
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +49,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
@@ -61,6 +60,7 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.ConfigUtils;
@@ -91,7 +91,7 @@ public class CommitActivityImpl implements CommitActivity {
       troubleshooter.start();
       List<TaskState> taskStates = loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
       if (taskStates.isEmpty()) {
-        return new CommitGobblinStats(Lists.newArrayList(), 0);
+        return new CommitGobblinStats(new HashMap<>(), 0);
       }
 
       JobContext jobContext = new JobContext(jobState.getProperties(), log, instanceBroker, troubleshooter.getIssueRepository());
@@ -101,8 +101,9 @@ public class CommitActivityImpl implements CommitActivity {
       commitTaskStates(jobState, datasetStatesByUrns, jobContext);
 
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
-      List<DatasetTaskSummary> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
-      return new CommitGobblinStats(datasetTaskSummaries, taskStates.size());
+
+      Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
+      return new CommitGobblinStats(datasetTaskSummaries, datasetTaskSummaries.values().stream().reduce(0, (acc, datasetStats) -> acc + datasetStats.getNumCommittedWorkunits(), Integer::sum));
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
@@ -199,33 +200,35 @@ public class CommitActivityImpl implements CommitActivity {
     });
   }
 
-  public List<DatasetTaskSummary> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
-    List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
+  public Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
+    Map<String, DatasetStats> datasetTaskStats = new HashMap<>();
     // Only process successful datasets unless configuration to process failed datasets is set
     for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
       if (datasetState.getState() == JobState.RunningState.COMMITTED || (datasetState.getState() == JobState.RunningState.FAILED
           && commitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS)) {
         long totalBytesWritten = 0;
         long totalRecordsWritten = 0;
+        int totalCommittedTasks = 0;
         for (TaskState taskState : datasetState.getTaskStates()) {
           // Certain writers may omit these metrics e.g. CompactionLauncherWriter
-          if ((taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED || shouldIncludeFailedTasks)) {
+          if (taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED || shouldIncludeFailedTasks) {
+            if (taskState.getWorkingState() == WorkUnitState.WorkingState.COMMITTED) {
+              totalCommittedTasks++;
+            }
             totalBytesWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_BYTES_WRITTEN, 0);
             totalRecordsWritten += taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN, 0);
           }
         }
         log.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(),
             totalRecordsWritten, totalBytesWritten));
-        datasetTaskSummaries.add(
-            new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
-                datasetState.getState() == JobState.RunningState.COMMITTED));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats(totalRecordsWritten, totalBytesWritten, true, totalCommittedTasks));
       } else if (datasetState.getState() == JobState.RunningState.FAILED && commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         log.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
-        datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0, false));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats( 0, 0, false, 0));
       }
     }
-    return datasetTaskSummaries;
+    return datasetTaskStats;
   }
 
   /** @return id/correlator for this particular commit activity */
