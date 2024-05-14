@@ -91,6 +91,7 @@ public class KafkaUtils {
       }
       KafkaPartition.Builder builder = new KafkaPartition.Builder().withTopicName(topicName)
           .withId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i)));
+<<<<<<< HEAD
       String partitionLeaderIdProperName = KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i);
       String partitionLeaderHostPortProperName = KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i);
       if (state.contains(partitionLeaderIdProperName)) {
@@ -98,6 +99,13 @@ public class KafkaUtils {
       }
       if (state.contains(partitionLeaderHostPortProperName)) {
         builder = builder.withLeaderHostAndPort(state.getProp(partitionLeaderHostPortProperName));
+=======
+      if (state.contains(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i))) {
+        builder = builder.withLeaderId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i)));
+      }
+      if (state.contains(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)))) {
+        builder = builder.withLeaderHostAndPort(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)));
+>>>>>>> 8363f031e ([GOBBLIN-2068]Make offset range in Gobblin Metadata pipeline configurable)
       }
       KafkaPartition partition = builder.build();
       partitions.add(partition);
