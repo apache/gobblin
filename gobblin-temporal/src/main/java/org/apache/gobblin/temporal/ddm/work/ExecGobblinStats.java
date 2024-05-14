@@ -21,12 +21,10 @@ import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 
 /** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-@RequiredArgsConstructor
 public class ExecGobblinStats {
   @NonNull private int numWorkUnits;
   @NonNull private int numCommitted;

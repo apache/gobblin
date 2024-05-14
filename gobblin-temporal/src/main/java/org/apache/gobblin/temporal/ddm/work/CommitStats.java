@@ -32,7 +32,7 @@ import lombok.RequiredArgsConstructor;
  * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
  */
 @Data
-@NoArgsConstructor
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class CommitStats {
   @NonNull private Map<String, DatasetStats> datasetStats;

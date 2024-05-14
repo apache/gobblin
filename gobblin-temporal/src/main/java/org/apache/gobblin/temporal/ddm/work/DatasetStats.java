@@ -26,7 +26,7 @@ import lombok.NonNull;
  */
 @Data
 @NonNull
-@NoArgsConstructor
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class DatasetStats {
   @NonNull private long recordsWritten;
   @NonNull private long bytesWritten;

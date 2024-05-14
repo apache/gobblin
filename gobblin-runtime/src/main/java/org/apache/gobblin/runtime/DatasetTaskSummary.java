@@ -29,12 +29,12 @@ import org.apache.gobblin.metrics.DatasetMetric;
  * that can be reported as a single event in the commit phase.
  */
 @Data
-@NoArgsConstructor
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class DatasetTaskSummary {
   @NonNull private String datasetUrn;
   @NonNull private long recordsWritten;
   @NonNull private long bytesWritten;
-  @NonNull private boolean successfullyCommitted;A
+  @NonNull private boolean successfullyCommitted;
 
   /**
    * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
