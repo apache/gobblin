@@ -340,6 +340,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         // TODO: surround by try/catch to disconnect from Helix and fail the leader transition if DagManager is not
         // transitioned properly
         //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
+        // Also skip activation to avoid starting dag manager threads when dag proc engine is enabled, because
+        // a) dag manager threads are not required, b) they create unnecessary GTEs which may interfere with jobs' execution
         if (!this.configuration.isDagProcessingEngineEnabled() && this.topologyCatalog.getInitComplete().getCount() == 0) {
           this.dagManager.setActive(true);
           this.eventBus.register(this.dagManager);
