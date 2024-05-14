@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.util.HashMap;
 import java.util.Optional;
 
 import com.typesafe.config.ConfigFactory;
