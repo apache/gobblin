@@ -22,10 +22,8 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-
 /**
- * Stats for a dataset that was committed.
- *
+ * Stats for a dataset that was processed.
  */
 @Data
 @NonNull

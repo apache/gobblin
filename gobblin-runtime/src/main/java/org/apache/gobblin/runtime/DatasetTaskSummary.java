@@ -30,7 +30,6 @@ import org.apache.gobblin.metrics.DatasetMetric;
  * that can be reported as a single event in the commit phase.
  */
 @Data
-@NoArgsConstructor
 @RequiredArgsConstructor
 public class DatasetTaskSummary {
   @NonNull private String datasetUrn;

@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 
 
 /**
- * Data structure representing the stats for a committed dataset, and the ottal number of committed workunits in the Gobblin Temporal job
+ * Data structure representing the stats for a committed dataset, and the total number of committed workunits in the Gobblin Temporal job
  * Return type of {@link org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow#process(WUProcessingSpec)}
  * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
  */
