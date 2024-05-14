@@ -115,9 +115,11 @@ public class GobblinMCEPublisher extends DataPublisher {
   }
 
   protected Map<String, String> getPartitionOffsetRange(String offsetKey) {
-    return state.getPropAsList(offsetKey)
-        .stream()
-        .collect(Collectors.toMap(s -> s.split(MAP_DELIMITER_KEY)[0], s -> s.split(MAP_DELIMITER_KEY)[1]));
+    if (state.contains(offsetKey)) {
+      return state.getPropAsList(offsetKey).stream()
+          .collect(Collectors.toMap(s -> s.split(MAP_DELIMITER_KEY)[0], s -> s.split(MAP_DELIMITER_KEY)[1]));
+    }
+    return null;
   }
 
   /**

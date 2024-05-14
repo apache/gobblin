@@ -89,11 +89,15 @@ public class KafkaUtils {
       if (!state.contains(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i))) {
         break;
       }
-      KafkaPartition partition = new KafkaPartition.Builder().withTopicName(topicName)
-          .withId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i)))
-          .withLeaderId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i)))
-          .withLeaderHostAndPort(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)))
-          .build();
+      KafkaPartition.Builder builder = new KafkaPartition.Builder().withTopicName(topicName)
+          .withId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.PARTITION_ID, i)));
+      if (state.contains(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i))) {
+        builder = builder.withLeaderId(state.getPropAsInt(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_ID, i)));
+      }
+      if (state.contains(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)))) {
+        builder = builder.withLeaderHostAndPort(state.getProp(KafkaUtils.getPartitionPropName(KafkaSource.LEADER_HOSTANDPORT, i)));
+      }
+      KafkaPartition partition = builder.build();
       partitions.add(partition);
     }
     if (partitions.isEmpty()) {
