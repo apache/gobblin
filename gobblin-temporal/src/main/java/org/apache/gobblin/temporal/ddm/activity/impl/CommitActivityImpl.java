@@ -59,7 +59,7 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
@@ -77,7 +77,7 @@ public class CommitActivityImpl implements CommitActivity {
   static String UNDEFINED_JOB_NAME = "<job_name_stub>";
 
   @Override
-  public CommitGobblinStats commit(WUProcessingSpec workSpec) {
+  public CommitStats commit(WUProcessingSpec workSpec) {
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     Optional<String> optJobName = Optional.empty();
@@ -91,7 +91,7 @@ public class CommitActivityImpl implements CommitActivity {
       troubleshooter.start();
       List<TaskState> taskStates = loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
       if (taskStates.isEmpty()) {
-        return new CommitGobblinStats(new HashMap<>(), 0);
+        return CommitStats.createEmpty();
       }
 
       JobContext jobContext = new JobContext(jobState.getProperties(), log, instanceBroker, troubleshooter.getIssueRepository());
@@ -103,7 +103,7 @@ public class CommitActivityImpl implements CommitActivity {
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
 
       Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
-      return new CommitGobblinStats(datasetTaskSummaries, datasetTaskSummaries.values().stream().reduce(0, (acc, datasetStats) -> acc + datasetStats.getNumCommittedWorkunits(), Integer::sum));
+      return new CommitStats(datasetTaskSummaries, datasetTaskSummaries.values().stream().mapToInt(DatasetStats::getNumCommittedWorkunits).sum());
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(

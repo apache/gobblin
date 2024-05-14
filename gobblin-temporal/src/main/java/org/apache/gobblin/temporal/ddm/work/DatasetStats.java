@@ -22,13 +22,17 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+
+/**
+ * Stats for a dataset that was committed.
+ *
+ */
 @Data
 @NonNull
 @RequiredArgsConstructor
 @NoArgsConstructor
 public class DatasetStats {
-  @NonNull
-  private long recordsWritten;
+  @NonNull private long recordsWritten;
   @NonNull private long bytesWritten;
   @NonNull private boolean successfullyCommitted;
   @NonNull private int numCommittedWorkunits;

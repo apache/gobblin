@@ -87,7 +87,7 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
           .withGaaSJobProps(this.jobProps)
           .build();
       ExecGobblinStats execGobblinStats = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
-      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats.getNumCommitted());
+      log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

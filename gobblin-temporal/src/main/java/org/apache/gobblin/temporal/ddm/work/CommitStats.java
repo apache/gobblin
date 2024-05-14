@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Data;
@@ -27,7 +28,11 @@ import lombok.RequiredArgsConstructor;
 @Data
 @NoArgsConstructor
 @RequiredArgsConstructor
-public class CommitGobblinStats {
+public class CommitStats {
   @NonNull private Map<String, DatasetStats> datasetStats;
   @NonNull private int numCommittedWorkUnits;
+
+  public static CommitStats createEmpty() {
+    return new CommitStats(new HashMap<>(), 0);
+  }
 }

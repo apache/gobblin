@@ -32,7 +32,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
-import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
@@ -57,8 +57,8 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   private final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ACTIVITY_OPTS);
 
   @Override
-  public CommitGobblinStats commit(WUProcessingSpec workSpec) {
-    CommitGobblinStats commitGobblinStats = activityStub.commit(workSpec);
+  public CommitStats commit(WUProcessingSpec workSpec) {
+    CommitStats commitGobblinStats = activityStub.commit(workSpec);
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
     timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
         .withMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(convertDatasetStatsToTaskSummaries(commitGobblinStats.getDatasetStats())))

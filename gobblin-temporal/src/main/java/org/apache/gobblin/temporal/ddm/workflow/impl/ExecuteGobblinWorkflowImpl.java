@@ -39,7 +39,7 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
@@ -79,7 +79,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     try {
       int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       int numWUsCommitted = 0;
-      CommitGobblinStats commitStats = new CommitGobblinStats();
+      CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
         WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);

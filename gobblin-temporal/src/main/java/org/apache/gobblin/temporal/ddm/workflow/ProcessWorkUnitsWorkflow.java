@@ -21,7 +21,7 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.CommitGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 
 
@@ -30,5 +30,5 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 public interface ProcessWorkUnitsWorkflow {
   /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
   @WorkflowMethod
-  CommitGobblinStats process(WUProcessingSpec wuSpec);
+  CommitStats process(WUProcessingSpec wuSpec);
 }
