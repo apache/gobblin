@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.metrics.DatasetMetric;
 
@@ -29,6 +30,7 @@ import org.apache.gobblin.metrics.DatasetMetric;
  * that can be reported as a single event in the commit phase.
  */
 @Data
+@RequiredArgsConstructor
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class DatasetTaskSummary {
   @NonNull private String datasetUrn;
